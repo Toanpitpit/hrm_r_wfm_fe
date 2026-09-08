@@ -1,0 +1,47 @@
+/* ============================================================
+   Global Styles — Import tất cả CSS foundation
+   File này được import tại main.jsx
+   ============================================================ */
+
+@import './variables.css';
+@import './reset.css';
+
+/* ==================== BASE STYLES ==================== */
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+}
+
+/* ==================== HEADINGS ==================== */
+h1 { font-size: var(--font-size-3xl); font-weight: var(--font-weight-bold); }
+h2 { font-size: var(--font-size-2xl); font-weight: var(--font-weight-semibold); }
+h3 { font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); }
+h4 { font-size: var(--font-size-lg); font-weight: var(--font-weight-medium); }
+
+/* ==================== LINKS ==================== */
+a {
+  color: var(--color-primary);
+  transition: color var(--transition-fast);
+}
+a:hover {
+  color: var(--color-primary-hover);
+}
+
+/* ==================== SCROLLBAR (Optional) ==================== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-text-muted);
+  border-radius: var(--border-radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
