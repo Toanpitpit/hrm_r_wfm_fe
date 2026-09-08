@@ -11,7 +11,8 @@ Copy toàn bộ nội dung bên dưới, thay thế các `[PLACEHOLDER]` bằng 
 Tôi cần tạo một custom hook cho dự án React.
 
 ### Thông tin hook:
-- **Tên hook**: use[TÊN] (VD: useDebounce, useAuth, useFetch, useToggle)
+- **Tên hook**: use[TÊN] (VD: useEmployeeList, useAttendance, useDebounce)
+- **Thuộc module nào?**: [TÊN_MODULE] (VD: employee, attendance. Nếu dùng chung → "shared")
 - **Mô tả chức năng**: [MÔ_TẢ] (VD: Hook debounce giá trị input sau N ms)
 - **Params đầu vào**: [PARAMS] (VD: value, delay = 300)
 - **Giá trị trả về**: [RETURN_VALUES] (VD: debouncedValue)
@@ -19,7 +20,8 @@ Tôi cần tạo một custom hook cho dự án React.
 - **Có dùng Context không?**: [CÓ/KHÔNG]
 
 ### Quy tắc bắt buộc:
-1. Đặt file tại: `src/hooks/use[Tên].js`
+1. Nếu thuộc module → Đặt tại: `src/modules/[MODULE]/hooks/use[Tên].js`
+   Nếu dùng chung → Đặt tại: `src/shared/hooks/use[Tên].js`
 2. Tên hook bắt đầu bằng `use` (React convention).
 3. Sử dụng `useMemo` cho computed values tốn tài nguyên.
 4. Sử dụng `useCallback` cho callback functions.

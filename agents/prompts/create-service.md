@@ -19,7 +19,7 @@ Tôi cần tạo một service file để gọi API cho dự án React.
   3. ...
 
 ### Quy tắc bắt buộc:
-1. Đặt file tại: `src/services/[tên_module].service.js`
+1. Đặt file tại: `src/modules/[TÊN_MODULE]/services/[tên_module].service.js`
 2. Import Axios instance từ `@/config/axios.config`.
 3. Mỗi hàm export riêng lẻ (named export), đặt tên theo pattern: `[hành_động][Đối_tượng]`
    - VD: `getUsers`, `createUser`, `updateUserById`, `deleteUser`
@@ -30,6 +30,6 @@ Tôi cần tạo một service file để gọi API cho dự án React.
 
 ### Output mong muốn:
 - File `.service.js` hoàn chỉnh.
-- Đăng ký endpoint vào `src/constants/api.constants.js` nếu chưa có.
+- Đăng ký endpoint vào `src/shared/constants/api.constants.js` nếu chưa có.
 - Ví dụ cách gọi service từ hook hoặc component.
 ```

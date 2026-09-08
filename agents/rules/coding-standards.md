@@ -6,22 +6,41 @@ File này định nghĩa các **quy tắc bắt buộc** mà AI phải tuân th�
 
 ---
 
-## 1. Cấu trúc thư mục
+## 1. Cấu trúc thư mục (Modular Architecture)
 
-AI phải đặt file đúng vị trí theo cấu trúc sau:
+Dự án sử dụng **Modular Architecture** — code được tổ chức theo **phân hệ nghiệp vụ**.
+AI phải đặt file đúng vị trí theo quy tắc sau:
+
+### Code thuộc nghiệp vụ cụ thể → `modules/[tên_module]/`
 
 | Loại file | Đặt tại | Ví dụ |
 |---|---|---|
-| UI Component dùng chung | `src/components/` | `Button/index.jsx` |
-| Trang (Page) | `src/pages/` | `LoginPage/index.jsx` |
-| Gọi API | `src/services/` | `auth.service.js` |
-| Custom Hook | `src/hooks/` | `useDebounce.js` |
-| React Context | `src/context/` | `AuthContext.jsx` |
-| Hằng số | `src/constants/` | `api.constants.js` |
+| UI Component của module | `modules/[module]/components/` | `modules/employee/components/EmployeeCard/index.jsx` |
+| Trang của module | `modules/[module]/pages/` | `modules/employee/pages/EmployeeListPage/index.jsx` |
+| Gọi API của module | `modules/[module]/services/` | `modules/employee/services/employee.service.js` |
+| Custom Hook của module | `modules/[module]/hooks/` | `modules/employee/hooks/useEmployeeList.js` |
+| Context của module | `modules/[module]/context/` | `modules/auth/context/AuthContext.jsx` |
+
+### Code dùng chung cho nhiều module → `shared/`
+
+| Loại file | Đặt tại | Ví dụ |
+|---|---|---|
+| UI Component dùng chung | `shared/components/` | `shared/components/Button/index.jsx` |
+| Custom Hook dùng chung | `shared/hooks/` | `shared/hooks/useDebounce.js` |
+| Hằng số dùng chung | `shared/constants/` | `shared/constants/api.constants.js` |
+| Context dùng chung | `shared/context/` | `shared/context/ThemeContext.jsx` |
+| Utility functions | `shared/utils/` | `shared/utils/format.utils.js` |
+
+### Code hạ tầng (không thuộc module nào)
+
+| Loại file | Đặt tại | Ví dụ |
+|---|---|---|
 | Cấu hình | `src/config/` | `axios.config.js` |
 | CSS Global | `src/styles/` | `variables.css` |
 | Định tuyến | `src/routers/` | `AppRouter.jsx` |
 | Tài nguyên tĩnh | `src/assets/` | `logo.svg` |
+
+> ⚠️ **KHÔNG import chéo giữa các module.** Nếu 2 module cần dùng chung → chuyển vào `shared/`.
 
 ---
 
@@ -94,27 +113,50 @@ Thứ tự import bắt buộc (từ trên xuống):
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-// 2. Context & Hooks
-import { useAuth } from '@/context/AuthContext';
-import useDebounce from '@/hooks/useDebounce';
+// 2. Config
+import axiosInstance from '@/config/axios.config';
 
-// 3. Services & Constants
-import { getUsers } from '@/services/user.service';
-import { API_ENDPOINTS } from '@/constants/api.constants';
+// 3. Shared — Context, Hooks, Constants, Utils
+import { useAuth } from '@/modules/auth/context/AuthContext';
+import useDebounce from '@/shared/hooks/useDebounce';
+import { API_ENDPOINTS } from '@/shared/constants/api.constants';
+import { formatDate } from '@/shared/utils/format.utils';
 
-// 4. Components
-import Button from '@/components/Button';
+// 4. Module-level — Services, Hooks (relative path)
+import { getEmployees } from '../services/employee.service';
+import useEmployeeList from '../hooks/useEmployeeList';
 
-// 5. Styles & Assets
-import styles from './UserPage.module.css';
+// 5. Shared Components
+import Button from '@/shared/components/Button';
+
+// 6. Module-level Components (relative path)
+import EmployeeCard from '../components/EmployeeCard';
+
+// 7. Styles & Assets
+import styles from './EmployeeListPage.module.css';
 import logo from '@/assets/logo.svg';
+```
+
+### Import Rules
+```jsx
+// ✅ Import từ shared (absolute path)
+import Button from '@/shared/components/Button';
+
+// ✅ Import trong cùng module (relative path)
+import EmployeeCard from '../components/EmployeeCard';
+
+// ✅ Import config (absolute path)
+import axiosInstance from '@/config/axios.config';
+
+// ❌ KHÔNG import từ module khác
+import AttendanceCard from '@/modules/attendance/components/AttendanceCard';
 ```
 
 ---
 
 ## 5. Quy tắc Component
 
-### Dumb Component (trong `components/`)
+### Dumb Component (trong `shared/components/` hoặc `modules/[tên]/components/`)
 ```jsx
 // ✅ Chỉ nhận props, không gọi API, không có business logic
 const Button = ({ label, onClick, variant = 'primary' }) => {
@@ -127,17 +169,21 @@ const Button = ({ label, onClick, variant = 'primary' }) => {
 export default Button;
 ```
 
-### Container / Page (trong `pages/`)
+### Container / Page (trong `modules/[tên]/pages/`)
 ```jsx
 // ✅ Lấy dữ liệu qua hooks, truyền xuống components
-const UserPage = () => {
-  const { users, isLoading } = useUsers();
+import useEmployeeList from '../hooks/useEmployeeList';
+import EmployeeCard from '../components/EmployeeCard';
+import Loading from '@/shared/components/Loading';
+
+const EmployeeListPage = () => {
+  const { employees, isLoading } = useEmployeeList();
   
   if (isLoading) return <Loading />;
   
   return (
     <div className={styles.container}>
-      {users.map(user => <UserCard key={user.id} user={user} />)}
+      {employees.map(emp => <EmployeeCard key={emp.id} employee={emp} />)}
     </div>
   );
 };
