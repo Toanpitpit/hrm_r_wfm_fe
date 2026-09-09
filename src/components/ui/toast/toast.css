@@ -1,0 +1,244 @@
+/* Toast — đồng bộ Art Deco Cinema theme (cream + gold accent) */
+
+/* ─── Container ──────────────────────────────────────────────────────────────── */
+
+.toast-container {
+  position: fixed;
+  top: 92px;
+  right: 28px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+  width: 380px;
+  max-width: calc(100vw - 48px);
+}
+
+/* ─── Toast base ─────────────────────────────────────────────────────────────── */
+
+.toast {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  background: #ffffff;
+  border: 1px solid rgba(28, 22, 16, 0.10);
+  border-left: 4px solid #c8933b;
+  overflow: hidden;
+  pointer-events: all;
+  border-radius: 10px;
+  box-shadow:
+    0 20px 45px rgba(28, 22, 16, 0.14),
+    0 6px 16px rgba(28, 22, 16, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  animation: toast-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Vệt gradient trang trí bên trái (Art Deco touch) */
+.toast::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60px;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.toast--success::before { background: linear-gradient(120deg, rgba(34, 139, 84, 0.14), transparent 80%); }
+.toast--error::before   { background: linear-gradient(120deg, rgba(139, 26, 38, 0.14), transparent 80%); }
+.toast--warning::before { background: linear-gradient(120deg, rgba(200, 147, 59, 0.18), transparent 80%); }
+.toast--info::before    { background: linear-gradient(120deg, rgba(59, 116, 165, 0.14), transparent 80%); }
+
+.toast--exit {
+  animation: toast-out 0.32s ease-in forwards;
+}
+
+/* ─── Màu border theo loại (dùng palette Art Deco) ───────────────────────────── */
+
+.toast--success { border-left-color: #228b54; }
+.toast--error   { border-left-color: #8b1a26; }
+.toast--warning { border-left-color: #c8933b; }
+.toast--info    { border-left-color: #3b74a5; }
+
+/* ─── Icon badge (cột trái) ──────────────────────────────────────────────────── */
+
+.toast-icon {
+  position: relative;
+  flex-shrink: 0;
+  width: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast-icon::after {
+  content: '';
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  z-index: 0;
+}
+
+.toast-icon svg {
+  position: relative;
+  z-index: 1;
+}
+
+.toast--success .toast-icon { color: #228b54; }
+.toast--success .toast-icon::after { background: rgba(34, 139, 84, 0.12); }
+
+.toast--error   .toast-icon { color: #8b1a26; }
+.toast--error   .toast-icon::after { background: rgba(139, 26, 38, 0.12); }
+
+.toast--warning .toast-icon { color: #b3801f; }
+.toast--warning .toast-icon::after { background: rgba(200, 147, 59, 0.18); }
+
+.toast--info    .toast-icon { color: #3b74a5; }
+.toast--info    .toast-icon::after { background: rgba(59, 116, 165, 0.12); }
+
+/* ─── Nội dung ───────────────────────────────────────────────────────────────── */
+
+.toast-body {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 8px 15px 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.toast-label {
+  font-family: 'Anton', 'Bebas Neue', Impact, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  line-height: 1;
+}
+
+.toast--success .toast-label { color: #228b54; }
+.toast--error   .toast-label { color: #8b1a26; }
+.toast--warning .toast-label { color: #b3801f; }
+.toast--info    .toast-label { color: #3b74a5; }
+
+.toast-message {
+  color: #1c1610;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+/* ─── Nút đóng ───────────────────────────────────────────────────────────────── */
+
+.toast-close {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: rgba(28, 22, 16, 0.28);
+  cursor: pointer;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  transition: color 0.15s, transform 0.15s;
+  position: relative;
+  z-index: 1;
+}
+
+.toast-close:hover {
+  color: #1c1610;
+  transform: scale(1.15);
+}
+
+/* ─── Thanh đếm ngược ────────────────────────────────────────────────────────── */
+
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2.5px;
+  width: 100%;
+  animation: toast-progress linear forwards;
+  border-radius: 0 2px 2px 0;
+  /* animation-duration được set inline */
+}
+
+.toast--success .toast-progress {
+  background: linear-gradient(90deg, #228b54, rgba(34, 139, 84, 0.35));
+}
+.toast--error   .toast-progress {
+  background: linear-gradient(90deg, #8b1a26, rgba(139, 26, 38, 0.35));
+}
+.toast--warning .toast-progress {
+  background: linear-gradient(90deg, #c8933b, rgba(200, 147, 59, 0.35));
+}
+.toast--info    .toast-progress {
+  background: linear-gradient(90deg, #3b74a5, rgba(59, 116, 165, 0.35));
+}
+
+/* ─── Animations ─────────────────────────────────────────────────────────────── */
+
+@keyframes toast-in {
+  0% {
+    transform: translateX(24px) scale(0.96);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-out {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+    max-height: 140px;
+    margin-top: 0;
+  }
+  55% {
+    transform: translateX(calc(100% + 32px));
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(calc(100% + 32px));
+    opacity: 0;
+    max-height: 0;
+    margin-top: -12px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+@keyframes toast-progress {
+  from { width: 100%; }
+  to   { width: 0%;   }
+}
+
+/* ─── Mobile ─────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 540px) {
+  .toast-container {
+    top: 76px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+  }
+
+  .toast-icon {
+    width: 48px;
+  }
+
+  .toast-label {
+    font-size: 11px;
+    letter-spacing: 1.6px;
+  }
+}

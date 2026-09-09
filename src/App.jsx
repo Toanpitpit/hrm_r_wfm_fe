@@ -3,14 +3,17 @@
  *
  * Đây là component gốc của ứng dụng.
  * Nơi bọc các Providers (Context) và Router.
+ * 
  */
+
+import AppRouter from './routers/AppRouter';
+import { ToastProvider } from './components/ui/toast/ToastProvider';
 
 const App = () => {
   return (
-    <div>
-      <h1>SWP391 Frontend</h1>
-      <p>Dự án đã được khởi tạo thành công với cấu trúc Clean Architecture.</p>
-    </div>
+    <ToastProvider>
+      <AppRouter />
+    </ToastProvider>
   );
 };
 
