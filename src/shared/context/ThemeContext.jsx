@@ -54,6 +54,8 @@ export function buildTones(accent) {
   return {
     ok: 'oklch(0.74 0.13 152)',
     okDim: 'oklch(0.74 0.13 152 / 0.16)',
+    good: 'oklch(0.74 0.13 152)',
+    goodDim: 'oklch(0.74 0.13 152 / 0.16)',
     bad: 'oklch(0.66 0.17 27)',
     badDim: 'oklch(0.66 0.17 27 / 0.16)',
     warn: accent,

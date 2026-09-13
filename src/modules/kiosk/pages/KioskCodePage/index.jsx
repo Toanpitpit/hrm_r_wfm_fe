@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import DashboardShell from '@/shared/components/layout/DashboardShell';
 import DashboardSidebar from '@/shared/components/layout/DashboardSidebar';
@@ -26,6 +27,7 @@ import styles from './KioskCodePage.module.css';
 
 export default function KioskCodePage() {
   const { c } = useAdminTheme();
+  const navigate = useNavigate();
   const [copiedToken, setCopiedToken] = useState(null);
 
   // Hook quản lý dữ liệu Kiosk
@@ -64,6 +66,16 @@ export default function KioskCodePage() {
     }
   };
 
+  const handleSidebarNavigate = (id) => {
+    if (id === 'kiosk-codes' || id === 'kiosk-list') {
+      navigate('/store-manager/kiosk-codes');
+    } else if (id === 'shifts' || id === 'weekly-schedules' || id === 'schedules') {
+      navigate('/store-manager/schedules');
+    } else {
+      navigate(`/${id}`);
+    }
+  };
+
   // Các items điều hướng cho Store Manager Sidebar
   const navItems = [
     { id: 'dashboard', label: 'Tổng quan cửa hàng', icon: 'home' },
@@ -72,7 +84,7 @@ export default function KioskCodePage() {
     { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen' },
     { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse' },
     { type: 'group', label: 'Nhân sự & Phân ca' },
-    { id: 'shifts', label: 'Quản lý Lịch Ca', icon: 'calendar' },
+    { id: 'shifts', label: 'Quản lý Lịch Ca (UC 2.1 & 2.3)', icon: 'calendar' },
     { id: 'employees', label: 'Nhân sự Cửa hàng', icon: 'users' },
   ];
 
@@ -194,6 +206,7 @@ export default function KioskCodePage() {
       sidebar={
         <DashboardSidebar
           page="kiosk-codes"
+          onNavigate={handleSidebarNavigate}
           navItems={navItems}
           consoleLabel="Store Manager Console"
           defaultDisplayName={storedUser?.fullName || 'Cửa Hàng Trưởng'}
