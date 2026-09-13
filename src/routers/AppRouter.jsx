@@ -5,9 +5,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 const LoginPage = lazy(() => import('@/modules/auth/pages/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('@/modules/auth/pages/ForgotPasswordPage'));
 const DashboardPage = lazy(() => import('@/modules/dashboard/pages/DashboardPage'));
+const EmployeeDashboardPage = lazy(() => import('@/modules/dashboard/pages/EmployeeDashboardPage'));
 const KioskCodePage = lazy(() => import('@/modules/kiosk/pages/KioskCodePage'));
 const BranchManagementPage = lazy(() => import('@/modules/branch/pages/BranchManagementPage'));
 const ShiftMasterPage = lazy(() => import('@/modules/schedule/pages/ShiftMasterPage'));
+const WeeklySchedulePage = lazy(() => import('@/modules/schedule/pages/WeeklySchedulePage'));
 
 // Placeholder cho Kiosk login
 const KioskLoginPage = () => (
@@ -25,7 +27,7 @@ const AppRouter = () => {
     <BrowserRouter>
       <Suspense fallback={<Loading />}>
         <Routes>
-          {/* Default redirect to Login */}
+          {/* Default redirect */}
           <Route path="/" element={<Navigate to="/login" replace />} />
 
           {/* ═══════════════ AUTHENTICATION ROUTES ═══════════════ */}
@@ -33,13 +35,19 @@ const AppRouter = () => {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/kiosk-login" element={<KioskLoginPage />} />
 
-          {/* ═══════════════ STORE MANAGER ROUTES ═══════════════ */}
+          {/* ═══════════════ STORE MANAGER & SCHEDULES (UC 2.1 & 2.3) ═══════════════ */}
+          <Route path="/store-manager/schedules" element={<WeeklySchedulePage />} />
+          <Route path="/schedule" element={<Navigate to="/store-manager/schedules" replace />} />
+          <Route path="/shifts" element={<Navigate to="/store-manager/schedules" replace />} />
+          <Route path="/weekly-schedules" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/store-manager/kiosk-codes" element={<KioskCodePage />} />
           <Route path="/kiosk-codes" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
           <Route path="/kiosk-management" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
 
-          {/* ═══════════════ ADMIN & GENERAL ROUTES ═══════════════ */}
-          <Route path="/dashboard" element={<DashboardPage />} />
+          {/* ═══════════════ EMPLOYEE & DASHBOARDS ═══════════════ */}
+          <Route path="/dashboard" element={<EmployeeDashboardPage />} />
+          <Route path="/employee/schedule" element={<EmployeeDashboardPage />} />
+          <Route path="/admin/dashboard" element={<DashboardPage />} />
           <Route path="/branches" element={<BranchManagementPage />} />
           <Route path="/shifts/templates" element={<ShiftMasterPage />} />
 

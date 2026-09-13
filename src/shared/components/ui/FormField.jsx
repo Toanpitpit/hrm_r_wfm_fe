@@ -1,4 +1,4 @@
-﻿// FormField — bộ phần tử cho form trong Modal:
+// FormField — bộ phần tử cho form trong Modal:
 //  • Field     — nhãn + ô nhập (gói label, hỗ trợ required, error, hint)
 //  • TextInput — ô nhập text/number/email…
 //  • Textarea  — vùng nhập nhiều dòng
@@ -96,3 +96,5 @@ export function Textarea({ value, onChange, placeholder, rows = 4, disabled = fa
     />
   );
 }
+
+export default Field;
