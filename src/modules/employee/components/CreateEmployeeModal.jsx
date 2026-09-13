@@ -81,7 +81,7 @@ export default function CreateEmployeeModal({
       isOpen={isOpen}
       onClose={onClose}
       title="THÊM MỚI HỒ SƠ & HỢP ĐỒNG NHÂN SỰ"
-      sub="Khai báo nhân sự mới, phân loại Full-time / Part-time, gán chức danh & chi nhánh gốc (UC 1.5)"
+      sub="Khai báo nhân sự mới, phân loại Full-time / Part-time, gán chức danh & chi nhánh gốc"
       width={680}
       footer={
         <>

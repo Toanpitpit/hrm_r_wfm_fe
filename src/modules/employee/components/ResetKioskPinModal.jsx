@@ -178,7 +178,7 @@ export default function ResetKioskPinModal({
             lineHeight: 1.5,
           }}
         >
-          📌 <strong>Mục đích UC 1.6:</strong> Nhân viên sẽ dùng mã PIN này kết hợp với việc chọn tên trên màn hình trạm Kiosk điểm danh (UC 3.1) để check-in / check-out vào ca trực.
+          📌 <strong>Lưu ý:</strong> Nhân viên sẽ dùng mã PIN này kết hợp với việc chọn tên trên màn hình trạm Kiosk điểm danh để check-in / check-out vào ca trực.
         </div>
       </form>
     </Modal>

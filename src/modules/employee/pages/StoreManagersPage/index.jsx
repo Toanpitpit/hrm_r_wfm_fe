@@ -168,11 +168,11 @@ export default function StoreManagersPage() {
   // Sidebar navigation items
   const navItems = [
     { id: 'dashboard', label: 'Báo cáo Vĩ mô', icon: 'home' },
-    { type: 'group', label: 'Quản trị Nền tảng (Module 1)' },
+    { type: 'group', label: 'Quản trị Nền tảng' },
     { id: 'branches', label: 'Chi nhánh & Kiosk', icon: 'building' },
     { id: 'shift-templates', label: 'Bộ Khung Ca Mẫu', icon: 'clock' },
-    { id: 'store-managers', label: 'Tài Khoản Quản Lý (UC 1.4)', icon: 'shield' },
-    { id: 'employees', label: 'Nhân Sự Toàn Chuỗi (UC 1.5, 1.6)', icon: 'users' },
+    { id: 'store-managers', label: 'Tài Khoản Quản Lý', icon: 'shield' },
+    { id: 'employees', label: 'Nhân Sự Toàn Chuỗi', icon: 'users' },
     { type: 'group', label: 'Vận hành & Giám sát' },
     { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock' },
     { id: 'attendance', label: 'Giám Sát Chấm Công', icon: 'pulse' },
@@ -296,7 +296,7 @@ export default function StoreManagersPage() {
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: 'Module 1: Quản Trị Nền Tảng', href: '#' },
+            { label: 'Quản Trị Nền Tảng', href: '#' },
             { label: 'Tài Khoản & Phân Quyền Vận Hành' },
           ]}
         />
@@ -304,7 +304,7 @@ export default function StoreManagersPage() {
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <PageHeader
-          index="UC 1.4 · Quản trị Master Data"
+          index="Quản trị Master Data"
           title="QUẢN LÝ TÀI KHOẢN CỬA HÀNG TRƯỞNG"
           desc="Cấp mới, phân quyền chi nhánh và khóa/mở khóa tài khoản quản trị cho các Cửa hàng trưởng (Store Manager) trong toàn chuỗi bán lẻ."
           actions={

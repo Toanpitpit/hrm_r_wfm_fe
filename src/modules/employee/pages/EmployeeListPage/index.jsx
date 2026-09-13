@@ -191,15 +191,15 @@ export default function EmployeeListPage() {
         { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse' },
         { type: 'group', label: 'Nhân sự & Phân ca' },
         { id: 'shifts', label: 'Quản lý Lịch Ca', icon: 'calendar' },
-        { id: 'employees', label: 'Hồ Sơ Nhân Sự (UC 1.5, 1.6)', icon: 'users' },
+        { id: 'employees', label: 'Hồ Sơ Nhân Sự', icon: 'users' },
       ]
     : [
         { id: 'dashboard', label: 'Báo cáo Vĩ mô', icon: 'home' },
-        { type: 'group', label: 'Quản trị Nền tảng (Module 1)' },
+        { type: 'group', label: 'Quản trị Nền tảng' },
         { id: 'branches', label: 'Chi nhánh & Kiosk', icon: 'building' },
         { id: 'shift-templates', label: 'Bộ Khung Ca Mẫu', icon: 'clock' },
-        { id: 'store-managers', label: 'Tài Khoản Quản Lý (UC 1.4)', icon: 'shield' },
-        { id: 'employees', label: 'Nhân Sự Toàn Chuỗi (UC 1.5, 1.6)', icon: 'users' },
+        { id: 'store-managers', label: 'Tài Khoản Quản Lý', icon: 'shield' },
+        { id: 'employees', label: 'Nhân Sự Toàn Chuỗi', icon: 'users' },
         { type: 'group', label: 'Vận hành & Giám sát' },
         { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock' },
         { id: 'attendance', label: 'Giám Sát Chấm Công', icon: 'pulse' },
@@ -336,13 +336,13 @@ export default function EmployeeListPage() {
             variant="secondary"
             icon="lock"
             onClick={() => setSelectedForPin(row)}
-            title="Cấp lại mã PIN điểm danh Kiosk (UC 1.6)"
+            title="Cấp lại mã PIN điểm danh Kiosk"
           >
             {row.hasKioskPin ? 'Đổi PIN' : 'Cấp PIN'}
           </Button>
           <IconButton
             name="pencil"
-            title="Chỉnh sửa hồ sơ & hợp đồng (UC 1.5)"
+            title="Chỉnh sửa hồ sơ & hợp đồng"
             onClick={() => setSelectedForEdit(row)}
           />
         </div>
@@ -367,7 +367,7 @@ export default function EmployeeListPage() {
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: 'Module 1: Quản Trị Nền Tảng', href: '#' },
+            { label: 'Quản Trị Nền Tảng', href: '#' },
             { label: 'Hồ Sơ & Hợp Đồng Nhân Sự' },
           ]}
         />
@@ -375,7 +375,7 @@ export default function EmployeeListPage() {
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <PageHeader
-          index="UC 1.5 & UC 1.6 · Quản lý Nhân sự & Kiosk"
+          index="Quản lý Nhân sự & Kiosk"
           title="QUẢN LÝ HỒ SƠ & MÃ PIN KIOSK NHÂN SỰ"
           desc="Khai báo nhân sự toàn chuỗi, phân loại Full-time / Part-time, gán chức danh (Thu ngân, Bán hàng, Bảo vệ, Trưởng ca), Chi nhánh gốc và Cấp mã PIN định danh chấm công Kiosk."
           actions={

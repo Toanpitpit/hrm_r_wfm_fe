@@ -56,7 +56,7 @@ export default function CreateStoreManagerModal({ isOpen, onClose, onSubmit, sto
       isOpen={isOpen}
       onClose={onClose}
       title="CẤP TÀI KHOẢN CỬA HÀNG TRƯỞNG"
-      sub="Cấp quyền quản trị chi nhánh và tài khoản đăng nhập cho Store Manager (UC 1.4)"
+      sub="Cấp quyền quản trị chi nhánh và tài khoản đăng nhập cho Store Manager"
       width={600}
       footer={
         <>
