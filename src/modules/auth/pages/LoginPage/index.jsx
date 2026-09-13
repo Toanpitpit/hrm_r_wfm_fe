@@ -80,10 +80,12 @@ export default function LoginPage() {
     if (result.success) {
       toast.success('Đăng nhập thành công!');
       const role = (result.user?.role || result.user?.roleName || '').toUpperCase();
-      if (role === 'STORE_MANAGER' || role.includes('MANAGER')) {
+      if (role === 'OPERATIONS_ADMIN' || role === 'BUSINESS_OWNER') {
+        navigate('/admin/store-managers');
+      } else if (role === 'STORE_MANAGER' || role.includes('MANAGER')) {
         navigate('/store-manager/kiosk-codes');
       } else {
-        navigate('/dashboard');
+        navigate('/admin/employees');
       }
 
     } else {
