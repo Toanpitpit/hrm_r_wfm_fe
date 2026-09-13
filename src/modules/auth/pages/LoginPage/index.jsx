@@ -107,9 +107,6 @@ export default function LoginPage() {
             <h1 className="text-4xl font-black uppercase leading-tight text-[#e5e2e1] tracking-wide">
               Hệ thống<br/><span className="text-[#d4af37]">R-WFM</span>
             </h1>
-            <p className="mt-3 text-sm leading-6 text-[#d0c5af]">
-              Chào mừng bạn quay lại hệ thống quản trị vận hành chuỗi siêu thị.
-            </p>
           </div>
 
           <form className="space-y-5" noValidate onSubmit={handleSubmit}>
