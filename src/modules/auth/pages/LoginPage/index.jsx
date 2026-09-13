@@ -79,10 +79,17 @@ export default function LoginPage() {
     const result = await handleLogin(formData.username.trim(), formData.password);
     if (result.success) {
       toast.success('Đăng nhập thành công!');
-      navigate('/dashboard');
+      const role = (result.user?.role || result.user?.roleName || '').toUpperCase();
+      if (role === 'STORE_MANAGER' || role.includes('MANAGER')) {
+        navigate('/store-manager/kiosk-codes');
+      } else {
+        navigate('/dashboard');
+      }
+
     } else {
       toast.error(result.message || 'Đăng nhập thất bại, vui lòng kiểm tra lại.');
     }
+
   };
 
   return (
