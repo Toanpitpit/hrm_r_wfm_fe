@@ -1,6 +1,6 @@
 // Modal — hộp thoại trung tâm, có lớp phủ mờ, đóng bằng Esc hoặc click nền.
 // Dùng:
-//   <Modal open={open} onClose={() => setOpen(false)} title="..." sub="..."
+//   <Modal open={open} isOpen={isOpen} onClose={() => setOpen(false)} title="..." sub="..."
 //          footer={<><Button .../><Button .../></>}>
 //     nội dung form
 //   </Modal>
@@ -9,11 +9,12 @@ import { useEffect } from 'react';
 import { useAdminTheme } from '../../context/ThemeContext';
 import Icon from './Icon';
 
-export default function Modal({ open, onClose, title, sub, children, width = 540, footer, closeOnOutsideClick = true }) {
+export default function Modal({ open, isOpen, onClose, title, sub, children, width = 540, footer, closeOnOutsideClick = true }) {
   const { c, fonts } = useAdminTheme();
+  const isModalOpen = open !== undefined ? open : (isOpen !== undefined ? isOpen : false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!isModalOpen) return;
     const onKey = (e) => e.key === 'Escape' && onClose();
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -22,9 +23,9 @@ export default function Modal({ open, onClose, title, sub, children, width = 540
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKey);
     };
-  }, [open, onClose]);
+  }, [isModalOpen, onClose]);
 
-  if (!open) return null;
+  if (!isModalOpen) return null;
 
   return (
     <div

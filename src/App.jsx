@@ -8,13 +8,17 @@
 
 import AppRouter from './routers/AppRouter';
 import { ToastProvider } from './components/ui/toast/ToastProvider';
+import { AdminThemeProvider } from './shared/context/ThemeContext';
 
 const App = () => {
   return (
-    <ToastProvider>
-      <AppRouter />
-    </ToastProvider>
+    <AdminThemeProvider defaultTheme="dark" defaultAccent="#f5b14a">
+      <ToastProvider>
+        <AppRouter />
+      </ToastProvider>
+    </AdminThemeProvider>
   );
 };
 
 export default App;
+

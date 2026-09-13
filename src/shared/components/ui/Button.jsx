@@ -1,13 +1,15 @@
-// Button — nút bấm dùng chung. kind: primary | ghost | danger | soft.
+// Button — nút bấm dùng chung. kind | variant: primary | ghost | danger | soft | secondary | outline.
 // Dùng: <Button kind="primary" icon="plus" onClick={...}>Thêm</Button>
 
 import { useState } from 'react';
 import { useAdminTheme } from '../../context/ThemeContext';
 import Icon from './Icon';
 
-export default function Button({ kind = 'ghost', icon, children, onClick, size = 'md', style, disabled = false }) {
+export default function Button({ kind, variant, icon, children, onClick, size = 'md', style, disabled = false, loading = false }) {
   const { c, fonts } = useAdminTheme();
   const [hover, setHover] = useState(false);
+
+  const buttonKind = kind || (variant === 'secondary' || variant === 'outline' ? 'soft' : variant === 'danger' ? 'danger' : variant === 'primary' ? 'primary' : 'ghost');
 
   const sizes = { sm: '7px 12px', md: '10px 16px', lg: '13px 22px' };
   const kinds = {
@@ -17,10 +19,13 @@ export default function Button({ kind = 'ghost', icon, children, onClick, size =
     soft: { background: c.bgElev, color: c.fgMuted, border: `1px solid ${c.borderSub}` },
   };
 
+  const currentKindStyle = kinds[buttonKind] || kinds.ghost;
+  const isBtnDisabled = disabled || loading;
+
   return (
     <button
       type="button"
-      disabled={disabled}
+      disabled={isBtnDisabled}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -28,23 +33,27 @@ export default function Button({ kind = 'ghost', icon, children, onClick, size =
         display: 'inline-flex',
         alignItems: 'center',
         gap: 8,
-        padding: sizes[size],
-        borderRadius: 2,
+        padding: sizes[size] || sizes.md,
+        borderRadius: 4,
         whiteSpace: 'nowrap',
         fontSize: 12.5,
-        fontWeight: kind === 'primary' ? 800 : 600,
-        letterSpacing: kind === 'primary' ? 0.5 : 0.2,
-        textTransform: kind === 'primary' ? 'uppercase' : 'none',
+        fontWeight: buttonKind === 'primary' ? 800 : 600,
+        letterSpacing: buttonKind === 'primary' ? 0.5 : 0.2,
+        textTransform: buttonKind === 'primary' ? 'uppercase' : 'none',
         fontFamily: fonts.body,
         transition: 'all .15s',
-        filter: hover && !disabled ? 'brightness(1.12)' : 'none',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
-        ...kinds[kind],
+        filter: hover && !isBtnDisabled ? 'brightness(1.12)' : 'none',
+        cursor: isBtnDisabled ? 'not-allowed' : 'pointer',
+        opacity: isBtnDisabled ? 0.6 : 1,
+        ...currentKindStyle,
         ...style,
       }}
     >
-      {icon && <Icon name={icon} size={size === 'sm' ? 14 : 16} />}
+      {loading ? (
+        <Icon name="refresh" size={size === 'sm' ? 14 : 16} />
+      ) : (
+        icon && <Icon name={icon} size={size === 'sm' ? 14 : 16} />
+      )}
       {children}
     </button>
   );

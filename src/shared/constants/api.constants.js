@@ -14,4 +14,12 @@ export const API_ENDPOINTS = Object.freeze({
     PROFILE: '/auth/profile',
     REFRESH_TOKEN: '/auth/refresh',
   },
+  KIOSK: {
+    CREATE_CODE: '/kiosk/create-code',
+    ACTIVATE: '/kiosk/activate',
+    VERIFY_TOKEN: '/kiosk/verify-token',
+    GET_BY_STORE: (storeId) => `/kiosk/store/${storeId}`,
+    DEACTIVATE: (kioskId) => `/kiosk/${kioskId}`,
+  },
 });
+
