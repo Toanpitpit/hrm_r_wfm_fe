@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Lazy load pages
 const LoginPage = lazy(() => import('@/modules/auth/pages/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('@/modules/auth/pages/ForgotPasswordPage'));
 
 // Placeholder cho Kiosk login và dashboard
 const KioskLoginPage = () => <div className="p-8 text-white">Kiosk Login Page (Mock)</div>;
@@ -22,6 +23,7 @@ const AppRouter = () => {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/kiosk-login" element={<KioskLoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
         </Routes>
       </Suspense>
