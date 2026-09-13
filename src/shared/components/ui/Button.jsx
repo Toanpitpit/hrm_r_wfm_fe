@@ -1,4 +1,4 @@
-﻿// Button — nút bấm dùng chung. kind | variant: primary | ghost | danger | soft | secondary | outline.
+// Button — nút bấm dùng chung. kind | variant: primary | ghost | danger | soft | secondary | outline.
 // Dùng: <Button kind="primary" icon="plus" onClick={...}>Thêm</Button>
 
 import { useState } from 'react';
