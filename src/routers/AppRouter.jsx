@@ -1,14 +1,20 @@
-import { lazy, Suspense } from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Lazy load pages
 const LoginPage = lazy(() => import('@/modules/auth/pages/LoginPage'));
-const KioskCodePage = lazy(() => import('@/modules/kiosk/pages/KioskCodePage'));
-const ForgotPasswordPage = lazy(() => import('@/modules/auth/pages/ForgotPasswordPage'));
+const DashboardPage = lazy(() => import('@/modules/dashboard/pages/DashboardPage'));
+const BranchManagementPage = lazy(
+  () => import('@/modules/branch/pages/BranchManagementPage')
+);
+const ShiftMasterPage = lazy(
+  () => import('@/modules/schedule/pages/ShiftMasterPage')
+);
 
-// Placeholder cho Kiosk login và dashboard
-const KioskLoginPage = () => <div className="p-8 text-white">Kiosk Login Page (Mock)</div>;
-const DashboardPage = () => <div className="p-8 text-white">Dashboard (Mock)</div>;
+// Placeholder cho Kiosk login
+const KioskLoginPage = () => (
+  <div className="p-8 text-white">Kiosk Login Page (Mock)</div>
+);
 
 const Loading = () => (
   <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -21,18 +27,38 @@ const AppRouter = () => {
     <BrowserRouter>
       <Suspense fallback={<Loading />}>
         <Routes>
-          <Route path="/" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/kiosk-login" element={<KioskLoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/store-manager/kiosk-codes" element={<KioskCodePage />} />
-          <Route path="/kiosk-management" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
+          <Route
+            path="/"
+            element={<Navigate to="/branches" replace />}
+          />
+          <Route
+            path="/login"
+            element={<LoginPage />}
+          />
+          <Route
+            path="/kiosk-login"
+            element={<KioskLoginPage />}
+          />
+          <Route
+            path="/dashboard"
+            element={<DashboardPage />}
+          />
+          <Route
+            path="/branches"
+            element={<BranchManagementPage />}
+          />
+          <Route
+            path="/shifts/templates"
+            element={<ShiftMasterPage />}
+          />
+          <Route
+            path="*"
+            element={<Navigate to="/branches" replace />}
+          />
         </Routes>
       </Suspense>
     </BrowserRouter>
   );
 };
-
 
 export default AppRouter;
