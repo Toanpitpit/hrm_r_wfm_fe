@@ -249,7 +249,7 @@ export default function KioskCodePage() {
             icon="lock"
             tone="warn"
           />
-          <StatCard 
+          <StatCard
             label="KẾT NỐI REALTIME"
             title="KẾT NỐI REALTIME"
             value={`${stats.totalActive}/${stats.totalKiosks}`}
@@ -311,21 +311,21 @@ export default function KioskCodePage() {
         {/* Panel Danh sách trạm Kiosk */}
         <Panel
           title="DANH SÁCH TRẠM KIOSK ĐÃ ĐĂNG KÝ"
-          subtitle="Danh sách các thiết bị điểm danh đã được kích hoạt thuộc chi nhánh"
-          actions={
+          sub="Danh sách các thiết bị điểm danh đã được kích hoạt thuộc chi nhánh"
+          action={
             <div className={styles.filterGroup}>
               <SearchInput
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm tên Kiosk, mã thiết bị..."
+                onChange={(val) => setSearchTerm(typeof val === 'string' ? val : val?.target?.value || '')}
+                placeholder="Tìm tên Kiosk, mã Kiosk, token..."
               />
               <Select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(val) => setStatusFilter(typeof val === 'string' ? val : val?.target?.value || 'ALL')}
                 options={[
                   { value: 'ALL', label: 'Tất cả trạng thái' },
                   { value: 'ACTIVE', label: 'Đang hoạt động' },
-                  { value: 'OFFLINE', label: 'Tắt kết nối' },
+                  { value: 'INACTIVE', label: 'Đã ngắt kết nối' },
                 ]}
               />
             </div>
