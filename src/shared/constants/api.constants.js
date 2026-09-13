@@ -21,5 +21,18 @@ export const API_ENDPOINTS = Object.freeze({
     GET_BY_STORE: (storeId) => `/kiosk/store/${storeId}`,
     DEACTIVATE: (kioskId) => `/kiosk/${kioskId}`,
   },
+  USERS: {
+    STORE_MANAGERS: '/users/store-managers',
+    TOGGLE_STATUS: (id) => `/users/${id}/status`,
+    RESET_PASSWORD: (id) => `/users/${id}/reset-password`,
+    EMPLOYEES: '/users/employees',
+    EMPLOYEE_BY_ID: (id) => `/users/employees/${id}`,
+    RESET_PIN: (id) => `/users/employees/${id}/reset-pin`,
+    ROLES: '/users/roles',
+  },
+  STORES: {
+    GET_ALL: '/stores',
+    GET_BY_ID: (id) => `/stores/${id}`,
+  },
 });
 
