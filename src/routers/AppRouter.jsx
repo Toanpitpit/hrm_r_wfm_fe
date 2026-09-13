@@ -22,6 +22,24 @@ const Loading = () => (
   </div>
 );
 
+const AdminProtectedRoute = ({ children }) => {
+  let user = null;
+  try {
+    const raw = localStorage.getItem('user');
+    if (raw) user = JSON.parse(raw);
+  } catch (e) {
+    console.error('Failed to parse user from localStorage', e);
+  }
+
+  const role = (user?.role || user?.Role || '').toUpperCase();
+
+  if (role === 'STORE_MANAGER') {
+    return <Navigate to="/store-manager/kiosk-codes" replace />;
+  }
+
+  return children;
+};
+
 const AppRouter = () => {
   return (
     <BrowserRouter>
@@ -44,12 +62,42 @@ const AppRouter = () => {
           <Route path="/kiosk-codes" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
           <Route path="/kiosk-management" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
 
-          {/* ═══════════════ EMPLOYEE & DASHBOARDS ═══════════════ */}
-          <Route path="/dashboard" element={<EmployeeDashboardPage />} />
+          {/* ═══════════════ EMPLOYEE ROUTES ═══════════════ */}
           <Route path="/employee/schedule" element={<EmployeeDashboardPage />} />
-          <Route path="/admin/dashboard" element={<DashboardPage />} />
-          <Route path="/branches" element={<BranchManagementPage />} />
-          <Route path="/shifts/templates" element={<ShiftMasterPage />} />
+
+          {/* ═══════════════ ADMIN & GENERAL ROUTES (Chặn Store Manager) ═══════════════ */}
+          <Route
+            path="/dashboard"
+            element={
+              <AdminProtectedRoute>
+                <DashboardPage />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/dashboard"
+            element={
+              <AdminProtectedRoute>
+                <DashboardPage />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route
+            path="/branches"
+            element={
+              <AdminProtectedRoute>
+                <BranchManagementPage />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route
+            path="/shifts/templates"
+            element={
+              <AdminProtectedRoute>
+                <ShiftMasterPage />
+              </AdminProtectedRoute>
+            }
+          />
 
           {/* ═══════════════ FALLBACK ROUTE ═══════════════ */}
           <Route path="*" element={<Navigate to="/login" replace />} />

@@ -76,22 +76,21 @@ export default function WeeklySchedulePage() {
 
   // Navigation Items cho Store Manager Sidebar
   const navItems = [
-    { id: 'dashboard', label: 'Tổng quan cửa hàng', icon: 'home' },
-    { type: 'group', label: 'Nhân sự & Phân ca' },
-    { id: 'weekly-schedules', label: 'Lập Lịch Ca Tuần', icon: 'calendar' },
-    { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock' },
-    { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen' },
-    { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse' },
-    { id: 'employees', label: 'Nhân sự Cửa hàng', icon: 'users' },
+    { id: 'dashboard', label: 'Tổng quan cửa hàng', icon: 'home', onClick: () => alert('Tính năng Tổng quan cửa hàng đang được phát triển.') },
+    { type: 'group', label: 'Quản lý Kiosk & Điểm Danh' },
+    { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes' },
+    { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen', onClick: () => alert('Tính năng Danh sách trạm Kiosk đang được phát triển.') },
+    { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse', onClick: () => alert('Tính năng Điểm danh chi nhánh đang được phát triển.') },
+    { type: 'group', label: 'Nhân sự & Lịch Ca Chi Nhánh' },
+    { id: 'weekly-schedules', label: 'Quản lý Lịch Ca (UC 2.1 & 2.3)', icon: 'calendar', path: '/store-manager/schedules' },
+    { id: 'store-employees', label: 'Nhân sự Chi Nhánh', icon: 'users', onClick: () => alert('Tính năng Quản lý nhân sự chi nhánh đang được phát triển.') },
   ];
 
   const handleSidebarNavigate = (id) => {
     if (id === 'kiosk-codes' || id === 'kiosk-list') {
       navigate('/store-manager/kiosk-codes');
-    } else if (id === 'weekly-schedules') {
+    } else if (id === 'weekly-schedules' || id === 'store-schedule' || id === 'schedules') {
       navigate('/store-manager/schedules');
-    } else {
-      navigate(`/${id}`);
     }
   };
 
