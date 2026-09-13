@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import DashboardShell from '@/shared/components/layout/DashboardShell';
 import DashboardSidebar from '@/shared/components/layout/DashboardSidebar';
@@ -26,6 +27,7 @@ import styles from './KioskCodePage.module.css';
 
 export default function KioskCodePage() {
   const { c } = useAdminTheme();
+  const navigate = useNavigate();
   const [copiedToken, setCopiedToken] = useState(null);
 
   // Hook quản lý dữ liệu Kiosk
@@ -189,11 +191,19 @@ export default function KioskCodePage() {
     }
   })();
 
+  const handleNavigate = (id) => {
+    if (id === 'employees') navigate('/admin/employees');
+    else if (id === 'store-managers') navigate('/admin/store-managers');
+    else if (id === 'kiosk-codes') navigate('/store-manager/kiosk-codes');
+    else if (id === 'dashboard') navigate('/dashboard');
+  };
+
   return (
     <DashboardShell
       sidebar={
         <DashboardSidebar
           page="kiosk-codes"
+          onNavigate={handleNavigate}
           navItems={navItems}
           consoleLabel="Store Manager Console"
           defaultDisplayName={storedUser?.fullName || 'Cửa Hàng Trưởng'}
