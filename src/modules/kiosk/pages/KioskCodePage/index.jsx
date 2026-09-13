@@ -66,14 +66,14 @@ export default function KioskCodePage() {
 
   // Các items điều hướng cho Store Manager Sidebar
   const navItems = [
-    { id: 'dashboard', label: 'Tổng quan cửa hàng', icon: 'home' },
-    { type: 'group', label: 'Quản lý Kiosk & Ca' },
-    { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', badge: stats.activeCodeCount > 0 ? String(stats.activeCodeCount) : null },
-    { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen' },
-    { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse' },
-    { type: 'group', label: 'Nhân sự & Phân ca' },
-    { id: 'shifts', label: 'Quản lý Lịch Ca', icon: 'calendar' },
-    { id: 'employees', label: 'Nhân sự Cửa hàng', icon: 'users' },
+    { id: 'dashboard', label: 'Tổng quan cửa hàng', icon: 'home', onClick: () => alert('Tính năng Tổng quan cửa hàng đang được phát triển.') },
+    { type: 'group', label: 'Quản lý Kiosk & Điểm Danh' },
+    { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes', badge: stats.activeCodeCount > 0 ? String(stats.activeCodeCount) : null },
+    { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen', onClick: () => alert('Tính năng Danh sách trạm Kiosk đang được phát triển.') },
+    { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse', onClick: () => alert('Tính năng Điểm danh chi nhánh đang được phát triển.') },
+    { type: 'group', label: 'Nhân sự & Lịch Ca Chi Nhánh' },
+    { id: 'store-schedule', label: 'Lịch Ca Chi Nhánh', icon: 'calendar', onClick: () => alert('Tính năng Lịch ca chi nhánh đang được phát triển.') },
+    { id: 'store-employees', label: 'Nhân sự Chi Nhánh', icon: 'users', onClick: () => alert('Tính năng Quản lý nhân sự chi nhánh đang được phát triển.') },
   ];
 
   // Khai báo cột cho bảng danh sách Kiosk

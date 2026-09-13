@@ -1,17 +1,18 @@
-﻿import React from 'react';
+import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../ui/Icon';
 import { useAdminTheme } from '../../context/ThemeContext';
+import { getNavItemsForRole } from '../../constants/navigation.config';
 
 export default function DashboardSidebar({
   page,
   activePath,
   onNavigate,
   navItems = [],
-  consoleLabel = 'Operations Console',
-  defaultDisplayName = 'Operations Admin',
-  roleLabel = 'Quản trị vận hành',
-  avatarLetter = 'O',
+  consoleLabel,
+  defaultDisplayName,
+  roleLabel,
+  avatarLetter,
   onLogout,
   brandName = 'RWFM OPS',
 }) {
@@ -19,6 +20,33 @@ export default function DashboardSidebar({
   const location = useLocation();
   const { c, fonts, sidebarCollapsed: collapsed } = useAdminTheme();
   const width = collapsed ? 84 : 278;
+
+  // Read stored user profile from localStorage
+  let user = null;
+  try {
+    const raw = localStorage.getItem('user');
+    if (raw) user = JSON.parse(raw);
+  } catch (e) {
+    console.error('Failed to parse user from localStorage', e);
+  }
+
+  const roleCode = (user?.role || user?.Role || '').toUpperCase();
+
+  // Derive dynamic user details
+  const actualName = user?.fullName || user?.FullName || defaultDisplayName || 'Quản trị viên';
+  const actualRole = user?.roleName || user?.RoleName || (user?.storeName ? `Quản lý ${user.storeName}` : roleLabel) || 'Quản trị vận hành';
+  
+  let actualConsoleLabel = consoleLabel;
+  if (!actualConsoleLabel || actualConsoleLabel === 'OPERATIONS CONSOLE' || actualConsoleLabel === 'Operations Console') {
+    if (roleCode === 'STORE_MANAGER') actualConsoleLabel = 'STORE MANAGER CONSOLE';
+    else if (roleCode === 'BUSINESS_OWNER') actualConsoleLabel = 'EXECUTIVE CONSOLE';
+    else if (roleCode === 'OPERATIONS_ADMIN') actualConsoleLabel = 'OPERATIONS CONSOLE';
+    else actualConsoleLabel = consoleLabel || 'OPERATIONS CONSOLE';
+  }
+
+  const actualAvatarLetter = actualName
+    ? actualName.trim().charAt(0).toUpperCase()
+    : (avatarLetter || 'O');
 
   const currentPath = activePath || location.pathname;
 
@@ -46,30 +74,64 @@ export default function DashboardSidebar({
       return;
     }
 
-    // Default route mappings
-    if (item.id === 'dashboard') navigate('/dashboard');
-    else if (item.id === 'branches') navigate('/branches');
-    else if (item.id === 'shift-master' || item.id === 'shifts') navigate('/shifts/templates');
+    // Default route mappings based on role permission
+    if (item.id === 'dashboard') {
+      if (roleCode === 'STORE_MANAGER') navigate('/store-manager/kiosk-codes');
+      else navigate('/dashboard');
+    } else if (item.id === 'branches') {
+      if (roleCode === 'STORE_MANAGER') {
+        alert('Tài khoản Quản lý Cửa hàng không có quyền truy cập Danh mục Chi nhánh toàn hệ thống.');
+        return;
+      }
+      navigate('/branches');
+    } else if (item.id === 'shift-master') {
+      if (roleCode === 'STORE_MANAGER') {
+        alert('Tài khoản Quản lý Cửa hàng không có quyền truy cập Bộ Khung Ca Mẫu toàn hệ thống.');
+        return;
+      }
+      navigate('/shifts/templates');
+    } else if (item.id === 'shifts') {
+      if (roleCode === 'STORE_MANAGER') {
+        alert('Chức năng Lập lịch ca chi nhánh cho Store Manager đang được phát triển.');
+        return;
+      }
+      navigate('/shifts/templates');
+    }
   };
 
   const isItemActive = (item) => {
-    if (item.active !== undefined) return item.active;
+    if (item.active !== undefined) return Boolean(item.active);
     if (page && item.id === page) return true;
-    if (item.path && currentPath === item.path) return true;
-    if (item.id === 'dashboard' && currentPath === '/dashboard') return true;
-    if (item.id === 'branches' && currentPath === '/branches') return true;
-    if (item.id === 'shift-master' && currentPath === '/shifts/templates') return true;
+    if (item.path && item.path !== '#' && currentPath === item.path && (!page || page === item.id)) return true;
+    if (item.id === 'dashboard' && currentPath === '/dashboard' && (!page || page === 'dashboard')) return true;
+    if (item.id === 'branches' && currentPath === '/branches' && (!page || page === 'branches')) return true;
+    if (item.id === 'shift-master' && currentPath === '/shifts/templates' && (!page || page === 'shift-master')) return true;
     return false;
   };
+
+  // Source navigation items (use prop if provided, else read centralized role config)
+  const sourceNavItems = (navItems && navItems.length > 0) ? navItems : getNavItemsForRole(roleCode);
+
+  // Filter navigation items strictly based on logged-in user role
+  const effectiveNavItems = sourceNavItems.filter((item) => {
+    if (roleCode === 'STORE_MANAGER') {
+      // Store Manager must NEVER see Operations Admin features (Master Ca, Branch Directory, Master Data)
+      if (item.id === 'shift-master' || item.id === 'branches') return false;
+      if (item.type === 'group' && (item.label?.includes('Master Data') || item.label?.includes('Quản trị'))) return false;
+    }
+    return true;
+  });
 
   return (
     <aside
       style={{
         width,
         flexShrink: 0,
+        position: 'sticky',
+        top: 0,
+        height: '100vh',
         background: `linear-gradient(180deg, ${c.bgRaised}, ${c.bgCard})`,
         borderRight: `1px solid ${c.border}`,
-        height: '100vh',
         display: 'flex',
         flexDirection: 'column',
         transition: 'width .22s ease',
@@ -113,7 +175,7 @@ export default function DashboardSidebar({
               {brandName}
             </div>
             <div style={{ marginTop: 2, fontSize: 9, fontWeight: 800, letterSpacing: 1.8, color: c.accent, textTransform: 'uppercase' }}>
-              {consoleLabel}
+              {actualConsoleLabel}
             </div>
           </div>
         )}
@@ -121,7 +183,7 @@ export default function DashboardSidebar({
 
       {/* Navigation List */}
       <nav style={{ flex: 1, overflowY: 'auto', padding: collapsed ? '16px 10px' : '16px 14px' }}>
-        {navItems.map((item, index) => {
+        {effectiveNavItems.map((item, index) => {
           if (item.type === 'group') {
             return collapsed ? (
               <div key={`group-${index}`} style={{ height: 1, background: c.borderSub, margin: '12px 8px' }} />
@@ -247,15 +309,15 @@ export default function DashboardSidebar({
               border: `1px solid ${c.accent}`,
             }}
           >
-            {avatarLetter}
+            {actualAvatarLetter}
           </span>
           {!collapsed && (
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 750, color: c.fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {defaultDisplayName}
+                {actualName}
               </div>
               <div style={{ marginTop: 2, fontSize: 10.5, color: c.fgFaint }}>
-                {roleLabel}
+                {actualRole}
               </div>
             </div>
           )}
