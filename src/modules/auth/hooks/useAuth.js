@@ -18,11 +18,14 @@ const useAuth = () => {
       const response = await authService.login({ username, password });
       if (response.success) {
         const { token, user } = response.data;
-        // Lưu token vào localStorage để axiosInstance sử dụng
+        // Lưu token và user vào localStorage
         localStorage.setItem('accessToken', token);
-        // Có thể dispatch action lên Redux/Context để lưu thông tin user ở đây
+        if (user) {
+          localStorage.setItem('user', JSON.stringify(user));
+        }
         return { success: true, user };
       }
+
       return { success: false, message: response.message };
     } catch (err) {
       const errorMsg = err.response?.data?.message || 'Có lỗi xảy ra trong quá trình đăng nhập.';

@@ -1,14 +1,15 @@
 // DataTable — bảng dữ liệu dùng chung.
-// columns: [{ label, key?, render?(row), align?, w?, wrap? }]
-// rows:    mảng object dữ liệu.
+// columns: [{ label | title, key?, render?(row, val), align?, w | width?, wrap? }]
+// rows / data: mảng object dữ liệu.
 // density: 'compact' | 'regular' | 'comfy' (điều chỉnh padding dọc).
 
 import { useState } from 'react';
 import { useAdminTheme } from '../../context/ThemeContext';
 
-export default function DataTable({ columns, rows = [], density = 'regular' }) {
+export default function DataTable({ columns = [], rows, data, density = 'regular', emptyText }) {
   const { c, fonts } = useAdminTheme();
   const py = density === 'compact' ? 9 : density === 'comfy' ? 17 : 13;
+  const tableRows = rows || data || [];
 
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -28,23 +29,23 @@ export default function DataTable({ columns, rows = [], density = 'regular' }) {
                   color: c.fgFaint,
                   borderBottom: `1px solid ${c.border}`,
                   whiteSpace: 'nowrap',
-                  width: col.w,
+                  width: col.w || col.width,
                 }}
               >
-                {col.label}
+                {col.label || col.title}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, ri) => (
+          {tableRows.map((row, ri) => (
             <TableRow key={ri} columns={columns} row={row} py={py} />
           ))}
         </tbody>
       </table>
-      {rows.length === 0 && (
+      {tableRows.length === 0 && (
         <div style={{ padding: 40, textAlign: 'center', color: c.fgFaint, fontSize: 13 }}>
-          Không có dữ liệu phù hợp.
+          {emptyText || 'Không có dữ liệu phù hợp.'}
         </div>
       )}
     </div>
@@ -61,21 +62,26 @@ function TableRow({ columns, row, py }) {
       onMouseLeave={() => setHover(false)}
       style={{ background: hover ? c.bgHover : 'transparent', transition: 'background .12s' }}
     >
-      {columns.map((col, ci) => (
-        <td
-          key={ci}
-          style={{
-            textAlign: col.align || 'left',
-            padding: `${py}px 16px`,
-            fontSize: 13,
-            color: c.fgMuted,
-            borderBottom: `1px solid ${c.borderSub}`,
-            whiteSpace: col.wrap ? 'normal' : 'nowrap',
-          }}
-        >
-          {col.render ? col.render(row) : row[col.key]}
-        </td>
-      ))}
+      {columns.map((col, ci) => {
+        const val = col.key ? row[col.key] : undefined;
+        const content = col.render ? col.render(row, val) : val;
+
+        return (
+          <td
+            key={ci}
+            style={{
+              textAlign: col.align || 'left',
+              padding: `${py}px 16px`,
+              fontSize: 13,
+              color: c.fgMuted,
+              borderBottom: `1px solid ${c.borderSub}`,
+              whiteSpace: col.wrap ? 'normal' : 'nowrap',
+            }}
+          >
+            {content}
+          </td>
+        );
+      })}
     </tr>
   );
 }
