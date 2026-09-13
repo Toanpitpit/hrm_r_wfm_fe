@@ -1,15 +1,35 @@
-// Button — nút bấm dùng chung. kind | variant: primary | ghost | danger | soft | secondary | outline.
+﻿// Button — nút bấm dùng chung. kind | variant: primary | ghost | danger | soft | secondary | outline.
 // Dùng: <Button kind="primary" icon="plus" onClick={...}>Thêm</Button>
 
 import { useState } from 'react';
 import { useAdminTheme } from '../../context/ThemeContext';
 import Icon from './Icon';
 
-export default function Button({ kind, variant, icon, children, onClick, size = 'md', style, disabled = false, loading = false }) {
+export default function Button({
+  type = 'button',
+  kind,
+  variant,
+  icon,
+  children,
+  onClick,
+  size = 'md',
+  style,
+  disabled = false,
+  loading = false,
+  ...props
+}) {
   const { c, fonts } = useAdminTheme();
   const [hover, setHover] = useState(false);
 
-  const buttonKind = kind || (variant === 'secondary' || variant === 'outline' ? 'soft' : variant === 'danger' ? 'danger' : variant === 'primary' ? 'primary' : 'ghost');
+  const buttonKind =
+    kind ||
+    (variant === 'secondary' || variant === 'outline'
+      ? 'soft'
+      : variant === 'danger'
+      ? 'danger'
+      : variant === 'primary'
+      ? 'primary'
+      : 'ghost');
 
   const sizes = { sm: '7px 12px', md: '10px 16px', lg: '13px 22px' };
   const kinds = {
@@ -24,11 +44,12 @@ export default function Button({ kind, variant, icon, children, onClick, size = 
 
   return (
     <button
-      type="button"
+      type={type}
       disabled={isBtnDisabled}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      {...props}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
