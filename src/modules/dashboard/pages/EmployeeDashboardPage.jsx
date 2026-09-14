@@ -1,11 +1,16 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
+import DashboardShell from '@/shared/components/layout/DashboardShell';
+import DashboardSidebar from '@/shared/components/layout/DashboardSidebar';
+import DashboardTopbar from '@/shared/components/layout/DashboardTopbar';
+import PageHeader from '@/shared/components/ui/PageHeader';
 import scheduleService from '@/modules/schedule/services/schedule.service';
 import { getMondayOfWeek, addWeeks, formatVNDate, DAY_NAMES_VN } from '@/modules/schedule/hooks/useWeeklySchedule';
 import Icon from '@/shared/components/ui/Icon';
 import Badge from '@/shared/components/ui/Badge';
 import Button from '@/shared/components/ui/Button';
+import { CheckInMobileWidget } from '@/modules/attendance/components/CheckInMobileWidget';
 
 export default function EmployeeDashboardPage() {
   const { c, fonts } = useAdminTheme();
@@ -24,12 +29,12 @@ export default function EmployeeDashboardPage() {
     }
   })();
 
-  const weekEndDate = addWeeks(weekStartDate, 1);
+  const userRole = (storedUser?.role || storedUser?.Role || '').toUpperCase();
+  const isSecurity = userRole === 'SECURITY' || (storedUser?.roleName || '').toLowerCase().includes('bảo vệ');
 
   const fetchMyShifts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await scheduleService.getMyShifts(weekStartDate, addWeeks(weekStartDate, 0));
       // Tính 7 ngày của tuần
       const parts = weekStartDate.split('-').map(Number);
       const startD = new Date(parts[0], parts[1] - 1, parts[2]);
@@ -55,10 +60,24 @@ export default function EmployeeDashboardPage() {
     fetchMyShifts();
   }, [fetchMyShifts]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-    navigate('/login');
+  // Sidebar Menu dành riêng cho Security / Employee
+  const navItems = isSecurity
+    ? [
+        { id: 'employee-schedule', label: 'Lịch Trực Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
+        { type: 'group', label: 'Tiện Ích Ca Trực' },
+        { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
+        { id: 'employee-incidents', label: 'Báo Cáo Sự Cố & Ca Trực', icon: 'lock', onClick: () => alert('Tính năng Báo cáo ca trực đang được phát triển.') },
+      ]
+    : [
+        { id: 'employee-schedule', label: 'Lịch Làm Việc Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
+        { type: 'group', label: 'Tiện Ích Nhân Viên' },
+        { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
+      ];
+
+  const handleSidebarNavigate = (id) => {
+    if (id === 'employee-schedule') {
+      navigate('/employee/schedule');
+    }
   };
 
   // Tạo 7 ngày trong tuần
@@ -76,64 +95,35 @@ export default function EmployeeDashboardPage() {
   });
 
   return (
-    <div style={{ minHeight: '100vh', background: c.bg, color: c.fg, paddingBottom: 60 }}>
-      {/* Top Navbar */}
-      <header
-        style={{
-          background: c.bgRaised,
-          borderBottom: `1px solid ${c.border}`,
-          padding: '14px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 8,
-              background: `linear-gradient(135deg, ${c.accent}, ${c.accentDim})`,
-              color: c.ink,
-              display: 'grid',
-              placeItems: 'center',
-              fontWeight: 900,
-              fontSize: 18,
-            }}
-          >
-            R
-          </span>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: c.fg }}>R-WFM EMPLOYEE PORTAL</div>
-            <div style={{ fontSize: 11, color: c.fgFaint }}>
-              {storedUser?.storeName || 'Cửa hàng Tiện lợi Chi nhánh Cầu Giấy'}
-            </div>
-          </div>
-        </div>
+    <DashboardShell
+      sidebar={
+        <DashboardSidebar
+          page="employee-schedule"
+          onNavigate={handleSidebarNavigate}
+          navItems={navItems}
+          consoleLabel={isSecurity ? 'SECURITY PORTAL' : 'EMPLOYEE PORTAL'}
+          defaultDisplayName={storedUser?.fullName || (isSecurity ? 'Nhân viên Bảo vệ' : 'Nhân viên Cửa hàng')}
+          roleLabel={storedUser?.roleName || (isSecurity ? 'Bảo vệ Chi nhánh' : 'Nhân viên Chi nhánh')}
+          avatarLetter={storedUser?.fullName ? storedUser.fullName.charAt(0).toUpperCase() : 'S'}
+        />
+      }
+      topbar={
+        <DashboardTopbar
+          breadcrumbs={[
+            { label: isSecurity ? 'Security Portal' : 'Employee Portal', href: '/employee/schedule' },
+            { label: 'Lịch Phân Công Ca Tuần' },
+          ]}
+        />
+      }
+    >
+      <div style={{ padding: '24px 20px', maxWidth: 1200, margin: '0 auto' }}>
+        {/* Page Header */}
+        <PageHeader
+          index={isSecurity ? 'Security Portal · Lịch Trực' : 'Employee Portal · Lịch Làm Việc'}
+          title={isSecurity ? 'LỊCH TRỰC CA TUẦN (BẢO VỆ)' : 'LỊCH LÀM VIỆC CA TUẦN'}
+          desc={`Theo dõi lịch phân công ca làm việc chốt chính thức 7 ngày trong tuần của ${storedUser?.fullName || 'Nhân sự'} tại ${storedUser?.storeName || 'Cửa hàng'}.`}
+        />
 
-        {/* Thông tin nhân viên & Logout */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontWeight: 750, fontSize: 14, color: c.fg }}>
-              {storedUser?.fullName || 'Nhân Viên'} ({storedUser?.employeeCode || 'NV'})
-            </div>
-            <div style={{ fontSize: 11, color: c.accent, fontWeight: 700 }}>
-              {storedUser?.roleName || storedUser?.role || 'Nhân sự'}
-            </div>
-          </div>
-
-          <Button variant="ghost" size="sm" onClick={handleLogout} icon="logout">
-            Đăng xuất
-          </Button>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 20px' }}>
         {/* Banner Thông Báo Đã Công Bố Lịch */}
         <div
           style={{
@@ -146,6 +136,7 @@ export default function EmployeeDashboardPage() {
             alignItems: 'flex-start',
             gap: 16,
             boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+            marginTop: 20,
           }}
         >
           <div
@@ -175,6 +166,9 @@ export default function EmployeeDashboardPage() {
             </p>
           </div>
         </div>
+
+        {/* Lấy mã OTP Điểm danh tại quầy */}
+        <CheckInMobileWidget />
 
         {/* Thống kê nhanh ca tuần */}
         <div
@@ -329,7 +323,7 @@ export default function EmployeeDashboardPage() {
             })}
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </DashboardShell>
   );
 }

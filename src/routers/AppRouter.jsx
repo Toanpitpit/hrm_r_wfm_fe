@@ -10,6 +10,7 @@ const KioskCodePage = lazy(() => import('@/modules/kiosk/pages/KioskCodePage'));
 const BranchManagementPage = lazy(() => import('@/modules/branch/pages/BranchManagementPage'));
 const ShiftMasterPage = lazy(() => import('@/modules/schedule/pages/ShiftMasterPage'));
 const WeeklySchedulePage = lazy(() => import('@/modules/schedule/pages/WeeklySchedulePage'));
+const LiveRosterDashboardPage = lazy(() => import('@/modules/attendance/pages/LiveRosterDashboardPage'));
 
 // Placeholder cho Kiosk login
 const KioskLoginPage = () => (
@@ -55,6 +56,8 @@ const AppRouter = () => {
 
           {/* ═══════════════ STORE MANAGER & SCHEDULES (UC 2.1 & 2.3) ═══════════════ */}
           <Route path="/store-manager/schedules" element={<WeeklySchedulePage />} />
+          <Route path="/store-manager/live-roster" element={<LiveRosterDashboardPage />} />
+          <Route path="/live-roster" element={<Navigate to="/store-manager/live-roster" replace />} />
           <Route path="/schedule" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/shifts" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/weekly-schedules" element={<Navigate to="/store-manager/schedules" replace />} />
