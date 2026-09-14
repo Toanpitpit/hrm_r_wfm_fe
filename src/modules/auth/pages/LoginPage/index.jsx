@@ -82,6 +82,8 @@ export default function LoginPage() {
       const role = (result.user?.role || result.user?.roleName || '').toUpperCase();
       if (role === 'STORE_MANAGER' || role.includes('MANAGER')) {
         navigate('/store-manager/kiosk-codes');
+      } else if (role === 'EMPLOYEE' || role === 'SECURITY' || role.includes('STAFF') || role.includes('EMPLOYEE') || role.includes('NHÂN VIÊN') || role.includes('BẢO VỆ') || role.includes('SECURITY')) {
+        navigate('/employee/schedule');
       } else {
         navigate('/dashboard');
       }

@@ -39,6 +39,8 @@ export default function DashboardSidebar({
   let actualConsoleLabel = consoleLabel;
   if (!actualConsoleLabel || actualConsoleLabel === 'OPERATIONS CONSOLE' || actualConsoleLabel === 'Operations Console') {
     if (roleCode === 'STORE_MANAGER') actualConsoleLabel = 'STORE MANAGER CONSOLE';
+    else if (roleCode === 'SECURITY') actualConsoleLabel = 'SECURITY PORTAL';
+    else if (roleCode === 'EMPLOYEE' || roleCode === 'STAFF') actualConsoleLabel = 'EMPLOYEE PORTAL';
     else if (roleCode === 'BUSINESS_OWNER') actualConsoleLabel = 'EXECUTIVE CONSOLE';
     else if (roleCode === 'OPERATIONS_ADMIN') actualConsoleLabel = 'OPERATIONS CONSOLE';
     else actualConsoleLabel = consoleLabel || 'OPERATIONS CONSOLE';

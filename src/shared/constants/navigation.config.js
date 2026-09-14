@@ -30,6 +30,21 @@ export const NAV_ITEMS_BY_ROLE = {
     { id: 'branches', label: 'Giám Sát Chi Nhánh', icon: 'store', path: '/branches' },
     { id: 'shift-master', label: 'Khung Ca Hệ Thống', icon: 'calendar', path: '/shifts/templates' },
   ],
+
+  // 4. Nhân Viên Bảo Vệ (Security)
+  SECURITY: [
+    { id: 'employee-schedule', label: 'Lịch Trực Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
+    { type: 'group', label: 'Tiện Ích Ca Trực' },
+    { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
+    { id: 'employee-incidents', label: 'Báo Cáo Ca Trực & Sự Cố', icon: 'lock', onClick: () => alert('Tính năng Báo cáo sự cố ca trực đang được phát triển.') },
+  ],
+
+  // 5. Nhân Viên Cửa Hàng (Employee / Staff)
+  EMPLOYEE: [
+    { id: 'employee-schedule', label: 'Lịch Làm Việc Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
+    { type: 'group', label: 'Tiện Ích Nhân Viên' },
+    { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
+  ],
 };
 
 /**
