@@ -22,6 +22,7 @@ import AssignFullTimeModal from '../../components/AssignFullTimeModal';
 import AssignShiftCellModal from '../../components/AssignShiftCellModal';
 import PublishScheduleModal from '../../components/PublishScheduleModal';
 import AutoScheduleModal from '../../components/AutoScheduleModal';
+import ShiftSwapReviewModal from '../../components/ShiftSwapReviewModal';
 
 import styles from './WeeklySchedulePage.module.css';
 
@@ -47,6 +48,7 @@ export default function WeeklySchedulePage() {
     goToPreviousWeek,
     goToNextWeek,
     goToCurrentWeek,
+    fetchWeeklyMatrix,
     handleGenerateWeekly,
     handleUpdateRequirement,
     handleAssignFullTimeBatch,
@@ -72,6 +74,8 @@ export default function WeeklySchedulePage() {
     isAutoScheduleModalOpen,
     setIsAutoScheduleModalOpen,
   } = useWeeklySchedule(1);
+
+  const [isSwapReviewModalOpen, setIsSwapReviewModalOpen] = useState(false);
 
 
   // Navigation Items cho Store Manager Sidebar
@@ -191,6 +195,30 @@ export default function WeeklySchedulePage() {
             variant={weeklyStats.status === 'PUBLISHED' ? 'good' : 'warning'}
             hint={weeklyStats.status === 'PUBLISHED' ? 'Nhân viên đã nhận thông báo' : 'Chưa phát hành'}
           />
+        </div>
+
+        {/* Nút thao tác Xét duyệt đơn đổi / chuyển ca */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -6 }}>
+          <button
+            type="button"
+            onClick={() => setIsSwapReviewModalOpen(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 18px',
+              borderRadius: 8,
+              background: `${c.accent}20`,
+              color: c.accent,
+              border: `1px solid ${c.accent}`,
+              fontWeight: 750,
+              fontSize: 13,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span>🔄</span> Xét Duyệt Đơn Đổi / Chuyển Ca Trực
+          </button>
         </div>
 
         {/* Bộ điều hướng tuần & Nút hành động */}
@@ -320,6 +348,16 @@ export default function WeeklySchedulePage() {
           conflictReport={conflictReport}
           onConfirmPublish={handleConfirmPublish}
           actionLoading={actionLoading}
+        />
+
+        {/* Modal phê duyệt đơn đổi / chuyển ca */}
+        <ShiftSwapReviewModal
+          isOpen={isSwapReviewModalOpen}
+          onClose={() => setIsSwapReviewModalOpen(false)}
+          storeId={branchId || 1}
+          onReviewed={() => {
+            fetchWeeklyMatrix();
+          }}
         />
       </div>
     </DashboardShell>
