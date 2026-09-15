@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { attendanceService } from '../services/attendance.service';
 import { ATTENDANCE_MESSAGES } from '@/shared/constants/message.constants';
+import { useToast } from '@/components/ui/toast/ToastProvider';
 
 export const useCheckInMobile = () => {
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [otpData, setOtpData] = useState(null);
   const [countdown, setCountdown] = useState(60);
   const [errorMsg, setErrorMsg] = useState('');
   const [activeType, setActiveType] = useState('CHECK_IN');
+  const [otpHistory, setOtpHistory] = useState([]);
 
   useEffect(() => {
     let timer = null;
@@ -23,14 +26,15 @@ export const useCheckInMobile = () => {
     };
   }, [otpData, countdown]);
 
-  const handleRequestOtp = (type) => {
+  const handleRequestOtp = (type = 'CHECK_IN') => {
     setActiveType(type);
     setLoading(true);
     setErrorMsg('');
-    setOtpData(null);
 
     if (!navigator.geolocation) {
-      setErrorMsg(ATTENDANCE_MESSAGES.GPS_NOT_SUPPORTED);
+      const msg = ATTENDANCE_MESSAGES.GPS_NOT_SUPPORTED;
+      setErrorMsg(msg);
+      toast.error(msg);
       setLoading(false);
       return;
     }
@@ -38,23 +42,45 @@ export const useCheckInMobile = () => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        const res = await attendanceService.requestOtp(latitude, longitude, type);
-        setLoading(false);
+        try {
+          const res = await attendanceService.requestOtp(latitude, longitude, type);
+          setLoading(false);
 
-        if (res.success && res.data) {
-          setOtpData(res.data);
-          setCountdown(res.data.expiresInSeconds || 60);
-        } else {
-          setErrorMsg(res.message || ATTENDANCE_MESSAGES.OTP_REQUEST_FAILED);
+          if (res.success && res.data) {
+            setOtpData(res.data);
+            const secs = res.data.expiresInSeconds || 60;
+            setCountdown(secs);
+
+            const newHistoryItem = {
+              id: Date.now(),
+              otpCode: res.data.otpCode,
+              type: type,
+              distanceMeters: res.data.distanceMeters,
+              createdAt: new Date(),
+              expiresAt: new Date(Date.now() + secs * 1000),
+            };
+            setOtpHistory((prev) => [newHistoryItem, ...prev]);
+
+            toast.success(res.message || `Đã cấp mã OTP ${type === 'CHECK_IN' ? 'Check-In' : 'Check-Out'} thành công!`);
+          } else {
+            const msg = res.message || ATTENDANCE_MESSAGES.OTP_REQUEST_FAILED;
+            setErrorMsg(msg);
+            toast.error(msg);
+          }
+        } catch (err) {
+          setLoading(false);
+          const msg = err?.response?.data?.message || err?.message || ATTENDANCE_MESSAGES.OTP_REQUEST_FAILED;
+          setErrorMsg(msg);
+          toast.error(msg);
         }
       },
       (err) => {
         setLoading(false);
-        if (err.code === err.PERMISSION_DENIED) {
-          setErrorMsg(ATTENDANCE_MESSAGES.GPS_PERMISSION_DENIED);
-        } else {
-          setErrorMsg(ATTENDANCE_MESSAGES.GPS_FAILED);
-        }
+        const msg = err.code === err.PERMISSION_DENIED
+          ? ATTENDANCE_MESSAGES.GPS_PERMISSION_DENIED
+          : ATTENDANCE_MESSAGES.GPS_FAILED;
+        setErrorMsg(msg);
+        toast.error(msg);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
@@ -66,6 +92,7 @@ export const useCheckInMobile = () => {
     countdown,
     errorMsg,
     activeType,
+    otpHistory,
     handleRequestOtp,
   };
 };

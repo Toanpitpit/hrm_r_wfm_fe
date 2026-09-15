@@ -11,6 +11,7 @@ const BranchManagementPage = lazy(() => import('@/modules/branch/pages/BranchMan
 const ShiftMasterPage = lazy(() => import('@/modules/schedule/pages/ShiftMasterPage'));
 const WeeklySchedulePage = lazy(() => import('@/modules/schedule/pages/WeeklySchedulePage'));
 const LiveRosterDashboardPage = lazy(() => import('@/modules/attendance/pages/LiveRosterDashboardPage'));
+const AttendanceOtpPage = lazy(() => import('@/modules/attendance/pages/AttendanceOtpPage'));
 
 // Placeholder cho Kiosk login
 const KioskLoginPage = () => (
@@ -33,9 +34,35 @@ const AdminProtectedRoute = ({ children }) => {
   }
 
   const role = (user?.role || user?.Role || '').toUpperCase();
+  const roleName = (user?.roleName || '').toUpperCase();
 
-  if (role === 'STORE_MANAGER') {
+  if (role === 'STORE_MANAGER' || role.includes('MANAGER') || roleName.includes('QUẢN LÝ')) {
     return <Navigate to="/store-manager/kiosk-codes" replace />;
+  }
+
+  const isStaff = [
+    'SHIFT_LEADER',
+    'CASHIER',
+    'SALES_STAFF',
+    'SECURITY_GUARD',
+    'SECURITY',
+    'EMPLOYEE',
+    'STAFF'
+  ].includes(role) ||
+  role.includes('LEADER') ||
+  role.includes('CASHIER') ||
+  role.includes('SALES') ||
+  role.includes('STAFF') ||
+  role.includes('EMPLOYEE') ||
+  role.includes('SECURITY') ||
+  roleName.includes('TRƯỞNG CA') ||
+  roleName.includes('THU NGÂN') ||
+  roleName.includes('BÁN HÀNG') ||
+  roleName.includes('BẢO VỆ') ||
+  roleName.includes('NHÂN VIÊN');
+
+  if (isStaff) {
+    return <Navigate to="/employee/schedule" replace />;
   }
 
   return children;
@@ -67,6 +94,8 @@ const AppRouter = () => {
 
           {/* ═══════════════ EMPLOYEE ROUTES ═══════════════ */}
           <Route path="/employee/schedule" element={<EmployeeDashboardPage />} />
+          <Route path="/employee/attendance-otp" element={<AttendanceOtpPage />} />
+          <Route path="/attendance-otp" element={<Navigate to="/employee/attendance-otp" replace />} />
 
           {/* ═══════════════ ADMIN & GENERAL ROUTES (Chặn Store Manager) ═══════════════ */}
           <Route

@@ -7,10 +7,10 @@ import DashboardTopbar from '@/shared/components/layout/DashboardTopbar';
 import PageHeader from '@/shared/components/ui/PageHeader';
 import scheduleService from '@/modules/schedule/services/schedule.service';
 import { getMondayOfWeek, addWeeks, formatVNDate, DAY_NAMES_VN } from '@/modules/schedule/hooks/useWeeklySchedule';
+import { getNavItemsForRole } from '@/shared/constants/navigation.config';
 import Icon from '@/shared/components/ui/Icon';
 import Badge from '@/shared/components/ui/Badge';
 import Button from '@/shared/components/ui/Button';
-import { CheckInMobileWidget } from '@/modules/attendance/components/CheckInMobileWidget';
 
 export default function EmployeeDashboardPage() {
   const { c, fonts } = useAdminTheme();
@@ -30,7 +30,34 @@ export default function EmployeeDashboardPage() {
   })();
 
   const userRole = (storedUser?.role || storedUser?.Role || '').toUpperCase();
-  const isSecurity = userRole === 'SECURITY' || (storedUser?.roleName || '').toLowerCase().includes('bảo vệ');
+  const roleName = (storedUser?.roleName || '').toLowerCase();
+
+  const isShiftLeader = userRole === 'SHIFT_LEADER' || roleName.includes('trưởng ca');
+  const isCashier = userRole === 'CASHIER' || roleName.includes('thu ngân');
+  const isSales = userRole === 'SALES_STAFF' || roleName.includes('bán hàng');
+  const isSecurity = userRole === 'SECURITY_GUARD' || userRole === 'SECURITY' || roleName.includes('bảo vệ');
+
+  let portalTitle = 'EMPLOYEE PORTAL';
+  let roleTitle = 'LỊCH LÀM VIỆC CA TUẦN';
+  let roleSubtitle = storedUser?.roleName || 'Nhân sự Chi nhánh';
+
+  if (isShiftLeader) {
+    portalTitle = 'SHIFT LEADER PORTAL';
+    roleTitle = 'LỊCH PHÂN CÔNG & TRỰC CA (TRƯỞNG CA)';
+    if (!storedUser?.roleName) roleSubtitle = 'Trưởng Ca Trực';
+  } else if (isCashier) {
+    portalTitle = 'CASHIER PORTAL';
+    roleTitle = 'LỊCH LÀM VIỆC CA TUẦN (THU NGÂN)';
+    if (!storedUser?.roleName) roleSubtitle = 'Thu Ngân Chi nhánh';
+  } else if (isSales) {
+    portalTitle = 'SALES PORTAL';
+    roleTitle = 'LỊCH LÀM VIỆC CA TUẦN (BÁN HÀNG)';
+    if (!storedUser?.roleName) roleSubtitle = 'Nhân Viên Bán Hàng';
+  } else if (isSecurity) {
+    portalTitle = 'SECURITY PORTAL';
+    roleTitle = 'LỊCH TRỰC CA TUẦN (BẢO VỆ)';
+    if (!storedUser?.roleName) roleSubtitle = 'Bảo Vệ Chi nhánh';
+  }
 
   const fetchMyShifts = useCallback(async () => {
     setLoading(true);
@@ -60,23 +87,14 @@ export default function EmployeeDashboardPage() {
     fetchMyShifts();
   }, [fetchMyShifts]);
 
-  // Sidebar Menu dành riêng cho Security / Employee
-  const navItems = isSecurity
-    ? [
-        { id: 'employee-schedule', label: 'Lịch Trực Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
-        { type: 'group', label: 'Tiện Ích Ca Trực' },
-        { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
-        { id: 'employee-incidents', label: 'Báo Cáo Sự Cố & Ca Trực', icon: 'lock', onClick: () => alert('Tính năng Báo cáo ca trực đang được phát triển.') },
-      ]
-    : [
-        { id: 'employee-schedule', label: 'Lịch Làm Việc Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
-        { type: 'group', label: 'Tiện Ích Nhân Viên' },
-        { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
-      ];
+  // Dynamic Sidebar Menu Items based on role
+  const navItems = getNavItemsForRole(userRole);
 
   const handleSidebarNavigate = (id) => {
     if (id === 'employee-schedule') {
       navigate('/employee/schedule');
+    } else if (id === 'live-roster') {
+      navigate('/store-manager/live-roster');
     }
   };
 
@@ -101,16 +119,16 @@ export default function EmployeeDashboardPage() {
           page="employee-schedule"
           onNavigate={handleSidebarNavigate}
           navItems={navItems}
-          consoleLabel={isSecurity ? 'SECURITY PORTAL' : 'EMPLOYEE PORTAL'}
-          defaultDisplayName={storedUser?.fullName || (isSecurity ? 'Nhân viên Bảo vệ' : 'Nhân viên Cửa hàng')}
-          roleLabel={storedUser?.roleName || (isSecurity ? 'Bảo vệ Chi nhánh' : 'Nhân viên Chi nhánh')}
-          avatarLetter={storedUser?.fullName ? storedUser.fullName.charAt(0).toUpperCase() : 'S'}
+          consoleLabel={portalTitle}
+          defaultDisplayName={storedUser?.fullName || 'Nhân viên Chi nhánh'}
+          roleLabel={roleSubtitle}
+          avatarLetter={storedUser?.fullName ? storedUser.fullName.charAt(0).toUpperCase() : 'E'}
         />
       }
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: isSecurity ? 'Security Portal' : 'Employee Portal', href: '/employee/schedule' },
+            { label: portalTitle, href: '/employee/schedule' },
             { label: 'Lịch Phân Công Ca Tuần' },
           ]}
         />
@@ -119,8 +137,8 @@ export default function EmployeeDashboardPage() {
       <div style={{ padding: '24px 20px', maxWidth: 1200, margin: '0 auto' }}>
         {/* Page Header */}
         <PageHeader
-          index={isSecurity ? 'Security Portal · Lịch Trực' : 'Employee Portal · Lịch Làm Việc'}
-          title={isSecurity ? 'LỊCH TRỰC CA TUẦN (BẢO VỆ)' : 'LỊCH LÀM VIỆC CA TUẦN'}
+          index={`${portalTitle} · Lịch Phân Công`}
+          title={roleTitle}
           desc={`Theo dõi lịch phân công ca làm việc chốt chính thức 7 ngày trong tuần của ${storedUser?.fullName || 'Nhân sự'} tại ${storedUser?.storeName || 'Cửa hàng'}.`}
         />
 
@@ -166,9 +184,6 @@ export default function EmployeeDashboardPage() {
             </p>
           </div>
         </div>
-
-        {/* Lấy mã OTP Điểm danh tại quầy */}
-        <CheckInMobileWidget />
 
         {/* Thống kê nhanh ca tuần */}
         <div

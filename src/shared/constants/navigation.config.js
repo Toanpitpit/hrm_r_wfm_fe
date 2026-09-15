@@ -13,14 +13,11 @@ export const NAV_ITEMS_BY_ROLE = {
 
   // 2. Quản lý Cửa hàng (Store Manager)
   STORE_MANAGER: [
-    { id: 'dashboard', label: 'Tổng quan cửa hàng', icon: 'home', path: '/store-manager/kiosk-codes' },
-    { type: 'group', label: 'Quản lý Kiosk & Điểm Danh' },
-    { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes' },
-    { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen', onClick: () => alert('Tính năng Danh sách trạm Kiosk đang được phát triển.') },
-    { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse', onClick: () => alert('Tính năng Điểm danh chi nhánh đang được phát triển.') },
-    { type: 'group', label: 'Nhân sự & Lịch Ca Chi Nhánh' },
-    { id: 'store-schedule', label: 'Lịch Ca Chi Nhánh', icon: 'calendar', onClick: () => alert('Tính năng Lịch ca chi nhánh đang được phát triển.') },
-    { id: 'store-employees', label: 'Nhân sự Chi Nhánh', icon: 'users', onClick: () => alert('Tính năng Quản lý nhân sự chi nhánh đang được phát triển.') },
+    { id: 'dashboard', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes' },
+    { type: 'group', label: 'Lịch Ca & Điểm Danh' },
+    { id: 'store-schedules', label: 'Lịch Phân Công Ca Tuần', icon: 'calendar', path: '/store-manager/schedules' },
+    { id: 'live-roster', label: 'Bảng Trực Ca Live', icon: 'pulse', path: '/store-manager/live-roster' },
+    { id: 'kiosk-codes', label: 'Quản Lý Trạm Kiosk', icon: 'screen', path: '/store-manager/kiosk-codes' },
   ],
 
   // 3. Chủ Doanh Nghiệp (Business Owner)
@@ -31,17 +28,55 @@ export const NAV_ITEMS_BY_ROLE = {
     { id: 'shift-master', label: 'Khung Ca Hệ Thống', icon: 'calendar', path: '/shifts/templates' },
   ],
 
-  // 4. Nhân Viên Bảo Vệ (Security)
-  SECURITY: [
+  // 4. Trưởng Ca Trực (Shift Leader)
+  SHIFT_LEADER: [
+    { id: 'employee-schedule', label: 'Lịch Phân Công Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
+    { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
+    { id: 'live-roster', label: 'Bảng Trực Ca Live (Real-time)', icon: 'pulse', path: '/store-manager/live-roster' },
+    { type: 'group', label: 'Tiện Ích Trưởng Ca' },
+    { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
+    { id: 'shift-handover', label: 'Bàn Giao Ca Trực', icon: 'lock', onClick: () => alert('Tính năng Bàn giao ca trực đang được phát triển.') },
+  ],
+
+  // 5. Thu Ngân (Cashier)
+  CASHIER: [
+    { id: 'employee-schedule', label: 'Lịch Làm Việc Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
+    { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
+    { type: 'group', label: 'Tiện Ích Thu Ngân' },
+    { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
+    { id: 'cash-handover', label: 'Bàn Giao Két Tiền', icon: 'lock', onClick: () => alert('Tính năng Bàn giao két tiền đang được phát triển.') },
+  ],
+
+  // 6. Nhân Viên Bán Hàng (Sales Staff)
+  SALES_STAFF: [
+    { id: 'employee-schedule', label: 'Lịch Làm Việc Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
+    { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
+    { type: 'group', label: 'Tiện Ích Bán Hàng' },
+    { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
+  ],
+
+  // 7. Nhân Viên Bảo Vệ (Security Guard)
+  SECURITY_GUARD: [
     { id: 'employee-schedule', label: 'Lịch Trực Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
+    { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
     { type: 'group', label: 'Tiện Ích Ca Trực' },
     { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
     { id: 'employee-incidents', label: 'Báo Cáo Ca Trực & Sự Cố', icon: 'lock', onClick: () => alert('Tính năng Báo cáo sự cố ca trực đang được phát triển.') },
   ],
 
-  // 5. Nhân Viên Cửa Hàng (Employee / Staff)
+  // Alias fallbacks
+  SECURITY: [
+    { id: 'employee-schedule', label: 'Lịch Trực Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
+    { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
+    { type: 'group', label: 'Tiện Ích Ca Trực' },
+    { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
+    { id: 'employee-incidents', label: 'Báo Cáo Ca Trực & Sự Cố', icon: 'lock', onClick: () => alert('Tính năng Báo cáo sự cố ca trực đang được phát triển.') },
+  ],
+
+  // General Staff / Employee
   EMPLOYEE: [
     { id: 'employee-schedule', label: 'Lịch Làm Việc Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
+    { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
     { type: 'group', label: 'Tiện Ích Nhân Viên' },
     { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
   ],
@@ -51,6 +86,29 @@ export const NAV_ITEMS_BY_ROLE = {
  * Hàm hỗ trợ lấy danh sách Menu phù hợp với Role
  */
 export const getNavItemsForRole = (roleCode) => {
-  const normalized = (roleCode || '').toUpperCase();
-  return NAV_ITEMS_BY_ROLE[normalized] || NAV_ITEMS_BY_ROLE.OPERATIONS_ADMIN;
+  const normalized = (roleCode || '').toUpperCase().trim();
+
+  if (normalized === 'SHIFT_LEADER' || normalized.includes('LEADER') || normalized.includes('TRƯỞNG CA')) {
+    return NAV_ITEMS_BY_ROLE.SHIFT_LEADER;
+  }
+  if (normalized === 'CASHIER' || normalized.includes('THU NGÂN')) {
+    return NAV_ITEMS_BY_ROLE.CASHIER;
+  }
+  if (normalized === 'SALES_STAFF' || normalized.includes('SALES') || normalized.includes('BÁN HÀNG')) {
+    return NAV_ITEMS_BY_ROLE.SALES_STAFF;
+  }
+  if (normalized === 'SECURITY_GUARD' || normalized === 'SECURITY' || normalized.includes('BẢO VỆ')) {
+    return NAV_ITEMS_BY_ROLE.SECURITY_GUARD;
+  }
+  if (normalized === 'STORE_MANAGER' || normalized.includes('QUẢN LÝ')) {
+    return NAV_ITEMS_BY_ROLE.STORE_MANAGER;
+  }
+  if (normalized === 'BUSINESS_OWNER' || normalized.includes('OWNER')) {
+    return NAV_ITEMS_BY_ROLE.BUSINESS_OWNER;
+  }
+  if (normalized === 'OPERATIONS_ADMIN' || normalized.includes('ADMIN')) {
+    return NAV_ITEMS_BY_ROLE.OPERATIONS_ADMIN;
+  }
+
+  return NAV_ITEMS_BY_ROLE[normalized] || NAV_ITEMS_BY_ROLE.EMPLOYEE;
 };

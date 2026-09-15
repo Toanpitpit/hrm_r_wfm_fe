@@ -80,9 +80,32 @@ export default function LoginPage() {
     if (result.success) {
       toast.success('Đăng nhập thành công!');
       const role = (result.user?.role || result.user?.roleName || '').toUpperCase();
-      if (role === 'STORE_MANAGER' || role.includes('MANAGER')) {
+      const roleName = (result.user?.roleName || '').toUpperCase();
+      
+      const isStaff = [
+        'SHIFT_LEADER',
+        'CASHIER',
+        'SALES_STAFF',
+        'SECURITY_GUARD',
+        'SECURITY',
+        'EMPLOYEE',
+        'STAFF'
+      ].includes(role) ||
+      role.includes('LEADER') ||
+      role.includes('CASHIER') ||
+      role.includes('SALES') ||
+      role.includes('STAFF') ||
+      role.includes('EMPLOYEE') ||
+      role.includes('SECURITY') ||
+      roleName.includes('TRƯỞNG CA') ||
+      roleName.includes('THU NGÂN') ||
+      roleName.includes('BÁN HÀNG') ||
+      roleName.includes('BẢO VỆ') ||
+      roleName.includes('NHÂN VIÊN');
+
+      if (role === 'STORE_MANAGER' || role.includes('MANAGER') || roleName.includes('QUẢN LÝ')) {
         navigate('/store-manager/kiosk-codes');
-      } else if (role === 'EMPLOYEE' || role === 'SECURITY' || role.includes('STAFF') || role.includes('EMPLOYEE') || role.includes('NHÂN VIÊN') || role.includes('BẢO VỆ') || role.includes('SECURITY')) {
+      } else if (isStaff) {
         navigate('/employee/schedule');
       } else {
         navigate('/dashboard');
