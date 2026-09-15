@@ -109,6 +109,9 @@ export default function DashboardSidebar({
     if (page && item.id === page) return true;
     if (item.path && item.path !== '#' && currentPath === item.path && (!page || page === item.id)) return true;
     if (item.id === 'dashboard' && currentPath === '/dashboard' && (!page || page === 'dashboard')) return true;
+    if (item.id === 'weekly-schedules' && currentPath === '/store-manager/schedules' && (!page || page === 'weekly-schedules')) return true;
+    if (item.id === 'kiosk-codes' && currentPath === '/store-manager/kiosk-codes' && (!page || page === 'kiosk-codes')) return true;
+    if (item.id === 'employee-schedule' && currentPath === '/employee/schedule' && (!page || page === 'employee-schedule')) return true;
     if (item.id === 'branches' && currentPath === '/branches' && (!page || page === 'branches')) return true;
     if (item.id === 'shift-master' && currentPath === '/shifts/templates' && (!page || page === 'shift-master')) return true;
     return false;
