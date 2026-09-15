@@ -7,6 +7,7 @@ export const NAV_ITEMS_BY_ROLE = {
   OPERATIONS_ADMIN: [
     { id: 'dashboard', label: 'Bảng Điều Khiển Overview', icon: 'home', path: '/dashboard' },
     { type: 'group', label: 'Quản trị Master Data' },
+    { id: 'employees', label: 'Khai Báo & Quản Lý Nhân Sự', icon: 'users', path: '/employees' },
     { id: 'branches', label: 'Danh mục Chi nhánh & Kiosk', icon: 'store', path: '/branches' },
     { id: 'shift-master', label: 'Bộ Khung Ca Mẫu', icon: 'calendar', path: '/shifts/templates' },
   ],
@@ -15,6 +16,7 @@ export const NAV_ITEMS_BY_ROLE = {
   STORE_MANAGER: [
     { id: 'dashboard', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes' },
     { type: 'group', label: 'Lịch Ca & Điểm Danh' },
+    { id: 'employees', label: 'Khai Báo Nhân Sự Chi Nhánh', icon: 'users', path: '/employees' },
     { id: 'store-schedules', label: 'Lịch Phân Công Ca Tuần', icon: 'calendar', path: '/store-manager/schedules' },
     { id: 'live-roster', label: 'Bảng Trực Ca Live', icon: 'pulse', path: '/store-manager/live-roster' },
     { id: 'kiosk-codes', label: 'Quản Lý Trạm Kiosk', icon: 'screen', path: '/store-manager/kiosk-codes' },
@@ -24,6 +26,7 @@ export const NAV_ITEMS_BY_ROLE = {
   BUSINESS_OWNER: [
     { id: 'dashboard', label: 'Bảng Điều Khiển Tổng Quan', icon: 'home', path: '/dashboard' },
     { type: 'group', label: 'Báo Cáo & Audit System' },
+    { id: 'employees', label: 'Hồ Sơ Nhân Sự Chuỗi', icon: 'users', path: '/employees' },
     { id: 'branches', label: 'Giám Sát Chi Nhánh', icon: 'store', path: '/branches' },
     { id: 'shift-master', label: 'Khung Ca Hệ Thống', icon: 'calendar', path: '/shifts/templates' },
   ],
