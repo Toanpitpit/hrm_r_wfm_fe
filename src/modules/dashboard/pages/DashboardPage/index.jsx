@@ -47,62 +47,54 @@ export default function DashboardPage() {
       }
     >
       <PageHeader
-        title="Bảng Điều Khiển Quản Trị Vận Hành (Operations Console)"
-        subtitle="Hệ thống quản lý chuỗi bán lẻ RWFM - Phân hệ Chi nhánh, Khung ca mẫu & Quầy Kiosk."
+        title="Tổng Quan Vận Hành"
+        desc="Hệ thống quản lý chuỗi siêu thị R-WFM — Phân hệ Chi nhánh, Khung ca mẫu & Quầy Kiosk."
       />
 
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '20px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '24px',
         }}
       >
-        <Panel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Icon
-                name="pin"
-                size={20}
-              />
-              <span style={{ fontWeight: 700, fontSize: '16px' }}>
-                UC 1.2: Danh Mục Chi Nhánh & Kiosk
-              </span>
-            </div>
-            <p style={{ fontSize: '13px', color: '#9ca3af', lineHeight: '1.5' }}>
-              Quản lý danh sách chi nhánh cửa hàng, cấu hình an ninh mạng IP
-              Whitelist và cấp phát mã trạm Kiosk điểm danh tại quầy.
+        <Panel
+          title="Danh Mục Chi Nhánh & Kiosk"
+          sub="Cấu hình an ninh mạng IP Whitelist và cấp phát mã trạm Kiosk"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <p style={{ fontSize: '13.5px', color: '#6B7280', lineHeight: '1.6', margin: 0 }}>
+              Quản lý danh sách chi nhánh cửa hàng toàn chuỗi, kiểm soát trạng thái hoạt động của các máy trạm điểm danh tại quầy thu ngân.
             </p>
-            <Button
-              variant="primary"
-              onClick={() => navigate('/branches')}
-            >
-              Truy Cập Quản Lý Chi Nhánh
-            </Button>
+            <div>
+              <Button
+                variant="primary"
+                icon="pin"
+                onClick={() => navigate('/branches')}
+              >
+                Truy Cập Quản Lý Chi Nhánh
+              </Button>
+            </div>
           </div>
         </Panel>
 
-        <Panel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Icon
-                name="calendar"
-                size={20}
-              />
-              <span style={{ fontWeight: 700, fontSize: '16px' }}>
-                UC 1.3: Bộ Khung Ca Mẫu (Shift Master)
-              </span>
-            </div>
-            <p style={{ fontSize: '13px', color: '#9ca3af', lineHeight: '1.5' }}>
-              Chuẩn hóa các khung ca làm việc toàn chuỗi (Ca sáng, Ca chiều, Ca
-              đêm) và ngăn chặn việc tạo ca sai lệch từ phía Store Manager.
+        <Panel
+          title="Bộ Khung Ca Mẫu (Shift Master)"
+          sub="Chuẩn hóa khung giờ làm việc ca sáng, chiều, tối toàn chuỗi"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <p style={{ fontSize: '13.5px', color: '#6B7280', lineHeight: '1.6', margin: 0 }}>
+              Thiết lập các khung ca chuẩn mực, quy định thời gian làm việc và nghỉ giữa ca nhằm đảm bảo tính công bằng và tuân thủ quy chế lao động.
             </p>
-            <Button
-              variant="primary"
-              onClick={() => navigate('/shifts/templates')}
-            >
-              Truy Cập Khung Ca Mẫu
-            </Button>
+            <div>
+              <Button
+                variant="primary"
+                icon="calendar"
+                onClick={() => navigate('/shifts/templates')}
+              >
+                Truy Cập Khung Ca Mẫu
+              </Button>
+            </div>
           </div>
         </Panel>
       </div>

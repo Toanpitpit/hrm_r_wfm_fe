@@ -31,10 +31,40 @@ const AdminProtectedRoute = ({ children }) => {
     console.error('Failed to parse user from localStorage', e);
   }
 
-  const role = (user?.role || user?.Role || '').toUpperCase();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
-  if (role === 'STORE_MANAGER') {
-    return <Navigate to="/store-manager/kiosk-codes" replace />;
+  const role = (user?.role || user?.Role || user?.roleCode || '').toUpperCase();
+
+  if (role === 'OPERATIONS_ADMIN' || role === 'BUSINESS_OWNER' || role.includes('ADMIN') || role.includes('OWNER')) {
+    return children;
+  }
+
+  if (role === 'STORE_MANAGER' || role === 'SHIFT_LEADER' || role.includes('MANAGER') || role.includes('LEADER')) {
+    return <Navigate to="/store-manager/schedules" replace />;
+  }
+
+  return <Navigate to="/employee/schedule" replace />;
+};
+
+const StoreManagerProtectedRoute = ({ children }) => {
+  let user = null;
+  try {
+    const raw = localStorage.getItem('user');
+    if (raw) user = JSON.parse(raw);
+  } catch (e) {
+    console.error('Failed to parse user from localStorage', e);
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = (user?.role || user?.Role || user?.roleCode || '').toUpperCase();
+
+  if (['CASHIER', 'SALES_STAFF', 'SECURITY_GUARD'].includes(role)) {
+    return <Navigate to="/employee/schedule" replace />;
   }
 
   return children;
@@ -53,12 +83,26 @@ const AppRouter = () => {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/kiosk-login" element={<KioskLoginPage />} />
 
-          {/* ═══════════════ STORE MANAGER & SCHEDULES (UC 2.1 & 2.3) ═══════════════ */}
-          <Route path="/store-manager/schedules" element={<WeeklySchedulePage />} />
+          {/* ═══════════════ STORE MANAGER & LEADER SCHEDULES (UC 2.1 & 2.3) ═══════════════ */}
+          <Route
+            path="/store-manager/schedules"
+            element={
+              <StoreManagerProtectedRoute>
+                <WeeklySchedulePage />
+              </StoreManagerProtectedRoute>
+            }
+          />
           <Route path="/schedule" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/shifts" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/weekly-schedules" element={<Navigate to="/store-manager/schedules" replace />} />
-          <Route path="/store-manager/kiosk-codes" element={<KioskCodePage />} />
+          <Route
+            path="/store-manager/kiosk-codes"
+            element={
+              <StoreManagerProtectedRoute>
+                <KioskCodePage />
+              </StoreManagerProtectedRoute>
+            }
+          />
           <Route path="/kiosk-codes" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
           <Route path="/kiosk-management" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
 

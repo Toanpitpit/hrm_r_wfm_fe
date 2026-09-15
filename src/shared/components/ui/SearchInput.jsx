@@ -15,12 +15,13 @@ export default function SearchInput({ placeholder, value, onChange, width = 260 
         display: 'inline-flex',
         alignItems: 'center',
         gap: 9,
-        padding: '9px 13px',
+        padding: '9px 14px',
         background: c.bgRaised,
-        border: `1px solid ${focus ? c.accent : c.border}`,
-        borderRadius: 2,
+        border: `1.5px solid ${focus ? '#2563EB' : c.border}`,
+        borderRadius: 10,
         width,
-        transition: 'border .15s',
+        transition: 'all .16s ease',
+        boxShadow: focus ? '0 0 0 3px rgba(37, 99, 235, 0.22)' : 'none',
       }}
     >
       <Icon name="search" size={15} color={c.fgFaint} />

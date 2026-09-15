@@ -253,330 +253,305 @@ export default function ForgotPasswordPage() {
     }
   };
 
+  // ─── Shared inline styles ──────────────────────────────────────────────
+  const inputWrap = (hasError) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    height: 44,
+    padding: '0 13px',
+    borderRadius: 10,
+    border: `1.5px solid ${hasError ? '#EF4444' : '#E5E7EB'}`,
+    background: hasError ? '#FEF2F2' : '#F9FAFB',
+    transition: 'border-color .15s, box-shadow .15s',
+  });
+
+  const submitBtn = (disabled) => ({
+    width: '100%',
+    height: 44,
+    borderRadius: 10,
+    background: disabled ? '#818CF8' : 'linear-gradient(135deg, #4F46E5, #6366F1)',
+    color: '#ffffff',
+    fontWeight: 600,
+    fontSize: 14,
+    border: 'none',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    boxShadow: disabled ? 'none' : '0 2px 8px rgba(79,70,229,0.3)',
+    transition: 'opacity .15s',
+    letterSpacing: 0.1,
+    fontFamily: 'inherit',
+  });
+
+  const stepDot = (active) => ({
+    width: 32,
+    height: 32,
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 13,
+    fontWeight: 700,
+    background: active ? '#4F46E5' : '#F0F2F7',
+    color: active ? '#ffffff' : '#9CA3AF',
+    border: active ? '2px solid #4F46E5' : '2px solid #E5E7EB',
+    flexShrink: 0,
+    transition: 'all .2s',
+  });
+
+  const strengthColor = metRulesCount <= 1 ? '#EF4444' : metRulesCount <= 3 ? '#F59E0B' : '#10B981';
+  const strengthLabel = !newPassword ? '' : metRulesCount <= 1 ? 'Yếu' : metRulesCount <= 3 ? 'Trung bình' : 'Mạnh';
+
   return (
-    <main className="relative min-h-screen w-screen max-w-[100vw] overflow-hidden bg-[#131313] px-4 pb-10 pt-20 text-[#e5e2e1] sm:px-6">
-      {/* Background Image & Gradient mờ */}
-      <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url('https://images.unsplash.com/photo-1606821361530-0eb537b8d655?q=80&w=2000&auto=format&fit=crop')` }}
-      />
-      <div className="fixed inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.7),rgba(12,10,8,0.92))]" />
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: '#F5F7FA',
+      padding: '40px 16px',
+      fontFamily: '"Inter", "DM Sans", system-ui, -apple-system, sans-serif',
+    }}>
+      <div style={{ width: '100%', maxWidth: 460 }}>
 
-      <section className="relative z-10 mx-auto flex min-h-[calc(100vh-136px)] w-full max-w-[500px] items-center py-8">
-        {/* Áp dụng styles.forgotContainer & styles.goldCardGlow */}
-        <div className={`w-full rounded-lg border border-[#d4af37]/20 bg-[#1a1a1a]/85 p-7 shadow-[0_28px_80px_rgba(0,0,0,0.7)] backdrop-blur-2xl sm:p-10 ${styles.forgotContainer} ${styles.goldCardGlow}`}>
-          
-          {/* Header */}
-          <div className="mb-6 text-center">
-            <h1 className="text-3xl font-black uppercase leading-tight text-[#e5e2e1] tracking-wide sm:text-4xl">
-              Khôi phục<br /><span className="text-[#d4af37]">Mật khẩu</span>
-            </h1>
-            <p className="mt-2 text-sm text-[#d0c5af]">
-              {step === 1 && 'Nhập email cá nhân đã đăng ký để nhận mã xác nhận OTP.'}
-              {step === 2 && `Mã xác thực 6 số đã được gửi đến hòm thư ${email}.`}
-              {step === 3 && 'Tạo mật khẩu mới cho tài khoản của bạn.'}
-              {step === 4 && 'Mật khẩu của bạn đã được cập nhật thành công.'}
-            </p>
+        {/* Brand */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 56, height: 56, borderRadius: 14,
+            background: '#ffffff',
+            border: '1px solid #E5E7EB',
+            padding: 6,
+            marginBottom: 14, boxShadow: '0 8px 24px rgba(79,70,229,0.15)',
+            overflow: 'hidden',
+          }}>
+            <img src="/logo.png" alt="RWFM Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 4px', letterSpacing: -0.4 }}>
+            Khôi phục mật khẩu
+          </h1>
+          <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>
+            {step === 1 && 'Nhập email để nhận mã xác thực OTP.'}
+            {step === 2 && `Kiểm tra hòm thư ${email}`}
+            {step === 3 && 'Tạo mật khẩu mới bảo mật cho tài khoản.'}
+            {step === 4 && 'Mật khẩu đã được cập nhật thành công.'}
+          </p>
+        </div>
 
-          {/* Stepper Progress Bar */}
+        {/* Card */}
+        <div style={{
+          background: '#ffffff',
+          border: '1px solid #E5E7EB',
+          borderRadius: 16,
+          padding: '28px 28px 24px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.07)',
+        }}>
+
+          {/* Stepper */}
           {step <= 3 && (
-            <div className="mb-8 flex items-center justify-between px-2">
-              <div className="flex flex-col items-center">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition ${step >= 1 ? 'bg-[#f2ca50] text-[#241a00]' : 'border border-[#4d4635] text-[#99907c]'}`}>
-                  1
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
+              {[
+                { n: 1, label: 'Email' },
+                { n: 2, label: 'OTP' },
+                { n: 3, label: 'Mật khẩu' },
+              ].map((s, i) => (
+                <div key={s.n} style={{ display: 'flex', alignItems: 'center', flex: i < 2 ? 1 : 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <div style={stepDot(step >= s.n)}>{s.n}</div>
+                    <span style={{ fontSize: 10.5, fontWeight: 500, color: step >= s.n ? '#4F46E5' : '#9CA3AF' }}>{s.label}</span>
+                  </div>
+                  {i < 2 && (
+                    <div style={{ flex: 1, height: 2, background: step > s.n ? '#4F46E5' : '#E5E7EB', margin: '0 8px', marginBottom: 18, transition: 'background .2s' }} />
+                  )}
                 </div>
-                <span className="mt-1 text-[11px] font-semibold text-[#d0c5af]">Email</span>
-              </div>
-              <div className={`h-[2px] flex-1 mx-2 transition ${step >= 2 ? 'bg-[#f2ca50]' : 'bg-[#4d4635]'}`} />
-              <div className="flex flex-col items-center">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition ${step >= 2 ? 'bg-[#f2ca50] text-[#241a00]' : 'border border-[#4d4635] text-[#99907c]'}`}>
-                  2
-                </div>
-                <span className="mt-1 text-[11px] font-semibold text-[#d0c5af]">Xác thực OTP</span>
-              </div>
-              <div className={`h-[2px] flex-1 mx-2 transition ${step >= 3 ? 'bg-[#f2ca50]' : 'bg-[#4d4635]'}`} />
-              <div className="flex flex-col items-center">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition ${step >= 3 ? 'bg-[#f2ca50] text-[#241a00]' : 'border border-[#4d4635] text-[#99907c]'}`}>
-                  3
-                </div>
-                <span className="mt-1 text-[11px] font-semibold text-[#d0c5af]">Đổi mật khẩu</span>
-              </div>
+              ))}
             </div>
           )}
 
-          {/* ═════════════════ STEP 1: NHẬP EMAIL ═════════════════ */}
+          <style>{`
+            .fp-input:focus-within { border-color: #4F46E5 !important; box-shadow: 0 0 0 3px rgba(79,70,229,0.12) !important; background: #fff !important; }
+            .fp-btn-secondary { background: #F9FAFB; border: 1.5px solid #E5E7EB; color: #6B7280; border-radius: 8px; padding: 6px 12px; font-size: 12.5px; font-weight: 500; cursor: pointer; transition: background .15s; }
+            .fp-btn-secondary:hover { background: #F0F2F7; border-color: #D1D5DB; }
+          `}</style>
+
+          {/* ─── STEP 1: EMAIL ─── */}
           {step === 1 && (
-            <form key="step1" className={`space-y-5 ${styles.stepTransition}`} noValidate onSubmit={handleStep1Submit}>
+            <form noValidate onSubmit={handleStep1Submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label htmlFor="email" className="mb-2 block text-xs font-bold uppercase text-[#f2ca50]">
-                  Email cá nhân
+                <label htmlFor="email" style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
+                  Email cá nhân đã đăng ký
                 </label>
-                <div className={`flex h-14 items-center gap-3 rounded border bg-[#0e0e0e]/85 px-4 transition ${fieldErrors.email ? 'border-[#ffb4ab]' : 'border-[#4d4635] focus-within:border-[#f2ca50]'}`}>
+                <div className="fp-input" style={inputWrap(!!fieldErrors.email)}>
                   <MailIcon />
                   <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (fieldErrors.email) setFieldErrors({});
-                    }}
-                    autoComplete="email"
-                    disabled={isLoading}
-                    className="min-w-0 flex-1 bg-transparent text-base text-[#e5e2e1] outline-none placeholder:text-[#77736b]"
+                    id="email" type="email" value={email}
+                    onChange={(e) => { setEmail(e.target.value); if (fieldErrors.email) setFieldErrors({}); }}
+                    autoComplete="email" disabled={isLoading}
                     placeholder="example@company.com"
+                    style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 14, color: '#111827', fontFamily: 'inherit' }}
                   />
                 </div>
-                {fieldErrors.email && <p className="mt-2 text-sm font-semibold text-[#ffb4ab]">{fieldErrors.email}</p>}
+                {fieldErrors.email && <p style={{ marginTop: 4, fontSize: 11.5, color: '#EF4444', fontWeight: 500 }}>{fieldErrors.email}</p>}
               </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex h-14 w-full items-center justify-center gap-3 rounded bg-[#f2ca50] text-lg font-black uppercase text-[#241a00] shadow-[0_12px_30px_rgba(0,0,0,0.4)] transition hover:bg-[#ffe088] disabled:cursor-not-allowed disabled:opacity-65"
-              >
-                {isLoading ? 'Đang gửi mã...' : 'Gửi mã xác thực'}
+              <button type="submit" disabled={isLoading} style={submitBtn(isLoading)}>
+                {isLoading ? 'Đang gửi mã...' : 'Gửi mã xác thực OTP'}
                 {!isLoading && <ArrowRightIcon />}
               </button>
             </form>
           )}
 
-          {/* ═════════════════ STEP 2: NHẬP OTP ═════════════════ */}
+          {/* ─── STEP 2: OTP ─── */}
           {step === 2 && (
-            <form key="step2" className={`space-y-5 ${styles.stepTransition}`} noValidate onSubmit={handleStep2Submit}>
+            <form noValidate onSubmit={handleStep2Submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <label htmlFor="otpCode" className="text-xs font-bold uppercase text-[#f2ca50]">
-                    Mã OTP (6 chữ số)
-                  </label>
-                  {/* Nhấp nháy cảnh báo khi dưới 60s qua styles.pulseWarning */}
-                  <span className={`text-xs font-semibold ${countdown === 0 ? 'text-[#ffb4ab]' : 'text-[#f2ca50]'} ${countdown > 0 && countdown <= 60 ? styles.pulseWarning : ''}`}>
-                    {countdown > 0 ? `Hết hạn sau: ${formatCountdown(countdown)}` : 'Mã đã hết hạn'}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label htmlFor="otpCode" style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>Mã OTP (6 chữ số)</label>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: countdown === 0 ? '#EF4444' : countdown <= 60 ? '#F59E0B' : '#4F46E5' }}>
+                    {countdown > 0 ? `Hết hạn: ${formatCountdown(countdown)}` : 'Mã hết hạn'}
                   </span>
                 </div>
-                <div className={`flex h-14 items-center gap-3 rounded border bg-[#0e0e0e]/85 px-4 transition ${fieldErrors.otp ? 'border-[#ffb4ab]' : 'border-[#4d4635] focus-within:border-[#f2ca50]'}`}>
+                <div className="fp-input" style={{ ...inputWrap(!!fieldErrors.otp), justifyContent: 'center' }}>
                   <KeyIcon />
                   <input
-                    id="otpCode"
-                    type="text"
-                    maxLength={6}
-                    value={otpCode}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '');
-                      setOtpCode(val);
-                      if (fieldErrors.otp) setFieldErrors({});
-                    }}
+                    id="otpCode" type="text" maxLength={6} value={otpCode}
+                    onChange={(e) => { const v = e.target.value.replace(/\D/g, ''); setOtpCode(v); if (fieldErrors.otp) setFieldErrors({}); }}
                     disabled={isLoading}
-                    className={`min-w-0 flex-1 bg-transparent text-center text-2xl font-bold tracking-[0.5em] text-[#f2ca50] outline-none placeholder:text-[#77736b] placeholder:tracking-normal placeholder:text-base placeholder:font-normal ${styles.otpInput}`}
                     placeholder="Nhập 6 số OTP"
+                    style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 22, fontWeight: 700, letterSpacing: '0.4em', textAlign: 'center', color: '#4F46E5', fontFamily: 'inherit' }}
                   />
                 </div>
-                {fieldErrors.otp && <p className="mt-2 text-sm font-semibold text-[#ffb4ab]">{fieldErrors.otp}</p>}
+                {fieldErrors.otp && <p style={{ marginTop: 4, fontSize: 11.5, color: '#EF4444', fontWeight: 500 }}>{fieldErrors.otp}</p>}
               </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="font-medium text-[#99907c] hover:text-[#f2ca50] transition"
-                >
-                  Đổi email khác
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={isLoading}
-                  className="font-semibold text-[#f2ca50] hover:underline disabled:opacity-50"
-                >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button type="button" onClick={() => setStep(1)} className="fp-btn-secondary">← Đổi email</button>
+                <button type="button" onClick={handleResendOtp} disabled={isLoading} style={{ fontSize: 12.5, color: '#4F46E5', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>
                   Gửi lại mã OTP
                 </button>
               </div>
-
-              <button
-                type="submit"
-                disabled={isLoading || countdown === 0}
-                className="flex h-14 w-full items-center justify-center gap-3 rounded bg-[#f2ca50] text-lg font-black uppercase text-[#241a00] shadow-[0_12px_30px_rgba(0,0,0,0.4)] transition hover:bg-[#ffe088] disabled:cursor-not-allowed disabled:opacity-65"
-              >
-                {isLoading ? 'Đang xác thực...' : 'Tiếp tục'}
+              <button type="submit" disabled={isLoading || countdown === 0} style={submitBtn(isLoading || countdown === 0)}>
+                {isLoading ? 'Đang xác thực...' : 'Xác thực và tiếp tục'}
                 {!isLoading && <ArrowRightIcon />}
               </button>
             </form>
           )}
 
-          {/* ═════════════════ STEP 3: MẬT KHẨU MỚI ═════════════════ */}
+          {/* ─── STEP 3: MẬT KHẨU MỚI ─── */}
           {step === 3 && (
-            <form key="step3" className={`space-y-5 ${styles.stepTransition}`} noValidate onSubmit={handleStep3Submit}>
+            <form noValidate onSubmit={handleStep3Submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* New Password */}
               <div>
-                <label htmlFor="newPassword" className="mb-2 block text-xs font-bold uppercase text-[#f2ca50]">
+                <label htmlFor="newPassword" style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
                   Mật khẩu mới
                 </label>
-                <div className={`flex h-14 items-center gap-3 rounded border bg-[#0e0e0e]/85 px-4 transition ${fieldErrors.newPassword ? 'border-[#ffb4ab]' : 'border-[#4d4635] focus-within:border-[#f2ca50]'}`}>
+                <div className="fp-input" style={inputWrap(!!fieldErrors.newPassword)}>
                   <LockIcon />
                   <input
-                    id="newPassword"
-                    type={showPassword ? 'text' : 'password'}
-                    value={newPassword}
-                    onChange={(e) => {
-                      setNewPassword(e.target.value);
-                      if (fieldErrors.newPassword) setFieldErrors((prev) => ({ ...prev, newPassword: '' }));
-                    }}
-                    disabled={isLoading}
-                    className="min-w-0 flex-1 bg-transparent text-base text-[#e5e2e1] outline-none placeholder:text-[#77736b]"
-                    placeholder="Nhập mật khẩu mới"
+                    id="newPassword" type={showPassword ? 'text' : 'password'} value={newPassword}
+                    onChange={(e) => { setNewPassword(e.target.value); if (fieldErrors.newPassword) setFieldErrors((p) => ({ ...p, newPassword: '' })); }}
+                    disabled={isLoading} placeholder="Nhập mật khẩu mới"
+                    style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 14, color: '#111827', fontFamily: 'inherit' }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-[#99907c] hover:text-[#f2ca50] transition"
-                  >
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', display: 'flex' }}>
                     {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
                 </div>
-
-                {/* Thanh kiểm tra độ mạnh yếu của mật khẩu */}
+                {/* Strength bar */}
                 {newPassword.length > 0 && (
-                  <div className="mt-2.5 space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-[#99907c]">Độ mạnh mật khẩu:</span>
-                      <span className={`font-bold ${strengthInfo.textColor}`}>
-                        {strengthInfo.label}
-                      </span>
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
+                      <span style={{ color: '#9CA3AF' }}>Độ mạnh:</span>
+                      <span style={{ color: strengthColor, fontWeight: 600 }}>{strengthLabel}</span>
                     </div>
-                    <div className="grid grid-cols-4 gap-1.5 h-1.5 w-full">
-                      <div className={`h-full rounded-full transition-all duration-300 ${metRulesCount >= 1 ? strengthInfo.barColor : 'bg-[#2a2620]'}`} />
-                      <div className={`h-full rounded-full transition-all duration-300 ${metRulesCount >= 2 ? strengthInfo.barColor : 'bg-[#2a2620]'}`} />
-                      <div className={`h-full rounded-full transition-all duration-300 ${metRulesCount >= 3 ? strengthInfo.barColor : 'bg-[#2a2620]'}`} />
-                      <div className={`h-full rounded-full transition-all duration-300 ${metRulesCount >= 4 ? strengthInfo.barColor : 'bg-[#2a2620]'}`} />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 4, height: 4 }}>
+                      {[1,2,3,4].map((i) => (
+                        <div key={i} style={{ height: '100%', borderRadius: 4, background: metRulesCount >= i ? strengthColor : '#E5E7EB', transition: 'background .2s' }} />
+                      ))}
                     </div>
                   </div>
                 )}
-
-                {/* Danh sách yêu cầu mật khẩu: Tiêu chí nào có rồi thì ẩn đi, chưa có thì vẫn hiện */}
+                {/* Unmet rules */}
                 {unmetRules.length > 0 && (
-                  <div className="mt-3 rounded border border-[#4d4635]/60 bg-[#14120e]/90 p-3 text-xs">
-                    <p className="font-semibold text-[#d0c5af] mb-1.5">Mật khẩu cần bổ sung:</p>
-                    <ul className="space-y-1 text-[#99907c]">
-                      {unmetRules.map((rule) => (
-                        <li key={rule.id} className="flex items-center gap-2 text-[#e5e2e1]/85">
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#f2ca50]" />
-                          <span>{rule.text}</span>
+                  <div style={{ marginTop: 8, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 12px' }}>
+                    <p style={{ fontSize: 11.5, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Cần bổ sung:</p>
+                    <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      {unmetRules.map((r) => (
+                        <li key={r.id} style={{ fontSize: 11.5, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#F59E0B', flexShrink: 0 }} />
+                          {r.text}
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
-
-                {fieldErrors.newPassword && <p className="mt-2 text-sm font-semibold text-[#ffb4ab]">{fieldErrors.newPassword}</p>}
+                {fieldErrors.newPassword && <p style={{ marginTop: 4, fontSize: 11.5, color: '#EF4444', fontWeight: 500 }}>{fieldErrors.newPassword}</p>}
               </div>
 
+              {/* Confirm Password */}
               <div>
-                <label htmlFor="confirmPassword" className="mb-2 block text-xs font-bold uppercase text-[#f2ca50]">
-                  Xác nhận mật khẩu mới
+                <label htmlFor="confirmPassword" style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
+                  Xác nhận mật khẩu
                 </label>
-                <div
-                  className={`flex h-14 items-center gap-3 rounded border bg-[#0e0e0e]/85 px-4 transition ${
-                    isConfirmMismatch
-                      ? 'border-[#ffb4ab] focus-within:border-[#ffb4ab]'
-                      : isConfirmMatch
-                      ? 'border-[#4ade80] focus-within:border-[#4ade80]'
-                      : fieldErrors.confirmPassword
-                      ? 'border-[#ffb4ab]'
-                      : 'border-[#4d4635] focus-within:border-[#f2ca50]'
-                  }`}
-                >
+                <div className="fp-input" style={inputWrap(isConfirmMismatch || !!fieldErrors.confirmPassword)}>
                   <LockIcon />
                   <input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => {
-                      setConfirmPassword(e.target.value);
-                      if (fieldErrors.confirmPassword) setFieldErrors((prev) => ({ ...prev, confirmPassword: '' }));
-                    }}
-                    disabled={isLoading}
-                    className="min-w-0 flex-1 bg-transparent text-base text-[#e5e2e1] outline-none placeholder:text-[#77736b]"
-                    placeholder="Nhập lại mật khẩu mới"
+                    id="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword}
+                    onChange={(e) => { setConfirmPassword(e.target.value); if (fieldErrors.confirmPassword) setFieldErrors((p) => ({ ...p, confirmPassword: '' })); }}
+                    disabled={isLoading} placeholder="Nhập lại mật khẩu mới"
+                    style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 14, color: '#111827', fontFamily: 'inherit' }}
                   />
-                  {isConfirmMatch && (
-                    <span className="text-[#4ade80]" title="Mật khẩu khớp">
-                      <CheckSmallIcon />
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="text-[#99907c] hover:text-[#f2ca50] transition"
-                  >
+                  {isConfirmMatch && <span style={{ color: '#10B981', display: 'flex' }}><CheckSmallIcon /></span>}
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', display: 'flex' }}>
                     {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
                 </div>
-
-                {/* Kiểm tra trực tiếp liên tục: Báo lỗi không trùng khớp ngay khi gõ sai, ẩn đi khi trùng khớp */}
-                {isConfirmMismatch && (
-                  <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-[#ffb4ab]">
-                    <AlertCircleIcon />
-                    <span>Mật khẩu xác nhận không trùng khớp.</span>
-                  </p>
-                )}
-
-                {fieldErrors.confirmPassword && !isConfirmMismatch && (
-                  <p className="mt-2 text-sm font-semibold text-[#ffb4ab]">{fieldErrors.confirmPassword}</p>
-                )}
+                {isConfirmMismatch && <p style={{ marginTop: 4, fontSize: 11.5, color: '#EF4444', fontWeight: 500 }}>Mật khẩu không trùng khớp.</p>}
+                {fieldErrors.confirmPassword && !isConfirmMismatch && <p style={{ marginTop: 4, fontSize: 11.5, color: '#EF4444', fontWeight: 500 }}>{fieldErrors.confirmPassword}</p>}
               </div>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex h-14 w-full items-center justify-center gap-3 rounded bg-[#f2ca50] text-lg font-black uppercase text-[#241a00] shadow-[0_12px_30px_rgba(0,0,0,0.4)] transition hover:bg-[#ffe088] disabled:cursor-not-allowed disabled:opacity-65"
-              >
+              <button type="submit" disabled={isLoading} style={{ ...submitBtn(isLoading), marginTop: 4 }}>
                 {isLoading ? 'Đang cập nhật...' : 'Xác nhận đặt lại mật khẩu'}
                 {!isLoading && <ArrowRightIcon />}
               </button>
             </form>
           )}
 
-          {/* ═════════════════ STEP 4: HOÀN TẤT ═════════════════ */}
+          {/* ─── STEP 4: THÀNH CÔNG ─── */}
           {step === 4 && (
-            <div key="step4" className={`py-6 text-center space-y-6 ${styles.stepTransition}`}>
-              <div className="flex justify-center">
-                <div className="rounded-full bg-[#4ade80]/10 p-4 border border-[#4ade80]/30">
-                  <CheckCircleIcon />
-                </div>
+            <div style={{ textAlign: 'center', padding: '16px 0' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, borderRadius: '50%', background: 'rgba(16,185,129,0.1)', border: '2px solid rgba(16,185,129,0.3)', marginBottom: 16 }}>
+                <CheckCircleIcon />
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-[#e5e2e1]">Khôi phục thành công!</h2>
-                <p className="mt-2 text-sm text-[#d0c5af]">
-                  Mật khẩu tài khoản của bạn đã được cập nhật thành công. Hãy dùng mật khẩu mới để đăng nhập.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => navigate('/login')}
-                className="flex h-14 w-full items-center justify-center gap-3 rounded bg-[#f2ca50] text-lg font-black uppercase text-[#241a00] shadow-[0_12px_30px_rgba(0,0,0,0.4)] transition hover:bg-[#ffe088]"
-              >
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Khôi phục thành công!</h2>
+              <p style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.6, marginBottom: 24 }}>
+                Mật khẩu tài khoản đã được cập nhật. Hãy dùng mật khẩu mới để đăng nhập.
+              </p>
+              <button type="button" onClick={() => navigate('/login')} style={submitBtn(false)}>
                 Đăng nhập ngay
                 <ArrowRightIcon />
               </button>
             </div>
           )}
 
-          {/* Nút quay lại Login */}
+          {/* Back to login */}
           {step !== 4 && (
-            <div className="mt-8 text-center border-t border-[#4d4635]/60 pt-6">
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[#99907c] transition hover:text-[#f2ca50]"
-              >
+            <div style={{ marginTop: 20, textAlign: 'center', borderTop: '1px solid #F3F4F6', paddingTop: 16 }}>
+              <Link to="/login" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#6B7280', fontWeight: 500, textDecoration: 'none' }}>
                 <ArrowLeftIcon />
-                <span>Quay lại trang Đăng nhập</span>
+                Quay lại trang Đăng nhập
               </Link>
             </div>
           )}
-
         </div>
-      </section>
-    </main>
+
+        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 11.5, color: '#9CA3AF' }}>
+          © {new Date().getFullYear()} R-WFM Platform · Hỗ trợ nội bộ doanh nghiệp
+        </p>
+      </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
   );
 }
