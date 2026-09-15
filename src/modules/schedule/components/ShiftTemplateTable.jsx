@@ -4,6 +4,7 @@ import DataTable from '@/shared/components/ui/DataTable';
 import Badge from '@/shared/components/ui/Badge';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
+import { formatShiftTemplateName } from '../hooks/useWeeklySchedule';
 
 /**
  * ==============================================================================
@@ -65,7 +66,7 @@ export default function ShiftTemplateTable({
               gap: '6px',
             }}
           >
-            <span>{row.shiftName || row.name}</span>
+            <span>{formatShiftTemplateName(row.shiftName || row.name)}</span>
             {row.isSystemDefault && (
               <Badge tone="neutral">
                 <span style={{ fontSize: '10px' }}>MẶC ĐỊNH CHUỖI</span>

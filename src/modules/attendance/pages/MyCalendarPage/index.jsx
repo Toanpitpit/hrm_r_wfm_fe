@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import DashboardShell from '@/shared/components/layout/DashboardShell';
@@ -11,6 +11,8 @@ import Icon from '@/shared/components/ui/Icon';
 import { getNavItemsForRole } from '@/shared/constants/navigation.config';
 import { useMyCalendar } from '../../hooks/useMyCalendar';
 import WeekCalendar from '../../components/WeekCalendar';
+import ShiftSwapModal from '@/modules/schedule/components/ShiftSwapModal';
+import MySwapRequestsModal from '@/modules/schedule/components/MySwapRequestsModal';
 
 export default function MyCalendarPage() {
   const { c, fonts } = useAdminTheme();
@@ -73,7 +75,17 @@ export default function MyCalendarPage() {
     goNextWeek,
     goPrevWeek,
     goToCurrentWeek,
+    refetch,
   } = useMyCalendar();
+
+  const [selectedShiftForSwap, setSelectedShiftForSwap] = useState(null);
+  const [isMyRequestsOpen, setIsMyRequestsOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 5000);
+  };
 
   const formatWeekRange = () => {
     if (!scheduleData?.weekStart || !scheduleData?.weekEnd) return '';
@@ -137,11 +149,42 @@ export default function MyCalendarPage() {
             </Button>
           </div>
 
-          <div style={{ fontSize: 14, fontWeight: 700, color: c.fg, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Icon name="calendar" size={16} color={c.accent} />
-            <span>Tuần: {formatWeekRange()}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: c.fg, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Icon name="calendar" size={16} color={c.accent} />
+              <span>Tuần: {formatWeekRange()}</span>
+            </div>
+
+            <Button
+              variant="outline"
+              kind="outline"
+              size="sm"
+              onClick={() => setIsMyRequestsOpen(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <span>📋</span> Đơn Đổi / Chuyển Ca Của Tôi
+            </Button>
           </div>
         </div>
+
+        {toastMsg && (
+          <div
+            style={{
+              padding: '12px 18px',
+              borderRadius: 6,
+              background: 'rgba(34, 197, 94, 0.15)',
+              border: '1px solid rgba(34, 197, 94, 0.4)',
+              color: '#86efac',
+              fontSize: 13,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span>✅ {toastMsg}</span>
+            <span style={{ cursor: 'pointer', fontWeight: 800 }} onClick={() => setToastMsg(null)}>✕</span>
+          </div>
+        )}
 
         {error && (
           <div
@@ -168,9 +211,29 @@ export default function MyCalendarPage() {
             sub={`Hiển thị khung ca, địa điểm làm việc và trạng thái chấm công từ ${formatWeekRange()}`}
             pad={16}
           >
-            <WeekCalendar days={scheduleData?.days || []} />
+            <WeekCalendar
+              days={scheduleData?.days || []}
+              onOpenSwapModal={(shift) => setSelectedShiftForSwap(shift)}
+            />
           </Panel>
         )}
+
+        {/* Modal tạo đơn đổi / chuyển ca */}
+        <ShiftSwapModal
+          isOpen={Boolean(selectedShiftForSwap)}
+          onClose={() => setSelectedShiftForSwap(null)}
+          shift={selectedShiftForSwap}
+          onSuccess={(msg) => {
+            showToast(msg);
+            refetch();
+          }}
+        />
+
+        {/* Modal xem lịch sử đơn đổi / chuyển ca */}
+        <MySwapRequestsModal
+          isOpen={isMyRequestsOpen}
+          onClose={() => setIsMyRequestsOpen(false)}
+        />
       </div>
     </DashboardShell>
   );
