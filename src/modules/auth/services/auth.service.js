@@ -54,6 +54,17 @@ const authService = {
     const response = await axiosInstance.post('/Auth/reset-password', data);
     return response.data;
   },
+
+  /**
+   * Đăng nhập bằng tài khoản Google
+   * @param {string} idToken - Google Credential ID Token
+   * @returns {Promise<Object>} ApiResponse chứa token và thông tin user
+   */
+  googleLogin: async (idToken) => {
+    const response = await axiosInstance.post('/Auth/google-login', { idToken });
+    return response.data;
+  },
 };
 
 export default authService;
+

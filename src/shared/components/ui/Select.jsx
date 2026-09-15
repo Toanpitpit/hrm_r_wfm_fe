@@ -16,17 +16,18 @@ export default function Select({ value, onChange, options = [], width = 'auto', 
         disabled={disabled}
         style={{
           appearance: 'none',
-          background: disabled ? c.track : c.bgRaised,
-          border: `1px solid ${c.border}`,
-          borderRadius: 2,
+          background: disabled ? c.track : c.bgElev,
+          border: `1.5px solid ${c.border}`,
+          borderRadius: 10,
           color: disabled ? c.fgSubtle : c.fgMuted,
           fontSize: 13,
           fontFamily: fonts.body,
-          padding: '9px 34px 9px 13px',
+          padding: '9px 34px 9px 12px',
           cursor: disabled ? 'not-allowed' : 'pointer',
           width: '100%',
           outline: 'none',
           opacity: disabled ? 0.75 : 1,
+          transition: 'all .15s',
         }}
       >
         {options.map((o, idx) => {

@@ -14,12 +14,14 @@ export default function DashboardPage() {
   const navItems = [
     { id: 'dashboard', label: 'Tổng quan Dashboard', icon: 'dashboard' },
     { type: 'group', label: 'VẬN HÀNH & HỆ THỐNG' },
+    { id: 'employees', label: 'Khai Báo & Quản Lý Nhân Sự', icon: 'users' },
     { id: 'branches', label: 'Danh mục Chi nhánh & Kiosk', icon: 'pin' },
     { id: 'shift-master', label: 'Khung Ca Mẫu (Shift Master)', icon: 'clock' },
   ];
 
   const handleNavigate = (id) => {
     if (id === 'dashboard') navigate('/dashboard');
+    if (id === 'employees') navigate('/employees');
     if (id === 'branches') navigate('/branches');
     if (id === 'shift-master') navigate('/shifts/templates');
   };
@@ -47,15 +49,15 @@ export default function DashboardPage() {
       }
     >
       <PageHeader
-        title="Bảng Điều Khiển Quản Trị Vận Hành (Operations Console)"
-        subtitle="Hệ thống quản lý chuỗi bán lẻ RWFM - Phân hệ Chi nhánh, Khung ca mẫu & Quầy Kiosk."
+        title="Tổng Quan Vận Hành"
+        desc="Hệ thống quản lý chuỗi siêu thị R-WFM — Phân hệ Chi nhánh, Khung ca mẫu & Quầy Kiosk."
       />
 
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '20px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '24px',
         }}
       >
         <Panel>
@@ -66,19 +68,22 @@ export default function DashboardPage() {
                 size={20}
               />
               <span style={{ fontWeight: 700, fontSize: '16px' }}>
-                UC 1.2: Danh Mục Chi Nhánh & Kiosk
+                Danh Mục Chi Nhánh & Kiosk
               </span>
             </div>
             <p style={{ fontSize: '13px', color: '#9ca3af', lineHeight: '1.5' }}>
               Quản lý danh sách chi nhánh cửa hàng, cấu hình an ninh mạng IP
               Whitelist và cấp phát mã trạm Kiosk điểm danh tại quầy.
             </p>
-            <Button
-              variant="primary"
-              onClick={() => navigate('/branches')}
-            >
-              Truy Cập Quản Lý Chi Nhánh
-            </Button>
+            <div>
+              <Button
+                variant="primary"
+                icon="pin"
+                onClick={() => navigate('/branches')}
+              >
+                Truy Cập Quản Lý Chi Nhánh
+              </Button>
+            </div>
           </div>
         </Panel>
 
@@ -90,7 +95,7 @@ export default function DashboardPage() {
                 size={20}
               />
               <span style={{ fontWeight: 700, fontSize: '16px' }}>
-                UC 1.3: Bộ Khung Ca Mẫu (Shift Master)
+                Bộ Khung Ca Mẫu (Shift Master)
               </span>
             </div>
             <p style={{ fontSize: '13px', color: '#9ca3af', lineHeight: '1.5' }}>
@@ -102,6 +107,29 @@ export default function DashboardPage() {
               onClick={() => navigate('/shifts/templates')}
             >
               Truy Cập Khung Ca Mẫu
+            </Button>
+          </div>
+        </Panel>
+
+        <Panel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Icon
+                name="users"
+                size={20}
+              />
+              <span style={{ fontWeight: 700, fontSize: '16px' }}>
+                Khai Báo Hồ Sơ Nhân Sự
+              </span>
+            </div>
+            <p style={{ fontSize: '13px', color: '#9ca3af', lineHeight: '1.5' }}>
+              Khai báo nhân sự cửa hàng tự động gửi Welcome Email.
+            </p>
+            <Button
+              variant="primary"
+              onClick={() => navigate('/employees')}
+            >
+              Quản Lý Hồ Sơ Nhân Sự
             </Button>
           </div>
         </Panel>

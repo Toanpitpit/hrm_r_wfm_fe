@@ -7,7 +7,16 @@ export default function Panel({ title, sub, action, children, pad = 24, style })
   const { c, fonts } = useAdminTheme();
 
   return (
-    <div style={{ background: c.bgCard, border: `1px solid ${c.border}`, borderRadius: 3, ...style }}>
+    <div
+      style={{
+        background: c.bgCard,
+        border: `1px solid ${c.border}`,
+        borderRadius: 16,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+        overflow: 'hidden',
+        ...style,
+      }}
+    >
       {(title || action) && (
         <div
           style={{
@@ -16,25 +25,29 @@ export default function Panel({ title, sub, action, children, pad = 24, style })
             justifyContent: 'space-between',
             gap: 16,
             padding: `18px ${pad}px`,
-            borderBottom: `1px solid ${c.borderSub}`,
+            borderBottom: `1px solid ${c.border}`,
           }}
         >
           <div style={{ minWidth: 0 }}>
             {title && (
               <div
                 style={{
-                  fontFamily: fonts.display,
-                  fontSize: 19,
-                  letterSpacing: 0.5,
-                  textTransform: 'uppercase',
-                  lineHeight: 1.12,
-                  whiteSpace: 'nowrap',
+                  fontFamily: fonts.body,
+                  fontSize: 15.5,
+                  fontWeight: 700,
+                  color: c.fg,
+                  letterSpacing: -0.2,
+                  lineHeight: 1.3,
                 }}
               >
                 {title}
               </div>
             )}
-            {sub && <div style={{ fontSize: 12, color: c.fgSubtle, marginTop: 3 }}>{sub}</div>}
+            {sub && (
+              <div style={{ fontSize: 13, color: c.fgSubtle, marginTop: 3, fontWeight: 400 }}>
+                {sub}
+              </div>
+            )}
           </div>
           {action}
         </div>

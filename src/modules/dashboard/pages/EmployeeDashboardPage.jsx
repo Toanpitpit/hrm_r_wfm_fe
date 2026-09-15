@@ -11,6 +11,7 @@ import { getNavItemsForRole } from '@/shared/constants/navigation.config';
 import Icon from '@/shared/components/ui/Icon';
 import Badge from '@/shared/components/ui/Badge';
 import Button from '@/shared/components/ui/Button';
+import StatCard from '@/shared/components/ui/StatCard';
 
 export default function EmployeeDashboardPage() {
   const { c, fonts } = useAdminTheme();
@@ -145,11 +146,10 @@ export default function EmployeeDashboardPage() {
         {/* Banner Thông Báo Đã Công Bố Lịch */}
         <div
           style={{
-            background: `linear-gradient(135deg, ${c.tones.okDim}, ${c.bgCard})`,
-            border: `1px solid ${c.tones.ok}`,
-            borderRadius: 12,
+            background: c.bgCard,
+            border: `1.5px solid rgba(16, 185, 129, 0.4)`,
+            borderRadius: 16,
             padding: '20px 24px',
-            marginBottom: 24,
             display: 'flex',
             alignItems: 'flex-start',
             gap: 16,
@@ -161,74 +161,55 @@ export default function EmployeeDashboardPage() {
             style={{
               width: 44,
               height: 44,
-              borderRadius: 10,
-              background: c.tones.ok,
-              color: '#000',
+              borderRadius: 12,
+              background: 'rgba(16, 185, 129, 0.15)',
+              color: '#10B981',
               display: 'grid',
               placeItems: 'center',
               flexShrink: 0,
             }}
           >
-            <Icon name="check" size={24} />
+            <Icon name="check" size={22} />
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-              <span style={{ fontSize: 16, fontWeight: 800, color: c.tones.ok, textTransform: 'uppercase' }}>
-                Thông Báo: Lịch Làm Việc Tuần Đã Được Công Bố!
+              <span style={{ fontSize: 16, fontWeight: 700, color: c.fg }}>
+                Lịch Làm Việc Tuần Đã Được Công Bố
               </span>
               <Badge tone="ok">CONFIRMED</Badge>
             </div>
-            <p style={{ margin: 0, fontSize: 13, color: c.fgMuted, lineHeight: 1.5 }}>
-              Quản lý cửa hàng đã hoàn tất việc lập định mức và <strong>Công Bố Lịch Tuần (UC 2.3)</strong>.
-              Lịch trực cá nhân của bạn dưới đây đã được chốt chính thức. Vui lòng có mặt đúng giờ quy định.
+            <p style={{ margin: 0, fontSize: 13.5, color: c.fgSubtle, lineHeight: 1.5 }}>
+              Quản lý cửa hàng đã hoàn tất phê duyệt và công bố lịch tuần. Lịch trực cá nhân của bạn dưới đây đã được chốt chính thức.
             </p>
           </div>
         </div>
 
-        {/* Thống kê nhanh ca tuần */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 16,
-            marginBottom: 24,
-          }}
-        >
-          <div style={{ background: c.bgCard, border: `1px solid ${c.border}`, borderRadius: 10, padding: 18 }}>
-            <div style={{ fontSize: 11, color: c.fgSubtle, textTransform: 'uppercase', fontWeight: 700 }}>
-              TỔNG CA ĐÃ NHẬN TUẦN NÀY
-            </div>
-            <div style={{ fontSize: 32, fontWeight: 900, color: c.fg, marginTop: 6, fontFamily: fonts.display }}>
-              {shifts.length} Ca
-            </div>
-            <div style={{ fontSize: 11.5, color: c.tones.ok, marginTop: 4 }}>
-              ✓ Đầy đủ chỉ tiêu công việc
-            </div>
-          </div>
-
-          <div style={{ background: c.bgCard, border: `1px solid ${c.border}`, borderRadius: 10, padding: 18 }}>
-            <div style={{ fontSize: 11, color: c.fgSubtle, textTransform: 'uppercase', fontWeight: 700 }}>
-              TỔNG GIỜ LÀM VIỆC DỰ KIẾN
-            </div>
-            <div style={{ fontSize: 32, fontWeight: 900, color: c.accent, marginTop: 6, fontFamily: fonts.display }}>
-              {shifts.length * 8} Giờ
-            </div>
-            <div style={{ fontSize: 11.5, color: c.fgFaint, marginTop: 4 }}>
-              Trung bình 8 giờ / ca trực
-            </div>
-          </div>
-
-          <div style={{ background: c.bgCard, border: `1px solid ${c.border}`, borderRadius: 10, padding: 18 }}>
-            <div style={{ fontSize: 11, color: c.fgSubtle, textTransform: 'uppercase', fontWeight: 700 }}>
-              TRẠNG THÁI PHÊ DUYỆT
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: c.tones.ok, marginTop: 10 }}>
-              ĐÃ XÁC NHẬN
-            </div>
-            <div style={{ fontSize: 11.5, color: c.fgFaint, marginTop: 4 }}>
-              Không có xung đột lịch
-            </div>
-          </div>
+        {/* 3 Stat Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+          <StatCard
+            label="TỔNG CA NHẬN TUẦN NÀY"
+            title="TỔNG CA NHẬN TUẦN NÀY"
+            value={`${shifts.length} Ca`}
+            subtext="✓ Đầy đủ chỉ tiêu phân công"
+            icon="calendar"
+            tone="ok"
+          />
+          <StatCard
+            label="TỔNG GIỜ LÀM DỰ KIẾN"
+            title="TỔNG GIỜ LÀM DỰ KIẾN"
+            value={`${shifts.length * 8} Giờ`}
+            subtext="Trung bình 8 giờ / ca trực"
+            icon="clock"
+            tone="info"
+          />
+          <StatCard
+            label="TRẠNG THÁI LỊCH TUẦN"
+            title="TRẠNG THÁI LỊCH TUẦN"
+            value="ĐÃ XÁC NHẬN"
+            subtext="Không có xung đột ca"
+            icon="check"
+            tone="ok"
+          />
         </div>
 
         {/* Thanh Điều Hướng Tuần */}
@@ -236,73 +217,78 @@ export default function EmployeeDashboardPage() {
           style={{
             background: c.bgCard,
             border: `1px solid ${c.border}`,
-            borderRadius: 10,
-            padding: '12px 16px',
-            marginBottom: 20,
+            borderRadius: 14,
+            padding: '14px 20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Button variant="ghost" size="sm" onClick={() => setWeekStartDate((prev) => addWeeks(prev, -1))}>
+            <Button kind="ghost" variant="ghost" size="sm" onClick={() => setWeekStartDate((prev) => addWeeks(prev, -1))}>
               ◀ Tuần Trước
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setWeekStartDate(getMondayOfWeek())}>
+            <Button kind="ghost" variant="ghost" size="sm" onClick={() => setWeekStartDate(getMondayOfWeek())}>
               Tuần Hiện Tại
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setWeekStartDate((prev) => addWeeks(prev, 1))}>
+            <Button kind="ghost" variant="ghost" size="sm" onClick={() => setWeekStartDate((prev) => addWeeks(prev, 1))}>
               Tuần Sau ▶
             </Button>
           </div>
 
-          <div style={{ fontWeight: 800, fontSize: 15, color: c.fg }}>
-            Tuần: {formatVNDate(weekStartDate)} - {formatVNDate(weekDays[6].dateStr)} / {weekStartDate.split('-')[0]}
+          <div style={{ fontWeight: 700, fontSize: 15, color: c.fg, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="calendar" size={17} color="#2563EB" />
+            <span>Tuần: {formatVNDate(weekStartDate)} – {formatVNDate(weekDays[6].dateStr)}</span>
           </div>
         </div>
 
         {/* Bảng Danh Sách 7 Ngày Lịch Tuần */}
-        <h3 style={{ fontSize: 16, fontWeight: 800, color: c.fg, marginBottom: 14 }}>
-          📅 Chi Tiết Lịch Phân Công 7 Ngày
-        </h3>
+        <div>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: c.fg, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>📅 Chi Tiết Lịch Phân Công 7 Ngày</span>
+          </h3>
 
-        {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: c.fgSubtle }}>
-            Đang tải dữ liệu ca trực...
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-            {weekDays.map((day) => {
-              const hasShift = day.shifts.length > 0;
-              return (
-                <div
-                  key={day.dateStr}
-                  style={{
-                    background: hasShift ? c.bgCard : c.bgElev,
-                    border: `1px solid ${hasShift ? c.accent : c.border}`,
-                    borderRadius: 10,
-                    padding: 16,
-                    position: 'relative',
-                    boxShadow: hasShift ? `0 4px 16px ${c.accentDim}20` : 'none',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <div>
-                      <span style={{ fontWeight: 800, fontSize: 15, color: c.fg }}>{day.dayName}</span>
-                      <span style={{ marginLeft: 8, fontSize: 12, color: c.fgFaint }}>({day.dateVn})</span>
+          {loading ? (
+            <div style={{ padding: 48, textAlign: 'center', color: c.fgSubtle, background: c.bgCard, borderRadius: 16, border: `1px solid ${c.border}` }}>
+              Đang tải dữ liệu ca trực...
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+              {weekDays.map((day) => {
+                const hasShift = day.shifts.length > 0;
+                return (
+                  <div
+                    key={day.dateStr}
+                    style={{
+                      background: hasShift ? c.bgCard : c.bgElev,
+                      border: `1.5px solid ${hasShift ? '#2563EB' : c.border}`,
+                      borderRadius: 16,
+                      padding: 18,
+                      position: 'relative',
+                      boxShadow: hasShift ? '0 4px 16px rgba(37, 99, 235, 0.12)' : 'none',
+                      transition: 'all .16s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                      <div>
+                        <span style={{ fontWeight: 800, fontSize: 15, color: c.fg }}>{day.dayName}</span>
+                        <span style={{ marginLeft: 8, fontSize: 12, color: c.fgSubtle }}>({day.dateVn})</span>
+                      </div>
+                      {hasShift ? (
+                        <Badge tone="ok">CÓ CA TRỰC</Badge>
+                      ) : (
+                        <Badge tone="neutral">NGHỈ</Badge>
+                      )}
                     </div>
-                    {hasShift ? (
-                      <Badge tone="ok">CONFIRMED</Badge>
-                    ) : (
-                      <Badge tone="neutral">NGHỈ</Badge>
-                    )}
-                  </div>
 
-                  {hasShift ? (
-                    day.shifts.map((s, idx) => {
-                      const isNight = s.shiftName?.includes('Đêm') || s.templateCode?.includes('DEM');
-                      const isMorning = s.shiftName?.includes('Sáng') || s.templateCode?.includes('SANG');
-                      const badgeColor = isNight ? '#a855f7' : isMorning ? '#38bdf8' : '#f59e0b';
+                    {hasShift ? (
+                      day.shifts.map((s, idx) => {
+                        const isNight = s.shiftName?.includes('Đêm') || s.templateCode?.includes('DEM');
+                        const isMorning = s.shiftName?.includes('Sáng') || s.templateCode?.includes('SANG');
+                        const badgeColor = isNight ? '#A855F7' : isMorning ? '#0284C7' : '#F59E0B';
 
                       return (
                         <div
@@ -339,6 +325,7 @@ export default function EmployeeDashboardPage() {
           </div>
         )}
       </div>
-    </DashboardShell>
-  );
+    </div>
+  </DashboardShell>
+);
 }
