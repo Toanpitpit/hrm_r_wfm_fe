@@ -10,6 +10,9 @@ const KioskCodePage = lazy(() => import('@/modules/kiosk/pages/KioskCodePage'));
 const BranchManagementPage = lazy(() => import('@/modules/branch/pages/BranchManagementPage'));
 const ShiftMasterPage = lazy(() => import('@/modules/schedule/pages/ShiftMasterPage'));
 const WeeklySchedulePage = lazy(() => import('@/modules/schedule/pages/WeeklySchedulePage'));
+const LiveRosterDashboardPage = lazy(() => import('@/modules/attendance/pages/LiveRosterDashboardPage'));
+const AttendanceOtpPage = lazy(() => import('@/modules/attendance/pages/AttendanceOtpPage'));
+const EmployeeManagementPage = lazy(() => import('@/modules/employee/pages/EmployeeManagementPage'));
 
 // Placeholder cho Kiosk login
 const KioskLoginPage = () => (
@@ -31,24 +34,42 @@ const AdminProtectedRoute = ({ children }) => {
     console.error('Failed to parse user from localStorage', e);
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  const role = (user?.role || user?.Role || '').toUpperCase();
+  const roleName = (user?.roleName || '').toUpperCase();
+
+  if (role === 'STORE_MANAGER' || role.includes('MANAGER') || roleName.includes('QUẢN LÝ')) {
+    return <Navigate to="/store-manager/kiosk-codes" replace />;
   }
 
-  const role = (user?.role || user?.Role || user?.roleCode || '').toUpperCase();
+  const isStaff = [
+    'SHIFT_LEADER',
+    'CASHIER',
+    'SALES_STAFF',
+    'SECURITY_GUARD',
+    'SECURITY',
+    'EMPLOYEE',
+    'STAFF'
+  ].includes(role) ||
+  role.includes('LEADER') ||
+  role.includes('CASHIER') ||
+  role.includes('SALES') ||
+  role.includes('STAFF') ||
+  role.includes('EMPLOYEE') ||
+  role.includes('SECURITY') ||
+  roleName.includes('TRƯỞNG CA') ||
+  roleName.includes('THU NGÂN') ||
+  roleName.includes('BÁN HÀNG') ||
+  roleName.includes('BẢO VỆ') ||
+  roleName.includes('NHÂN VIÊN');
 
-  if (role === 'OPERATIONS_ADMIN' || role === 'BUSINESS_OWNER' || role.includes('ADMIN') || role.includes('OWNER')) {
-    return children;
+  if (isStaff) {
+    return <Navigate to="/employee/schedule" replace />;
   }
 
-  if (role === 'STORE_MANAGER' || role === 'SHIFT_LEADER' || role.includes('MANAGER') || role.includes('LEADER')) {
-    return <Navigate to="/store-manager/schedules" replace />;
-  }
-
-  return <Navigate to="/employee/schedule" replace />;
+  return children;
 };
 
-const StoreManagerProtectedRoute = ({ children }) => {
+const ManagerOrAdminProtectedRoute = ({ children }) => {
   let user = null;
   try {
     const raw = localStorage.getItem('user');
@@ -57,13 +78,31 @@ const StoreManagerProtectedRoute = ({ children }) => {
     console.error('Failed to parse user from localStorage', e);
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  const role = (user?.role || user?.Role || '').toUpperCase();
+  const roleName = (user?.roleName || '').toUpperCase();
 
-  const role = (user?.role || user?.Role || user?.roleCode || '').toUpperCase();
+  const isStaff = [
+    'SHIFT_LEADER',
+    'CASHIER',
+    'SALES_STAFF',
+    'SECURITY_GUARD',
+    'SECURITY',
+    'EMPLOYEE',
+    'STAFF'
+  ].includes(role) ||
+  role.includes('LEADER') ||
+  role.includes('CASHIER') ||
+  role.includes('SALES') ||
+  role.includes('STAFF') ||
+  role.includes('EMPLOYEE') ||
+  role.includes('SECURITY') ||
+  roleName.includes('TRƯỞNG CA') ||
+  roleName.includes('THU NGÂN') ||
+  roleName.includes('BÁN HÀNG') ||
+  roleName.includes('BẢO VỆ') ||
+  roleName.includes('NHÂN VIÊN');
 
-  if (['CASHIER', 'SALES_STAFF', 'SECURITY_GUARD'].includes(role)) {
+  if (isStaff) {
     return <Navigate to="/employee/schedule" replace />;
   }
 
@@ -83,15 +122,22 @@ const AppRouter = () => {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/kiosk-login" element={<KioskLoginPage />} />
 
-          {/* ═══════════════ STORE MANAGER & LEADER SCHEDULES (UC 2.1 & 2.3) ═══════════════ */}
+          {/* ═══════════════ EMPLOYEE MANAGEMENT & ONBOARDING (RBAC) ═══════════════ */}
           <Route
-            path="/store-manager/schedules"
+            path="/employees"
             element={
-              <StoreManagerProtectedRoute>
-                <WeeklySchedulePage />
-              </StoreManagerProtectedRoute>
+              <ManagerOrAdminProtectedRoute>
+                <EmployeeManagementPage />
+              </ManagerOrAdminProtectedRoute>
             }
           />
+          <Route path="/admin/employees" element={<Navigate to="/employees" replace />} />
+          <Route path="/store-manager/employees" element={<Navigate to="/employees" replace />} />
+
+          {/* ═══════════════ STORE MANAGER & SCHEDULES (UC 2.1 & 2.3) ═══════════════ */}
+          <Route path="/store-manager/schedules" element={<WeeklySchedulePage />} />
+          <Route path="/store-manager/live-roster" element={<LiveRosterDashboardPage />} />
+          <Route path="/live-roster" element={<Navigate to="/store-manager/live-roster" replace />} />
           <Route path="/schedule" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/shifts" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/weekly-schedules" element={<Navigate to="/store-manager/schedules" replace />} />
@@ -108,6 +154,8 @@ const AppRouter = () => {
 
           {/* ═══════════════ EMPLOYEE ROUTES ═══════════════ */}
           <Route path="/employee/schedule" element={<EmployeeDashboardPage />} />
+          <Route path="/employee/attendance-otp" element={<AttendanceOtpPage />} />
+          <Route path="/attendance-otp" element={<Navigate to="/employee/attendance-otp" replace />} />
 
           {/* ═══════════════ ADMIN & GENERAL ROUTES (Chặn Store Manager) ═══════════════ */}
           <Route

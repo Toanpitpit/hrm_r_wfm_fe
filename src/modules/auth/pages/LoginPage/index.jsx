@@ -149,7 +149,38 @@ export default function LoginPage() {
     const result = await handleLogin(formData.username.trim(), formData.password);
     if (result.success) {
       toast.success('Đăng nhập thành công!');
-      routeByRole(result.user);
+      const role = (result.user?.role || result.user?.roleName || '').toUpperCase();
+      const roleName = (result.user?.roleName || '').toUpperCase();
+      
+      const isStaff = [
+        'SHIFT_LEADER',
+        'CASHIER',
+        'SALES_STAFF',
+        'SECURITY_GUARD',
+        'SECURITY',
+        'EMPLOYEE',
+        'STAFF'
+      ].includes(role) ||
+      role.includes('LEADER') ||
+      role.includes('CASHIER') ||
+      role.includes('SALES') ||
+      role.includes('STAFF') ||
+      role.includes('EMPLOYEE') ||
+      role.includes('SECURITY') ||
+      roleName.includes('TRƯỞNG CA') ||
+      roleName.includes('THU NGÂN') ||
+      roleName.includes('BÁN HÀNG') ||
+      roleName.includes('BẢO VỆ') ||
+      roleName.includes('NHÂN VIÊN');
+
+      if (role === 'STORE_MANAGER' || role.includes('MANAGER') || roleName.includes('QUẢN LÝ')) {
+        navigate('/store-manager/kiosk-codes');
+      } else if (isStaff) {
+        navigate('/employee/schedule');
+      } else {
+        navigate('/dashboard');
+      }
+
     } else {
       toast.error(result.message || 'Đăng nhập thất bại, vui lòng kiểm tra lại.');
     }

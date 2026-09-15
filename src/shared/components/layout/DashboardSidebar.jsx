@@ -39,10 +39,13 @@ export default function DashboardSidebar({
   let actualConsoleLabel = consoleLabel;
   if (!actualConsoleLabel || actualConsoleLabel === 'OPERATIONS CONSOLE' || actualConsoleLabel === 'Operations Console') {
     if (roleCode === 'STORE_MANAGER' || roleCode.includes('MANAGER')) actualConsoleLabel = 'STORE MANAGER CONSOLE';
-    else if (roleCode === 'SHIFT_LEADER' || roleCode.includes('LEADER')) actualConsoleLabel = 'SHIFT LEADER CONSOLE';
-    else if (roleCode === 'BUSINESS_OWNER' || roleCode.includes('OWNER')) actualConsoleLabel = 'EXECUTIVE CONSOLE';
-    else if (roleCode === 'OPERATIONS_ADMIN' || roleCode.includes('ADMIN')) actualConsoleLabel = 'OPERATIONS CONSOLE';
-    else if (roleCode.includes('STAFF') || roleCode.includes('CASHIER') || roleCode.includes('SECURITY')) actualConsoleLabel = 'EMPLOYEE PORTAL';
+    else if (roleCode === 'SHIFT_LEADER' || roleCode.includes('LEADER')) actualConsoleLabel = 'SHIFT LEADER PORTAL';
+    else if (roleCode === 'CASHIER' || roleCode.includes('CASHIER')) actualConsoleLabel = 'CASHIER PORTAL';
+    else if (roleCode === 'SALES_STAFF' || roleCode.includes('SALES')) actualConsoleLabel = 'SALES PORTAL';
+    else if (roleCode === 'SECURITY_GUARD' || roleCode === 'SECURITY' || roleCode.includes('SECURITY')) actualConsoleLabel = 'SECURITY PORTAL';
+    else if (roleCode === 'EMPLOYEE' || roleCode === 'STAFF') actualConsoleLabel = 'EMPLOYEE PORTAL';
+    else if (roleCode === 'BUSINESS_OWNER') actualConsoleLabel = 'EXECUTIVE CONSOLE';
+    else if (roleCode === 'OPERATIONS_ADMIN') actualConsoleLabel = 'OPERATIONS CONSOLE';
     else actualConsoleLabel = consoleLabel || 'OPERATIONS CONSOLE';
   }
 
@@ -387,4 +390,4 @@ export default function DashboardSidebar({
       </div>
     </aside>
   );
-}
+}
