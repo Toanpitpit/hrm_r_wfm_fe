@@ -45,6 +45,32 @@ export const DAY_NAMES_VN = [
 ];
 
 /**
+ * Tiện ích chuẩn hóa tên ca làm việc, xử lý triệt để lỗi font chữ hoặc dấu hỏi chấm Unicode.
+ */
+export const formatShiftTemplateName = (name) => {
+  if (!name || typeof name !== 'string') return name || '';
+  let clean = name;
+  clean = clean.replace(/Chi\?u/gi, 'Chiều');
+  clean = clean.replace(/T\?i/gi, 'Tối');
+  clean = clean.replace(/\?êm/gi, 'Đêm');
+  clean = clean.replace(/S\?ng/gi, 'Sáng');
+  if (/^ca\s*1\b/i.test(clean) && clean.includes('?')) {
+    clean = clean.replace(/Ca\s*1\s*-\s*.*?(?=\(|$)/i, 'Ca 1 - Sáng ');
+  }
+  if (/^ca\s*2\b/i.test(clean) && clean.includes('?')) {
+    clean = clean.replace(/Ca\s*2\s*-\s*.*?(?=\(|$)/i, 'Ca 2 - Chiều ');
+  }
+  if (/^ca\s*3\b/i.test(clean) && clean.includes('?')) {
+    clean = clean.replace(/Ca\s*3\s*-\s*.*?(?=\(|$)/i, 'Ca 3 - Tối ');
+  }
+  if (/^ca\s*4\b/i.test(clean) && clean.includes('?')) {
+    clean = clean.replace(/Ca\s*4\s*-\s*.*?(?=\(|$)/i, 'Ca 4 - Đêm ');
+  }
+  return clean.trim();
+};
+
+
+/**
  * Hook quản lý toàn bộ nghiệp vụ Lịch Ca Tuần (UC 2.1 & UC 2.3).
  */
 export function useWeeklySchedule(initialBranchId = 1) {

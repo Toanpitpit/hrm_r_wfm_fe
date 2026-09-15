@@ -3,7 +3,7 @@ import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Modal from '@/shared/components/ui/Modal';
 import Button from '@/shared/components/ui/Button';
 import FormField from '@/shared/components/ui/FormField';
-import { formatVNDate } from '../hooks/useWeeklySchedule';
+import { formatVNDate, formatShiftTemplateName } from '../hooks/useWeeklySchedule';
 
 export default function SetQuotaModal({
   isOpen,
@@ -71,7 +71,7 @@ export default function SetQuotaModal({
       onClose={onClose}
       title={
         isSingleMode
-          ? `Điều Chỉnh Định Mức Ca: ${selectedSchedule.shiftTemplateName} (${formatVNDate(selectedSchedule.workDate)})`
+          ? `Điều Chỉnh Định Mức Ca: ${formatShiftTemplateName(selectedSchedule.shiftTemplateName)} (${formatVNDate(selectedSchedule.workDate)})`
           : 'Thiết Lập Định Mức Ca Chuẩn Cho Cả Tuần (UC 2.1)'
       }
     >

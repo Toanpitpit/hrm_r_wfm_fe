@@ -1,6 +1,6 @@
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Icon from '@/shared/components/ui/Icon';
-import { DAY_NAMES_VN, formatVNDate } from '../hooks/useWeeklySchedule';
+import { DAY_NAMES_VN, formatVNDate, formatShiftTemplateName } from '../hooks/useWeeklySchedule';
 
 export default function ShiftQuotaSummary({
   days = [],
@@ -91,11 +91,11 @@ export default function ShiftQuotaSummary({
                           cursor: 'pointer',
                           transition: 'transform 0.15s ease',
                         }}
-                        title={`Bấm để điều chỉnh định mức ca ${s.shiftTemplateName}`}
+                        title={`Bấm để điều chỉnh định mức ca ${formatShiftTemplateName(s.shiftTemplateName)}`}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                           <span style={{ fontWeight: 700, fontSize: 11.5, color: isAllOk ? c.accent : c.tones.bad }}>
-                            {s.shiftTemplateName}
+                            {formatShiftTemplateName(s.shiftTemplateName)}
                           </span>
                           <span style={{ fontSize: 10, color: c.fgFaint }}>
                             {s.startTime.substring(0, 5)}
