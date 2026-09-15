@@ -25,10 +25,12 @@ export const NAV_ITEMS_BY_ROLE = {
   // 3. Trưởng Ca Trực (Shift Leader)
   SHIFT_LEADER: [
     { id: 'weekly-schedules', label: 'Lịch Ca Chi Nhánh', icon: 'calendar', path: '/store-manager/schedules' },
+    { id: 'live-roster', label: 'Bảng Trực Ca Live (Real-time)', icon: 'pulse', path: '/store-manager/live-roster' },
     { id: 'employee-schedule', label: 'Lịch Làm Việc Cá Nhân', icon: 'clock', path: '/employee/schedule' },
+    { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
     { type: 'group', label: 'Quản lý Kiosk & Điểm Danh' },
     { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes' },
-    { id: 'attendance', label: 'Điểm Danh & Bàn Giao Ca', icon: 'pulse', onClick: () => alert('Tính năng Điểm danh & Bàn giao ca đang được phát triển.') },
+    { id: 'shift-handover', label: 'Bàn Giao Ca Trực', icon: 'lock', onClick: () => alert('Tính năng Bàn giao ca trực đang được phát triển.') },
   ],
 
   // 4. Chủ Doanh Nghiệp (Business Owner)
@@ -38,16 +40,6 @@ export const NAV_ITEMS_BY_ROLE = {
     { id: 'employees', label: 'Hồ Sơ Nhân Sự Chuỗi', icon: 'users', path: '/employees' },
     { id: 'branches', label: 'Giám Sát Chi Nhánh', icon: 'store', path: '/branches' },
     { id: 'shift-master', label: 'Khung Ca Hệ Thống', icon: 'calendar', path: '/shifts/templates' },
-  ],
-
-  // 4. Trưởng Ca Trực (Shift Leader)
-  SHIFT_LEADER: [
-    { id: 'employee-schedule', label: 'Lịch Phân Công Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
-    { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
-    { id: 'live-roster', label: 'Bảng Trực Ca Live (Real-time)', icon: 'pulse', path: '/store-manager/live-roster' },
-    { type: 'group', label: 'Tiện Ích Trưởng Ca' },
-    { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', onClick: () => alert('Tính năng Lịch sử điểm danh đang được phát triển.') },
-    { id: 'shift-handover', label: 'Bàn Giao Ca Trực', icon: 'lock', onClick: () => alert('Tính năng Bàn giao ca trực đang được phát triển.') },
   ],
 
   // 5. Thu Ngân (Cashier)
