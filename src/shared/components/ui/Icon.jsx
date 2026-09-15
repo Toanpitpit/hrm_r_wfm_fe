@@ -1,4 +1,4 @@
-﻿// Icon — bộ icon SVG stroke tối giản dùng chung cho dashboard.
+// Icon — bộ icon SVG stroke tối giản dùng chung cho dashboard.
 // Dùng: <Icon name="grid" size={18} color="#f5b14a" />
 
 export default function Icon({ name, size = 18, color = 'currentColor', strokeWidth = 1.7 }) {
@@ -31,6 +31,17 @@ export default function Icon({ name, size = 18, color = 'currentColor', strokeWi
     logout: <><path d="M8 17H4.5A1.5 1.5 0 013 15.5v-11A1.5 1.5 0 014.5 3H8M13 13l3-3-3-3M16 10H7" {...p} /></>,
     screen: <><rect x="2.5" y="4.5" width="15" height="8" rx="1" {...p} /><path d="M5 16h10" {...p} /><path d="M10 12.5V16" {...p} /></>,
     'alert-triangle': <><path d="M10 3.2L2.5 16.5h15L10 3.2z" {...p} /><path d="M10 8v4" {...p} /><circle cx="10" cy="14.5" r="0.8" fill={color} stroke="none" /></>,
+    alertTriangle: <><path d="M10 3.2L2.5 16.5h15L10 3.2z" {...p} /><path d="M10 8v4" {...p} /><circle cx="10" cy="14.5" r="0.8" fill={color} stroke="none" /></>,
+    checkCircle: <><circle cx="10" cy="10" r="7.5" {...p} /><path d="M7 10l2 2 4-4" {...p} /></>,
+    'check-circle': <><circle cx="10" cy="10" r="7.5" {...p} /><path d="M7 10l2 2 4-4" {...p} /></>,
+    info: <><circle cx="10" cy="10" r="7.5" {...p} /><path d="M10 9v5M10 6.5h.01" {...p} /></>,
+    zap: <path d="M11 2L4 11h6l-1 7 7-9h-6l1-7z" {...p} />,
+    arrowLeft: <path d="M13 16l-6-6 6-6" {...p} />,
+    'arrow-left': <path d="M13 16l-6-6 6-6" {...p} />,
+    arrowRight: <path d="M7 4l6 6-6 6" {...p} />,
+    'arrow-right': <path d="M7 4l6 6-6 6" {...p} />,
+    sliders: <><path d="M3 5h8M15 5h2M7 10h10M3 15h4M11 15h6" {...p} /><circle cx="13" cy="5" r="2" {...p} /><circle cx="5" cy="10" r="2" {...p} /><circle cx="9" cy="15" r="2" {...p} /></>,
+    send: <><path d="M18 2L9 11M18 2l-6 16-3-7-7-3 16-6z" {...p} /></>,
     refresh: <><path d="M17.5 10a7.5 7.5 0 11-2.2-5.3L18 7" {...p} /><path d="M18 2.5V7h-4.5" {...p} /></>,
     dot: <circle cx="10" cy="10" r="2.5" fill={color} stroke="none" />,
   };

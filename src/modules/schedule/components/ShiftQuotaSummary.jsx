@@ -1,6 +1,6 @@
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Icon from '@/shared/components/ui/Icon';
-import { DAY_NAMES_VN, formatVNDate } from '../hooks/useWeeklySchedule';
+import { DAY_NAMES_VN, formatVNDate, formatShiftTemplateName } from '../hooks/useWeeklySchedule';
 
 export default function ShiftQuotaSummary({
   days = [],
@@ -73,10 +73,11 @@ export default function ShiftQuotaSummary({
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {daySchedules.map((s) => {
+                    const isLeaderOk = (s.assignedLeaderCount || 0) >= (s.requiredLeader || 1);
                     const isCashierOk = s.assignedCashierCount >= s.requiredCashier;
                     const isSalesOk = s.assignedSalesCount >= s.requiredSales;
                     const isSecurityOk = s.assignedSecurityCount >= s.requiredSecurity;
-                    const isAllOk = isCashierOk && isSalesOk && isSecurityOk;
+                    const isAllOk = isLeaderOk && isCashierOk && isSalesOk && isSecurityOk;
 
                     return (
                       <div
@@ -90,11 +91,11 @@ export default function ShiftQuotaSummary({
                           cursor: 'pointer',
                           transition: 'transform 0.15s ease',
                         }}
-                        title={`Bấm để điều chỉnh định mức ca ${s.shiftTemplateName}`}
+                        title={`Bấm để điều chỉnh định mức ca ${formatShiftTemplateName(s.shiftTemplateName)}`}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                           <span style={{ fontWeight: 700, fontSize: 11.5, color: isAllOk ? c.accent : c.tones.bad }}>
-                            {s.shiftTemplateName}
+                            {formatShiftTemplateName(s.shiftTemplateName)}
                           </span>
                           <span style={{ fontSize: 10, color: c.fgFaint }}>
                             {s.startTime.substring(0, 5)}
@@ -103,6 +104,10 @@ export default function ShiftQuotaSummary({
 
                         {/* Chi tiết chỉ tiêu từng vị trí */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10.5 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: isLeaderOk ? c.fgSubtle : c.tones.bad }}>
+                            <span>TC (Trưởng ca):</span>
+                            <strong>{s.assignedLeaderCount || 0}/{s.requiredLeader || 1}</strong>
+                          </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', color: isCashierOk ? c.fgSubtle : c.tones.bad }}>
                             <span>TN (Thu ngân):</span>
                             <strong>{s.assignedCashierCount}/{s.requiredCashier}</strong>
