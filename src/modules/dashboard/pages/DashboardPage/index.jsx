@@ -49,15 +49,15 @@ export default function DashboardPage() {
       }
     >
       <PageHeader
-        title="Bảng Điều Khiển Quản Trị Vận Hành (Operations Console)"
-        subtitle="Hệ thống quản lý chuỗi bán lẻ RWFM - Phân hệ Chi nhánh, Khung ca mẫu & Quầy Kiosk."
+        title="Tổng Quan Vận Hành"
+        desc="Hệ thống quản lý chuỗi siêu thị R-WFM — Phân hệ Chi nhánh, Khung ca mẫu & Quầy Kiosk."
       />
 
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '20px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '24px',
         }}
       >
         <Panel>
@@ -75,12 +75,15 @@ export default function DashboardPage() {
               Quản lý danh sách chi nhánh cửa hàng, cấu hình an ninh mạng IP
               Whitelist và cấp phát mã trạm Kiosk điểm danh tại quầy.
             </p>
-            <Button
-              variant="primary"
-              onClick={() => navigate('/branches')}
-            >
-              Truy Cập Quản Lý Chi Nhánh
-            </Button>
+            <div>
+              <Button
+                variant="primary"
+                icon="pin"
+                onClick={() => navigate('/branches')}
+              >
+                Truy Cập Quản Lý Chi Nhánh
+              </Button>
+            </div>
           </div>
         </Panel>
 

@@ -34,6 +34,10 @@ const AdminProtectedRoute = ({ children }) => {
     console.error('Failed to parse user from localStorage', e);
   }
 
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
   const role = (user?.role || user?.Role || '').toUpperCase();
   const roleName = (user?.roleName || '').toUpperCase();
 
@@ -78,6 +82,10 @@ const ManagerOrAdminProtectedRoute = ({ children }) => {
     console.error('Failed to parse user from localStorage', e);
   }
 
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
   const role = (user?.role || user?.Role || '').toUpperCase();
   const roleName = (user?.roleName || '').toUpperCase();
 
@@ -108,6 +116,8 @@ const ManagerOrAdminProtectedRoute = ({ children }) => {
 
   return children;
 };
+
+const StoreManagerProtectedRoute = ManagerOrAdminProtectedRoute;
 
 const AppRouter = () => {
   return (
@@ -141,7 +151,14 @@ const AppRouter = () => {
           <Route path="/schedule" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/shifts" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/weekly-schedules" element={<Navigate to="/store-manager/schedules" replace />} />
-          <Route path="/store-manager/kiosk-codes" element={<KioskCodePage />} />
+          <Route
+            path="/store-manager/kiosk-codes"
+            element={
+              <StoreManagerProtectedRoute>
+                <KioskCodePage />
+              </StoreManagerProtectedRoute>
+            }
+          />
           <Route path="/kiosk-codes" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
           <Route path="/kiosk-management" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
 

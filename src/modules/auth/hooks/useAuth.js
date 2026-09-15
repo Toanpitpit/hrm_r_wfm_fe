@@ -104,8 +104,36 @@ const useAuth = () => {
     }
   }, []);
 
+  /**
+   * Đăng nhập bằng Google
+   */
+  const handleGoogleLogin = useCallback(async (idToken) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await authService.googleLogin(idToken);
+      if (response.success) {
+        const { token, user } = response.data;
+        localStorage.setItem('accessToken', token);
+        if (user) {
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+        return { success: true, user };
+      }
+
+      return { success: false, message: response.message };
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Đăng nhập Google thất bại hoặc tài khoản chưa được phân quyền.';
+      setError(errorMsg);
+      return { success: false, message: errorMsg };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return {
     handleLogin,
+    handleGoogleLogin,
     handleForgotPassword,
     handleVerifyOtp,
     handleResetPassword,
@@ -115,3 +143,4 @@ const useAuth = () => {
 };
 
 export default useAuth;
+

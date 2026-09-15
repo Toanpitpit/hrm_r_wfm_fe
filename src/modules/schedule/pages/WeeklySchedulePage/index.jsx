@@ -94,23 +94,30 @@ export default function WeeklySchedulePage() {
     }
   };
 
+  const storedUser = (() => {
+    try {
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  })();
+
   return (
     <DashboardShell
       sidebar={
         <DashboardSidebar
           page="weekly-schedules"
           onNavigate={handleSidebarNavigate}
-          navItems={navItems}
-          consoleLabel="Store Manager"
-          defaultDisplayName="Quản Lý Cửa Hàng"
-          roleLabel="Cửa hàng trưởng"
-          avatarLetter="M"
+          defaultDisplayName={storedUser?.fullName || 'Quản Lý Cửa Hàng'}
+          roleLabel={storedUser?.roleName || 'Cửa hàng trưởng'}
+          avatarLetter={storedUser?.fullName?.charAt(0) || 'M'}
         />
       }
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: 'Store Manager', href: '/store-manager/schedules' },
+            { label: storedUser?.roleName || 'Store Manager', href: '/store-manager/schedules' },
             { label: 'Lập Lịch Ca Tuần (UC 2.1 & UC 2.3)' },
           ]}
         />

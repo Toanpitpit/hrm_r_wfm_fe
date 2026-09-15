@@ -22,7 +22,16 @@ export const NAV_ITEMS_BY_ROLE = {
     { id: 'kiosk-codes', label: 'Quản Lý Trạm Kiosk', icon: 'screen', path: '/store-manager/kiosk-codes' },
   ],
 
-  // 3. Chủ Doanh Nghiệp (Business Owner)
+  // 3. Trưởng Ca Trực (Shift Leader)
+  SHIFT_LEADER: [
+    { id: 'weekly-schedules', label: 'Lịch Ca Chi Nhánh', icon: 'calendar', path: '/store-manager/schedules' },
+    { id: 'employee-schedule', label: 'Lịch Làm Việc Cá Nhân', icon: 'clock', path: '/employee/schedule' },
+    { type: 'group', label: 'Quản lý Kiosk & Điểm Danh' },
+    { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes' },
+    { id: 'attendance', label: 'Điểm Danh & Bàn Giao Ca', icon: 'pulse', onClick: () => alert('Tính năng Điểm danh & Bàn giao ca đang được phát triển.') },
+  ],
+
+  // 4. Chủ Doanh Nghiệp (Business Owner)
   BUSINESS_OWNER: [
     { id: 'dashboard', label: 'Bảng Điều Khiển Tổng Quan', icon: 'home', path: '/dashboard' },
     { type: 'group', label: 'Báo Cáo & Audit System' },
