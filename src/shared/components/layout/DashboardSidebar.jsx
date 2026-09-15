@@ -94,6 +94,8 @@ export default function DashboardSidebar({
       navigate('/employee/schedule');
     } else if (item.id === 'kiosk-codes') {
       navigate('/store-manager/kiosk-codes');
+    } else if (item.id === 'live-roster') {
+      navigate('/store-manager/live-roster');
     } else if (item.id === 'branches') {
       if (roleCode === 'STORE_MANAGER' || roleCode === 'SHIFT_LEADER' || roleCode.includes('STAFF') || roleCode.includes('GUARD') || roleCode.includes('CASHIER')) {
         alert('Tài khoản cửa hàng không có quyền truy cập Danh mục Chi nhánh toàn hệ thống.');
@@ -122,6 +124,7 @@ export default function DashboardSidebar({
     if (item.id === 'dashboard' && currentPath === '/dashboard' && (!page || page === 'dashboard')) return true;
     if (item.id === 'weekly-schedules' && currentPath === '/store-manager/schedules' && (!page || page === 'weekly-schedules')) return true;
     if (item.id === 'kiosk-codes' && currentPath === '/store-manager/kiosk-codes' && (!page || page === 'kiosk-codes')) return true;
+    if (item.id === 'live-roster' && (currentPath === '/store-manager/live-roster' || currentPath === '/live-roster') && (!page || page === 'live-roster')) return true;
     if (item.id === 'employee-schedule' && currentPath === '/employee/schedule' && (!page || page === 'employee-schedule')) return true;
     if (item.id === 'branches' && currentPath === '/branches' && (!page || page === 'branches')) return true;
     if (item.id === 'shift-master' && currentPath === '/shifts/templates' && (!page || page === 'shift-master')) return true;
