@@ -14,6 +14,7 @@ const LiveRosterDashboardPage = lazy(() => import('@/modules/attendance/pages/Li
 const AttendanceOtpPage = lazy(() => import('@/modules/attendance/pages/AttendanceOtpPage'));
 const MyCalendarPage = lazy(() => import('@/modules/attendance/pages/MyCalendarPage'));
 const AttendanceHistoryPage = lazy(() => import('@/modules/attendance/pages/AttendanceHistoryPage'));
+const EmployeeManagementPage = lazy(() => import('@/modules/employee/pages/EmployeeManagementPage'));
 
 // Placeholder cho Kiosk login
 
@@ -119,8 +120,6 @@ const ManagerOrAdminProtectedRoute = ({ children }) => {
   return children;
 };
 
-const StoreManagerProtectedRoute = ManagerOrAdminProtectedRoute;
-
 const AppRouter = () => {
   return (
     <BrowserRouter>
@@ -134,7 +133,7 @@ const AppRouter = () => {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/kiosk-login" element={<KioskLoginPage />} />
 
-          {/* ═══════════════ EMPLOYEE MANAGEMENT & ONBOARDING (RBAC) ═══════════════ */}
+          {/* ═══════════════ EMPLOYEE MANAGEMENT & ONBOARDING ═══════════════ */}
           <Route
             path="/employees"
             element={
@@ -146,21 +145,14 @@ const AppRouter = () => {
           <Route path="/admin/employees" element={<Navigate to="/employees" replace />} />
           <Route path="/store-manager/employees" element={<Navigate to="/employees" replace />} />
 
-          {/* ═══════════════ STORE MANAGER & SCHEDULES (UC 2.1 & 2.3) ═══════════════ */}
+          {/* ═══════════════ STORE MANAGER & SCHEDULES ═══════════════ */}
           <Route path="/store-manager/schedules" element={<WeeklySchedulePage />} />
           <Route path="/store-manager/live-roster" element={<LiveRosterDashboardPage />} />
           <Route path="/live-roster" element={<Navigate to="/store-manager/live-roster" replace />} />
           <Route path="/schedule" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/shifts" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/weekly-schedules" element={<Navigate to="/store-manager/schedules" replace />} />
-          <Route
-            path="/store-manager/kiosk-codes"
-            element={
-              <StoreManagerProtectedRoute>
-                <KioskCodePage />
-              </StoreManagerProtectedRoute>
-            }
-          />
+          <Route path="/store-manager/kiosk-codes" element={<KioskCodePage />} />
           <Route path="/kiosk-codes" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
           <Route path="/kiosk-management" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
 
@@ -171,8 +163,7 @@ const AppRouter = () => {
           <Route path="/employee/attendance-otp" element={<AttendanceOtpPage />} />
           <Route path="/attendance-otp" element={<Navigate to="/employee/attendance-otp" replace />} />
 
-
-          {/* ═══════════════ ADMIN & GENERAL ROUTES (Chặn Store Manager) ═══════════════ */}
+          {/* ═══════════════ ADMIN & GENERAL ROUTES ═══════════════ */}
           <Route
             path="/dashboard"
             element={

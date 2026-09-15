@@ -13,55 +13,55 @@ import { createContext, useContext, useMemo, useState } from 'react';
 import { hexA } from '../utils/colorUtils';
 
 export const fonts = {
-  display: '"Inter", "DM Sans", system-ui, -apple-system, sans-serif',
-  body: '"Inter", "DM Sans", system-ui, -apple-system, sans-serif',
+  display: '"Anton", "Bebas Neue", "Montserrat", system-ui, -apple-system, sans-serif',
+  body: '"Inter", system-ui, -apple-system, sans-serif',
 };
 
-// --- Bộ token nền tối (Modern Deep Navy Pro) ---
+// --- Bộ token nền tối (Cinematic Dark) ---
 export const darkTokens = {
-  bg: '#0B132B',
-  bgRaised: '#111C44',
-  bgCard: '#111C44',
-  bgElev: '#1B2559',
-  bgHover: '#1F2E6F',
-  fg: '#FFFFFF',
-  fgMuted: 'rgba(255,255,255,0.88)',
-  fgSubtle: 'rgba(255,255,255,0.60)',
-  fgFaint: 'rgba(255,255,255,0.40)',
-  border: 'rgba(255,255,255,0.09)',
-  borderSub: 'rgba(255,255,255,0.05)',
-  track: 'rgba(255,255,255,0.08)',
+  bg: '#0a0908',
+  bgRaised: '#14110d',
+  bgCard: '#16130e',
+  bgElev: '#1c1812',
+  bgHover: '#221d15',
+  fg: '#ffffff',
+  fgMuted: 'rgba(255,255,255,0.82)',
+  fgSubtle: 'rgba(255,255,255,0.52)',
+  fgFaint: 'rgba(255,255,255,0.34)',
+  border: 'rgba(255,255,255,0.10)',
+  borderSub: 'rgba(255,255,255,0.06)',
+  track: 'rgba(255,255,255,0.07)',
 };
 
-// --- Bộ token nền sáng (Clean Tech SaaS) ---
+// --- Bộ token nền sáng (Warm paper) ---
 export const lightTokens = {
-  bg: '#F4F7FE',
-  bgRaised: '#FFFFFF',
-  bgCard: '#FFFFFF',
-  bgElev: '#F8FAFC',
-  bgHover: '#EDF2F7',
-  fg: '#1B2559',
-  fgMuted: '#2B3674',
-  fgSubtle: '#707EAE',
-  fgFaint: '#A3AED0',
-  border: 'rgba(15, 23, 42, 0.08)',
-  borderSub: 'rgba(15, 23, 42, 0.04)',
-  track: 'rgba(15, 23, 42, 0.06)',
+  bg: '#f3f0ea',
+  bgRaised: '#ffffff',
+  bgCard: '#ffffff',
+  bgElev: '#efeae1',
+  bgHover: '#f4f0e8',
+  fg: '#1b1813',
+  fgMuted: 'rgba(27,24,19,0.80)',
+  fgSubtle: 'rgba(27,24,19,0.55)',
+  fgFaint: 'rgba(27,24,19,0.40)',
+  border: 'rgba(27,24,19,0.13)',
+  borderSub: 'rgba(27,24,19,0.07)',
+  track: 'rgba(27,24,19,0.09)',
 };
 
 // Màu trạng thái (ok / cảnh báo / lỗi / thông tin) + biến thể nền mờ.
 export function buildTones(accent) {
   return {
-    ok: '#10B981',
-    okDim: 'rgba(16, 185, 129, 0.15)',
-    good: '#10B981',
-    goodDim: 'rgba(16, 185, 129, 0.15)',
-    bad: '#EF4444',
-    badDim: 'rgba(239, 68, 68, 0.15)',
-    warn: '#F59E0B',
-    warnDim: 'rgba(245, 158, 11, 0.15)',
-    info: '#0284C7',
-    infoDim: 'rgba(2, 132, 199, 0.15)',
+    ok: 'oklch(0.74 0.13 152)',
+    okDim: 'oklch(0.74 0.13 152 / 0.16)',
+    good: 'oklch(0.74 0.13 152)',
+    goodDim: 'oklch(0.74 0.13 152 / 0.16)',
+    bad: 'oklch(0.66 0.17 27)',
+    badDim: 'oklch(0.66 0.17 27 / 0.16)',
+    warn: accent,
+    warnDim: hexA(accent, 0.16),
+    info: 'oklch(0.72 0.12 240)',
+    infoDim: 'oklch(0.72 0.12 240 / 0.16)',
   };
 }
 
@@ -79,10 +79,10 @@ export function badgeToneMap(c) {
 
 const AdminThemeContext = createContext(null);
 
-export function AdminThemeProvider({ children, defaultTheme = 'dark', defaultAccent = '#2563EB' }) {
-  const [theme, setTheme] = useState(defaultTheme);
+export function AdminThemeProvider({ children, defaultTheme = 'light', defaultAccent = '#f5b14a' }) {
+  const [theme, setTheme] = useState(defaultTheme);   // 'light' | 'dark'
   const [accent, setAccent] = useState(defaultAccent);
-  const [density, setDensity] = useState('regular');
+  const [density, setDensity] = useState('regular');  // 'compact' | 'regular' | 'comfy'
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const value = useMemo(() => {
@@ -90,8 +90,8 @@ export function AdminThemeProvider({ children, defaultTheme = 'dark', defaultAcc
     const c = {
       ...base,
       accent,
-      accentDim: hexA(accent, 0.10),
-      ink: '#ffffff',
+      accentDim: hexA(accent, 0.16),
+      ink: '#0a0908', // màu chữ cố định trên nền màu nhấn
       tones: buildTones(accent),
     };
     return {

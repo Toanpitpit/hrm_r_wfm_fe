@@ -33,11 +33,9 @@ export default function DashboardTopbar({
   let actualConsoleLabel = consoleLabel;
   if (!actualConsoleLabel || actualConsoleLabel === 'Admin Console' || actualConsoleLabel === 'Operations Admin') {
     const roleCode = (user?.role || user?.Role || '').toUpperCase();
-    if (roleCode === 'STORE_MANAGER' || roleCode.includes('MANAGER')) actualConsoleLabel = 'Store Manager Console';
-    else if (roleCode === 'SHIFT_LEADER' || roleCode.includes('LEADER')) actualConsoleLabel = 'Shift Leader Console';
-    else if (roleCode === 'BUSINESS_OWNER' || roleCode.includes('OWNER')) actualConsoleLabel = 'Executive Console';
-    else if (roleCode === 'OPERATIONS_ADMIN' || roleCode.includes('ADMIN')) actualConsoleLabel = 'Operations Console';
-    else if (roleCode.includes('STAFF') || roleCode.includes('CASHIER') || roleCode.includes('SECURITY')) actualConsoleLabel = 'Employee Portal';
+    if (roleCode === 'STORE_MANAGER') actualConsoleLabel = 'Store Manager Console';
+    else if (roleCode === 'BUSINESS_OWNER') actualConsoleLabel = 'Executive Console';
+    else if (roleCode === 'OPERATIONS_ADMIN') actualConsoleLabel = 'Operations Console';
     else actualConsoleLabel = consoleLabel || 'Admin Console';
   }
 
@@ -51,56 +49,36 @@ export default function DashboardTopbar({
   return (
     <header
       style={{
-        height: 68,
+        height: 84,
         flexShrink: 0,
         borderBottom: `1px solid ${c.border}`,
-        background: c.bgRaised,
+        background: hexA(c.bgRaised, 0.86),
+        backdropFilter: 'blur(16px)',
         position: 'sticky',
         top: 0,
         zIndex: 50,
         display: 'flex',
         alignItems: 'center',
-        gap: 14,
-        padding: '0 28px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-        backdropFilter: 'blur(12px)',
+        gap: 16,
+        padding: '0 30px',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.05)',
       }}
     >
       <button
         onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-        style={{
-          width: 38,
-          height: 38,
-          flexShrink: 0,
-          background: c.bgElev,
-          border: `1px solid ${c.border}`,
-          borderRadius: 10,
-          color: c.fgSubtle,
-          display: 'grid',
-          placeItems: 'center',
-          cursor: 'pointer',
-          transition: 'all .15s',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = c.bgHover;
-          e.currentTarget.style.color = c.fg;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = c.bgElev;
-          e.currentTarget.style.color = c.fgSubtle;
-        }}
+        style={{ width: 42, height: 42, flexShrink: 0, background: c.bgElev, border: `1px solid ${c.border}`, borderRadius: 9, color: c.fgSubtle, display: 'grid', placeItems: 'center', boxShadow: '0 8px 20px rgba(0,0,0,0.05)', cursor: 'pointer' }}
         aria-label="Thu gọn menu"
       >
         <Icon name="menu" size={17} />
       </button>
 
       <div style={{ minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: c.fgFaint, fontSize: 11.5, fontWeight: 600, letterSpacing: 0.3 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: c.fgFaint, fontSize: 9.5, fontWeight: 800, letterSpacing: 1.2, textTransform: 'uppercase' }}>
           <span>{actualConsoleLabel}</span>
-          <Icon name="chevron" size={9} />
-          <span style={{ color: '#2563EB', fontWeight: 700 }}>{pageTitle}</span>
+          <Icon name="chevron" size={10} />
+          <span style={{ color: c.accent }}>{pageTitle}</span>
         </div>
-        <div style={{ marginTop: 2, color: c.fg, fontFamily: fonts.body, fontSize: 17, fontWeight: 700, lineHeight: 1.2, letterSpacing: -0.3 }}>
+        <div style={{ marginTop: 4, color: c.fg, fontFamily: fonts.display, fontSize: 23, lineHeight: 1, letterSpacing: 0.4, textTransform: 'uppercase' }}>
           {pageTitle}
         </div>
       </div>
@@ -108,26 +86,7 @@ export default function DashboardTopbar({
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
         <button
           onClick={() => navigate(homePath)}
-          style={{
-            width: 38,
-            height: 38,
-            background: c.bgElev,
-            border: `1px solid ${c.border}`,
-            borderRadius: 10,
-            color: c.fgSubtle,
-            display: 'grid',
-            placeItems: 'center',
-            cursor: 'pointer',
-            transition: 'all .15s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = c.bgHover;
-            e.currentTarget.style.color = c.fg;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = c.bgElev;
-            e.currentTarget.style.color = c.fgSubtle;
-          }}
+          style={{ width: 40, height: 40, background: c.bgElev, border: `1px solid ${c.border}`, borderRadius: 8, color: c.fgSubtle, display: 'grid', placeItems: 'center', cursor: 'pointer' }}
           aria-label="Về trang chủ"
           title="Về trang chủ"
         >
@@ -136,67 +95,19 @@ export default function DashboardTopbar({
 
         <button
           onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-          style={{
-            width: 38,
-            height: 38,
-            background: c.bgElev,
-            border: `1px solid ${c.border}`,
-            borderRadius: 10,
-            color: c.fgSubtle,
-            display: 'grid',
-            placeItems: 'center',
-            cursor: 'pointer',
-            transition: 'all .15s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = c.bgHover;
-            e.currentTarget.style.color = c.fg;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = c.bgElev;
-            e.currentTarget.style.color = c.fgSubtle;
-          }}
+          style={{ width: 40, height: 40, background: c.bgElev, border: `1px solid ${c.border}`, borderRadius: 8, color: c.fgSubtle, display: 'grid', placeItems: 'center', cursor: 'pointer' }}
           aria-label="Đổi giao diện"
           title={theme === 'light' ? 'Chuyển nền tối' : 'Chuyển nền sáng'}
         >
           <Icon name={theme === 'light' ? 'eye' : 'pulse'} size={17} />
         </button>
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '6px 10px 6px 14px',
-            background: c.bgElev,
-            border: `1px solid ${c.border}`,
-            borderRadius: 12,
-          }}
-        >
-          <div style={{ textAlign: 'right', minWidth: 0 }}>
-            <div style={{ color: c.fg, fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
-              {actualName}
-            </div>
-            <div style={{ marginTop: 1, color: c.fgSubtle, fontSize: 11 }}>
-              {actualRole}
-            </div>
+        <div style={{ minWidth: 140, display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px 4px 10px', background: c.bgElev, border: `1px solid ${c.border}`, borderRadius: 9 }}>
+          <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
+            <div style={{ color: c.fg, fontSize: 10, fontWeight: 750, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{actualName}</div>
+            <div style={{ marginTop: 0.5, color: c.fgFaint, fontSize: 8.5 }}>{actualRole}</div>
           </div>
-          <span
-            style={{
-              width: 32,
-              height: 32,
-              flexShrink: 0,
-              borderRadius: 8,
-              background: 'linear-gradient(135deg, #2563EB, #0284C7)',
-              color: '#ffffff',
-              display: 'grid',
-              placeItems: 'center',
-              fontFamily: fonts.body,
-              fontSize: 13,
-              fontWeight: 700,
-              boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
-            }}
-          >
+          <span style={{ width: 28, height: 28, flexShrink: 0, borderRadius: 6, background: c.accentDim, border: `1px solid ${c.accent}`, color: c.accent, display: 'grid', placeItems: 'center', fontFamily: fonts.display, fontSize: 12 }}>
             {actualAvatarLetter}
           </span>
         </div>

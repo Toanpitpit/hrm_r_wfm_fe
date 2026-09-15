@@ -12,10 +12,10 @@
   margin-bottom: 1.25rem;
   flex-wrap: wrap;
   gap: 1rem;
-  background-color: #ffffff;
+  background-color: #1C1C1F;
   padding: 1rem 1.25rem;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgba(242, 202, 80, 0.2);
 }
 
 .navGroup {
@@ -31,47 +31,48 @@
   padding: 0.5rem 0.875rem;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #374151;
-  background-color: #f3f4f6;
-  border: 1px solid #d1d5db;
+  color: #e4e4e7;
+  background-color: #27272a;
+  border: 1px solid #3f3f46;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .navBtn:hover {
-  background-color: #e5e7eb;
-  color: #111827;
+  background-color: #3f3f46;
+  color: #ffffff;
 }
 
 .todayBtn {
-  background-color: #eff6ff;
-  color: #2563eb;
-  border-color: #bfdbfe;
+  background-color: rgba(242, 202, 80, 0.15);
+  color: #f2ca50;
+  border-color: rgba(242, 202, 80, 0.4);
 }
 
 .todayBtn:hover {
-  background-color: #dbeafe;
+  background-color: rgba(242, 202, 80, 0.25);
+  color: #ffffff;
 }
 
 .dateRangeText {
   font-size: 1rem;
   font-weight: 700;
-  color: #111827;
+  color: #f2ca50;
 }
 
 .loadingBox {
   padding: 4rem;
   text-align: center;
-  color: #6b7280;
+  color: #a1a1aa;
   font-weight: 500;
 }
 
 .errorBox {
   padding: 1rem;
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
   border-radius: 8px;
   margin-bottom: 1rem;
 }

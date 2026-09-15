@@ -1,44 +1,79 @@
 import React from 'react';
-import styles from './WeekCalendar.module.css';
-
-const getShiftThemeClass = (templateCode) => {
-  const code = (templateCode || '').toUpperCase();
-  if (code.includes('SANG') || code.includes('MORNING')) return styles.shiftMorning;
-  if (code.includes('CHIEU') || code.includes('AFTERNOON')) return styles.shiftAfternoon;
-  if (code.includes('DEM') || code.includes('NIGHT')) return styles.shiftNight;
-  return styles.shiftMorning;
-};
+import { useAdminTheme } from '@/shared/context/ThemeContext';
+import Badge from '@/shared/components/ui/Badge';
 
 const renderStatusBadge = (status) => {
   switch (status) {
     case 'COMPLETED':
-      return <span className={`${styles.badge} ${styles.badgeCompleted}`}>Đã Hoàn Thành</span>;
+      return <Badge tone="ok" dot>Đã Hoàn Thành</Badge>;
     case 'CHECKED_IN':
-      return <span className={`${styles.badge} ${styles.badgeCheckedIn}`}>Đã Check-In</span>;
+      return <Badge tone="info" dot>Đã Check-In</Badge>;
     case 'ABSENT':
-      return <span className={`${styles.badge} ${styles.badgeAbsent}`}>Vắng Mặt</span>;
+      return <Badge tone="bad" dot>Vắng Mặt</Badge>;
     case 'NOT_YET':
     default:
-      return <span className={`${styles.badge} ${styles.badgeNotYet}`}>Chưa Đến Giờ</span>;
+      return <Badge tone="warn" dot>Chưa Đến Giờ</Badge>;
   }
 };
 
 export const WeekCalendar = ({ days = [] }) => {
+  const { c, fonts } = useAdminTheme();
   const todayStr = new Date().toISOString().split('T')[0];
 
   return (
-    <div className={styles.calendarContainer}>
-      <div className={styles.gridHeader}>
-        {days.map((day) => {
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: c.bgCard,
+        width: '100%',
+        padding: 16,
+      }}
+    >
+      {/* Grid Header */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          backgroundColor: c.bgElev,
+          border: `1px solid ${c.border}`,
+          borderRadius: '6px 6px 0 0',
+        }}
+      >
+        {days.map((day, idx) => {
           const isToday = day.date === todayStr;
           const [, monthStr, dateStr] = day.date.split('-');
+          const isLast = idx === days.length - 1;
           return (
             <div
               key={day.date}
-              className={`${styles.dayHeader} ${isToday ? styles.todayHeader : ''}`}
+              style={{
+                padding: '14px 10px',
+                textAlign: 'center',
+                borderRight: isLast ? 'none' : `1px solid ${c.borderSub}`,
+                backgroundColor: isToday ? c.accentDim : 'transparent',
+              }}
             >
-              <div className={styles.dayName}>{day.dayOfWeek}</div>
-              <div className={styles.dayDate}>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  color: isToday ? c.accent : c.fgSubtle,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                }}
+              >
+                {day.dayOfWeek}
+              </div>
+              <div
+                style={{
+                  fontSize: 16,
+                  fontWeight: 800,
+                  color: isToday ? c.accent : c.fg,
+                  marginTop: 4,
+                  fontFamily: fonts.display,
+                }}
+              >
                 {dateStr}/{monthStr}
               </div>
             </div>
@@ -46,44 +81,71 @@ export const WeekCalendar = ({ days = [] }) => {
         })}
       </div>
 
-      <div className={styles.gridBody}>
-        {days.map((day) => {
+      {/* Grid Body */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          minHeight: 420,
+          border: `1px solid ${c.border}`,
+          borderTop: 'none',
+          borderRadius: '0 0 6px 6px',
+        }}
+      >
+        {days.map((day, idx) => {
           const isToday = day.date === todayStr;
+          const isLast = idx === days.length - 1;
           return (
             <div
               key={day.date}
-              className={`${styles.dayColumn} ${isToday ? styles.todayColumn : ''}`}
+              style={{
+                padding: '14px 10px',
+                borderRight: isLast ? 'none' : `1px solid ${c.borderSub}`,
+                backgroundColor: isToday ? 'rgba(242, 202, 80, 0.02)' : c.bgCard,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
             >
               {day.shifts && day.shifts.length > 0 ? (
                 day.shifts.map((shift) => (
                   <div
                     key={shift.assignmentId}
-                    className={`${styles.shiftCard} ${getShiftThemeClass(shift.templateCode)}`}
+                    style={{
+                      borderRadius: 6,
+                      padding: 12,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      backgroundColor: c.bgElev,
+                      border: `1px solid ${c.borderSub}`,
+                      borderLeft: `3px solid ${c.accent}`,
+                    }}
                   >
-                    <div className={styles.shiftTitleRow}>
-                      <span className={styles.shiftName}>{shift.shiftName}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: c.fg }}>
+                        {shift.shiftName}
+                      </span>
                     </div>
 
-                    <div className={styles.shiftTime}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: c.accent, fontFamily: 'monospace' }}>
                       {shift.startTime?.substring(0, 5)} - {shift.endTime?.substring(0, 5)}
                     </div>
 
-                    <div className={styles.branchInfo}>
-                      <span className={styles.branchName}>{shift.branchName}</span>
+                    <div style={{ fontSize: 12, color: c.fgSubtle }}>
+                      📍 {shift.branchName}
                     </div>
 
-                    <div className={styles.badgeGroup}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                       {renderStatusBadge(shift.attendanceStatus)}
-                      {shift.isDispatched && (
-                        <span className={`${styles.badge} ${styles.badgeDispatched}`}>
-                          Điều Động
-                        </span>
-                      )}
+                      {shift.isDispatched && <Badge tone="info">Điều Động</Badge>}
                     </div>
                   </div>
                 ))
               ) : (
-                <div className={styles.emptySlot}>Nghỉ</div>
+                <div style={{ fontSize: 12, color: c.fgFaint, textAlign: 'center', padding: '32px 0', fontStyle: 'italic' }}>
+                  Nghỉ
+                </div>
               )}
             </div>
           );

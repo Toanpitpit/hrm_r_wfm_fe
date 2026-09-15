@@ -11,116 +11,71 @@ export default function StatCard({ label, title, value, subtext, delta, deltaDir
   const displayLabel = label || title;
 
   const toneBgMap = {
-    ok: 'rgba(16, 185, 129, 0.15)',
-    bad: 'rgba(239, 68, 68, 0.15)',
-    warn: 'rgba(245, 158, 11, 0.15)',
-    info: 'rgba(2, 132, 199, 0.15)',
+    ok: c.tones.okDim,
+    bad: c.tones.badDim,
+    warn: c.tones.warnDim,
+    info: c.tones.infoDim,
     neutral: c.track,
   };
 
   const toneColorMap = {
-    ok: '#10B981',
-    bad: '#EF4444',
-    warn: '#F59E0B',
-    info: '#0284C7',
+    ok: c.tones.ok,
+    bad: c.tones.bad,
+    warn: c.tones.warn,
+    info: c.tones.info,
     neutral: c.fgSubtle,
   };
 
-  const iconBg = (tone && toneBgMap[tone]) || 'rgba(37, 99, 235, 0.14)';
-  const iconColor = (tone && toneColorMap[tone]) || '#2563EB';
+  const iconBg = (tone && toneBgMap[tone]) || c.accentDim;
+  const iconColor = (tone && toneColorMap[tone]) || c.accent;
 
   return (
     <div
       style={{
         background: c.bgCard,
         border: `1px solid ${c.border}`,
-        borderRadius: 16,
-        padding: '22px 24px',
+        borderRadius: 8,
+        padding: 20,
         position: 'relative',
         overflow: 'hidden',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
-        transition: 'all .18s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
-        e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.3)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.06)';
-        e.currentTarget.style.borderColor = c.border;
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span
-          style={{
-            fontSize: 11.5,
-            color: c.fgSubtle,
-            letterSpacing: 0.6,
-            textTransform: 'uppercase',
-            fontWeight: 700,
-            fontFamily: fonts.body,
-          }}
-        >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <span style={{ fontSize: 11.5, color: c.fgSubtle, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600 }}>
           {displayLabel}
         </span>
         {icon && (
           <span
             style={{
-              width: 42,
-              height: 42,
-              borderRadius: 12,
+              width: 36,
+              height: 36,
+              borderRadius: 8,
               background: iconBg,
               color: iconColor,
               display: 'grid',
               placeItems: 'center',
               border: `1px solid ${c.borderSub}`,
-              flexShrink: 0,
-              boxShadow: `0 2px 8px ${iconBg}`,
             }}
           >
-            <Icon name={icon} size={20} color={iconColor} />
+            <Icon name={icon} size={18} color={iconColor} />
           </span>
         )}
       </div>
 
-      <div
-        style={{
-          fontFamily: fonts.body,
-          fontSize: 32,
-          fontWeight: 800,
-          lineHeight: 1.1,
-          marginTop: 14,
-          letterSpacing: -1,
-          color: c.fg,
-        }}
-      >
+      <div style={{ fontFamily: fonts.display, fontSize: 36, lineHeight: 1, marginTop: 14, letterSpacing: 0.5, color: c.fg }}>
         {value}
       </div>
 
       {subtext && (
-        <div style={{ fontSize: 12.5, color: c.fgSubtle, marginTop: 8, fontWeight: 500 }}>
+        <div style={{ fontSize: 11.5, color: c.fgSubtle, marginTop: 10, fontWeight: 500 }}>
           {subtext}
         </div>
       )}
 
       {delta != null && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12 }}>
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              color: up ? '#10B981' : '#EF4444',
-              fontSize: 12,
-              fontWeight: 700,
-              background: up ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
-              padding: '3px 9px',
-              borderRadius: 20,
-            }}
-          >
-            <span style={{ fontSize: 9 }}>{up ? '▲' : '▼'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 12 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: up ? c.tones.ok : c.tones.bad, fontSize: 12, fontWeight: 700 }}>
+            <span style={{ fontSize: 13 }}>{up ? '▲' : '▼'}</span>
             {delta}
           </span>
           <span style={{ fontSize: 11.5, color: c.fgFaint }}>so với kỳ trước</span>

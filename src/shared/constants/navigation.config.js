@@ -15,26 +15,16 @@ export const NAV_ITEMS_BY_ROLE = {
   // 2. Quản lý Cửa hàng (Store Manager)
   STORE_MANAGER: [
     { id: 'dashboard', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes' },
-    { type: 'group', label: 'Lịch Ca & Điểm Danh' },
+    { type: 'group', label: 'Quản Lý Nhân Sự & Ca Trực' },
     { id: 'employees', label: 'Khai Báo Nhân Sự Chi Nhánh', icon: 'users', path: '/employees' },
     { id: 'store-schedules', label: 'Lịch Phân Công Ca Tuần', icon: 'calendar', path: '/store-manager/schedules' },
-    { id: 'live-roster', label: 'Bảng Trực Ca Live', icon: 'pulse', path: '/store-manager/live-roster' },
     { id: 'kiosk-codes', label: 'Quản Lý Trạm Kiosk', icon: 'screen', path: '/store-manager/kiosk-codes' },
   ],
 
-  // 3. Trưởng Ca Trực (Shift Leader)
-  SHIFT_LEADER: [
-    { id: 'weekly-schedules', label: 'Lịch Ca Chi Nhánh', icon: 'calendar', path: '/store-manager/schedules' },
-    { id: 'employee-schedule', label: 'Lịch Làm Việc Cá Nhân', icon: 'clock', path: '/employee/schedule' },
-    { type: 'group', label: 'Quản lý Kiosk & Điểm Danh' },
-    { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes' },
-    { id: 'attendance', label: 'Điểm Danh & Bàn Giao Ca', icon: 'pulse', onClick: () => alert('Tính năng Điểm danh & Bàn giao ca đang được phát triển.') },
-  ],
-
-  // 4. Chủ Doanh Nghiệp (Business Owner)
+  // 3. Chủ Doanh Nghiệp (Business Owner)
   BUSINESS_OWNER: [
     { id: 'dashboard', label: 'Bảng Điều Khiển Tổng Quan', icon: 'home', path: '/dashboard' },
-    { type: 'group', label: 'Báo Cáo & Audit System' },
+    { type: 'group', label: 'Quản Trị Hệ Thống & Audit' },
     { id: 'employees', label: 'Hồ Sơ Nhân Sự Chuỗi', icon: 'users', path: '/employees' },
     { id: 'branches', label: 'Giám Sát Chi Nhánh', icon: 'store', path: '/branches' },
     { id: 'shift-master', label: 'Khung Ca Hệ Thống', icon: 'calendar', path: '/shifts/templates' },
@@ -45,8 +35,8 @@ export const NAV_ITEMS_BY_ROLE = {
     { id: 'employee-schedule', label: 'Lịch Phân Công Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
     { id: 'my-calendar', label: 'Bộ Lịch Cá Nhân (Calendar)', icon: 'calendar', path: '/employee/my-calendar' },
     { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
-    { id: 'live-roster', label: 'Bảng Trực Ca Live (Real-time)', icon: 'pulse', path: '/store-manager/live-roster' },
-    { type: 'group', label: 'Tiện Ích Trưởng Ca' },
+    { type: 'group', label: 'Giám Sát & Tiện Ích Trưởng Ca' },
+    { id: 'live-roster', label: 'Bảng Trực Ca Live (Giám Sát Real-time)', icon: 'pulse', path: '/store-manager/live-roster' },
     { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', path: '/employee/attendance-history' },
     { id: 'shift-handover', label: 'Bàn Giao Ca Trực', icon: 'lock', onClick: () => alert('Tính năng Bàn giao ca trực đang được phát triển.') },
   ],

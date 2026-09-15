@@ -14,18 +14,17 @@ export default function Badge({ tone = 'neutral', children, dot = false }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 6,
-        padding: '4px 11px',
-        borderRadius: 20,
+        padding: '3px 9px',
+        borderRadius: 2,
         background: bg,
         color,
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: 600,
-        letterSpacing: 0.2,
+        letterSpacing: 0.3,
         whiteSpace: 'nowrap',
-        border: `1px solid ${color}33`,
       }}
     >
-      {dot && <span style={{ width: 6, height: 6, borderRadius: 6, background: color, flexShrink: 0, boxShadow: `0 0 6px ${color}` }} />}
+      {dot && <span style={{ width: 5, height: 5, borderRadius: 5, background: color }} />}
       {children}
     </span>
   );

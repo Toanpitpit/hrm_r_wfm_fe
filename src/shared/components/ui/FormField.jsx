@@ -46,18 +46,17 @@ export function TextInput({ value, onChange, placeholder, type = 'text', disable
       onFocus={() => setFocus(true)}
       onBlur={() => setFocus(false)}
       style={{
-        background: disabled ? c.track : c.bgElev,
-        border: `1.5px solid ${error ? '#ef4444' : focus ? c.accent : c.border}`,
-        borderRadius: 8,
+        background: disabled ? c.track : c.bgRaised,
+        border: `1px solid ${error ? '#ef4444' : focus ? c.accent : c.border}`,
+        borderRadius: 6,
         color: disabled ? c.fgSubtle : c.fg,
         fontSize: 13.5,
         fontFamily: fonts.body,
-        padding: '9px 12px',
+        padding: '10px 12px',
         outline: 'none',
-        transition: 'border .15s, box-shadow .15s',
+        transition: 'border .15s',
         cursor: disabled ? 'not-allowed' : 'text',
         opacity: disabled ? 0.75 : 1,
-        boxShadow: focus && !error ? `0 0 0 3px ${c.accentDim}` : 'none',
       }}
     />
   );
@@ -83,17 +82,16 @@ export function Textarea({ value, onChange, placeholder, rows = 4, disabled = fa
       onFocus={() => setFocus(true)}
       onBlur={() => setFocus(false)}
       style={{
-        background: disabled ? c.track : c.bgElev,
-        border: `1.5px solid ${error ? '#ef4444' : focus ? c.accent : c.border}`,
-        borderRadius: 8,
+        background: disabled ? c.track : c.bgRaised,
+        border: `1px solid ${error ? '#ef4444' : focus ? c.accent : c.border}`,
+        borderRadius: 6,
         color: disabled ? c.fgSubtle : c.fg,
         fontSize: 13.5,
         fontFamily: fonts.body,
-        padding: '9px 12px',
+        padding: '10px 12px',
         outline: 'none',
         resize: 'vertical',
-        transition: 'border .15s, box-shadow .15s',
-        boxShadow: focus && !error ? `0 0 0 3px ${c.accentDim}` : 'none',
+        transition: 'border .15s',
       }}
     />
   );

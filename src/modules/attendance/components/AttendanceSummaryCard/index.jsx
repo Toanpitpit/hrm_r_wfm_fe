@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './AttendanceSummaryCard.module.css';
+import StatCard from '@/shared/components/ui/StatCard';
 
 export const AttendanceSummaryCard = ({ data }) => {
   if (!data) return null;
@@ -14,58 +14,42 @@ export const AttendanceSummaryCard = ({ data }) => {
   } = data;
 
   return (
-    <div className={styles.cardGrid}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
       {/* Card 1: Số buổi làm việc */}
-      <div className={styles.summaryCard}>
-        <div className={styles.cardHeader}>
-          <span className={styles.cardTitle}>Số Buổi Làm Việc</span>
-          <span className={`${styles.cardIndicator} ${styles.indicatorBlue}`} />
-        </div>
-        <div className={styles.cardValue}>
-          {totalWorkedShifts} / {totalAssignedShifts}
-        </div>
-        <div className={styles.cardSubtitle}>
-          Đã đi làm trên tổng buổi phân công
-        </div>
-      </div>
+      <StatCard
+        title="SỐ BUỔI LÀM VIỆC"
+        value={`${totalWorkedShifts} / ${totalAssignedShifts}`}
+        subtext="Đã đi làm trên tổng buổi phân công"
+        icon="check"
+        tone="ok"
+      />
 
       {/* Card 2: Tổng giờ công */}
-      <div className={styles.summaryCard}>
-        <div className={styles.cardHeader}>
-          <span className={styles.cardTitle}>Tổng Giờ Công</span>
-          <span className={`${styles.cardIndicator} ${styles.indicatorGreen}`} />
-        </div>
-        <div className={styles.cardValue}>
-          {totalWorkHours} <span style={{ fontSize: '1rem', fontWeight: 600 }}>giờ</span>
-        </div>
-        <div className={styles.cardSubtitle}>
-          Thời gian làm việc thực tế trong tháng
-        </div>
-      </div>
+      <StatCard
+        title="TỔNG GIỜ CÔNG"
+        value={`${totalWorkHours} Giờ`}
+        subtext="Thời gian làm việc thực tế trong tháng"
+        icon="clock"
+        tone="info"
+      />
 
       {/* Card 3: % Đi làm */}
-      <div className={styles.summaryCard}>
-        <div className={styles.cardHeader}>
-          <span className={styles.cardTitle}>Tỷ Lệ Đi Làm</span>
-          <span className={`${styles.cardIndicator} ${styles.indicatorAmber}`} />
-        </div>
-        <div className={styles.cardValue}>{attendanceRate}%</div>
-        <div className={styles.cardSubtitle}>
-          Dựa trên số ca đã phân công
-        </div>
-      </div>
+      <StatCard
+        title="TỶ LỆ ĐỊ LÀM"
+        value={`${attendanceRate}%`}
+        subtext="Dựa trên số ca đã phân công"
+        icon="pulse"
+        tone="warn"
+      />
 
       {/* Card 4: % Nghỉ */}
-      <div className={styles.summaryCard}>
-        <div className={styles.cardHeader}>
-          <span className={styles.cardTitle}>Tỷ Lệ Vắng Mặt (% Nghỉ)</span>
-          <span className={`${styles.cardIndicator} ${styles.indicatorRed}`} />
-        </div>
-        <div className={styles.cardValue}>{absentPercentage}%</div>
-        <div className={styles.cardSubtitle}>
-          {totalAbsentShifts} buổi vắng mặt
-        </div>
-      </div>
+      <StatCard
+        title="TỶ LỆ VẮNG MẶT (% NGHỈ)"
+        value={`${absentPercentage}%`}
+        subtext={`${totalAbsentShifts} buổi vắng mặt`}
+        icon="close"
+        tone={totalAbsentShifts > 0 ? "bad" : "neutral"}
+      />
     </div>
   );
 };

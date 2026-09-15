@@ -34,8 +34,8 @@ export default function Modal({ open, isOpen, onClose, title, sub, children, wid
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(15,17,23,0.45)',
-        backdropFilter: 'blur(4px)',
+        background: 'rgba(4,3,2,0.72)',
+        backdropFilter: 'blur(3px)',
         zIndex: 200,
         display: 'grid',
         placeItems: 'center',
@@ -49,19 +49,19 @@ export default function Modal({ open, isOpen, onClose, title, sub, children, wid
         style={{
           position: 'relative',
           overflow: 'hidden',
-          background: c.bgCard,
+          background: `linear-gradient(155deg, ${c.bgCard}, ${c.bgRaised})`,
           border: `1px solid ${c.border}`,
-          borderRadius: 16,
+          borderRadius: 14,
           width,
           maxWidth: 'calc(100vw - 40px)',
           maxHeight: 'calc(100vh - 40px)',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+          boxShadow: '0 34px 100px rgba(0,0,0,0.48)',
           animation: 'lx-pop-in .18s cubic-bezier(.2,.9,.3,1.2)',
         }}
       >
-        {/* Header */}
+        <span style={{ position: 'absolute', width: 220, height: 220, right: -105, top: -145, borderRadius: '50%', background: c.accentDim, pointerEvents: 'none' }} />
         <div
           style={{
             position: 'relative',
@@ -69,25 +69,25 @@ export default function Modal({ open, isOpen, onClose, title, sub, children, wid
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-start',
-            padding: '16px 20px',
+            padding: '14px 22px',
+            background: `linear-gradient(90deg, ${c.bgElev}, ${c.bgCard})`,
             borderBottom: `1px solid ${c.border}`,
           }}
         >
-          <div style={{ minWidth: 0, paddingRight: 16 }}>
-            <div style={{ fontFamily: fonts.body, fontSize: 16, fontWeight: 600, color: c.fg, lineHeight: 1.3 }}>
+          <div style={{ minWidth: 0, paddingRight: 18 }}>
+            <div style={{ marginBottom: 4, color: c.accent, fontSize: 9, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase' }}>Admin Portal</div>
+            <div style={{ fontFamily: fonts.display, fontSize: 19, letterSpacing: 0.5, textTransform: 'uppercase', lineHeight: 1.1 }}>
               {title}
             </div>
-            {sub && <div style={{ fontSize: 12.5, color: c.fgSubtle, marginTop: 3 }}>{sub}</div>}
+            {sub && <div style={{ fontSize: 11.5, color: c.fgSubtle, marginTop: 3 }}>{sub}</div>}
           </div>
-          <button type="button" onClick={onClose} title="Đóng" style={{ width: 30, height: 30, flexShrink: 0, display: 'grid', placeItems: 'center', background: c.bgElev, border: `1px solid ${c.border}`, borderRadius: 8, color: c.fgSubtle, cursor: 'pointer' }}>
-            <Icon name="x" size={16} />
+          <button type="button" onClick={onClose} title="Đóng" style={{ width: 32, height: 32, flexShrink: 0, display: 'grid', placeItems: 'center', background: c.track, border: `1px solid ${c.border}`, borderRadius: 8, color: c.fgSubtle, cursor: 'pointer' }}>
+            <Icon name="x" size={18} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="lx-modal-body" style={{ position: 'relative', flex: '1 1 auto', minHeight: 0, padding: '18px 20px', overflow: 'auto' }}>{children}</div>
+        <div className="lx-modal-body" style={{ position: 'relative', flex: '1 1 auto', minHeight: 0, padding: '18px 22px', overflow: 'auto' }}>{children}</div>
 
-        {/* Footer */}
         {footer && (
           <div
             style={{
@@ -95,8 +95,8 @@ export default function Modal({ open, isOpen, onClose, title, sub, children, wid
               flexShrink: 0,
               display: 'flex',
               justifyContent: 'flex-end',
-              gap: 8,
-              padding: '12px 20px',
+              gap: 10,
+              padding: '12px 22px',
               background: c.bgElev,
               borderTop: `1px solid ${c.border}`,
             }}
