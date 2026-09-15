@@ -11,6 +11,7 @@ import { getNavItemsForRole } from '@/shared/constants/navigation.config';
 import Icon from '@/shared/components/ui/Icon';
 import Badge from '@/shared/components/ui/Badge';
 import Button from '@/shared/components/ui/Button';
+import StatCard from '@/shared/components/ui/StatCard';
 
 export default function EmployeeDashboardPage() {
   const { c, fonts } = useAdminTheme();
@@ -324,6 +325,7 @@ export default function EmployeeDashboardPage() {
           </div>
         )}
       </div>
-    </DashboardShell>
-  );
+    </div>
+  </DashboardShell>
+);
 }

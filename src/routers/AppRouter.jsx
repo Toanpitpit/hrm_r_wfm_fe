@@ -34,6 +34,10 @@ const AdminProtectedRoute = ({ children }) => {
     console.error('Failed to parse user from localStorage', e);
   }
 
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
   const role = (user?.role || user?.Role || '').toUpperCase();
   const roleName = (user?.roleName || '').toUpperCase();
 
@@ -78,6 +82,10 @@ const ManagerOrAdminProtectedRoute = ({ children }) => {
     console.error('Failed to parse user from localStorage', e);
   }
 
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
   const role = (user?.role || user?.Role || '').toUpperCase();
   const roleName = (user?.roleName || '').toUpperCase();
 
@@ -108,6 +116,8 @@ const ManagerOrAdminProtectedRoute = ({ children }) => {
 
   return children;
 };
+
+const StoreManagerProtectedRoute = ManagerOrAdminProtectedRoute;
 
 const AppRouter = () => {
   return (
