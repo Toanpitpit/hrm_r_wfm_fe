@@ -248,7 +248,10 @@ export default function WeeklySchedulePage() {
         {/* Ma trận phân bổ lịch tuần */}
         <WeeklyRosterMatrix
           days={matrix?.days || []}
+          schedules={matrix?.schedules || []}
+          templates={templates}
           employees={filteredEmployees}
+          allEmployees={matrix?.employeeRosters || []}
           loading={loading}
           isPublished={weeklyStats.status === 'PUBLISHED'}
           onCellClick={(cellData) => {
@@ -256,6 +259,10 @@ export default function WeeklySchedulePage() {
             setIsAssignCellModalOpen(true);
           }}
           onDeleteAssignment={handleDeleteAssignment}
+          onEditScheduleQuota={(schedule) => {
+            setSelectedScheduleForQuota(schedule);
+            setIsQuotaModalOpen(true);
+          }}
         />
 
         {/* Modals */}

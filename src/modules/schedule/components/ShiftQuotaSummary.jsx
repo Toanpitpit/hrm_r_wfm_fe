@@ -73,10 +73,11 @@ export default function ShiftQuotaSummary({
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {daySchedules.map((s) => {
+                    const isLeaderOk = (s.assignedLeaderCount || 0) >= (s.requiredLeader || 1);
                     const isCashierOk = s.assignedCashierCount >= s.requiredCashier;
                     const isSalesOk = s.assignedSalesCount >= s.requiredSales;
                     const isSecurityOk = s.assignedSecurityCount >= s.requiredSecurity;
-                    const isAllOk = isCashierOk && isSalesOk && isSecurityOk;
+                    const isAllOk = isLeaderOk && isCashierOk && isSalesOk && isSecurityOk;
 
                     return (
                       <div
@@ -103,6 +104,10 @@ export default function ShiftQuotaSummary({
 
                         {/* Chi tiết chỉ tiêu từng vị trí */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10.5 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: isLeaderOk ? c.fgSubtle : c.tones.bad }}>
+                            <span>TC (Trưởng ca):</span>
+                            <strong>{s.assignedLeaderCount || 0}/{s.requiredLeader || 1}</strong>
+                          </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', color: isCashierOk ? c.fgSubtle : c.tones.bad }}>
                             <span>TN (Thu ngân):</span>
                             <strong>{s.assignedCashierCount}/{s.requiredCashier}</strong>
