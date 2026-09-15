@@ -233,10 +233,10 @@ export default function WeeklySchedulePage() {
               onChange={setRoleFilter}
               options={[
                 { value: 'ALL', label: 'Tất cả vị trí' },
+                { value: 'SHIFT_LEADER', label: 'Trưởng ca (SHIFT_LEADER)' },
                 { value: 'CASHIER', label: 'Thu ngân (CASHIER)' },
-                { value: 'SALES', label: 'Bán hàng (SALES)' },
-                { value: 'SECURITY', label: 'Bảo vệ (SECURITY)' },
-                { value: 'SHIFT_LEADER', label: 'Trưởng ca (LEADER)' },
+                { value: 'SALES', label: 'Bán hàng (SALES_STAFF)' },
+                { value: 'SECURITY', label: 'Bảo vệ (SECURITY_GUARD)' },
               ]}
             />
           </div>

@@ -13,8 +13,8 @@ import { createContext, useContext, useMemo, useState } from 'react';
 import { hexA } from '../utils/colorUtils';
 
 export const fonts = {
-  display: '"Anton", "Bebas Neue", "Montserrat", system-ui, -apple-system, sans-serif',
-  body: '"Inter", system-ui, -apple-system, sans-serif',
+  display: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  body: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
 };
 
 // --- Bộ token nền tối (Cinematic Dark) ---

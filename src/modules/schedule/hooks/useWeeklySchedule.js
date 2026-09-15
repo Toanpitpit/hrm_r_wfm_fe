@@ -320,7 +320,10 @@ export function useWeeklySchedule(initialBranchId = 1) {
       const matchRole =
         roleFilter === 'ALL' ||
         emp.roleCode === roleFilter ||
-        emp.roleName === roleFilter;
+        emp.roleName === roleFilter ||
+        (roleFilter === 'SALES' && (emp.roleCode === 'SALES_STAFF' || emp.roleCode === 'SALES')) ||
+        (roleFilter === 'SECURITY' && (emp.roleCode === 'SECURITY_GUARD' || emp.roleCode === 'SECURITY')) ||
+        (roleFilter === 'SHIFT_LEADER' && (emp.roleCode === 'SHIFT_LEADER' || emp.roleCode === 'LEADER'));
 
       return matchSearch && matchRole;
     });
@@ -336,8 +339,9 @@ export function useWeeklySchedule(initialBranchId = 1) {
     let understaffedCount = 0;
 
     matrix.schedules.forEach((s) => {
-      totalAssignments += (s.assignedCashierCount + s.assignedSalesCount + s.assignedSecurityCount);
+      totalAssignments += ((s.assignedLeaderCount || 0) + s.assignedCashierCount + s.assignedSalesCount + s.assignedSecurityCount);
       if (
+        (s.assignedLeaderCount || 0) < (s.requiredLeader || 1) ||
         s.assignedCashierCount < s.requiredCashier ||
         s.assignedSalesCount < s.requiredSales ||
         s.assignedSecurityCount < s.requiredSecurity
