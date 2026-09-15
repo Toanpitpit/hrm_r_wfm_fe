@@ -12,8 +12,11 @@ const ShiftMasterPage = lazy(() => import('@/modules/schedule/pages/ShiftMasterP
 const WeeklySchedulePage = lazy(() => import('@/modules/schedule/pages/WeeklySchedulePage'));
 const LiveRosterDashboardPage = lazy(() => import('@/modules/attendance/pages/LiveRosterDashboardPage'));
 const AttendanceOtpPage = lazy(() => import('@/modules/attendance/pages/AttendanceOtpPage'));
+const MyCalendarPage = lazy(() => import('@/modules/attendance/pages/MyCalendarPage'));
+const AttendanceHistoryPage = lazy(() => import('@/modules/attendance/pages/AttendanceHistoryPage'));
 
 // Placeholder cho Kiosk login
+
 const KioskLoginPage = () => (
   <div className="p-8 text-white">Kiosk Login Page (Mock)</div>
 );
@@ -94,8 +97,11 @@ const AppRouter = () => {
 
           {/* ═══════════════ EMPLOYEE ROUTES ═══════════════ */}
           <Route path="/employee/schedule" element={<EmployeeDashboardPage />} />
+          <Route path="/employee/my-calendar" element={<MyCalendarPage />} />
+          <Route path="/employee/attendance-history" element={<AttendanceHistoryPage />} />
           <Route path="/employee/attendance-otp" element={<AttendanceOtpPage />} />
           <Route path="/attendance-otp" element={<Navigate to="/employee/attendance-otp" replace />} />
+
 
           {/* ═══════════════ ADMIN & GENERAL ROUTES (Chặn Store Manager) ═══════════════ */}
           <Route

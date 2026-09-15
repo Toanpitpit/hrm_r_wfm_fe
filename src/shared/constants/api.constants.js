@@ -34,4 +34,9 @@ export const API_ENDPOINTS = Object.freeze({
     PUBLISH_WEEKLY: '/shifts/schedules/publish-weekly',
     AUTO_SCHEDULE: '/shifts/schedules/auto-schedule',
   },
+  ATTENDANCE: {
+    MY_WEEKLY_SCHEDULE: (weekStart) => `attendance/my-weekly-schedule?weekStart=${weekStart}`,
+    MY_ATTENDANCE_HISTORY: (month, year) => `attendance/my-attendance-history?month=${month}&year=${year}`,
+  },
 });
+
