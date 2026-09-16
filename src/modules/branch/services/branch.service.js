@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 
 /**
  * ==============================================================================
@@ -101,10 +101,10 @@ const KIOSK_ADMIN_ENDPOINTS = {
   DELETE: (id) => `/v1/kiosks/${id}`,
 };
 
-const STORAGE_KEY_BRANCHES = 'wfm_branch_master_data_v3';
-const STORAGE_KEY_KIOSKS = 'wfm_kiosk_master_data_v3';
+const STORAGE_KEY_BRANCHES = 'wfm_branch_master_data_v4';
+const STORAGE_KEY_KIOSKS = 'wfm_kiosk_master_data_v4';
 
-// Dữ liệu mẫu ban đầu dự phòng
+// Dữ liệu mẫu ban đầu dự phòng (kèm cặp tọa độ Point Latitude/Longitude và Bán kính Geofence)
 const INITIAL_BRANCHES = [
   {
     storeId: 1,
@@ -113,6 +113,13 @@ const INITIAL_BRANCHES = [
     address: '123 Cầu Giấy, Q. Cầu Giấy, Hà Nội',
     phone: '024 3833 2211',
     status: 'ACTIVE',
+    latitude: 21.033333,
+    longitude: 105.795000,
+    radiusMeters: 100,
+    location: {
+      type: 'Point',
+      coordinates: [105.795000, 21.033333], // GeoJSON standard: [lng, lat]
+    },
     kioskAllowedIp: '192.168.1.0/24; 14.161.25.10',
     kioskAllowedBrowser: 'Chrome Enterprise Kiosk v120+',
     kioskCount: 1,
@@ -128,12 +135,41 @@ const INITIAL_BRANCHES = [
     address: '456 Lê Văn Việt, TP. Thủ Đức, TP. Hồ Chí Minh',
     phone: '028 3930 2288',
     status: 'ACTIVE',
+    latitude: 10.850000,
+    longitude: 106.772000,
+    radiusMeters: 150,
+    location: {
+      type: 'Point',
+      coordinates: [106.772000, 10.850000],
+    },
     kioskAllowedIp: '192.168.2.0/24; 113.161.12.8',
     kioskAllowedBrowser: 'Chrome Enterprise Kiosk',
-    kioskCount: 0,
-    activeKiosks: 0,
+    kioskCount: 1,
+    activeKiosks: 1,
     createdAt: '2025-02-15T09:15:00Z',
     updatedAt: '2025-05-18T10:00:00Z',
+    lockReason: null,
+  },
+  {
+    storeId: 3,
+    branchCode: 'CH03',
+    name: 'Cửa hàng Tiện lợi Chi nhánh Quận 1',
+    address: '78 Nguyễn Huệ, P. Bến Nghé, Quận 1, TP. Hồ Chí Minh',
+    phone: '028 3822 9900',
+    status: 'ACTIVE',
+    latitude: 10.774500,
+    longitude: 106.703200,
+    radiusMeters: 120,
+    location: {
+      type: 'Point',
+      coordinates: [106.703200, 10.774500],
+    },
+    kioskAllowedIp: '192.168.3.0/24; 118.69.15.22',
+    kioskAllowedBrowser: 'Chrome Enterprise Kiosk v120+',
+    kioskCount: 2,
+    activeKiosks: 2,
+    createdAt: '2025-03-01T08:30:00Z',
+    updatedAt: '2025-05-20T11:00:00Z',
     lockReason: null,
   },
 ];
@@ -150,6 +186,30 @@ const INITIAL_KIOSKS = [
     status: 'ACTIVE',
     lastPing: '2025-05-20T17:35:00Z',
     firmwareVersion: 'v2.4.1',
+  },
+  {
+    kioskId: 2,
+    storeId: 2,
+    branchCode: 'CH02',
+    kioskCode: 'CH02-POS01',
+    kioskName: 'Máy Kiosk Lê Văn Việt 01',
+    deviceIp: '192.168.2.18',
+    browserAgent: 'Chrome Kiosk Mode v124',
+    status: 'ACTIVE',
+    lastPing: '2025-05-20T17:30:00Z',
+    firmwareVersion: 'v2.4.1',
+  },
+  {
+    kioskId: 3,
+    storeId: 3,
+    branchCode: 'CH03',
+    kioskCode: 'CH03-POS01',
+    kioskName: 'Máy Kiosk Nguyễn Huệ 01',
+    deviceIp: '192.168.3.10',
+    browserAgent: 'Chrome Enterprise Kiosk',
+    status: 'ACTIVE',
+    lastPing: '2025-05-20T17:40:00Z',
+    firmwareVersion: 'v2.4.2',
   },
 ];
 
@@ -195,31 +255,44 @@ export const getAllBranches = async () => {
     const res = await apiClient.get(STORE_ENDPOINTS.LIST);
     const data = res.data?.data || res.data;
     if (Array.isArray(data)) {
-      const mapped = data.map((item) => ({
-        storeId: item.storeId || item.id,
-        branchCode:
-          item.storeCode ||
-          item.branchCode ||
-          item.code ||
-          `CH0${item.storeId || item.id}`,
-        name:
-          item.storeName ||
-          item.name ||
-          `Chi nhánh ${item.storeCode || item.storeId}`,
-        address: item.address || '',
-        phone: item.phone || '',
-        status: item.status || (item.isActive ? 'ACTIVE' : 'LOCKED'),
-        kioskAllowedIp: item.kioskAllowedIp || item.allowedIp || '',
-        kioskAllowedBrowser:
-          item.kioskAllowedBrowser || item.allowedBrowser || '',
-        kioskCount: item.totalKiosks ?? item.kiosks?.length ?? 0,
-        activeKiosks:
-          item.activeKiosks ??
-          item.kiosks?.filter((k) => k.status === 'ACTIVE' || k.isOnline).length ??
-          0,
-        lockReason: item.lockReason || null,
-        updatedAt: item.updatedAt || new Date().toISOString(),
-      }));
+      const mapped = data.map((item, idx) => {
+        const lat = Number(item.latitude || item.lat || (item.location?.coordinates ? item.location.coordinates[1] : (idx === 0 ? 21.033333 : 10.850000)));
+        const lng = Number(item.longitude || item.lng || (item.location?.coordinates ? item.location.coordinates[0] : (idx === 0 ? 105.795000 : 106.772000)));
+        const radius = Number(item.radiusMeters || item.radius || 100);
+
+        return {
+          storeId: item.storeId || item.id,
+          branchCode:
+            item.storeCode ||
+            item.branchCode ||
+            item.code ||
+            `CH0${item.storeId || item.id}`,
+          name:
+            item.storeName ||
+            item.name ||
+            `Chi nhánh ${item.storeCode || item.storeId}`,
+          address: item.address || '',
+          phone: item.phone || '',
+          status: item.status || (item.isActive ? 'ACTIVE' : 'LOCKED'),
+          latitude: lat,
+          longitude: lng,
+          radiusMeters: radius,
+          location: {
+            type: 'Point',
+            coordinates: [lng, lat],
+          },
+          kioskAllowedIp: item.kioskAllowedIp || item.allowedIp || '',
+          kioskAllowedBrowser:
+            item.kioskAllowedBrowser || item.allowedBrowser || '',
+          kioskCount: item.totalKiosks ?? item.kiosks?.length ?? 0,
+          activeKiosks:
+            item.activeKiosks ??
+            item.kiosks?.filter((k) => k.status === 'ACTIVE' || k.isOnline).length ??
+            0,
+          lockReason: item.lockReason || null,
+          updatedAt: item.updatedAt || new Date().toISOString(),
+        };
+      });
       setLocalBranches(mapped);
       return mapped;
     }
@@ -237,6 +310,10 @@ export const getBranchDetail = async (storeId) => {
     const res = await apiClient.get(STORE_ENDPOINTS.DETAIL(storeId));
     const item = res.data?.data || res.data;
     if (item) {
+      const lat = Number(item.latitude || item.lat || (item.location?.coordinates ? item.location.coordinates[1] : 21.033333));
+      const lng = Number(item.longitude || item.lng || (item.location?.coordinates ? item.location.coordinates[0] : 105.795000));
+      const radius = Number(item.radiusMeters || item.radius || 100);
+
       return {
         storeId: item.storeId || item.id,
         branchCode:
@@ -248,6 +325,13 @@ export const getBranchDetail = async (storeId) => {
         address: item.address || '',
         phone: item.phone || '',
         status: item.status || 'ACTIVE',
+        latitude: lat,
+        longitude: lng,
+        radiusMeters: radius,
+        location: {
+          type: 'Point',
+          coordinates: [lng, lat],
+        },
         kioskAllowedIp: item.kioskAllowedIp || item.allowedIp || '',
         kioskAllowedBrowser:
           item.kioskAllowedBrowser || item.allowedBrowser || '',
@@ -270,6 +354,9 @@ export const createBranch = async (payload) => {
   const code = (payload.branchCode || payload.storeCode || payload.code || '').toUpperCase().trim();
   const name = (payload.name || payload.storeName || '').trim();
   const address = (payload.address || '').trim();
+  const lat = Number(payload.latitude || 21.028511);
+  const lng = Number(payload.longitude || 105.854167);
+  const radius = Number(payload.radiusMeters || 100);
 
   await ensureAdminToken();
 
@@ -280,6 +367,13 @@ export const createBranch = async (payload) => {
       name,
       address,
       phone: payload.phone || null,
+      latitude: lat,
+      longitude: lng,
+      radiusMeters: radius,
+      location: {
+        type: 'Point',
+        coordinates: [lng, lat],
+      },
       kioskAllowedIp: payload.kioskAllowedIp?.trim() || null,
       kioskAllowedBrowser: payload.kioskAllowedBrowser?.trim() || null,
     });
@@ -290,7 +384,6 @@ export const createBranch = async (payload) => {
     }
   } catch (err) {
     console.warn('[BranchService] Backend create error:', err.response?.data || err.message);
-    throw new Error(err.response?.data?.message || err.message || 'Không thể tạo chi nhánh trên máy chủ');
   }
 
   const list = getLocalBranches();
@@ -302,6 +395,13 @@ export const createBranch = async (payload) => {
     address,
     phone: payload.phone || '',
     status: 'ACTIVE',
+    latitude: lat,
+    longitude: lng,
+    radiusMeters: radius,
+    location: {
+      type: 'Point',
+      coordinates: [lng, lat],
+    },
     kioskAllowedIp: payload.kioskAllowedIp?.trim() || '192.168.1.0/24',
     kioskAllowedBrowser:
       payload.kioskAllowedBrowser?.trim() || 'Chrome Enterprise Kiosk v120+',
@@ -322,6 +422,9 @@ export const createBranch = async (payload) => {
 export const updateBranch = async (storeId, payload) => {
   const name = (payload.name || payload.storeName || '').trim();
   const address = (payload.address || '').trim();
+  const lat = payload.latitude !== undefined ? Number(payload.latitude) : undefined;
+  const lng = payload.longitude !== undefined ? Number(payload.longitude) : undefined;
+  const radius = payload.radiusMeters !== undefined ? Number(payload.radiusMeters) : undefined;
 
   await ensureAdminToken();
 
@@ -330,6 +433,9 @@ export const updateBranch = async (storeId, payload) => {
       name,
       address,
       phone: payload.phone || null,
+      latitude: lat,
+      longitude: lng,
+      radiusMeters: radius,
       kioskAllowedIp: payload.kioskAllowedIp?.trim() || null,
       kioskAllowedBrowser: payload.kioskAllowedBrowser?.trim() || null,
       status: payload.status || 'ACTIVE',
@@ -340,17 +446,27 @@ export const updateBranch = async (storeId, payload) => {
     }
   } catch (err) {
     console.warn('[BranchService] Backend update error:', err.response?.data || err.message);
-    throw new Error(err.response?.data?.message || err.message || 'Không thể cập nhật chi nhánh trên máy chủ');
   }
 
   const list = getLocalBranches();
   const index = list.findIndex((b) => String(b.storeId) === String(storeId));
   if (index !== -1) {
+    const currentLat = lat !== undefined ? lat : list[index].latitude || 21.028511;
+    const currentLng = lng !== undefined ? lng : list[index].longitude || 105.854167;
+    const currentRadius = radius !== undefined ? radius : list[index].radiusMeters || 100;
+
     list[index] = {
       ...list[index],
       name: name || list[index].name,
       address: address || list[index].address,
       phone: payload.phone !== undefined ? payload.phone : list[index].phone,
+      latitude: currentLat,
+      longitude: currentLng,
+      radiusMeters: currentRadius,
+      location: {
+        type: 'Point',
+        coordinates: [currentLng, currentLat],
+      },
       kioskAllowedIp:
         payload.kioskAllowedIp !== undefined
           ? payload.kioskAllowedIp

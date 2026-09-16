@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import DashboardShell from '@/shared/components/layout/DashboardShell';
@@ -18,6 +18,7 @@ import Icon from '@/shared/components/ui/Icon';
 // Subcomponents & Hook
 import { useBranch } from '../../hooks/useBranch';
 import BranchTable from '../../components/BranchTable';
+import BranchMapView from '../../components/BranchMapView';
 import BranchFormModal from '../../components/BranchFormModal';
 import BranchLockModal from '../../components/BranchLockModal';
 import BranchDeleteModal from '../../components/BranchDeleteModal';
@@ -32,14 +33,18 @@ import KioskGlobalMonitor from '../../components/KioskGlobalMonitor';
  * ==============================================================================
  * Tính năng chính:
  * 1. Thêm / sửa / khóa / xóa chi nhánh toàn hệ thống kèm lý do lưu vết kiểm toán (Audit Log)
- * 2. Thiết lập cấu hình an ninh mạng: Dải IP Whitelist / Subnet cho trạm Kiosk
- * 3. Chuẩn hóa trình duyệt Kiosk Lockdown Mode tại quầy điểm danh
- * 4. Giám sát tình trạng kết nối mạng trạm Kiosk toàn chuỗi
+ * 2. Thiết lập tọa độ Point (Latitude / Longitude) & Bán kính Geofence chấm công GPS
+ * 3. Tích hợp Bản đồ Leaflet tương tác trực quan hiển thị vị trí toàn chuỗi cơ sở
+ * 4. Thiết lập cấu hình an ninh mạng: Dải IP Whitelist / Subnet cho trạm Kiosk
+ * 5. Chuẩn hóa trình duyệt Kiosk Lockdown Mode tại quầy điểm danh
+ * 6. Giám sát tình trạng kết nối mạng trạm Kiosk toàn chuỗi
  */
 export default function BranchManagementPage() {
   const navigate = useNavigate();
   const { c } = useAdminTheme();
   const toast = useToast();
+
+  const [viewMode, setViewMode] = useState('table'); // 'table' | 'map'
 
   const {
     branches,
@@ -84,7 +89,7 @@ export default function BranchManagementPage() {
   const navItems = [
     { id: 'dashboard', label: 'Tổng quan Dashboard', icon: 'dashboard' },
     { type: 'group', label: 'VẬN HÀNH & HỆ THỐNG' },
-    { id: 'branches', label: 'Danh mục Chi nhánh & Kiosk', icon: 'pin' },
+    { id: 'branches', label: 'Danh mục Chi nhánh & Kiosk', icon: 'store' },
     { id: 'shift-master', label: 'Khung Ca Mẫu (Shift Master)', icon: 'clock' },
   ];
 
@@ -119,9 +124,65 @@ export default function BranchManagementPage() {
       {/* 1. Header trang */}
       <PageHeader
         title="Quản Lý Danh Mục Chi Nhánh & Cấu Hình Kiosk"
-        subtitle="Quản trị danh mục chi nhánh, thiết lập dải IP mạng và trình duyệt máy trạm Kiosk điểm danh tại quầy."
+        subtitle="Quản trị danh mục chi nhánh, định vị tọa độ Point (GPS / Geofence), cấu hình an ninh mạng và cấp phát máy trạm Kiosk."
         actions={
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {/* View Mode Toggle (Table / Map) */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                background: c.bgElev,
+                border: `1px solid ${c.border}`,
+                borderRadius: '8px',
+                padding: '3px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: viewMode === 'table' ? c.accent : 'transparent',
+                  color: viewMode === 'table' ? c.ink : c.fgSubtle,
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all .16s ease',
+                }}
+              >
+                <Icon name="grid" size={14} />
+                <span>Dạng Bảng</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode('map')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: viewMode === 'map' ? c.accent : 'transparent',
+                  color: viewMode === 'map' ? c.ink : c.fgSubtle,
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all .16s ease',
+                }}
+              >
+                <Icon name="map" size={14} />
+                <span>Bản Đồ Leaflet</span>
+              </button>
+            </div>
+
             {/* Nút mở giám sát Kiosk chuỗi */}
             <Button
               variant="outline"
@@ -165,7 +226,7 @@ export default function BranchManagementPage() {
           label="TỔNG SỐ CHI NHÁNH"
           value={stats.totalBranches}
           tone="neutral"
-          icon="pin"
+          icon="store"
           hint="Toàn bộ hệ thống cửa hàng"
         />
         <StatCard
@@ -191,45 +252,10 @@ export default function BranchManagementPage() {
         />
       </div>
 
-      {/* 3. Panel Bảng dữ liệu & Bộ lọc */}
-      <Panel>
-        {/* Bộ lọc tìm kiếm & trạng thái */}
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            marginBottom: '16px',
-          }}
-        >
-          <div style={{ flex: '1', minWidth: '280px', maxWidth: '420px' }}>
-            <SearchInput
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder="Tìm theo tên chi nhánh, mã chi nhánh, địa chỉ..."
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '13px', color: c.fgSubtle }}>Trạng thái:</span>
-            <Select
-              value={statusFilter}
-              onChange={setStatusFilter}
-              options={[
-                { value: 'ALL', label: 'Tất cả trạng thái' },
-                { value: 'ACTIVE', label: 'Đang hoạt động' },
-                { value: 'INACTIVE', label: 'Tạm khóa' },
-              ]}
-            />
-          </div>
-        </div>
-
-        {/* Bảng chi nhánh */}
-        <BranchTable
+      {/* 3. Hiển thị theo chế độ: Bản đồ tương tác Leaflet HOẶC Bảng danh mục */}
+      {viewMode === 'map' ? (
+        <BranchMapView
           branches={branches}
-          loading={loading}
           onEdit={(branch) => {
             setEditingBranch(branch);
             setFormModalOpen(true);
@@ -242,12 +268,65 @@ export default function BranchManagementPage() {
             setLockingBranch(branch);
             setLockModalOpen(true);
           }}
-          onDelete={(branch) => {
-            setDeletingBranch(branch);
-            setDeleteModalOpen(true);
-          }}
         />
-      </Panel>
+      ) : (
+        <Panel>
+          {/* Bộ lọc tìm kiếm & trạng thái */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              marginBottom: '16px',
+            }}
+          >
+            <div style={{ flex: '1', minWidth: '280px', maxWidth: '420px' }}>
+              <SearchInput
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="Tìm theo tên chi nhánh, mã chi nhánh, địa chỉ..."
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '13px', color: c.fgSubtle }}>Trạng thái:</span>
+              <Select
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { value: 'ALL', label: 'Tất cả trạng thái' },
+                  { value: 'ACTIVE', label: 'Đang hoạt động' },
+                  { value: 'INACTIVE', label: 'Tạm khóa' },
+                ]}
+              />
+            </div>
+          </div>
+
+          {/* Bảng chi nhánh */}
+          <BranchTable
+            branches={branches}
+            loading={loading}
+            onEdit={(branch) => {
+              setEditingBranch(branch);
+              setFormModalOpen(true);
+            }}
+            onManageKiosk={(branch) => {
+              setSelectedBranchForKiosk(branch);
+              setKioskModalOpen(true);
+            }}
+            onToggleLock={(branch) => {
+              setLockingBranch(branch);
+              setLockModalOpen(true);
+            }}
+            onDelete={(branch) => {
+              setDeletingBranch(branch);
+              setDeleteModalOpen(true);
+            }}
+          />
+        </Panel>
+      )}
 
       {/* 4. Các Modals */}
       {/* Modal Thêm/Sửa chi nhánh */}
@@ -262,7 +341,7 @@ export default function BranchManagementPage() {
           if (editingBranch) {
             const res = await handleUpdateBranch(editingBranch.storeId || editingBranch.id, formData);
             if (res?.success) {
-              toast.success('Cập nhật thông tin chi nhánh thành công!');
+              toast.success('Cập nhật thông tin chi nhánh & tọa độ thành công!');
             } else {
               toast.error(res?.error || 'Không thể cập nhật chi nhánh');
             }
@@ -270,7 +349,7 @@ export default function BranchManagementPage() {
           } else {
             const res = await handleCreateBranch(formData);
             if (res?.success) {
-              toast.success('Thêm mới chi nhánh thành công!');
+              toast.success('Thêm mới chi nhánh & ghim tọa độ thành công!');
             } else {
               toast.error(res?.error || 'Không thể tạo chi nhánh');
             }

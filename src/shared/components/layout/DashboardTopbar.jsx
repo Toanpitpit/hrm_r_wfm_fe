@@ -1,3 +1,4 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../ui/Icon';
 import { useAdminTheme } from '../../context/ThemeContext';
@@ -12,10 +13,45 @@ export default function DashboardTopbar({
   avatarLetter = 'A',
   fallbackTitle = 'Dashboard',
   homePath = '/',
+  breadcrumbs,
 }) {
   const navigate = useNavigate();
   const { c, fonts, theme, setTheme, sidebarCollapsed, setSidebarCollapsed } = useAdminTheme();
-  const pageTitle = pageTitles[page] || fallbackTitle;
+
+  // Read stored user profile from localStorage
+  let user = null;
+  try {
+    const raw = localStorage.getItem('user');
+    if (raw) user = JSON.parse(raw);
+  } catch (e) {
+    console.error('Failed to parse user from localStorage', e);
+  }
+
+  // Derive dynamic user details
+  const actualName = user?.fullName || user?.FullName || defaultDisplayName || 'Quản trị viên';
+  const actualRole = user?.roleName || user?.RoleName || (user?.storeName ? `Quản lý ${user.storeName}` : roleLabel) || 'Hệ thống';
+
+  // Calculate console label based on role if generic console label provided
+  let actualConsoleLabel = consoleLabel;
+  if (!actualConsoleLabel || actualConsoleLabel === 'Admin Console' || actualConsoleLabel === 'Operations Admin') {
+    const roleCode = (user?.role || user?.Role || '').toUpperCase();
+    if (roleCode === 'STORE_MANAGER') actualConsoleLabel = 'Store Manager Console';
+    else if (roleCode === 'BUSINESS_OWNER') actualConsoleLabel = 'Executive Console';
+    else if (roleCode === 'OPERATIONS_ADMIN') actualConsoleLabel = 'Operations Console';
+    else if (roleCode === 'SHIFT_LEADER') actualConsoleLabel = 'Shift Leader Portal';
+    else if (roleCode === 'CASHIER') actualConsoleLabel = 'Cashier Portal';
+    else if (roleCode === 'SALES_STAFF') actualConsoleLabel = 'Sales Portal';
+    else if (roleCode === 'SECURITY_GUARD' || roleCode === 'SECURITY') actualConsoleLabel = 'Security Portal';
+    else actualConsoleLabel = consoleLabel || 'Operations Console';
+  }
+
+  // Avatar letter: first letter of full name
+  const actualAvatarLetter = actualName
+    ? actualName.trim().charAt(0).toUpperCase()
+    : (avatarLetter || 'A');
+
+  const breadcrumbLast = Array.isArray(breadcrumbs) && breadcrumbs.length > 0 ? breadcrumbs[breadcrumbs.length - 1]?.label : null;
+  const pageTitle = pageTitles[page] || breadcrumbLast || fallbackTitle;
 
   return (
     <header
@@ -45,9 +81,22 @@ export default function DashboardTopbar({
 
       <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: c.fgFaint, fontSize: 9.5, fontWeight: 800, letterSpacing: 1.2, textTransform: 'uppercase' }}>
-          <span>{consoleLabel}</span>
-          <Icon name="chevron" size={10} />
-          <span style={{ color: c.accent }}>{pageTitle}</span>
+          {Array.isArray(breadcrumbs) && breadcrumbs.length > 0 ? (
+            breadcrumbs.map((b, idx) => (
+              <React.Fragment key={idx}>
+                {idx > 0 && <Icon name="chevron" size={10} />}
+                <span style={{ color: idx === breadcrumbs.length - 1 ? c.accent : c.fgFaint }}>
+                  {b.label}
+                </span>
+              </React.Fragment>
+            ))
+          ) : (
+            <>
+              <span>{actualConsoleLabel}</span>
+              <Icon name="chevron" size={10} />
+              <span style={{ color: c.accent }}>{pageTitle}</span>
+            </>
+          )}
         </div>
         <div style={{ marginTop: 4, color: c.fg, fontFamily: fonts.display, fontSize: 23, lineHeight: 1, letterSpacing: 0.4, textTransform: 'uppercase' }}>
           {pageTitle}
