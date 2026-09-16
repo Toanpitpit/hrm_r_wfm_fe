@@ -10,6 +10,7 @@ export const NAV_ITEMS_BY_ROLE = {
     { id: 'employees', label: 'Khai Báo & Quản Lý Nhân Sự', icon: 'users', path: '/employees' },
     { id: 'branches', label: 'Danh mục Chi nhánh & Kiosk', icon: 'store', path: '/branches' },
     { id: 'shift-master', label: 'Bộ Khung Ca Mẫu', icon: 'calendar', path: '/shifts/templates' },
+    { id: 'dispatch-network', label: 'Ma Trận Điều Động Chi Nhánh', icon: 'pulse', path: '/admin/dispatch-network' },
   ],
 
   // 2. Quản lý Cửa hàng (Store Manager)
@@ -18,6 +19,7 @@ export const NAV_ITEMS_BY_ROLE = {
     { type: 'group', label: 'Quản Lý Nhân Sự & Ca Trực' },
     { id: 'employees', label: 'Khai Báo Nhân Sự Chi Nhánh', icon: 'users', path: '/employees' },
     { id: 'store-schedules', label: 'Lịch Phân Công Ca Tuần', icon: 'calendar', path: '/store-manager/schedules' },
+    { id: 'dispatches', label: 'Điều Động Nhân Sự', icon: 'users', path: '/store-manager/dispatches' },
     { id: 'kiosk-codes', label: 'Quản Lý Trạm Kiosk', icon: 'screen', path: '/store-manager/kiosk-codes' },
   ],
 
@@ -28,6 +30,7 @@ export const NAV_ITEMS_BY_ROLE = {
     { id: 'employees', label: 'Hồ Sơ Nhân Sự Chuỗi', icon: 'users', path: '/employees' },
     { id: 'branches', label: 'Giám Sát Chi Nhánh', icon: 'store', path: '/branches' },
     { id: 'shift-master', label: 'Khung Ca Hệ Thống', icon: 'calendar', path: '/shifts/templates' },
+    { id: 'dispatch-network', label: 'Ma Trận Điều Động Chi Nhánh', icon: 'pulse', path: '/admin/dispatch-network' },
   ],
 
   // 4. Trưởng Ca Trực (Shift Leader)
