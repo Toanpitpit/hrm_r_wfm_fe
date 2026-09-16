@@ -44,7 +44,6 @@ export default function StoreDispatchPage() {
 
   // Modals states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('BORROW');
   const [editItem, setEditItem] = useState(null);
   const [reviewItem, setReviewItem] = useState(null);
   const [detailItem, setDetailItem] = useState(null);
@@ -201,28 +200,15 @@ export default function StoreDispatchPage() {
             title="Điều Động Nhân Sự Liên Chi Nhánh"
             desc={`Quản lý mượn quân & chi viện hỗ trợ giữa cơ sở "${currentStoreName}" và các chi nhánh đối tác`}
             actions={
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <Button
-                  kind="primary"
-                  onClick={() => {
-                    setModalMode('BORROW');
-                    setEditItem(null);
-                    setIsCreateModalOpen(true);
-                  }}
-                >
-                  📥 Xin Chi Viện Nhân Sự
-                </Button>
-                <Button
-                  kind="secondary"
-                  onClick={() => {
-                    setModalMode('SEND');
-                    setEditItem(null);
-                    setIsCreateModalOpen(true);
-                  }}
-                >
-                  📤 Cử Đi Chi Viện
-                </Button>
-              </div>
+              <Button
+                kind="primary"
+                onClick={() => {
+                  setEditItem(null);
+                  setIsCreateModalOpen(true);
+                }}
+              >
+                📥 Xin Chi Viện Nhân Sự
+              </Button>
             }
           />
 
@@ -355,7 +341,6 @@ export default function StoreDispatchPage() {
         currentStoreId={currentStoreId}
         currentStoreName={currentStoreName}
         editItem={editItem}
-        initialMode={modalMode}
         onSuccess={(data, isEdit) => {
           showToast(
             isEdit

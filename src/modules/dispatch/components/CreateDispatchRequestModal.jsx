@@ -4,10 +4,11 @@ import { Modal, Button, Select } from '@/shared/components/ui';
 import dispatchService from '../services/dispatch.service';
 
 /**
- * Modal: Tạo & Chỉnh sửa yêu cầu điều động nhân sự liên chi nhánh.
- * Hỗ trợ 2 luồng nghiệp vụ rõ ràng:
- *  1. Xin Chi Viện: Mượn nhân sự từ chi nhánh khác về cơ sở mình (Mặc định).
- *  2. Cử Đi Chi Viện: Chủ động cử nhân sự của cơ sở mình sang hỗ trợ chi nhánh khác.
+ * Modal: Tạo & Chỉnh sửa yêu cầu xin chi viện nhân sự liên chi nhánh.
+ * Nghiệp vụ: Cửa hàng hiện tại (cơ sở tiếp nhận) lập phiếu đề nghị mượn
+ * nhân sự từ cơ sở đối tác (cơ sở hỗ trợ chi viện).
+ * Sau khi gửi, Cửa hàng trưởng của cơ sở hỗ trợ sẽ nhận được thông báo
+ * để vào xét duyệt và cử/chỉ định nhân sự cụ thể.
  */
 export default function CreateDispatchRequestModal({
   open,
@@ -16,12 +17,8 @@ export default function CreateDispatchRequestModal({
   currentStoreId,
   currentStoreName,
   editItem = null,
-  initialMode = 'BORROW', // 'BORROW' | 'SEND'
 }) {
   const { c, fonts } = useAdminTheme();
-
-  // Mode: 'BORROW' (Xin chi viện về mình) | 'SEND' (Cử nhân sự mình đi)
-  const [mode, setMode] = useState(initialMode);
 
   // Form states
   const [partnerStoreId, setPartnerStoreId] = useState('');
@@ -48,15 +45,12 @@ export default function CreateDispatchRequestModal({
       setErrorMessage('');
 
       if (editItem) {
-        const isBorrowMode = Number(editItem.toStoreId) === Number(currentStoreId);
-        setMode(isBorrowMode ? 'BORROW' : 'SEND');
-        setPartnerStoreId(String(isBorrowMode ? editItem.fromStoreId : editItem.toStoreId));
+        setPartnerStoreId(String(editItem.fromStoreId || ''));
         setEmployeeId(String(editItem.employeeId || ''));
         setStartDate(editItem.startDate || todayStr);
         setEndDate(editItem.endDate || todayStr);
         setReason(editItem.reason || '');
       } else {
-        setMode(initialMode || 'BORROW');
         setPartnerStoreId('');
         setEmployeeId('');
         setStartDate(todayStr);
@@ -65,7 +59,7 @@ export default function CreateDispatchRequestModal({
         setEmployees([]);
       }
 
-      // Tải danh mục các chi nhánh khác
+      // Tải danh mục các chi nhánh khác để chọn cơ sở hỗ trợ
       const loadBranches = async () => {
         setLoadingBranches(true);
         try {
@@ -81,15 +75,11 @@ export default function CreateDispatchRequestModal({
       };
       loadBranches();
     }
-  }, [open, editItem, initialMode, currentStoreId, todayStr]);
+  }, [open, editItem, currentStoreId, todayStr]);
 
-  // Tải danh sách nhân sự tùy theo chiều điều động:
-  // - BORROW: Nhân sự thuộc chi nhánh đối tác (partnerStoreId)
-  // - SEND: Nhân sự thuộc chi nhánh hiện tại của mình (currentStoreId)
+  // Tải danh sách nhân sự của chi nhánh đối tác (cơ sở hỗ trợ)
   useEffect(() => {
-    const branchToQuery = mode === 'BORROW' ? partnerStoreId : currentStoreId;
-
-    if (!branchToQuery) {
+    if (!partnerStoreId) {
       setEmployees([]);
       if (!editItem) setEmployeeId('');
       return;
@@ -98,7 +88,7 @@ export default function CreateDispatchRequestModal({
     const loadEmployees = async () => {
       setLoadingEmployees(true);
       try {
-        const list = await dispatchService.getEmployeesByBranch(branchToQuery);
+        const list = await dispatchService.getEmployeesByBranch(partnerStoreId);
         setEmployees(list);
         if (editItem && String(editItem.employeeId)) {
           setEmployeeId(String(editItem.employeeId));
@@ -110,22 +100,18 @@ export default function CreateDispatchRequestModal({
       }
     };
     loadEmployees();
-  }, [mode, partnerStoreId, currentStoreId, editItem]);
+  }, [partnerStoreId, editItem]);
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
     setErrorMessage('');
 
     if (!partnerStoreId) {
-      setErrorMessage(
-        mode === 'BORROW'
-          ? 'Vui lòng chọn cơ sở / chi nhánh bạn muốn xin hỗ trợ chi viện.'
-          : 'Vui lòng chọn cơ sở / chi nhánh bạn muốn cử nhân sự sang chi viện.'
-      );
+      setErrorMessage('Vui lòng chọn cơ sở / chi nhánh bạn muốn xin hỗ trợ chi viện.');
       return;
     }
     if (!employeeId) {
-      setErrorMessage('Vui lòng chọn nhân sự điều động.');
+      setErrorMessage('Vui lòng chọn nhân sự đề xuất xin mượn.');
       return;
     }
     if (!startDate || !endDate) {
@@ -143,19 +129,15 @@ export default function CreateDispatchRequestModal({
 
     setSubmitting(true);
     try {
-      // Xác định nguồn (from) và đích (to) theo Mode:
-      // BORROW: from = partner (bên cho mượn), to = current (bên nhận về)
-      // SEND:   from = current (bên cử đi), to = partner (bên nhận)
-      const fromStoreId = mode === 'BORROW' ? Number(partnerStoreId) : Number(currentStoreId);
-      const toStoreId = mode === 'BORROW' ? Number(currentStoreId) : Number(partnerStoreId);
-
+      // fromStoreId = bên cho mượn (partner)
+      // toStoreId = bên tiếp nhận về (cơ sở mình)
       const payload = {
         employeeId: Number(employeeId),
-        fromStoreId,
-        toStoreId,
+        fromStoreId: Number(partnerStoreId),
+        toStoreId: Number(currentStoreId),
         startDate,
         endDate,
-        reason: reason.trim() || (mode === 'BORROW' ? 'Đề nghị xin mượn nhân sự hỗ trợ ca trực' : 'Cử nhân sự đi chi viện cơ sở đối tác'),
+        reason: reason.trim() || 'Đề nghị xin mượn nhân sự hỗ trợ ca trực',
       };
 
       let result;
@@ -169,10 +151,10 @@ export default function CreateDispatchRequestModal({
         if (onSuccess) onSuccess(result.data, Boolean(editItem));
         onClose();
       } else {
-        setErrorMessage(result.message || 'Không thể lưu yêu cầu điều động.');
+        setErrorMessage(result.message || 'Không thể lưu yêu cầu xin chi viện.');
       }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Có lỗi xảy ra khi gửi yêu cầu điều động.';
+      const msg = err.response?.data?.message || 'Có lỗi xảy ra khi gửi yêu cầu xin chi viện.';
       setErrorMessage(msg);
     } finally {
       setSubmitting(false);
@@ -184,9 +166,7 @@ export default function CreateDispatchRequestModal({
       value: '',
       label: loadingBranches
         ? 'Đang tải danh sách cơ sở...'
-        : mode === 'BORROW'
-        ? '-- Chọn cơ sở bạn muốn xin mượn quân --'
-        : '-- Chọn cơ sở bạn muốn cử nhân sự sang --',
+        : '-- Chọn cơ sở bạn muốn xin mượn quân --',
     },
     ...branches.map((b) => ({
       value: String(b.id || b.branchId),
@@ -199,9 +179,9 @@ export default function CreateDispatchRequestModal({
       value: '',
       label: loadingEmployees
         ? 'Đang tải danh sách nhân sự...'
-        : mode === 'BORROW' && !partnerStoreId
+        : !partnerStoreId
         ? '-- Vui lòng chọn cơ sở hỗ trợ trước --'
-        : '-- Chọn nhân sự điều động --',
+        : '-- Chọn nhân sự đề xuất xin mượn --',
     },
     ...employees.map((emp) => ({
       value: String(emp.id || emp.userId),
@@ -217,17 +197,13 @@ export default function CreateDispatchRequestModal({
       onClose={onClose}
       title={
         editItem
-          ? 'Chỉnh Sửa Yêu Cầu Điều Động Nhân Sự'
-          : mode === 'BORROW'
-          ? 'Xin Chi Viện Nhân Sự Từ Cơ Sở Khác'
-          : 'Cử Nhân Sự Đi Chi Viện Cơ Sở Khác'
+          ? 'Chỉnh Sửa Yêu Cầu Xin Chi Viện'
+          : 'Tạo Yêu Cầu Xin Chi Viện Nhân Sự'
       }
       sub={
         editItem
-          ? `Cập nhật thông tin phiếu điều động đang chờ duyệt (#${editItem.dispatchId})`
-          : mode === 'BORROW'
-          ? `Gửi phiếu đề nghị mượn nhân sự từ chi nhánh đối tác về cơ sở "${currentStoreName}"`
-          : `Lập lệnh cử nhân sự thuộc cơ sở "${currentStoreName}" sang hỗ trợ chi nhánh đối tác`
+          ? `Cập nhật thông tin phiếu xin chi viện đang chờ duyệt (#${editItem.dispatchId})`
+          : `Gửi phiếu đề nghị mượn nhân sự từ chi nhánh đối tác về cơ sở "${currentStoreName}"`
       }
       width={640}
       footer={
@@ -240,83 +216,12 @@ export default function CreateDispatchRequestModal({
               ? 'Đang Lưu...'
               : editItem
               ? 'Lưu Thay Đổi'
-              : mode === 'BORROW'
-              ? 'Gửi Đề Nghị Xin Chi Viện'
-              : 'Gửi Lệnh Cử Đi Chi Viện'}
+              : 'Gửi Đề Nghị Xin Chi Viện'}
           </Button>
         </div>
       }
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Nút chuyển đổi luồng điều động (Khi tạo mới) */}
-        {!editItem && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 8,
-              background: c.bgRaised,
-              padding: 4,
-              borderRadius: 8,
-              border: `1px solid ${c.border}`,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setMode('BORROW');
-                setPartnerStoreId('');
-                setEmployeeId('');
-                setErrorMessage('');
-              }}
-              style={{
-                padding: '9px 12px',
-                borderRadius: 6,
-                border: 'none',
-                background: mode === 'BORROW' ? c.accent : 'transparent',
-                color: mode === 'BORROW' ? c.ink : c.fgMuted,
-                fontWeight: mode === 'BORROW' ? 700 : 500,
-                fontSize: 13,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span>📥</span> Xin Chi Viện (Mượn về cơ sở mình)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMode('SEND');
-                setPartnerStoreId('');
-                setEmployeeId('');
-                setErrorMessage('');
-              }}
-              style={{
-                padding: '9px 12px',
-                borderRadius: 6,
-                border: 'none',
-                background: mode === 'SEND' ? c.accent : 'transparent',
-                color: mode === 'SEND' ? c.ink : c.fgMuted,
-                fontWeight: mode === 'SEND' ? 700 : 500,
-                fontSize: 13,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span>📤</span> Cử Đi Chi Viện (Cử người mình đi)
-            </button>
-          </div>
-        )}
-
         {errorMessage && (
           <div
             style={{
@@ -333,7 +238,7 @@ export default function CreateDispatchRequestModal({
           </div>
         )}
 
-        {/* Khối hiển thị chi nhánh của bạn */}
+        {/* Khối hiển thị chi nhánh tiếp nhận của bạn */}
         <div
           style={{
             background: c.bgElev,
@@ -347,7 +252,7 @@ export default function CreateDispatchRequestModal({
         >
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: c.fgFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              {mode === 'BORROW' ? 'Cơ sở tiếp nhận (Chi nhánh cần hỗ trợ)' : 'Cơ sở xuất phát (Chi nhánh cử người đi)'}
+              Cơ sở tiếp nhận (Chi nhánh cần hỗ trợ của bạn)
             </div>
             <div style={{ fontSize: 14, fontWeight: 600, color: c.accent, marginTop: 2 }}>
               {currentStoreName || 'Chi nhánh của bạn'}
@@ -357,21 +262,20 @@ export default function CreateDispatchRequestModal({
             style={{
               fontSize: 11,
               padding: '3px 8px',
-              background: mode === 'BORROW' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(242, 202, 80, 0.15)',
-              color: mode === 'BORROW' ? '#34d399' : c.accent,
+              background: 'rgba(16, 185, 129, 0.15)',
+              color: '#34d399',
               borderRadius: 4,
               fontWeight: 600,
             }}
           >
-            {mode === 'BORROW' ? 'Đơn vị xin mượn quân' : 'Đơn vị cử quân đi'}
+            Đơn vị xin mượn quân
           </span>
         </div>
 
-        {/* Chọn cơ sở đối tác */}
+        {/* Chọn cơ sở đối tác hỗ trợ */}
         <div>
           <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', color: c.fgSubtle, marginBottom: 6 }}>
-            {mode === 'BORROW' ? 'Cơ sở hỗ trợ chi viện (Mượn từ đâu?)' : 'Cơ sở tiếp nhận (Cần cử người sang đâu?)'}{' '}
-            <span style={{ color: '#ef4444' }}>*</span>
+            Cơ sở hỗ trợ chi viện (Mượn nhân sự từ đâu?) <span style={{ color: '#ef4444' }}>*</span>
           </label>
           <Select
             value={partnerStoreId}
@@ -382,20 +286,14 @@ export default function CreateDispatchRequestModal({
           />
         </div>
 
-        {/* Chọn nhân sự điều động */}
+        {/* Chọn nhân sự đề xuất xin mượn */}
         <div>
           <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', color: c.fgSubtle, marginBottom: 6 }}>
-            {mode === 'BORROW' ? (
-              <>
-                Nhân sự đề xuất xin mượn{' '}
-                {selectedPartnerBranch && (
-                  <span style={{ color: c.accent, textTransform: 'none', fontWeight: 500 }}>
-                    (Thuộc biên chế: {selectedPartnerBranch.name || selectedPartnerBranch.branchName})
-                  </span>
-                )}
-              </>
-            ) : (
-              'Nhân sự thuộc cơ sở mình cử đi chi viện'
+            Nhân sự đề xuất xin mượn{' '}
+            {selectedPartnerBranch && (
+              <span style={{ color: c.accent, textTransform: 'none', fontWeight: 500 }}>
+                (Thuộc biên chế: {selectedPartnerBranch.name || selectedPartnerBranch.branchName})
+              </span>
             )}{' '}
             <span style={{ color: '#ef4444' }}>*</span>
           </label>
@@ -404,9 +302,9 @@ export default function CreateDispatchRequestModal({
             onChange={(val) => setEmployeeId(val)}
             options={employeeOptions}
             width="100%"
-            disabled={(mode === 'BORROW' && !partnerStoreId) || loadingEmployees || submitting}
+            disabled={!partnerStoreId || loadingEmployees || submitting}
           />
-          {mode === 'BORROW' && partnerStoreId && employees.length === 0 && !loadingEmployees && (
+          {partnerStoreId && employees.length === 0 && !loadingEmployees && (
             <p style={{ fontSize: 12, color: c.fgFaint, marginTop: 4 }}>
               Cơ sở hỗ trợ này hiện chưa có nhân sự trực thuộc khả dụng.
             </p>
@@ -473,11 +371,7 @@ export default function CreateDispatchRequestModal({
             rows={3}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder={
-              mode === 'BORROW'
-                ? 'Ví dụ: Cơ sở đang thiếu hụt vị trí Thu ngân dịp cuối tuần, xin hỗ trợ 1 nhân sự tăng cường...'
-                : 'Ví dụ: Cử nhân sự sang hỗ trợ chi nhánh đối tác theo kế hoạch điều phối...'
-            }
+            placeholder="Ví dụ: Cơ sở đang thiếu hụt vị trí Thu ngân/Bán hàng dịp cao điểm cuối tuần, xin hỗ trợ 1 nhân sự tăng cường..."
             disabled={submitting}
             style={{
               width: '100%',
