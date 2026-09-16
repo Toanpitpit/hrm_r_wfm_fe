@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
+import { useToast } from '@/components/ui/toast/ToastProvider';
 import Modal from '@/shared/components/ui/Modal';
 import Button from '@/shared/components/ui/Button';
 import FormField from '@/shared/components/ui/FormField';
@@ -14,8 +15,9 @@ export default function ShiftSwapModal({
   onSuccess,
 }) {
   const { c } = useAdminTheme();
+  const toast = useToast();
 
-  const [requestType, setRequestType] = useState('TRANSFER'); // 'TRANSFER' or 'SWAP'
+  const [requestType, setRequestType] = useState('LEAVE'); // 'LEAVE' or 'SWAP'
   const [colleagues, setColleagues] = useState([]);
   const [selectedColleagueId, setSelectedColleagueId] = useState('');
   const [colleagueShifts, setColleagueShifts] = useState([]);
@@ -25,12 +27,10 @@ export default function ShiftSwapModal({
   const [loadingColleagues, setLoadingColleagues] = useState(false);
   const [loadingShifts, setLoadingShifts] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
 
   // Load colleagues when modal opens
   useEffect(() => {
     if (isOpen && shift) {
-      setError(null);
       setSelectedColleagueId('');
       setSelectedTargetAssignmentId('');
       setReason('');
@@ -48,7 +48,7 @@ export default function ShiftSwapModal({
         })
         .catch((err) => {
           console.error('Error fetching colleagues:', err);
-          setError('Không thể tải danh sách đồng nghiệp cùng chi nhánh.');
+          toast.error('Không thể tải danh sách đồng nghiệp cùng chi nhánh.');
         })
         .finally(() => setLoadingColleagues(false));
     }
@@ -80,44 +80,46 @@ export default function ShiftSwapModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedColleagueId) {
-      setError('Vui lòng chọn đồng nghiệp nhận hoặc đổi ca.');
-      return;
-    }
 
-    if (requestType === 'SWAP' && !selectedTargetAssignmentId) {
-      setError('Vui lòng chọn ca làm việc của đồng nghiệp muốn đổi.');
-      return;
-    }
-
-    if (!reason.trim()) {
-      setError('Vui lòng nhập lý do xin đổi / chuyển ca.');
-      return;
+    if (requestType === 'LEAVE') {
+      if (!reason.trim()) {
+        toast.error('Vui lòng nhập lý do xin nghỉ ca trực để Quản lý xem xét.');
+        return;
+      }
+    } else if (requestType === 'SWAP') {
+      if (!selectedColleagueId) {
+        toast.error('Vui lòng chọn đồng nghiệp muốn đổi ca.');
+        return;
+      }
+      if (!selectedTargetAssignmentId) {
+        toast.error('Vui lòng chọn ca làm việc của đồng nghiệp muốn đổi.');
+        return;
+      }
     }
 
     try {
       setSubmitting(true);
-      setError(null);
 
       const payload = {
         requestType,
         assignmentId: shift.assignmentId,
-        targetEmployeeId: parseInt(selectedColleagueId, 10),
-        targetAssignmentId: requestType === 'SWAP' ? parseInt(selectedTargetAssignmentId, 10) : null,
+        targetEmployeeId: requestType === 'SWAP' && selectedColleagueId ? parseInt(selectedColleagueId, 10) : null,
+        targetAssignmentId: requestType === 'SWAP' && selectedTargetAssignmentId ? parseInt(selectedTargetAssignmentId, 10) : null,
         reason: reason.trim(),
       };
 
       const res = await createSwapRequest(payload);
       if (res?.success) {
+        toast.success(res.message || 'Gửi đơn thành công, chờ Quản lý phê duyệt.');
         if (onSuccess) onSuccess(res.message || 'Gửi đơn thành công, chờ Quản lý phê duyệt.');
         onClose();
       } else {
-        setError(res?.message || 'Không thể gửi đơn đổi/chuyển ca.');
+        toast.error(res?.message || 'Không thể gửi đơn.');
       }
     } catch (err) {
       console.error('Error submitting swap request:', err);
-      const msg = err.response?.data?.message || err.message || 'Lỗi khi gửi đơn xin đổi/chuyển ca.';
-      setError(msg);
+      const msg = err.response?.data?.message || err.message || 'Lỗi khi gửi đơn.';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -129,7 +131,7 @@ export default function ShiftSwapModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Đơn Xin Chuyển / Đổi Ca Trực"
+      title="Đơn Xin Nghỉ / Đổi Ca Trực"
       sub="Yêu cầu cần được Quản lý cửa hàng phê duyệt trước khi cập nhật vào lịch làm việc chính thức."
       width={560}
       footer={
@@ -138,34 +140,26 @@ export default function ShiftSwapModal({
             Hủy Bỏ
           </Button>
           <Button variant="primary" kind="primary" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? 'Đang Gửi Đơn...' : 'Gửi Đơn Lên Quản Lý'}
+            {submitting ? 'Đang Gửi...' : 'Gửi Đơn Cho Quản Lý'}
           </Button>
         </div>
       }
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Thông tin ca hiện tại của bạn */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Thông tin ca trực hiện tại */}
         <div
           style={{
-            background: c.bgElev,
-            border: `1px solid ${c.border}`,
+            background: `${c.accentDim}25`,
+            border: `1px solid ${c.accent}`,
             borderRadius: 8,
-            padding: '12px 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
+            padding: '12px 14px',
           }}
         >
-          <div style={{ fontSize: 11, fontWeight: 700, color: c.accent, textTransform: 'uppercase' }}>
-            Ca Làm Việc Của Bạn Cần Đổi / Chuyển
+          <div style={{ fontSize: 11, color: c.fgFaint, textTransform: 'uppercase', fontWeight: 700 }}>
+            Ca Làm Việc Hiện Tại Của Bạn
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 14, fontWeight: 750, color: c.fg }}>
-              {formatShiftTemplateName(shift.shiftName)}
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: c.accent, fontFamily: 'monospace' }}>
-              {shift.startTime?.substring(0, 5)} - {shift.endTime?.substring(0, 5)}
-            </span>
+          <div style={{ fontWeight: 800, fontSize: 15, color: c.fg, marginTop: 2, marginBottom: 4 }}>
+            {formatShiftTemplateName(shift.shiftTemplateName || shift.shiftName || 'Ca Trực')} ({shift.startTime?.substring(0, 5)} - {shift.endTime?.substring(0, 5)})
           </div>
           <div style={{ fontSize: 12, color: c.fgSubtle, display: 'flex', gap: 16, alignItems: 'center' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -181,29 +175,29 @@ export default function ShiftSwapModal({
           </div>
         </div>
 
-        {/* Lựa chọn hình thức: Chuyển ca hay Đổi ca */}
+        {/* Lựa chọn hình thức: Xin nghỉ ca hay Đổi ca */}
         <div>
           <label style={{ fontSize: 12.5, fontWeight: 700, color: c.fg, marginBottom: 8, display: 'block' }}>
-            Hình Thức Yêu Cầu
+            Hình Thức Yêu Cầu (*)
           </label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div
-              onClick={() => setRequestType('TRANSFER')}
+              onClick={() => setRequestType('LEAVE')}
               style={{
                 cursor: 'pointer',
-                border: `2px solid ${requestType === 'TRANSFER' ? c.accent : c.border}`,
-                background: requestType === 'TRANSFER' ? `${c.accent}15` : c.bgCard,
+                border: `2px solid ${requestType === 'LEAVE' ? c.accent : c.border}`,
+                background: requestType === 'LEAVE' ? c.accentDim : c.bgCard,
                 borderRadius: 8,
                 padding: '10px 14px',
                 transition: 'all 0.15s ease',
               }}
             >
-              <div style={{ fontWeight: 750, fontSize: 13, color: requestType === 'TRANSFER' ? c.accent : c.fg, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Icon name="arrowRight" size={15} color={requestType === 'TRANSFER' ? c.accent : c.fg} />
-                <span>Chuyển Ca (Nhờ làm thay)</span>
+              <div style={{ fontWeight: 750, fontSize: 13, color: requestType === 'LEAVE' ? c.accent : c.fg, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="calendar" size={15} color={requestType === 'LEAVE' ? c.accent : c.fg} />
+                <span>1. Xin Nghỉ Ca</span>
               </div>
-              <div style={{ fontSize: 11, color: c.fgSubtle, marginTop: 4 }}>
-                Bạn bận không đi làm được, nhờ đồng nghiệp đi làm thay bạn.
+              <div style={{ fontSize: 11, color: c.fgSubtle, marginTop: 4, lineHeight: 1.4 }}>
+                Có việc bận đột xuất. Quản lý duyệt sẽ hủy ca và tự xếp người khác thay thế.
               </div>
             </div>
 
@@ -212,7 +206,7 @@ export default function ShiftSwapModal({
               style={{
                 cursor: 'pointer',
                 border: `2px solid ${requestType === 'SWAP' ? c.accent : c.border}`,
-                background: requestType === 'SWAP' ? `${c.accent}15` : c.bgCard,
+                background: requestType === 'SWAP' ? c.accentDim : c.bgCard,
                 borderRadius: 8,
                 padding: '10px 14px',
                 transition: 'all 0.15s ease',
@@ -220,81 +214,111 @@ export default function ShiftSwapModal({
             >
               <div style={{ fontWeight: 750, fontSize: 13, color: requestType === 'SWAP' ? c.accent : c.fg, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="swap" size={15} color={requestType === 'SWAP' ? c.accent : c.fg} />
-                <span>Đổi Ca Trực (Tráo đổi)</span>
+                <span>2. Đổi Ca Trực</span>
               </div>
-              <div style={{ fontSize: 11, color: c.fgSubtle, marginTop: 4 }}>
-                Bạn và đồng nghiệp tráo đổi 2 ca trực khác nhau trong tuần.
+              <div style={{ fontSize: 11, color: c.fgSubtle, marginTop: 4, lineHeight: 1.4 }}>
+                Đã đồng ý đổi ca cho nhau. Quản lý duyệt sẽ tự động hoán đổi 2 ca.
               </div>
             </div>
           </div>
         </div>
 
-        {/* Chọn đồng nghiệp */}
-        <FormField label="Chọn Đồng Nghiệp Cùng Chi Nhánh" required>
-          {loadingColleagues ? (
-            <div style={{ fontSize: 12, color: c.fgSubtle, padding: '8px 0' }}>Đang tải danh sách đồng nghiệp...</div>
-          ) : (
-            <select
-              value={selectedColleagueId}
-              onChange={(e) => setSelectedColleagueId(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: 6,
-                border: `1px solid ${c.border}`,
-                background: c.bgCard,
-                color: c.fg,
-                fontSize: 13,
-                outline: 'none',
-              }}
-            >
-              <option value="">-- Chọn nhân viên nhận hoặc đổi ca --</option>
-              {colleagues.map((colleague) => (
-                <option key={colleague.employeeId} value={colleague.employeeId}>
-                  {colleague.fullName} ({colleague.roleName || 'Nhân viên'}) - {colleague.phoneNumber || 'Không có SĐT'}
-                </option>
-              ))}
-            </select>
-          )}
-        </FormField>
-
-        {/* Nếu là SWAP: Chọn ca của đồng nghiệp muốn đổi */}
-        {requestType === 'SWAP' && selectedColleagueId && (
-          <FormField label="Chọn Ca Làm Việc Của Đồng Nghiệp Để Đổi Lại" required>
-            {loadingShifts ? (
-              <div style={{ fontSize: 12, color: c.fgSubtle, padding: '8px 0' }}>Đang tải lịch của đồng nghiệp...</div>
-            ) : colleagueShifts.length === 0 ? (
-              <div style={{ fontSize: 12, color: c.tones?.bad || '#ef4444', padding: '6px 0' }}>
-                Đồng nghiệp này hiện không có ca làm việc nào sắp tới để đổi. Vui lòng chọn hình thức "Chuyển Ca" hoặc chọn đồng nghiệp khác.
-              </div>
-            ) : (
-              <select
-                value={selectedTargetAssignmentId}
-                onChange={(e) => setSelectedTargetAssignmentId(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: 6,
-                  border: `1px solid ${c.border}`,
-                  background: c.bgCard,
-                  color: c.fg,
-                  fontSize: 13,
-                  outline: 'none',
-                }}
-              >
-                <option value="">-- Chọn ca của đồng nghiệp --</option>
-                {colleagueShifts.map((cs) => (
-                  <option key={cs.assignmentId} value={cs.assignmentId}>
-                    {cs.workDate}: {formatShiftTemplateName(cs.shiftName)} ({cs.timeRange})
+        {/* Nội dung form theo hình thức */}
+        {requestType === 'LEAVE' ? (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 6,
+              background: `${c.accentDim}30`,
+              border: `1px solid ${c.accent}`,
+              fontSize: 12,
+              color: c.fg,
+              lineHeight: 1.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <Icon name="info" size={16} color={c.accent} style={{ flexShrink: 0 }} />
+            <span>
+              Cửa hàng trưởng sẽ xem xét lý do xin nghỉ và chủ động sắp xếp nhân sự khác vào vị trí trống này.
+            </span>
+          </div>
+        ) : (
+          <>
+            {/* Chọn đồng nghiệp */}
+            <FormField label="Chọn Đồng Nghiệp Đổi Ca (Chỉ cùng vai trò/vị trí)" required>
+              {loadingColleagues ? (
+                <div style={{ fontSize: 12, color: c.fgSubtle, padding: '8px 0' }}>Đang tải danh sách đồng nghiệp...</div>
+              ) : (
+                <select
+                  value={selectedColleagueId}
+                  onChange={(e) => setSelectedColleagueId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: 6,
+                    border: `1px solid ${c.border}`,
+                    background: c.bgCard,
+                    color: c.fg,
+                    fontSize: 13,
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">
+                    {Array.isArray(colleagues) && colleagues.length === 0
+                      ? '-- Không tìm thấy đồng nghiệp cùng vai trò --'
+                      : '-- Chọn nhân viên cùng vai trò để đổi ca --'}
                   </option>
-                ))}
-              </select>
-            )}
-          </FormField>
+                  {colleagues.map((colleague) => (
+                    <option key={colleague.employeeId} value={colleague.employeeId}>
+                      {colleague.fullName} ({colleague.roleName}) - NV{colleague.employeeId}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </FormField>
+
+            {/* Chọn ca của đồng nghiệp muốn đổi */}
+            <FormField label="Chọn Ca Làm Việc Của Đồng Nghiệp Bạn Nhận Làm Bù" required>
+              {loadingShifts ? (
+                <div style={{ fontSize: 12, color: c.fgSubtle, padding: '8px 0' }}>Đang tải lịch của đồng nghiệp...</div>
+              ) : (
+                <select
+                  value={selectedTargetAssignmentId}
+                  onChange={(e) => setSelectedTargetAssignmentId(e.target.value)}
+                  disabled={!selectedColleagueId || colleagueShifts.length === 0}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: 6,
+                    border: `1px solid ${c.border}`,
+                    background: !selectedColleagueId || colleagueShifts.length === 0 ? c.bgElev : c.bgCard,
+                    color: c.fg,
+                    fontSize: 13,
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">
+                    {!selectedColleagueId
+                      ? '-- Vui lòng chọn đồng nghiệp trước --'
+                      : colleagueShifts.length === 0
+                      ? '-- Đồng nghiệp không có ca trực nào sắp tới để đổi --'
+                      : '-- Chọn ca của đồng nghiệp --'}
+                  </option>
+                  {colleagueShifts.map((cs) => (
+                    <option key={cs.assignmentId} value={cs.assignmentId}>
+                      {cs.workDate}: {formatShiftTemplateName(cs.shiftName)} ({cs.timeRange})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </FormField>
+          </>
         )}
 
-        {/* Lý do xin chuyển / đổi ca */}
-        <FormField label="Lý Do Xin Chuyển / Đổi Ca" required>
+        {/* Lý do xin nghỉ / đổi ca */}
+        <FormField label={requestType === 'LEAVE' ? 'Lý Do Xin Nghỉ Ca (*)' : 'Lý Do Đổi Ca (*)'} required>
           <textarea
             rows={3}
             value={reason}
@@ -313,27 +337,7 @@ export default function ShiftSwapModal({
             }}
           />
         </FormField>
-
-        {/* Thông báo lỗi nếu có */}
-        {error && (
-          <div
-            style={{
-              padding: '10px 14px',
-              borderRadius: 6,
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#fca5a5',
-              fontSize: 12.5,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <Icon name="alertTriangle" size={15} color="#fca5a5" />
-            <span>{error}</span>
-          </div>
-        )}
-      </form>
+      </div>
     </Modal>
   );
 }

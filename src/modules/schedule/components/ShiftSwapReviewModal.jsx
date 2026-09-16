@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
+import { useToast } from '@/components/ui/toast/ToastProvider';
 import Modal from '@/shared/components/ui/Modal';
 import Button from '@/shared/components/ui/Button';
 import Badge from '@/shared/components/ui/Badge';
@@ -14,17 +15,15 @@ export default function ShiftSwapReviewModal({
   onReviewed,
 }) {
   const { c } = useAdminTheme();
+  const toast = useToast();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState(null);
-  const [error, setError] = useState(null);
-  const [successMsg, setSuccessMsg] = useState(null);
   const [filterTab, setFilterTab] = useState('PENDING'); // 'PENDING', 'APPROVED', 'REJECTED', 'ALL'
 
   const fetchStoreRequests = () => {
     if (!storeId) return;
     setLoading(true);
-    setError(null);
     getStoreSwapRequests(storeId)
       .then((res) => {
         if (res?.success && res.data) {
@@ -35,15 +34,13 @@ export default function ShiftSwapReviewModal({
       })
       .catch((err) => {
         console.error('Error fetching store swap requests:', err);
-        setError('Không thể tải danh sách đơn đổi/chuyển ca của chi nhánh.');
+        toast.error('Không thể tải danh sách đơn đổi/chuyển ca của chi nhánh.');
       })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     if (isOpen) {
-      setSuccessMsg(null);
-      setError(null);
       fetchStoreRequests();
     }
   }, [isOpen, storeId]);
@@ -51,8 +48,6 @@ export default function ShiftSwapReviewModal({
   const handleReview = async (swapRequestId, isApproved) => {
     try {
       setActionLoadingId(swapRequestId);
-      setError(null);
-      setSuccessMsg(null);
 
       const res = await reviewSwapRequest({
         swapRequestId,
@@ -60,7 +55,7 @@ export default function ShiftSwapReviewModal({
       });
 
       if (res?.success) {
-        setSuccessMsg(
+        toast.success(
           isApproved
             ? 'Đã phê duyệt đơn và cập nhật lịch làm việc thành công!'
             : 'Đã từ chối đơn yêu cầu đổi/chuyển ca.'
@@ -70,12 +65,12 @@ export default function ShiftSwapReviewModal({
         // Notify parent to refresh weekly roster matrix
         if (onReviewed) onReviewed();
       } else {
-        setError(res?.message || 'Không thể xử lý yêu cầu duyệt đơn.');
+        toast.error(res?.message || 'Không thể xử lý yêu cầu duyệt đơn.');
       }
     } catch (err) {
       console.error('Error reviewing swap request:', err);
       const msg = err.response?.data?.message || err.message || 'Lỗi khi xử lý duyệt đơn.';
-      setError(msg);
+      toast.error(msg);
     } finally {
       setActionLoadingId(null);
     }
@@ -121,40 +116,6 @@ export default function ShiftSwapReviewModal({
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {/* Thông báo kết quả */}
-        {successMsg && (
-          <div
-            style={{
-              padding: '10px 14px',
-              borderRadius: 6,
-              background: 'rgba(34, 197, 94, 0.15)',
-              border: '1px solid rgba(34, 197, 94, 0.4)',
-              color: '#86efac',
-              fontSize: 12.5,
-            }}
-          >
-            ✅ {successMsg}
-          </div>
-        )}
-
-        {error && (
-          <div
-            style={{
-              padding: '10px 14px',
-              borderRadius: 6,
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#fca5a5',
-              fontSize: 12.5,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <Icon name="alertTriangle" size={15} color="#fca5a5" />
-            <span>{error}</span>
-          </div>
-        )}
 
         {/* Tab lọc trạng thái */}
         <div style={{ display: 'flex', gap: 8, borderBottom: `1px solid ${c.borderSub}`, paddingBottom: 10 }}>
@@ -162,8 +123,8 @@ export default function ShiftSwapReviewModal({
             type="button"
             onClick={() => setFilterTab('PENDING')}
             style={{
-              background: filterTab === 'PENDING' ? c.accent : 'transparent',
-              color: filterTab === 'PENDING' ? '#000' : c.fgSubtle,
+              background: filterTab === 'PENDING' ? c.accent : c.bgCard,
+              color: filterTab === 'PENDING' ? c.ink : c.fgSubtle,
               border: `1px solid ${filterTab === 'PENDING' ? c.accent : c.border}`,
               padding: '6px 14px',
               borderRadius: 20,
@@ -179,8 +140,8 @@ export default function ShiftSwapReviewModal({
             {pendingCount > 0 && (
               <span
                 style={{
-                  background: filterTab === 'PENDING' ? '#000' : c.tones.bad,
-                  color: '#fff',
+                  background: filterTab === 'PENDING' ? c.ink : c.tones.bad,
+                  color: filterTab === 'PENDING' ? c.accent : c.fg,
                   fontSize: 10,
                   padding: '1px 6px',
                   borderRadius: 10,
@@ -196,8 +157,8 @@ export default function ShiftSwapReviewModal({
             type="button"
             onClick={() => setFilterTab('APPROVED')}
             style={{
-              background: filterTab === 'APPROVED' ? c.accent : 'transparent',
-              color: filterTab === 'APPROVED' ? '#000' : c.fgSubtle,
+              background: filterTab === 'APPROVED' ? c.accent : c.bgCard,
+              color: filterTab === 'APPROVED' ? c.ink : c.fgSubtle,
               border: `1px solid ${filterTab === 'APPROVED' ? c.accent : c.border}`,
               padding: '6px 14px',
               borderRadius: 20,
@@ -213,8 +174,8 @@ export default function ShiftSwapReviewModal({
             type="button"
             onClick={() => setFilterTab('REJECTED')}
             style={{
-              background: filterTab === 'REJECTED' ? c.accent : 'transparent',
-              color: filterTab === 'REJECTED' ? '#000' : c.fgSubtle,
+              background: filterTab === 'REJECTED' ? c.accent : c.bgCard,
+              color: filterTab === 'REJECTED' ? c.ink : c.fgSubtle,
               border: `1px solid ${filterTab === 'REJECTED' ? c.accent : c.border}`,
               padding: '6px 14px',
               borderRadius: 20,
@@ -230,8 +191,8 @@ export default function ShiftSwapReviewModal({
             type="button"
             onClick={() => setFilterTab('ALL')}
             style={{
-              background: filterTab === 'ALL' ? c.accent : 'transparent',
-              color: filterTab === 'ALL' ? '#000' : c.fgSubtle,
+              background: filterTab === 'ALL' ? c.accent : c.bgCard,
+              color: filterTab === 'ALL' ? c.ink : c.fgSubtle,
               border: `1px solid ${filterTab === 'ALL' ? c.accent : c.border}`,
               padding: '6px 14px',
               borderRadius: 20,
@@ -256,7 +217,7 @@ export default function ShiftSwapReviewModal({
             </div>
           ) : (
             filteredRequests.map((req) => {
-              const isTransfer = req.requestType === 'TRANSFER';
+              const isLeave = req.requestType === 'LEAVE';
               const isPending = req.status === 'PENDING';
               const isItemBusy = actionLoadingId === req.swapRequestId;
 
@@ -276,9 +237,9 @@ export default function ShiftSwapReviewModal({
                   {/* Tiêu đề card */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Icon name={isTransfer ? 'arrowRight' : 'swap'} size={16} color={c.accent} />
+                      <Icon name={isLeave ? 'calendar' : 'swap'} size={16} color={c.accent} />
                       <span style={{ fontWeight: 750, fontSize: 14, color: c.fg }}>
-                        {isTransfer ? 'Đơn Xin Chuyển Ca (Nhờ làm thay)' : 'Đơn Xin Đổi Ca Trực (Tráo đổi 2 ca)'}
+                        {isLeave ? 'Đơn Xin Nghỉ Ca (Có Việc Bận)' : 'Đơn Đổi Ca Cho Nhau (2 Chiều)'}
                       </span>
                       <span style={{ fontSize: 11, color: c.fgFaint }}>
                         #{req.swapRequestId} · {new Date(req.createdAt).toLocaleString('vi-VN')}
@@ -303,7 +264,7 @@ export default function ShiftSwapReviewModal({
                     {/* Người gửi */}
                     <div>
                       <div style={{ color: c.fgFaint, fontSize: 11, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>
-                        Nhân Viên Xin Đổi / Chuyển:
+                        Nhân Viên Làm Đơn:
                       </div>
                       <div style={{ fontWeight: 750, fontSize: 13, color: c.fg }}>
                         {req.requesterName} <span style={{ fontSize: 11, color: c.accent }}>({req.requesterRoleName || 'Nhân viên'})</span>
@@ -317,20 +278,22 @@ export default function ShiftSwapReviewModal({
                     {/* Người nhận */}
                     <div>
                       <div style={{ color: c.fgFaint, fontSize: 11, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>
-                        {isTransfer ? 'Đồng Nghiệp Nhận Làm Thay:' : 'Đổi Với Ca Của Đồng Nghiệp:'}
+                        {isLeave ? 'Nhân Sự Thay Thế:' : 'Đổi Với Ca Của Đồng Nghiệp:'}
                       </div>
-                      <div style={{ fontWeight: 750, fontSize: 13, color: c.fg }}>
-                        {req.targetName} <span style={{ fontSize: 11, color: c.accent }}>({req.targetRoleName || 'Nhân viên'})</span>
-                      </div>
-                      {isTransfer ? (
-                        <div style={{ color: c.fgSubtle, marginTop: 4, fontStyle: 'italic' }}>
-                          (Đồng ý nhận làm thay ca trên)
+                      {isLeave ? (
+                        <div style={{ color: c.fgSubtle, marginTop: 4, fontSize: 12.5, fontStyle: 'italic' }}>
+                          Chưa có (Duyệt đơn sẽ hủy ca, Quản lý tự xếp người khác)
                         </div>
                       ) : (
-                        <div style={{ color: c.accent, marginTop: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <Icon name="calendar" size={13} color={c.accent} />
-                          <span>{req.targetWorkDate} · {formatShiftTemplateName(req.targetShiftName)} ({req.targetTimeRange})</span>
-                        </div>
+                        <>
+                          <div style={{ fontWeight: 750, fontSize: 13, color: c.fg }}>
+                            {req.targetName} <span style={{ fontSize: 11, color: c.accent }}>({req.targetRoleName || 'Nhân viên'})</span>
+                          </div>
+                          <div style={{ color: c.accent, marginTop: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Icon name="calendar" size={13} color={c.accent} />
+                            <span>{req.targetWorkDate} · {formatShiftTemplateName(req.targetShiftName)} ({req.targetTimeRange})</span>
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>

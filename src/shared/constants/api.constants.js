@@ -39,6 +39,8 @@ export const API_ENDPOINTS = Object.freeze({
     GET_MY_SWAPS: '/shifts/my-swap-requests',
     GET_COLLEAGUES: (branchId) => `/shifts/colleagues/${branchId}`,
     GET_COLLEAGUE_SHIFTS: (empId) => `/shifts/colleague-shifts/${empId}`,
+    GET_MY_SHIFTS: (startDate, endDate) => `/shifts/my-shifts?startDate=${startDate}&endDate=${endDate}`,
+    GET_EMPLOYEE_SHIFTS: (empId, startDate, endDate) => `/shifts/employee/${empId}?startDate=${startDate}&endDate=${endDate}`,
   },
   ATTENDANCE: {
     MY_WEEKLY_SCHEDULE: (weekStart) => `attendance/my-weekly-schedule?weekStart=${weekStart}`,

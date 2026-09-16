@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Modal from '@/shared/components/ui/Modal';
+import ConfirmModal from '@/shared/components/ui/ConfirmModal';
 import Button from '@/shared/components/ui/Button';
 import FormField from '@/shared/components/ui/FormField';
 import Icon from '@/shared/components/ui/Icon';
@@ -35,6 +36,7 @@ export default function AssignShiftCellModal({
   const user = cellData?.user;
   const currentAssignment = cellData?.currentAssignment;
   const [selectedShiftId, setSelectedShiftId] = useState('');
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (isRoleMode) {
@@ -82,9 +84,13 @@ export default function AssignShiftCellModal({
 
   if (!isOpen || !cellData) return null;
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isPastDate = Boolean(workDate && workDate < todayStr);
+
   // Submit cho Mode 1 (Gán nhân viên vào ca theo vị trí)
   const handleRoleSubmit = (e) => {
     e.preventDefault();
+    if (isPastDate) return;
     if (!selectedUserId || !shiftTemplate || !workDate) return;
 
     const shiftId = shiftTemplate.id || shiftTemplate.shiftId;
@@ -94,22 +100,21 @@ export default function AssignShiftCellModal({
   // Submit cho Mode 2 (Gán ca cho nhân viên cụ thể)
   const handleEmployeeSubmit = (e) => {
     e.preventDefault();
+    if (isPastDate) return;
     if (!selectedShiftId || !user || !workDate) return;
 
     onAssignSingle(user.userId, selectedShiftId, workDate);
   };
 
   const handleDelete = () => {
+    if (!currentAssignment || isPastDate) return;
+    setShowConfirmDelete(true);
+  };
+
+  const handleConfirmDelete = () => {
     if (!currentAssignment) return;
-    if (
-      window.confirm(
-        `Bạn có chắc chắn muốn hủy ca '${currentAssignment.shiftName}' ngày ${formatVNDate(
-          workDate
-        )} của ${user.fullName}?`
-      )
-    ) {
-      onDeleteAssignment(currentAssignment.assignmentId);
-    }
+    onDeleteAssignment(currentAssignment.assignmentId);
+    setShowConfirmDelete(false);
   };
 
   // =========================================================================
@@ -123,6 +128,26 @@ export default function AssignShiftCellModal({
         title={`Gán Nhân Sự Cho Vị Trí: ${targetRoleLabel}`}
       >
         <form onSubmit={handleRoleSubmit}>
+          {isPastDate && (
+            <div
+              style={{
+                padding: '10px 14px',
+                borderRadius: 6,
+                background: c.tones.badDim,
+                border: `1px solid ${c.tones.bad}`,
+                color: c.tones.bad,
+                fontSize: 12.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: 14,
+              }}
+            >
+              <Icon name="alertTriangle" size={16} color={c.tones.bad} />
+              <span>Ca làm việc thuộc ngày quá khứ ({formatVNDate(workDate)}). Hệ thống khóa phân công lịch ca đã qua.</span>
+            </div>
+          )}
+
           {/* Thông tin ca trực & ngày */}
           <div
             style={{
@@ -130,7 +155,7 @@ export default function AssignShiftCellModal({
               border: `1px solid ${c.border}`,
               borderRadius: 8,
               padding: '12px 16px',
-              marginBottom: 16,
+              marginBottom: 14,
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -138,10 +163,10 @@ export default function AssignShiftCellModal({
           >
             <div>
               <div style={{ fontWeight: 800, fontSize: 14, color: c.fg }}>
-                {shiftTemplate?.name}
+                {shiftTemplate?.name || 'Ca trực'}
               </div>
-              <div style={{ fontSize: 12, color: c.fgFaint, marginTop: 2 }}>
-                Thời gian: <strong>{shiftTemplate?.time || `${shiftTemplate?.startTime} - ${shiftTemplate?.endTime}`}</strong>
+              <div style={{ fontSize: 12, color: c.fgFaint }}>
+                Khung giờ: {shiftTemplate?.startTime?.substring(0, 5)} - {shiftTemplate?.endTime?.substring(0, 5)}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -194,6 +219,7 @@ export default function AssignShiftCellModal({
               placeholder="Tìm nhân viên theo tên hoặc mã NV..."
               value={roleSearchTerm}
               onChange={(e) => setRoleSearchTerm(e.target.value)}
+              disabled={isPastDate}
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -247,8 +273,8 @@ export default function AssignShiftCellModal({
                             ? `${c.bgElev}40`
                             : c.bgElev,
                           border: `1px solid ${isSelected ? c.accent : isConflict ? c.borderSub : c.border}`,
-                          cursor: isConflict ? 'not-allowed' : 'pointer',
-                          opacity: isConflict ? 0.65 : 1,
+                          cursor: isConflict || isPastDate ? 'not-allowed' : 'pointer',
+                          opacity: isConflict || isPastDate ? 0.65 : 1,
                           transition: 'all 0.15s ease',
                         }}
                       >
@@ -258,7 +284,7 @@ export default function AssignShiftCellModal({
                             name="userSelect"
                             value={emp.userId}
                             checked={isSelected}
-                            disabled={isConflict}
+                            disabled={isConflict || isPastDate}
                             onChange={() => setSelectedUserId(emp.userId)}
                           />
                           <div>
@@ -317,7 +343,7 @@ export default function AssignShiftCellModal({
             <Button
               variant="primary"
               type="submit"
-              disabled={actionLoading || !selectedUserId}
+              disabled={actionLoading || !selectedUserId || isPastDate}
             >
               {actionLoading ? 'Đang phân bổ...' : 'Xác Nhận Phân Bổ'}
             </Button>
@@ -339,6 +365,26 @@ export default function AssignShiftCellModal({
       title={currentAssignment ? 'Điều Chỉnh / Hủy Phân Công Ca' : 'Phân Công Ca Làm Việc'}
     >
       <form onSubmit={handleEmployeeSubmit}>
+        {isPastDate && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 6,
+              background: c.tones.badDim,
+              border: `1px solid ${c.tones.bad}`,
+              color: c.tones.bad,
+              fontSize: 12.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            <Icon name="alertTriangle" size={16} color={c.tones.bad} />
+            <span>Ca làm việc này thuộc ngày trong quá khứ ({formatVNDate(workDate)}). Hệ thống khóa không cho phép chỉnh sửa hoặc hủy ca đã trôi qua.</span>
+          </div>
+        )}
+
         {/* Thông tin nhân viên & ngày */}
         <div
           style={{
@@ -386,7 +432,7 @@ export default function AssignShiftCellModal({
                 {currentAssignment.shiftName} ({currentAssignment.startTime?.substring(0, 5)} - {currentAssignment.endTime?.substring(0, 5)})
               </div>
             </div>
-            <Button variant="danger" type="button" onClick={handleDelete} disabled={actionLoading}>
+            <Button variant="danger" type="button" onClick={handleDelete} disabled={actionLoading || isPastDate}>
               Hủy Ca Này
             </Button>
           </div>
@@ -411,7 +457,8 @@ export default function AssignShiftCellModal({
                       borderRadius: 8,
                       background: isSelected ? `${c.accentDim}30` : c.bgElev,
                       border: `1px solid ${isSelected ? c.accent : c.border}`,
-                      cursor: 'pointer',
+                      cursor: isPastDate ? 'not-allowed' : 'pointer',
+                      opacity: isPastDate ? 0.65 : 1,
                       transition: 'all 0.15s ease',
                     }}
                   >
@@ -421,6 +468,7 @@ export default function AssignShiftCellModal({
                         name="shiftSelect"
                         value={tId}
                         checked={isSelected}
+                        disabled={isPastDate}
                         onChange={() => setSelectedShiftId(tId)}
                       />
                       <span style={{ fontWeight: 750, color: isSelected ? c.accent : c.fg, fontSize: 13 }}>
@@ -441,11 +489,23 @@ export default function AssignShiftCellModal({
           <Button variant="ghost" onClick={onClose} type="button" disabled={actionLoading}>
             Đóng
           </Button>
-          <Button variant="primary" type="submit" disabled={actionLoading}>
+          <Button variant="primary" type="submit" disabled={actionLoading || isPastDate}>
             {actionLoading ? 'Đang lưu...' : currentAssignment ? 'Cập Nhật Ca' : 'Xác Nhận Gán Ca'}
           </Button>
         </div>
       </form>
+
+      <ConfirmModal
+        isOpen={showConfirmDelete}
+        onClose={() => setShowConfirmDelete(false)}
+        onConfirm={handleConfirmDelete}
+        title="Xác Nhận Hủy Ca Trực"
+        message={`Bạn có chắc chắn muốn hủy ca '${currentAssignment?.shiftName}' ngày ${formatVNDate(workDate)} của ${user?.fullName}?`}
+        confirmText="Hủy Phân Công Ca"
+        cancelText="Giữ Lại"
+        confirmVariant="danger"
+        loading={actionLoading}
+      />
     </Modal>
   );
 }

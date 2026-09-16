@@ -5,7 +5,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 const LoginPage = lazy(() => import('@/modules/auth/pages/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('@/modules/auth/pages/ForgotPasswordPage'));
 const DashboardPage = lazy(() => import('@/modules/dashboard/pages/DashboardPage'));
-const EmployeeDashboardPage = lazy(() => import('@/modules/dashboard/pages/EmployeeDashboardPage'));
 const KioskCodePage = lazy(() => import('@/modules/kiosk/pages/KioskCodePage'));
 const BranchManagementPage = lazy(() => import('@/modules/branch/pages/BranchManagementPage'));
 const ShiftMasterPage = lazy(() => import('@/modules/schedule/pages/ShiftMasterPage'));
@@ -15,6 +14,7 @@ const AttendanceOtpPage = lazy(() => import('@/modules/attendance/pages/Attendan
 const MyCalendarPage = lazy(() => import('@/modules/attendance/pages/MyCalendarPage'));
 const AttendanceHistoryPage = lazy(() => import('@/modules/attendance/pages/AttendanceHistoryPage'));
 const EmployeeManagementPage = lazy(() => import('@/modules/employee/pages/EmployeeManagementPage'));
+const ShiftRequestsPage = lazy(() => import('@/modules/schedule/pages/ShiftRequestsPage'));
 
 // Placeholder cho Kiosk login
 
@@ -70,7 +70,7 @@ const AdminProtectedRoute = ({ children }) => {
   roleName.includes('NHÂN VIÊN');
 
   if (isStaff) {
-    return <Navigate to="/employee/schedule" replace />;
+    return <Navigate to="/employee/my-calendar" replace />;
   }
 
   return children;
@@ -114,7 +114,7 @@ const ManagerOrAdminProtectedRoute = ({ children }) => {
   roleName.includes('NHÂN VIÊN');
 
   if (isStaff) {
-    return <Navigate to="/employee/schedule" replace />;
+    return <Navigate to="/employee/my-calendar" replace />;
   }
 
   return children;
@@ -157,8 +157,9 @@ const AppRouter = () => {
           <Route path="/kiosk-management" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
 
           {/* ═══════════════ EMPLOYEE ROUTES ═══════════════ */}
-          <Route path="/employee/schedule" element={<EmployeeDashboardPage />} />
+          <Route path="/employee/schedule" element={<Navigate to="/employee/my-calendar" replace />} />
           <Route path="/employee/my-calendar" element={<MyCalendarPage />} />
+          <Route path="/employee/shift-requests" element={<ShiftRequestsPage />} />
           <Route path="/employee/attendance-history" element={<AttendanceHistoryPage />} />
           <Route path="/employee/attendance-otp" element={<AttendanceOtpPage />} />
           <Route path="/attendance-otp" element={<Navigate to="/employee/attendance-otp" replace />} />
