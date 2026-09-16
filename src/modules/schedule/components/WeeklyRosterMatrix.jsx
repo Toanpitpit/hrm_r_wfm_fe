@@ -12,7 +12,7 @@ const STANDARD_SHIFTS_CONFIG = [
     name: 'Ca 1 - Sáng',
     time: '06:00 - 12:00',
     duration: '6 tiếng',
-    icon: '🌅',
+    icon: 'clock',
     color: '#0284c7', // Sky Blue
     bg: 'rgba(2, 132, 199, 0.08)',
     border: 'rgba(2, 132, 199, 0.35)',
@@ -23,7 +23,7 @@ const STANDARD_SHIFTS_CONFIG = [
     name: 'Ca 2 - Chiều',
     time: '12:00 - 18:00',
     duration: '6 tiếng',
-    icon: '☀️',
+    icon: 'clock',
     color: '#d97706', // Amber / Orange
     bg: 'rgba(217, 119, 6, 0.08)',
     border: 'rgba(217, 119, 6, 0.35)',
@@ -34,7 +34,7 @@ const STANDARD_SHIFTS_CONFIG = [
     name: 'Ca 3 - Tối',
     time: '18:00 - 00:00',
     duration: '6 tiếng',
-    icon: '🌙',
+    icon: 'clock',
     color: '#7c3aed', // Purple / Violet
     bg: 'rgba(124, 58, 237, 0.08)',
     border: 'rgba(124, 58, 237, 0.35)',
@@ -45,7 +45,7 @@ const STANDARD_SHIFTS_CONFIG = [
     name: 'Ca 4 - Đêm',
     time: '00:00 - 06:00',
     duration: '6 tiếng',
-    icon: '🌌',
+    icon: 'clock',
     color: '#2563eb', // Indigo / Dark Blue
     bg: 'rgba(37, 99, 235, 0.08)',
     border: 'rgba(37, 99, 235, 0.35)',
@@ -311,10 +311,10 @@ export default function WeeklyRosterMatrix({
                           lineHeight: 1.4,
                         }}
                       >
-                        <div>• 🛡️ Trưởng ca (≥1)</div>
-                        <div>• 💵 Thu ngân (≥1)</div>
-                        <div>• 🛒 Bán hàng (≥1)</div>
-                        <div>• 🔒 Bảo vệ (≥1)</div>
+                        <div>• Trưởng ca (≥1)</div>
+                        <div>• Thu ngân (≥1)</div>
+                        <div>• Bán hàng (≥1)</div>
+                        <div>• Bảo vệ (≥1)</div>
                       </div>
                     </div>
                   </td>
@@ -446,8 +446,8 @@ export default function WeeklyRosterMatrix({
                                 }}
                               >
                                 {isAllFilled
-                                  ? `✓ ĐỦ (${totalAssigned}/${totalRequired})`
-                                  : `⚠ THIẾU (${totalAssigned}/${totalRequired})`}
+                                  ? `ĐỦ (${totalAssigned}/${totalRequired})`
+                                  : `THIẾU (${totalAssigned}/${totalRequired})`}
                               </span>
 
                               <button
@@ -471,7 +471,7 @@ export default function WeeklyRosterMatrix({
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                               {/* 1. TRƯỞNG CA (SHIFT LEADER) */}
                               <RoleSlotSection
-                                icon="🛡️"
+                                iconName="shield"
                                 title="Trưởng ca"
                                 currentCount={leaders.length}
                                 requiredCount={reqLeader}
@@ -495,7 +495,7 @@ export default function WeeklyRosterMatrix({
 
                               {/* 2. THU NGÂN (CASHIER) */}
                               <RoleSlotSection
-                                icon="💵"
+                                iconName="pulse"
                                 title="Thu ngân"
                                 currentCount={cashiers.length}
                                 requiredCount={reqCashier}
@@ -519,7 +519,7 @@ export default function WeeklyRosterMatrix({
 
                               {/* 3. NHÂN VIÊN BÁN HÀNG (SALES STAFF) */}
                               <RoleSlotSection
-                                icon="🛒"
+                                iconName="users"
                                 title="Bán hàng"
                                 currentCount={sales.length}
                                 requiredCount={reqSales}
@@ -543,7 +543,7 @@ export default function WeeklyRosterMatrix({
 
                               {/* 4. BẢO VỆ (SECURITY GUARD) */}
                               <RoleSlotSection
-                                icon="🔒"
+                                iconName="lock"
                                 title="Bảo vệ"
                                 currentCount={security.length}
                                 requiredCount={reqSecurity}
@@ -832,7 +832,7 @@ export default function WeeklyRosterMatrix({
  * Component con hiển thị 1 khối vị trí nghiệp vụ (Trưởng ca / Thu ngân / Bán hàng / Bảo vệ)
  */
 function RoleSlotSection({
-  icon,
+  iconName,
   title,
   currentCount,
   requiredCount,
@@ -863,8 +863,8 @@ function RoleSlotSection({
           color: isOk ? c.fgSubtle : c.tones.bad,
         }}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <span>{icon}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Icon name={iconName || 'dot'} size={12} color={isOk ? c.fgSubtle : c.tones.bad} />
           <span>{title}</span>
         </span>
         <span style={{ fontFamily: 'monospace' }}>

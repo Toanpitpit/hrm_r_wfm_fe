@@ -248,7 +248,8 @@ export default function EmployeeDashboardPage() {
         {/* Bảng Danh Sách 7 Ngày Lịch Tuần */}
         <div>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: c.fg, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>📅 Chi Tiết Lịch Phân Công 7 Ngày</span>
+            <Icon name="calendar" size={17} color={c.gold} />
+            <span>Chi Tiết Lịch Phân Công 7 Ngày</span>
           </h3>
 
           {loading ? (
@@ -308,8 +309,9 @@ export default function EmployeeDashboardPage() {
                             <Icon name="pulse" size={13} color={badgeColor} />
                             <span><strong>Khung giờ:</strong> {s.startTime?.substring(0, 5)} - {s.endTime?.substring(0, 5)}</span>
                           </div>
-                          <div style={{ fontSize: 11.5, color: c.fgMuted, marginTop: 4 }}>
-                            📍 {s.storeName || 'Cửa hàng Tiện lợi Cầu Giấy'}
+                          <div style={{ fontSize: 11.5, color: c.fgMuted, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Icon name="pin" size={12} color={c.fgMuted} />
+                            <span>{s.storeName || 'Cửa hàng Tiện lợi Cầu Giấy'}</span>
                           </div>
                         </div>
                       );
