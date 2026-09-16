@@ -33,6 +33,12 @@ export const API_ENDPOINTS = Object.freeze({
     CHECK_CONFLICTS: (branchId, weekStartDate) => `/shifts/schedules/check-conflicts?branchId=${branchId}&weekStartDate=${weekStartDate}`,
     PUBLISH_WEEKLY: '/shifts/schedules/publish-weekly',
     AUTO_SCHEDULE: '/shifts/schedules/auto-schedule',
+    SWAP_REQUEST: '/shifts/swap-request',
+    SWAP_REVIEW: '/shifts/swap-review',
+    GET_STORE_SWAPS: (storeId) => `/shifts/swap-requests/${storeId}`,
+    GET_MY_SWAPS: '/shifts/my-swap-requests',
+    GET_COLLEAGUES: (branchId) => `/shifts/colleagues/${branchId}`,
+    GET_COLLEAGUE_SHIFTS: (empId) => `/shifts/colleague-shifts/${empId}`,
   },
   ATTENDANCE: {
     MY_WEEKLY_SCHEDULE: (weekStart) => `attendance/my-weekly-schedule?weekStart=${weekStart}`,

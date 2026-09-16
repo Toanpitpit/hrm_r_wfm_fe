@@ -16,7 +16,7 @@ const renderStatusBadge = (status) => {
   }
 };
 
-export const WeekCalendar = ({ days = [] }) => {
+export const WeekCalendar = ({ days = [], onOpenSwapModal }) => {
   const { c, fonts } = useAdminTheme();
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -140,6 +140,32 @@ export const WeekCalendar = ({ days = [] }) => {
                       {renderStatusBadge(shift.attendanceStatus)}
                       {shift.isDispatched && <Badge tone="info">Điều Động</Badge>}
                     </div>
+
+                    {onOpenSwapModal && (shift.attendanceStatus === 'NOT_YET' || day.date >= todayStr) && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenSwapModal({ ...shift, date: day.date, dayOfWeek: day.dayOfWeek })}
+                        style={{
+                          marginTop: 6,
+                          padding: '5px 10px',
+                          background: `${c.accent}15`,
+                          color: c.accent,
+                          border: `1px solid ${c.accent}40`,
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          width: '100%',
+                          justifyContent: 'center',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        🔄 Đổi / Chuyển Ca
+                      </button>
+                    )}
                   </div>
                 ))
               ) : (
