@@ -186,7 +186,7 @@ export default function BranchMapView({
           </div>
 
           <div style="font-size: 12px; color: #4b5563; margin-bottom: 8px; line-height: 1.4;">
-            📍 ${b.address || 'Chưa có địa chỉ'}
+            ${b.address || 'Chưa có địa chỉ'}
           </div>
 
           <div style="
@@ -368,13 +368,13 @@ export default function BranchMapView({
                 </div>
 
                 <div style={{ fontSize: '11.5px', color: c.fgSubtle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '6px' }}>
-                  📍 {b.address}
+                  {b.address}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: c.fgFaint }}>
                   <span>Point: {b.latitude?.toFixed(2)}, {b.longitude?.toFixed(2)}</span>
                   <span style={{ color: active > 0 ? '#10b981' : c.fgSubtle, fontWeight: 600 }}>
-                    🖥️ {active}/{total} Kiosk
+                    Kiosk: {active}/{total}
                   </span>
                 </div>
               </div>

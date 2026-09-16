@@ -215,9 +215,13 @@ export default function WeeklySchedulePage() {
               fontSize: 13,
               cursor: 'pointer',
               transition: 'all 0.15s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
-            <span>🔄</span> Xét Duyệt Đơn Đổi / Chuyển Ca Trực
+            <Icon name="swap" size={15} color={c.accent} />
+            <span>Xét Duyệt Đơn Đổi / Chuyển Ca Trực</span>
           </button>
         </div>
 

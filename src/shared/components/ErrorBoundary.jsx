@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -26,7 +26,7 @@ export default class ErrorBoundary extends React.Component {
           fontFamily: 'monospace',
           boxSizing: 'border-box'
         }}>
-          <h2 style={{ color: '#ff4d4f', fontSize: 24, marginBottom: 16 }}>⚠️ Ứng dụng gặp lỗi Render (React Error Boundary)</h2>
+          <h2 style={{ color: '#ff4d4f', fontSize: 24, marginBottom: 16 }}>Ứng dụng gặp lỗi Render (React Error Boundary)</h2>
           <div style={{
             background: '#2b1212',
             padding: 16,

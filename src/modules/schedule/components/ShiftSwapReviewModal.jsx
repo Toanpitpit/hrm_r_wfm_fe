@@ -146,9 +146,13 @@ export default function ShiftSwapReviewModal({
               border: '1px solid rgba(239, 68, 68, 0.4)',
               color: '#fca5a5',
               fontSize: 12.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
-            ⚠️ {error}
+            <Icon name="alertTriangle" size={15} color="#fca5a5" />
+            <span>{error}</span>
           </div>
         )}
 
@@ -272,7 +276,7 @@ export default function ShiftSwapReviewModal({
                   {/* Tiêu đề card */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 18 }}>{isTransfer ? '➡️' : '🔄'}</span>
+                      <Icon name={isTransfer ? 'arrowRight' : 'swap'} size={16} color={c.accent} />
                       <span style={{ fontWeight: 750, fontSize: 14, color: c.fg }}>
                         {isTransfer ? 'Đơn Xin Chuyển Ca (Nhờ làm thay)' : 'Đơn Xin Đổi Ca Trực (Tráo đổi 2 ca)'}
                       </span>
@@ -304,8 +308,9 @@ export default function ShiftSwapReviewModal({
                       <div style={{ fontWeight: 750, fontSize: 13, color: c.fg }}>
                         {req.requesterName} <span style={{ fontSize: 11, color: c.accent }}>({req.requesterRoleName || 'Nhân viên'})</span>
                       </div>
-                      <div style={{ color: c.accent, marginTop: 4, fontWeight: 600 }}>
-                        📅 {req.requesterWorkDate} · {formatShiftTemplateName(req.requesterShiftName)} ({req.requesterTimeRange})
+                      <div style={{ color: c.accent, marginTop: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Icon name="calendar" size={13} color={c.accent} />
+                        <span>{req.requesterWorkDate} · {formatShiftTemplateName(req.requesterShiftName)} ({req.requesterTimeRange})</span>
                       </div>
                     </div>
 
@@ -322,8 +327,9 @@ export default function ShiftSwapReviewModal({
                           (Đồng ý nhận làm thay ca trên)
                         </div>
                       ) : (
-                        <div style={{ color: c.accent, marginTop: 4, fontWeight: 600 }}>
-                          📅 {req.targetWorkDate} · {formatShiftTemplateName(req.targetShiftName)} ({req.targetTimeRange})
+                        <div style={{ color: c.accent, marginTop: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Icon name="calendar" size={13} color={c.accent} />
+                          <span>{req.targetWorkDate} · {formatShiftTemplateName(req.targetShiftName)} ({req.targetTimeRange})</span>
                         </div>
                       )}
                     </div>
@@ -332,7 +338,7 @@ export default function ShiftSwapReviewModal({
                   {/* Lý do */}
                   {req.reason && (
                     <div style={{ fontSize: 12.5, color: c.fgSubtle, background: `${c.bgCard}80`, padding: '8px 12px', borderRadius: 6 }}>
-                      💬 <strong>Lý do từ nhân viên:</strong> {req.reason}
+                      <strong>Lý do từ nhân viên:</strong> {req.reason}
                     </div>
                   )}
 
@@ -340,7 +346,10 @@ export default function ShiftSwapReviewModal({
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: `1px dashed ${c.borderSub}` }}>
                     <div style={{ fontSize: 11, color: c.fgFaint }}>
                       {req.reviewedByName && (
-                        <span>✍️ Đã duyệt bởi <strong>{req.reviewedByName}</strong> lúc {new Date(req.reviewedAt).toLocaleString('vi-VN')}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Icon name="edit" size={12} color={c.fgFaint} />
+                          <span>Đã duyệt bởi <strong>{req.reviewedByName}</strong> lúc {new Date(req.reviewedAt).toLocaleString('vi-VN')}</span>
+                        </span>
                       )}
                     </div>
 

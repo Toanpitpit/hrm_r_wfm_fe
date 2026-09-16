@@ -108,11 +108,11 @@ export default function WeekNavigator({
         {/* Trạng thái tuần */}
         <div style={{ marginLeft: 8 }}>
           {isPublished ? (
-            <Badge variant="success">✓ ĐÃ CÔNG BỐ</Badge>
+            <Badge variant="success">ĐÃ CÔNG BỐ</Badge>
           ) : isPartial ? (
-            <Badge variant="info">⚡ CÔNG BỐ MỘT PHẦN</Badge>
+            <Badge variant="info">CÔNG BỐ MỘT PHẦN</Badge>
           ) : (
-            <Badge variant="warning">📝 BẢN NHÁP (DRAFT)</Badge>
+            <Badge variant="warning">BẢN NHÁP (DRAFT)</Badge>
           )}
         </div>
       </div>
@@ -137,7 +137,7 @@ export default function WeekNavigator({
           style={{ borderColor: c.accent, color: c.accent }}
         >
           <Icon name="zap" size={15} style={{ marginRight: 6 }} />
-          ⚡ Tự Động Xếp Ca (OR-Tools)
+          Tự Động Xếp Ca (OR-Tools)
         </Button>
 
         {/* Nút UC 2.1: Gán nhanh Full-time */}

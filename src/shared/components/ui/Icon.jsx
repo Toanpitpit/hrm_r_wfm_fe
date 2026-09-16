@@ -56,6 +56,8 @@ export default function Icon({ name, size = 18, color = 'currentColor', strokeWi
     arrowRight: <><path d="M4 10h12M11 5l5 5-5 5" {...p} /></>,
     alert: <><path d="M10 3.2L2.5 16.5h15L10 3.2z" {...p} /><path d="M10 8v4" {...p} /><circle cx="10" cy="14.5" r="0.8" fill={color} stroke="none" /></>,
     dot: <circle cx="10" cy="10" r="2.5" fill={color} stroke="none" />,
+    shield: <path d="M10 2.5L4 5v5c0 4 3 7.5 6 8.5 3-1 6-4.5 6-8.5V5l-6-2.5z" {...p} />,
+    swap: <><path d="M14 6l3 3-3 3M17 9H6a3 3 0 00-3 3" {...p} /><path d="M6 14l-3-3 3-3M3 11h11a3 3 0 003-3" {...p} /></>,
   };
 
   return (

@@ -57,7 +57,7 @@ export default function AutoScheduleModal({
         {/* Danh sách ràng buộc */}
         <div style={{ background: c.bgElev, border: `1px solid ${c.border}`, borderRadius: 8, padding: 12, marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: c.fg, textTransform: 'uppercase', marginBottom: 6 }}>
-            🔒 Ràng buộc cứng (Hard Constraints - Bắt buộc thỏa mãn):
+            Ràng buộc cứng (Hard Constraints - Bắt buộc thỏa mãn):
           </div>
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: c.fgSubtle, lineHeight: 1.6 }}>
             <li>Mỗi ca đảm bảo đúng số lượng Trưởng ca, Thu ngân, Bán hàng, Bảo vệ theo định mức.</li>
@@ -67,7 +67,7 @@ export default function AutoScheduleModal({
           </ul>
 
           <div style={{ fontSize: 12, fontWeight: 800, color: c.fg, textTransform: 'uppercase', marginTop: 10, marginBottom: 6 }}>
-            🎯 Ràng buộc mềm (Soft Constraints - Ưu tiên tối ưu):
+            Ràng buộc mềm (Soft Constraints - Ưu tiên tối ưu):
           </div>
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: c.fgSubtle, lineHeight: 1.6 }}>
             <li>Ưu tiên tối đa số ca cho nhân sự Full-time đạt định mức tiêu chuẩn.</li>

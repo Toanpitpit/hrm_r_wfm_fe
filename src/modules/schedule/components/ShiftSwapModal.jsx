@@ -167,9 +167,17 @@ export default function ShiftSwapModal({
               {shift.startTime?.substring(0, 5)} - {shift.endTime?.substring(0, 5)}
             </span>
           </div>
-          <div style={{ fontSize: 12, color: c.fgSubtle, display: 'flex', gap: 16 }}>
-            <span>📅 Ngày: <strong>{shift.date} ({shift.dayOfWeek || ''})</strong></span>
-            {shift.branchName && <span>📍 Chi nhánh: <strong>{shift.branchName}</strong></span>}
+          <div style={{ fontSize: 12, color: c.fgSubtle, display: 'flex', gap: 16, alignItems: 'center' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Icon name="calendar" size={13} color={c.fgSubtle} />
+              Ngày: <strong>{shift.date} ({shift.dayOfWeek || ''})</strong>
+            </span>
+            {shift.branchName && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Icon name="pin" size={13} color={c.fgSubtle} />
+                Chi nhánh: <strong>{shift.branchName}</strong>
+              </span>
+            )}
           </div>
         </div>
 
@@ -191,7 +199,8 @@ export default function ShiftSwapModal({
               }}
             >
               <div style={{ fontWeight: 750, fontSize: 13, color: requestType === 'TRANSFER' ? c.accent : c.fg, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>➡️</span> Chuyển Ca (Nhờ làm thay)
+                <Icon name="arrowRight" size={15} color={requestType === 'TRANSFER' ? c.accent : c.fg} />
+                <span>Chuyển Ca (Nhờ làm thay)</span>
               </div>
               <div style={{ fontSize: 11, color: c.fgSubtle, marginTop: 4 }}>
                 Bạn bận không đi làm được, nhờ đồng nghiệp đi làm thay bạn.
@@ -210,7 +219,8 @@ export default function ShiftSwapModal({
               }}
             >
               <div style={{ fontWeight: 750, fontSize: 13, color: requestType === 'SWAP' ? c.accent : c.fg, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>🔄</span> Đổi Ca Trực (Tráo đổi)
+                <Icon name="swap" size={15} color={requestType === 'SWAP' ? c.accent : c.fg} />
+                <span>Đổi Ca Trực (Tráo đổi)</span>
               </div>
               <div style={{ fontSize: 11, color: c.fgSubtle, marginTop: 4 }}>
                 Bạn và đồng nghiệp tráo đổi 2 ca trực khác nhau trong tuần.
@@ -314,9 +324,13 @@ export default function ShiftSwapModal({
               border: '1px solid rgba(239, 68, 68, 0.4)',
               color: '#fca5a5',
               fontSize: 12.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
-            ⚠️ {error}
+            <Icon name="alertTriangle" size={15} color="#fca5a5" />
+            <span>{error}</span>
           </div>
         )}
       </form>

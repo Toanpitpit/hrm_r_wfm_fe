@@ -83,7 +83,7 @@ export default function SetQuotaModal({
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-              <FormField label="🛡️ Trưởng ca">
+              <FormField label="Trưởng ca">
                 <input
                   type="number"
                   value={1}
@@ -102,7 +102,7 @@ export default function SetQuotaModal({
                 />
               </FormField>
 
-              <FormField label="💵 Thu ngân">
+              <FormField label="Thu ngân">
                 <input
                   type="number"
                   min="0"
@@ -121,7 +121,7 @@ export default function SetQuotaModal({
                 />
               </FormField>
 
-              <FormField label="🛒 Bán hàng">
+              <FormField label="Bán hàng">
                 <input
                   type="number"
                   min="0"
@@ -140,7 +140,7 @@ export default function SetQuotaModal({
                 />
               </FormField>
 
-              <FormField label="🔒 Bảo vệ">
+              <FormField label="Bảo vệ">
                 <input
                   type="number"
                   min="0"
@@ -209,7 +209,7 @@ export default function SetQuotaModal({
 
             {/* Định mức mặc định */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
-              <FormField label="🛡️ Trưởng ca / ca">
+              <FormField label="Trưởng ca / ca">
                 <input
                   type="number"
                   value={1}
@@ -228,7 +228,7 @@ export default function SetQuotaModal({
                 />
               </FormField>
 
-              <FormField label="💵 Thu ngân / ca">
+              <FormField label="Thu ngân / ca">
                 <input
                   type="number"
                   min="0"
@@ -247,7 +247,7 @@ export default function SetQuotaModal({
                 />
               </FormField>
 
-              <FormField label="🛒 Bán hàng / ca">
+              <FormField label="Bán hàng / ca">
                 <input
                   type="number"
                   min="0"
@@ -266,7 +266,7 @@ export default function SetQuotaModal({
                 />
               </FormField>
 
-              <FormField label="🔒 Bảo vệ / ca">
+              <FormField label="Bảo vệ / ca">
                 <input
                   type="number"
                   min="0"

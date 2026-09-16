@@ -79,9 +79,13 @@ export default function MySwapRequestsModal({ isOpen, onClose }) {
               border: '1px solid rgba(239, 68, 68, 0.4)',
               color: '#fca5a5',
               fontSize: 12.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
-            ⚠️ {error}
+            <Icon name="alertTriangle" size={15} color="#fca5a5" />
+            <span>{error}</span>
           </div>
         )}
 
@@ -111,7 +115,7 @@ export default function MySwapRequestsModal({ isOpen, onClose }) {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 16 }}>{isTransfer ? '➡️' : '🔄'}</span>
+                    <Icon name={isTransfer ? 'arrowRight' : 'swap'} size={15} color={c.accent} />
                     <span style={{ fontWeight: 750, fontSize: 13, color: c.fg }}>
                       {isTransfer ? 'Chuyển ca (Nhờ làm thay)' : 'Đổi ca trực'}
                     </span>
@@ -139,8 +143,9 @@ export default function MySwapRequestsModal({ isOpen, onClose }) {
                     <div style={{ fontWeight: 700, color: c.fg }}>
                       {req.requesterName} ({req.requesterRoleName || 'Nhân viên'})
                     </div>
-                    <div style={{ color: c.accent, marginTop: 4, fontWeight: 600 }}>
-                      📅 {req.requesterWorkDate} · {formatShiftTemplateName(req.requesterShiftName)} ({req.requesterTimeRange})
+                    <div style={{ color: c.accent, marginTop: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Icon name="calendar" size={12} color={c.accent} />
+                      <span>{req.requesterWorkDate} · {formatShiftTemplateName(req.requesterShiftName)} ({req.requesterTimeRange})</span>
                     </div>
                   </div>
 
@@ -156,8 +161,9 @@ export default function MySwapRequestsModal({ isOpen, onClose }) {
                         (Nhận làm thay ca trên)
                       </div>
                     ) : (
-                      <div style={{ color: c.accent, marginTop: 4, fontWeight: 600 }}>
-                        📅 {req.targetWorkDate} · {formatShiftTemplateName(req.targetShiftName)} ({req.targetTimeRange})
+                      <div style={{ color: c.accent, marginTop: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Icon name="calendar" size={12} color={c.accent} />
+                        <span>{req.targetWorkDate} · {formatShiftTemplateName(req.targetShiftName)} ({req.targetTimeRange})</span>
                       </div>
                     )}
                   </div>
@@ -165,13 +171,14 @@ export default function MySwapRequestsModal({ isOpen, onClose }) {
 
                 {req.reason && (
                   <div style={{ fontSize: 12, color: c.fgSubtle }}>
-                    💬 <strong>Lý do:</strong> {req.reason}
+                    <strong>Lý do:</strong> {req.reason}
                   </div>
                 )}
 
                 {req.reviewedByName && (
-                  <div style={{ fontSize: 11, color: c.fgFaint, borderTop: `1px dashed ${c.borderSub}`, paddingTop: 6 }}>
-                    ✍️ Người duyệt: <strong>{req.reviewedByName}</strong> lúc {new Date(req.reviewedAt).toLocaleString('vi-VN')}
+                  <div style={{ fontSize: 11, color: c.fgFaint, borderTop: `1px dashed ${c.borderSub}`, paddingTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Icon name="edit" size={12} color={c.fgFaint} />
+                    <span>Người duyệt: <strong>{req.reviewedByName}</strong> lúc {new Date(req.reviewedAt).toLocaleString('vi-VN')}</span>
                   </div>
                 )}
               </div>
