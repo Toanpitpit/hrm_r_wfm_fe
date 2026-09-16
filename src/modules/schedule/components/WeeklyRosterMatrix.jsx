@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Icon from '@/shared/components/ui/Icon';
 import Badge from '@/shared/components/ui/Badge';
+import ConfirmModal from '@/shared/components/ui/ConfirmModal';
 import { DAY_NAMES_VN, formatVNDate } from '../hooks/useWeeklySchedule';
 
 // Cấu hình hiển thị chuẩn cho 4 ca 6 tiếng bao phủ 24/7 của chuỗi cửa hàng tiện lợi
@@ -67,6 +68,11 @@ export default function WeeklyRosterMatrix({
   const { c, fonts } = useAdminTheme();
   // Tab chế độ xem: 'BY_SHIFT' (mặc định - Lưới 4 Ca) hoặc 'BY_EMPLOYEE' (Theo nhân sự)
   const [viewMode, setViewMode] = useState('BY_SHIFT');
+  const [confirmDeleteState, setConfirmDeleteState] = useState(null);
+
+  const requestDelete = (assignmentId, message) => {
+    setConfirmDeleteState({ assignmentId, message });
+  };
 
   if (loading) {
     return (
@@ -489,7 +495,7 @@ export default function WeeklyRosterMatrix({
                                     allEmployees,
                                   })
                                 }
-                                onDeleteClick={onDeleteAssignment}
+                                onDeleteClick={requestDelete}
                                 c={c}
                               />
 
@@ -513,7 +519,7 @@ export default function WeeklyRosterMatrix({
                                     allEmployees,
                                   })
                                 }
-                                onDeleteClick={onDeleteAssignment}
+                                onDeleteClick={requestDelete}
                                 c={c}
                               />
 
@@ -537,7 +543,7 @@ export default function WeeklyRosterMatrix({
                                     allEmployees,
                                   })
                                 }
-                                onDeleteClick={onDeleteAssignment}
+                                onDeleteClick={requestDelete}
                                 c={c}
                               />
 
@@ -561,7 +567,7 @@ export default function WeeklyRosterMatrix({
                                     allEmployees,
                                   })
                                 }
-                                onDeleteClick={onDeleteAssignment}
+                                onDeleteClick={requestDelete}
                                 c={c}
                               />
                             </div>
@@ -752,16 +758,12 @@ export default function WeeklyRosterMatrix({
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      if (
-                                        window.confirm(
-                                          `Bạn có chắc muốn hủy ca '${assignment.shiftName}' ngày ${formatVNDate(
-                                            dateStr
-                                          )} của NV ${emp.fullName}?`
-                                        )
-                                      ) {
-                                        onDeleteAssignment &&
-                                          onDeleteAssignment(assignment.assignmentId);
-                                      }
+                                      requestDelete(
+                                        assignment.assignmentId,
+                                        `Bạn có chắc muốn hủy ca '${assignment.shiftName}' ngày ${formatVNDate(
+                                          dateStr
+                                        )} của NV ${emp.fullName}?`
+                                      );
                                     }}
                                     style={{
                                       background: 'transparent',
@@ -824,6 +826,23 @@ export default function WeeklyRosterMatrix({
           </table>
         </div>
       )}
+
+      {/* Modal xác nhận hủy ca */}
+      <ConfirmModal
+        isOpen={Boolean(confirmDeleteState)}
+        onClose={() => setConfirmDeleteState(null)}
+        onConfirm={() => {
+          if (confirmDeleteState?.assignmentId) {
+            onDeleteAssignment && onDeleteAssignment(confirmDeleteState.assignmentId);
+          }
+          setConfirmDeleteState(null);
+        }}
+        title="Xác Nhận Hủy Phân Công Ca"
+        message={confirmDeleteState?.message}
+        confirmText="Hủy Phân Công Ca"
+        cancelText="Giữ Lại"
+        confirmVariant="danger"
+      />
     </div>
   );
 }
@@ -907,13 +926,11 @@ function RoleSlotSection({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (
-                    window.confirm(
+                  onDeleteClick &&
+                    onDeleteClick(
+                      emp.assignmentId,
                       `Bạn có chắc chắn muốn hủy phân công của nhân viên '${emp.fullName}' khỏi ca này?`
-                    )
-                  ) {
-                    onDeleteClick && onDeleteClick(emp.assignmentId);
-                  }
+                    );
                 }}
                 style={{
                   background: 'transparent',

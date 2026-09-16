@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
+import { useToast } from '@/components/ui/toast/ToastProvider';
 import Modal from '@/shared/components/ui/Modal';
 import Button from '@/shared/components/ui/Button';
 import FormField from '@/shared/components/ui/FormField';
@@ -16,6 +17,7 @@ export default function AssignFullTimeModal({
   actionLoading = false,
 }) {
   const { c, fonts } = useAdminTheme();
+  const toast = useToast();
 
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState(
@@ -43,18 +45,27 @@ export default function AssignFullTimeModal({
     );
   };
 
+  const [formError, setFormError] = useState('');
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    setFormError('');
     if (selectedUserIds.length === 0) {
-      alert('Vui lòng chọn ít nhất 1 nhân viên.');
+      const msg = 'Vui lòng chọn ít nhất 1 nhân viên.';
+      setFormError(msg);
+      toast.error(msg);
       return;
     }
     if (!selectedTemplateId) {
-      alert('Vui lòng chọn khung ca.');
+      const msg = 'Vui lòng chọn khung ca.';
+      setFormError(msg);
+      toast.error(msg);
       return;
     }
     if (selectedDays.length === 0) {
-      alert('Vui lòng chọn ít nhất 1 ngày trong tuần.');
+      const msg = 'Vui lòng chọn ít nhất 1 ngày trong tuần.';
+      setFormError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -91,6 +102,27 @@ export default function AssignFullTimeModal({
             Tính năng phân bổ lịch cố định hàng tuần cho nhân viên Full-time. Hệ thống sẽ <strong>tự động chặn gán trùng</strong> nếu nhân viên đã có lịch trực khác trong ngày.
           </span>
         </div>
+
+        {formError && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 8,
+              background: `${c.tones.bad}15`,
+              border: `1px solid ${c.tones.bad}`,
+              color: c.tones.bad,
+              fontSize: 12.5,
+              fontWeight: 600,
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <Icon name="alertTriangle" size={16} style={{ color: c.tones.bad, flexShrink: 0 }} />
+            <span>{formError}</span>
+          </div>
+        )}
 
         {/* Chọn khung ca */}
         <div style={{ marginBottom: 16 }}>

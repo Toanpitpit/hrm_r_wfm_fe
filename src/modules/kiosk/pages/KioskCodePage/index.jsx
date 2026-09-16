@@ -15,7 +15,9 @@ import Button from '@/shared/components/ui/Button';
 import SearchInput from '@/shared/components/ui/SearchInput';
 import Select from '@/shared/components/ui/Select';
 import Icon from '@/shared/components/ui/Icon';
+import ConfirmModal from '@/shared/components/ui/ConfirmModal';
 import { IconButton } from '@/shared/components/ui';
+import { useToast } from '@/components/ui/toast/ToastProvider';
 
 
 // Hook & Subcomponents
@@ -28,7 +30,9 @@ import styles from './KioskCodePage.module.css';
 export default function KioskCodePage() {
   const { c } = useAdminTheme();
   const navigate = useNavigate();
+  const toast = useToast();
   const [copiedToken, setCopiedToken] = useState(null);
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
 
   // Hook quản lý dữ liệu Kiosk
   const {
@@ -52,8 +56,13 @@ export default function KioskCodePage() {
   } = useKioskManager(1);
 
   const handleConfirmDeactivate = (row) => {
-    if (window.confirm(`Bạn có chắc chắn muốn hủy ghép nối và dừng hoạt động trạm Kiosk "${row.kioskName}" (${row.kioskCode}) không?\n\nTrạm Kiosk trên máy chấm công sẽ bị ngắt kết nối và phải nhập mã kích hoạt OTP mới.`)) {
-      handleDeactivateKiosk(row.kioskId);
+    setDeactivateTarget(row);
+  };
+
+  const handleExecuteDeactivate = () => {
+    if (deactivateTarget) {
+      handleDeactivateKiosk(deactivateTarget.kioskId);
+      setDeactivateTarget(null);
     }
   };
 
@@ -78,14 +87,14 @@ export default function KioskCodePage() {
 
   // Các items điều hướng cho Store Manager Sidebar
   const navItems = [
-    { id: 'dashboard', label: 'Tổng quan cửa hàng', icon: 'home', onClick: () => alert('Tính năng Tổng quan cửa hàng đang được phát triển.') },
+    { id: 'dashboard', label: 'Tổng quan cửa hàng', icon: 'home', onClick: () => toast.info('Tính năng Tổng quan cửa hàng đang được phát triển.') },
     { type: 'group', label: 'Quản lý Kiosk & Điểm Danh' },
     { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes', badge: stats.activeCodeCount > 0 ? String(stats.activeCodeCount) : null },
-    { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen', onClick: () => alert('Tính năng Danh sách trạm Kiosk đang được phát triển.') },
-    { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse', onClick: () => alert('Tính năng Điểm danh chi nhánh đang được phát triển.') },
+    { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen', onClick: () => toast.info('Tính năng Danh sách trạm Kiosk đang được phát triển.') },
+    { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse', onClick: () => toast.info('Tính năng Điểm danh chi nhánh đang được phát triển.') },
     { type: 'group', label: 'Nhân sự & Lịch Ca Chi Nhánh' },
     { id: 'weekly-schedules', label: 'Quản lý Lịch Ca (UC 2.1 & 2.3)', icon: 'calendar', path: '/store-manager/schedules' },
-    { id: 'store-employees', label: 'Nhân sự Chi Nhánh', icon: 'users', onClick: () => alert('Tính năng Quản lý nhân sự chi nhánh đang được phát triển.') },
+    { id: 'store-employees', label: 'Nhân sự Chi Nhánh', icon: 'users', onClick: () => toast.info('Tính năng Quản lý nhân sự chi nhánh đang được phát triển.') },
   ];
 
   // Khai báo cột cho bảng danh sách Kiosk
@@ -368,6 +377,22 @@ export default function KioskCodePage() {
         onClose={() => setIsCodeDisplayModalOpen(false)}
         codeData={latestCodeData}
       />
+
+      {/* Modal xác nhận hủy ghép nối Kiosk */}
+      <ConfirmModal
+        isOpen={Boolean(deactivateTarget)}
+        onClose={() => setDeactivateTarget(null)}
+        onConfirm={handleExecuteDeactivate}
+        title="Xác Nhận Hủy Ghép Nối Kiosk"
+        message={`Bạn có chắc chắn muốn hủy ghép nối và dừng hoạt động trạm Kiosk "${deactivateTarget?.kioskName}" (${deactivateTarget?.kioskCode}) không?`}
+        confirmText="Hủy Ghép Nối Trạm"
+        cancelText="Giữ Lại"
+        confirmVariant="danger"
+      >
+        <div style={{ marginTop: 10, fontSize: 12.5, color: c.tones.bad, fontWeight: 500 }}>
+          Trạm Kiosk trên máy chấm công sẽ bị ngắt kết nối ngay lập tức và phải nhập mã OTP mới để kích hoạt lại.
+        </div>
+      </ConfirmModal>
     </DashboardShell>
   );
 }

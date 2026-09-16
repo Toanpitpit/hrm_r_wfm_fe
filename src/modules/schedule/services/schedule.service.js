@@ -135,6 +135,22 @@ export const getColleagueShifts = async (colleagueEmployeeId) => {
   return response.data;
 };
 
+/**
+ * Lấy danh sách ca làm việc của nhân viên đang đăng nhập.
+ */
+export const getMyShifts = async (startDate, endDate) => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_MY_SHIFTS(startDate, endDate));
+  return response.data;
+};
+
+/**
+ * Lấy danh sách ca làm việc của một nhân viên theo ID.
+ */
+export const getEmployeeShifts = async (employeeId, startDate, endDate) => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_EMPLOYEE_SHIFTS(employeeId, startDate, endDate));
+  return response.data;
+};
+
 export default {
   getShiftTemplates,
   getWeeklyScheduleMatrix,
@@ -152,5 +168,7 @@ export default {
   getMySwapRequests,
   getColleaguesForSwap,
   getColleagueShifts,
+  getMyShifts,
+  getEmployeeShifts,
 };
 

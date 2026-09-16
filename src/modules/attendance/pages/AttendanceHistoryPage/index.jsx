@@ -53,9 +53,7 @@ export default function AttendanceHistoryPage() {
   const navItems = getNavItemsForRole(userRole);
 
   const handleSidebarNavigate = (id) => {
-    if (id === 'employee-schedule') {
-      navigate('/employee/schedule');
-    } else if (id === 'my-calendar') {
+    if (id === 'my-calendar') {
       navigate('/employee/my-calendar');
     } else if (id === 'employee-attendance') {
       navigate('/employee/attendance-history');
@@ -102,7 +100,7 @@ export default function AttendanceHistoryPage() {
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: portalTitle, href: '/employee/schedule' },
+            { label: portalTitle, href: '/employee/my-calendar' },
             { label: 'Lịch Sử Chấm Công' },
           ]}
         />

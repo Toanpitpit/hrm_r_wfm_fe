@@ -19,6 +19,7 @@ export const NAV_ITEMS_BY_ROLE = {
     { type: 'group', label: 'Quản Lý Nhân Sự & Ca Trực' },
     { id: 'employees', label: 'Khai Báo Nhân Sự Chi Nhánh', icon: 'users', path: '/employees' },
     { id: 'store-schedules', label: 'Lịch Phân Công Ca Tuần', icon: 'calendar', path: '/store-manager/schedules' },
+    { id: 'shift-requests', label: 'Duyệt Đơn Đổi & Điều Chỉnh Lịch', icon: 'document', path: '/employee/shift-requests' },
     { id: 'dispatches', label: 'Điều Động Nhân Sự', icon: 'users', path: '/store-manager/dispatches' },
     { id: 'kiosk-codes', label: 'Quản Lý Trạm Kiosk', icon: 'screen', path: '/store-manager/kiosk-codes' },
   ],
@@ -35,29 +36,29 @@ export const NAV_ITEMS_BY_ROLE = {
 
   // 4. Trưởng Ca Trực (Shift Leader)
   SHIFT_LEADER: [
-    { id: 'employee-schedule', label: 'Lịch Phân Công Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
-    { id: 'my-calendar', label: 'Bộ Lịch Cá Nhân (Calendar)', icon: 'calendar', path: '/employee/my-calendar' },
+    { id: 'my-calendar', label: 'Lịch Làm Việc Cá Nhân', icon: 'calendar', path: '/employee/my-calendar' },
+    { id: 'shift-requests', label: 'Đơn Xin Đổi & Điều Chỉnh Lịch', icon: 'document', path: '/employee/shift-requests' },
     { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
     { type: 'group', label: 'Giám Sát & Tiện Ích Trưởng Ca' },
     { id: 'live-roster', label: 'Bảng Trực Ca Live (Giám Sát Real-time)', icon: 'pulse', path: '/store-manager/live-roster' },
     { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', path: '/employee/attendance-history' },
-    { id: 'shift-handover', label: 'Bàn Giao Ca Trực', icon: 'lock', onClick: () => alert('Tính năng Bàn giao ca trực đang được phát triển.') },
+    { id: 'shift-handover', label: 'Bàn Giao Ca Trực', icon: 'lock' },
   ],
 
   // 5. Thu Ngân (Cashier)
   CASHIER: [
-    { id: 'employee-schedule', label: 'Lịch Làm Việc Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
-    { id: 'my-calendar', label: 'Bộ Lịch Cá Nhân (Calendar)', icon: 'calendar', path: '/employee/my-calendar' },
+    { id: 'my-calendar', label: 'Lịch Làm Việc Cá Nhân', icon: 'calendar', path: '/employee/my-calendar' },
+    { id: 'shift-requests', label: 'Đơn Xin Đổi & Điều Chỉnh Lịch', icon: 'document', path: '/employee/shift-requests' },
     { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
     { type: 'group', label: 'Tiện Ích Thu Ngân' },
     { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', path: '/employee/attendance-history' },
-    { id: 'cash-handover', label: 'Bàn Giao Két Tiền', icon: 'lock', onClick: () => alert('Tính năng Bàn giao két tiền đang được phát triển.') },
+    { id: 'cash-handover', label: 'Bàn Giao Két Tiền', icon: 'lock' },
   ],
 
   // 6. Nhân Viên Bán Hàng (Sales Staff)
   SALES_STAFF: [
-    { id: 'employee-schedule', label: 'Lịch Làm Việc Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
-    { id: 'my-calendar', label: 'Bộ Lịch Cá Nhân (Calendar)', icon: 'calendar', path: '/employee/my-calendar' },
+    { id: 'my-calendar', label: 'Lịch Làm Việc Cá Nhân', icon: 'calendar', path: '/employee/my-calendar' },
+    { id: 'shift-requests', label: 'Đơn Xin Đổi & Điều Chỉnh Lịch', icon: 'document', path: '/employee/shift-requests' },
     { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
     { type: 'group', label: 'Tiện Ích Bán Hàng' },
     { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', path: '/employee/attendance-history' },
@@ -65,28 +66,28 @@ export const NAV_ITEMS_BY_ROLE = {
 
   // 7. Nhân Viên Bảo Vệ (Security Guard)
   SECURITY_GUARD: [
-    { id: 'employee-schedule', label: 'Lịch Trực Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
-    { id: 'my-calendar', label: 'Bộ Lịch Cá Nhân (Calendar)', icon: 'calendar', path: '/employee/my-calendar' },
+    { id: 'my-calendar', label: 'Lịch Làm Việc Cá Nhân', icon: 'calendar', path: '/employee/my-calendar' },
+    { id: 'shift-requests', label: 'Đơn Xin Đổi & Điều Chỉnh Lịch', icon: 'document', path: '/employee/shift-requests' },
     { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
     { type: 'group', label: 'Tiện Ích Ca Trực' },
     { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', path: '/employee/attendance-history' },
-    { id: 'employee-incidents', label: 'Báo Cáo Ca Trực & Sự Cố', icon: 'lock', onClick: () => alert('Tính năng Báo cáo sự cố ca trực đang được phát triển.') },
+    { id: 'employee-incidents', label: 'Báo Cáo Ca Trực & Sự Cố', icon: 'lock' },
   ],
 
   // Alias fallbacks
   SECURITY: [
-    { id: 'employee-schedule', label: 'Lịch Trực Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
-    { id: 'my-calendar', label: 'Bộ Lịch Cá Nhân (Calendar)', icon: 'calendar', path: '/employee/my-calendar' },
+    { id: 'my-calendar', label: 'Lịch Làm Việc Cá Nhân', icon: 'calendar', path: '/employee/my-calendar' },
+    { id: 'shift-requests', label: 'Đơn Xin Đổi & Điều Chỉnh Lịch', icon: 'document', path: '/employee/shift-requests' },
     { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
     { type: 'group', label: 'Tiện Ích Ca Trực' },
     { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', path: '/employee/attendance-history' },
-    { id: 'employee-incidents', label: 'Báo Cáo Ca Trực & Sự Cố', icon: 'lock', onClick: () => alert('Tính năng Báo cáo sự cố ca trực đang được phát triển.') },
+    { id: 'employee-incidents', label: 'Báo Cáo Ca Trực & Sự Cố', icon: 'lock' },
   ],
 
   // General Staff / Employee
   EMPLOYEE: [
-    { id: 'employee-schedule', label: 'Lịch Làm Việc Ca Tuần', icon: 'calendar', path: '/employee/schedule' },
-    { id: 'my-calendar', label: 'Bộ Lịch Cá Nhân (Calendar)', icon: 'calendar', path: '/employee/my-calendar' },
+    { id: 'my-calendar', label: 'Lịch Làm Việc Cá Nhân', icon: 'calendar', path: '/employee/my-calendar' },
+    { id: 'shift-requests', label: 'Đơn Xin Đổi & Điều Chỉnh Lịch', icon: 'document', path: '/employee/shift-requests' },
     { id: 'attendance-otp', label: 'Mã Điểm Danh Kiosk (OTP)', icon: 'screen', path: '/employee/attendance-otp' },
     { type: 'group', label: 'Tiện Ích Nhân Viên' },
     { id: 'employee-attendance', label: 'Lịch Sử Điểm Danh', icon: 'pulse', path: '/employee/attendance-history' },

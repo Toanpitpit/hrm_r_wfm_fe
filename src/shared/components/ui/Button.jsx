@@ -27,6 +27,8 @@ export default function Button({
       ? 'soft'
       : variant === 'danger'
       ? 'danger'
+      : variant === 'success'
+      ? 'success'
       : variant === 'primary'
       ? 'primary'
       : 'ghost');
@@ -36,6 +38,7 @@ export default function Button({
     primary: { background: c.accent, color: c.ink, border: `1px solid ${c.accent}` },
     ghost: { background: 'transparent', color: c.fgMuted, border: `1px solid ${c.border}` },
     danger: { background: c.tones.badDim, color: c.tones.bad, border: `1px solid ${c.tones.bad}` },
+    success: { background: c.tones.goodDim, color: c.tones.good, border: `1px solid ${c.tones.good}` },
     soft: { background: c.bgElev, color: c.fgMuted, border: `1px solid ${c.borderSub}` },
   };
 

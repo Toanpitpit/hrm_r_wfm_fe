@@ -31,8 +31,7 @@ export const LiveRosterDashboardPage = ({ storeId = 1 }) => {
   const navItems = getNavItemsForRole(userRole);
 
   const handleSidebarNavigate = (id) => {
-    if (id === 'employee-schedule') navigate('/employee/schedule');
-    else if (id === 'my-calendar') navigate('/employee/my-calendar');
+    if (id === 'my-calendar') navigate('/employee/my-calendar');
     else if (id === 'employee-attendance') navigate('/employee/attendance-history');
     else if (id === 'attendance-otp') navigate('/employee/attendance-otp');
     else if (id === 'live-roster') navigate('/store-manager/live-roster');
