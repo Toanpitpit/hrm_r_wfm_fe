@@ -15,6 +15,8 @@ const AttendanceOtpPage = lazy(() => import('@/modules/attendance/pages/Attendan
 const MyCalendarPage = lazy(() => import('@/modules/attendance/pages/MyCalendarPage'));
 const AttendanceHistoryPage = lazy(() => import('@/modules/attendance/pages/AttendanceHistoryPage'));
 const EmployeeManagementPage = lazy(() => import('@/modules/employee/pages/EmployeeManagementPage'));
+const StoreDispatchPage = lazy(() => import('@/modules/dispatch/pages/StoreDispatchPage'));
+const DispatchNetworkMetricsPage = lazy(() => import('@/modules/dispatch/pages/DispatchNetworkMetricsPage'));
 
 // Placeholder cho Kiosk login
 
@@ -155,6 +157,8 @@ const AppRouter = () => {
           <Route path="/store-manager/kiosk-codes" element={<KioskCodePage />} />
           <Route path="/kiosk-codes" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
           <Route path="/kiosk-management" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
+          <Route path="/store-manager/dispatches" element={<StoreDispatchPage />} />
+          <Route path="/dispatches" element={<Navigate to="/store-manager/dispatches" replace />} />
 
           {/* ═══════════════ EMPLOYEE ROUTES ═══════════════ */}
           <Route path="/employee/schedule" element={<EmployeeDashboardPage />} />
@@ -196,6 +200,15 @@ const AppRouter = () => {
               </AdminProtectedRoute>
             }
           />
+          <Route
+            path="/admin/dispatch-network"
+            element={
+              <AdminProtectedRoute>
+                <DispatchNetworkMetricsPage />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route path="/dispatch-network" element={<Navigate to="/admin/dispatch-network" replace />} />
 
           {/* ═══════════════ FALLBACK ROUTE ═══════════════ */}
           <Route path="*" element={<Navigate to="/login" replace />} />
