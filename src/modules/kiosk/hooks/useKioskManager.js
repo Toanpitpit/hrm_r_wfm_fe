@@ -138,12 +138,21 @@ export function useKioskManager(initialStoreId = 1) {
    */
   const filteredKiosks = useMemo(() => {
     return kiosks.filter((kiosk) => {
+      const cleanSearch = (searchTerm || '').trim().toLowerCase();
       const matchSearch =
-        !searchTerm ||
-        (kiosk.kioskName && kiosk.kioskName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (kiosk.kioskCode && kiosk.kioskCode.toLowerCase().includes(searchTerm.toLowerCase()));
+        !cleanSearch ||
+        (kiosk.kioskName && kiosk.kioskName.toLowerCase().includes(cleanSearch)) ||
+        (kiosk.kioskCode && kiosk.kioskCode.toLowerCase().includes(cleanSearch)) ||
+        (kiosk.deviceToken && kiosk.deviceToken.toLowerCase().includes(cleanSearch)) ||
+        (kiosk.storeName && kiosk.storeName.toLowerCase().includes(cleanSearch));
 
-      const matchStatus = statusFilter === 'ALL' || kiosk.status === statusFilter;
+      const kioskStatus = (kiosk.status || '').toUpperCase();
+      const currentFilter = (statusFilter || 'ALL').toUpperCase();
+
+      const matchStatus =
+        currentFilter === 'ALL' ||
+        (currentFilter === 'ACTIVE' && (kioskStatus === 'ACTIVE' || kioskStatus === 'ONLINE')) ||
+        (currentFilter === 'INACTIVE' && (kioskStatus === 'INACTIVE' || kioskStatus === 'OFFLINE'));
 
       return matchSearch && matchStatus;
     });

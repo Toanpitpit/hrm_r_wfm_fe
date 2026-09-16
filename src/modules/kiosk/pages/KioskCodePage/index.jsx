@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import DashboardShell from '@/shared/components/layout/DashboardShell';
 import DashboardSidebar from '@/shared/components/layout/DashboardSidebar';
@@ -26,6 +27,7 @@ import styles from './KioskCodePage.module.css';
 
 export default function KioskCodePage() {
   const { c } = useAdminTheme();
+  const navigate = useNavigate();
   const [copiedToken, setCopiedToken] = useState(null);
 
   // Hook quản lý dữ liệu Kiosk
@@ -64,16 +66,26 @@ export default function KioskCodePage() {
     }
   };
 
+  const handleSidebarNavigate = (id) => {
+    if (id === 'kiosk-codes' || id === 'kiosk-list') {
+      navigate('/store-manager/kiosk-codes');
+    } else if (id === 'shifts' || id === 'weekly-schedules' || id === 'schedules') {
+      navigate('/store-manager/schedules');
+    } else {
+      navigate(`/${id}`);
+    }
+  };
+
   // Các items điều hướng cho Store Manager Sidebar
   const navItems = [
-    { id: 'dashboard', label: 'Tổng quan cửa hàng', icon: 'home' },
-    { type: 'group', label: 'Quản lý Kiosk & Ca' },
-    { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', badge: stats.activeCodeCount > 0 ? String(stats.activeCodeCount) : null },
-    { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen' },
-    { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse' },
-    { type: 'group', label: 'Nhân sự & Phân ca' },
-    { id: 'shifts', label: 'Quản lý Lịch Ca', icon: 'calendar' },
-    { id: 'employees', label: 'Nhân sự Cửa hàng', icon: 'users' },
+    { id: 'dashboard', label: 'Tổng quan cửa hàng', icon: 'home', onClick: () => alert('Tính năng Tổng quan cửa hàng đang được phát triển.') },
+    { type: 'group', label: 'Quản lý Kiosk & Điểm Danh' },
+    { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes', badge: stats.activeCodeCount > 0 ? String(stats.activeCodeCount) : null },
+    { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen', onClick: () => alert('Tính năng Danh sách trạm Kiosk đang được phát triển.') },
+    { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse', onClick: () => alert('Tính năng Điểm danh chi nhánh đang được phát triển.') },
+    { type: 'group', label: 'Nhân sự & Lịch Ca Chi Nhánh' },
+    { id: 'weekly-schedules', label: 'Quản lý Lịch Ca (UC 2.1 & 2.3)', icon: 'calendar', path: '/store-manager/schedules' },
+    { id: 'store-employees', label: 'Nhân sự Chi Nhánh', icon: 'users', onClick: () => alert('Tính năng Quản lý nhân sự chi nhánh đang được phát triển.') },
   ];
 
   // Khai báo cột cho bảng danh sách Kiosk
@@ -194,10 +206,9 @@ export default function KioskCodePage() {
       sidebar={
         <DashboardSidebar
           page="kiosk-codes"
-          navItems={navItems}
-          consoleLabel="Store Manager Console"
+          onNavigate={handleSidebarNavigate}
           defaultDisplayName={storedUser?.fullName || 'Cửa Hàng Trưởng'}
-          roleLabel={storedUser?.storeName ? `Quản lý ${storedUser.storeName}` : 'Quản lý Chi Nhánh CH01'}
+          roleLabel={storedUser?.roleName || (storedUser?.storeName ? `Quản lý ${storedUser.storeName}` : 'Quản lý Chi Nhánh CH01')}
           avatarLetter={storedUser?.fullName?.charAt(0) || 'S'}
           brandName="RWFM KIOSK"
         />
@@ -206,7 +217,7 @@ export default function KioskCodePage() {
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: 'Store Manager', href: '#' },
+            { label: storedUser?.roleName || 'Store Manager', href: '#' },
             { label: 'Quản Lý Kiosk', href: '#' },
             { label: 'Mã Kích Hoạt' },
           ]}
@@ -249,7 +260,7 @@ export default function KioskCodePage() {
             icon="lock"
             tone="warn"
           />
-          <StatCard 
+          <StatCard
             label="KẾT NỐI REALTIME"
             title="KẾT NỐI REALTIME"
             value={`${stats.totalActive}/${stats.totalKiosks}`}
@@ -311,21 +322,21 @@ export default function KioskCodePage() {
         {/* Panel Danh sách trạm Kiosk */}
         <Panel
           title="DANH SÁCH TRẠM KIOSK ĐÃ ĐĂNG KÝ"
-          subtitle="Danh sách các thiết bị điểm danh đã được kích hoạt thuộc chi nhánh"
-          actions={
+          sub="Danh sách các thiết bị điểm danh đã được kích hoạt thuộc chi nhánh"
+          action={
             <div className={styles.filterGroup}>
               <SearchInput
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm tên Kiosk, mã thiết bị..."
+                onChange={(val) => setSearchTerm(typeof val === 'string' ? val : val?.target?.value || '')}
+                placeholder="Tìm tên Kiosk, mã Kiosk, token..."
               />
               <Select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(val) => setStatusFilter(typeof val === 'string' ? val : val?.target?.value || 'ALL')}
                 options={[
                   { value: 'ALL', label: 'Tất cả trạng thái' },
                   { value: 'ACTIVE', label: 'Đang hoạt động' },
-                  { value: 'OFFLINE', label: 'Tắt kết nối' },
+                  { value: 'INACTIVE', label: 'Đã ngắt kết nối' },
                 ]}
               />
             </div>

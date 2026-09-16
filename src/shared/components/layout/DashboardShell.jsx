@@ -7,7 +7,9 @@ export default function DashboardShell({ sidebar, topbar, children }) {
     <div
       style={{
         display: 'flex',
-        minHeight: '100vh',
+        height: '100vh',
+        maxHeight: '100vh',
+        overflow: 'hidden',
         background: c.bg,
         color: c.fg,
         transition: 'background .25s ease, color .25s ease',
@@ -15,7 +17,7 @@ export default function DashboardShell({ sidebar, topbar, children }) {
     >
       {sidebar}
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh', overflow: 'hidden' }}>
         {topbar}
 
         <main style={{ flex: 1, overflowY: 'auto', padding: '30px 36px 48px' }}>

@@ -36,11 +36,111 @@ const useAuth = () => {
     }
   }, []);
 
+  /**
+   * Yêu cầu gửi mã OTP đặt lại mật khẩu
+   */
+  const handleForgotPassword = useCallback(async (email) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await authService.forgotPassword(email);
+      if (response.success) {
+        return { success: true, message: response.message };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Có lỗi xảy ra khi gửi yêu cầu khôi phục mật khẩu.';
+      setError(errorMsg);
+      return { success: false, message: errorMsg };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
+   * Xác thực mã OTP
+   */
+  const handleVerifyOtp = useCallback(async (email, otpCode) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await authService.verifyOtp(email, otpCode);
+      if (response.success) {
+        return { success: true, message: response.message };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Mã OTP không chính xác hoặc đã hết hạn.';
+      setError(errorMsg);
+      return { success: false, message: errorMsg };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
+   * Đặt lại mật khẩu mới
+   */
+  const handleResetPassword = useCallback(async (email, otpCode, newPassword, confirmPassword) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await authService.resetPassword({
+        email,
+        otpCode,
+        newPassword,
+        confirmPassword,
+      });
+      if (response.success) {
+        return { success: true, message: response.message };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Có lỗi xảy ra khi đặt lại mật khẩu.';
+      setError(errorMsg);
+      return { success: false, message: errorMsg };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
+   * Đăng nhập bằng Google
+   */
+  const handleGoogleLogin = useCallback(async (idToken) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await authService.googleLogin(idToken);
+      if (response.success) {
+        const { token, user } = response.data;
+        localStorage.setItem('accessToken', token);
+        if (user) {
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+        return { success: true, user };
+      }
+
+      return { success: false, message: response.message };
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Đăng nhập Google thất bại hoặc tài khoản chưa được phân quyền.';
+      setError(errorMsg);
+      return { success: false, message: errorMsg };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return {
     handleLogin,
+    handleGoogleLogin,
+    handleForgotPassword,
+    handleVerifyOtp,
+    handleResetPassword,
     isLoading,
     error,
   };
 };
 
 export default useAuth;
+

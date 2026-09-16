@@ -1,0 +1,78 @@
+.pageContent {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+  background-color: #1C1C1F;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid rgba(242, 202, 80, 0.2);
+}
+
+.navGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #e4e4e7;
+  background-color: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.navBtn:hover {
+  background-color: #3f3f46;
+  color: #ffffff;
+}
+
+.todayBtn {
+  background-color: rgba(242, 202, 80, 0.15);
+  color: #f2ca50;
+  border-color: rgba(242, 202, 80, 0.4);
+}
+
+.todayBtn:hover {
+  background-color: rgba(242, 202, 80, 0.25);
+  color: #ffffff;
+}
+
+.dateRangeText {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f2ca50;
+}
+
+.loadingBox {
+  padding: 4rem;
+  text-align: center;
+  color: #a1a1aa;
+  font-weight: 500;
+}
+
+.errorBox {
+  padding: 1rem;
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}

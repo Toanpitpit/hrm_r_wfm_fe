@@ -7,10 +7,10 @@ import { hexA } from '../../utils/colorUtils';
 export default function DashboardTopbar({
   page,
   pageTitles = {},
-  consoleLabel = 'Admin Console',
-  defaultDisplayName = 'Admin',
-  roleLabel = 'Quản trị viên',
-  avatarLetter = 'A',
+  consoleLabel,
+  defaultDisplayName,
+  roleLabel,
+  avatarLetter,
   fallbackTitle = 'Dashboard',
   homePath = '/',
   breadcrumbs,
@@ -30,7 +30,6 @@ export default function DashboardTopbar({
   // Derive dynamic user details
   const actualName = user?.fullName || user?.FullName || defaultDisplayName || 'Quản trị viên';
   const actualRole = user?.roleName || user?.RoleName || (user?.storeName ? `Quản lý ${user.storeName}` : roleLabel) || 'Hệ thống';
-
   // Calculate console label based on role if generic console label provided
   let actualConsoleLabel = consoleLabel;
   if (!actualConsoleLabel || actualConsoleLabel === 'Admin Console' || actualConsoleLabel === 'Operations Admin') {
@@ -124,11 +123,11 @@ export default function DashboardTopbar({
 
         <div style={{ minWidth: 140, display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px 4px 10px', background: c.bgElev, border: `1px solid ${c.border}`, borderRadius: 9 }}>
           <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-            <div style={{ color: c.fg, fontSize: 10, fontWeight: 750, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{defaultDisplayName}</div>
-            <div style={{ marginTop: 0.5, color: c.fgFaint, fontSize: 8.5 }}>{roleLabel}</div>
+            <div style={{ color: c.fg, fontSize: 10, fontWeight: 750, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{actualName}</div>
+            <div style={{ marginTop: 0.5, color: c.fgFaint, fontSize: 8.5 }}>{actualRole}</div>
           </div>
           <span style={{ width: 28, height: 28, flexShrink: 0, borderRadius: 6, background: c.accentDim, border: `1px solid ${c.accent}`, color: c.accent, display: 'grid', placeItems: 'center', fontFamily: fonts.display, fontSize: 12 }}>
-            {avatarLetter}
+            {actualAvatarLetter}
           </span>
         </div>
       </div>
