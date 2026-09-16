@@ -1,9 +1,10 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Modal from '@/shared/components/ui/Modal';
 import { Field as FormField } from '@/shared/components/ui/FormField';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
+import BranchMapPicker from './BranchMapPicker';
 
 /**
  * ==============================================================================
@@ -15,6 +16,8 @@ import Icon from '@/shared/components/ui/Icon';
  * - Name (Tên chi nhánh)
  * - Address (Địa chỉ chi nhánh)
  * - Phone (Số điện thoại)
+ * - Tọa độ Point [Latitude, Longitude] & Bán kính Geofence Radius
+ * - Mini Leaflet Map Picker chọn vị trí trực quan
  * - Kiosk IP Whitelist & User Agent Pattern
  */
 export default function BranchFormModal({
@@ -30,6 +33,9 @@ export default function BranchFormModal({
     name: '',
     address: '',
     phone: '',
+    latitude: 21.033333,
+    longitude: 105.795000,
+    radiusMeters: 100,
     kioskAllowedIp: '',
     kioskAllowedBrowser: '',
   });
@@ -46,6 +52,9 @@ export default function BranchFormModal({
         name: initialData.name || initialData.storeName || '',
         address: initialData.address || '',
         phone: initialData.phone || '',
+        latitude: Number(initialData.latitude || initialData.lat || (initialData.location?.coordinates ? initialData.location.coordinates[1] : 21.033333)),
+        longitude: Number(initialData.longitude || initialData.lng || (initialData.location?.coordinates ? initialData.location.coordinates[0] : 105.795000)),
+        radiusMeters: Number(initialData.radiusMeters || initialData.radius || 100),
         kioskAllowedIp: initialData.kioskAllowedIp || '',
         kioskAllowedBrowser: initialData.kioskAllowedBrowser || '',
       });
@@ -58,6 +67,9 @@ export default function BranchFormModal({
         name: '',
         address: '',
         phone: '',
+        latitude: 21.028511,
+        longitude: 105.854167,
+        radiusMeters: 100,
         kioskAllowedIp: '192.168.1.0/24; 14.161.25.10',
         kioskAllowedBrowser: 'Chrome Enterprise Kiosk v120+',
       });
@@ -73,6 +85,8 @@ export default function BranchFormModal({
     const name = (formData.name || '').trim();
     const address = (formData.address || '').trim();
     const phone = (formData.phone || '').trim();
+    const lat = Number(formData.latitude);
+    const lng = Number(formData.longitude);
 
     if (!code) {
       errs.branchCode = 'Vui lòng nhập mã chi nhánh (VD: CH03, HCM02).';
@@ -92,6 +106,14 @@ export default function BranchFormModal({
 
     if (phone && !/^[0-9+\s().-]{8,15}$/.test(phone)) {
       errs.phone = 'Số điện thoại không đúng định dạng (8-15 chữ số).';
+    }
+
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      errs.latitude = 'Vĩ độ không hợp lệ (-90 đến 90).';
+    }
+
+    if (isNaN(lng) || lng < -180 || lng > 180) {
+      errs.longitude = 'Kinh độ không hợp lệ (-180 đến 180).';
     }
 
     setErrors(errs);
@@ -128,6 +150,9 @@ export default function BranchFormModal({
       name: `Cửa hàng Tiện lợi Chi nhánh Quận ${randomId}`,
       address: `Số ${randomId} Đường Nguyễn Trãi, Thanh Xuân, Hà Nội`,
       phone: '0988123456',
+      latitude: 21.003118,
+      longitude: 105.820145,
+      radiusMeters: 100,
       kioskAllowedIp: '192.168.1.0/24; 14.161.25.10',
       kioskAllowedBrowser: 'Chrome Enterprise Kiosk v120+',
     });
@@ -141,8 +166,8 @@ export default function BranchFormModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={isEditing ? 'Chỉnh Sửa Chi Nhánh' : 'Thêm Chi Nhánh Mới'}
-      width="560px"
+      title={isEditing ? 'Chỉnh Sửa Chi Nhánh & Tọa Độ Bản Đồ' : 'Thêm Chi Nhánh & Ghim Tọa Độ Mới'}
+      width="640px"
     >
       <form onSubmit={handleSubmit}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -191,133 +216,240 @@ export default function BranchFormModal({
             </div>
           )}
 
-          {/* 1. Mã Chi Nhánh */}
-          <FormField
-            label="Mã Chi Nhánh"
-            required
-            error={errors.branchCode}
-            hint="Mã duy nhất toàn hệ thống (VD: CH03, CH04, HCM01)"
+          {/* 1. Mã Chi Nhánh & Tên */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
+            <FormField
+              label="Mã Chi Nhánh"
+              required
+              error={errors.branchCode}
+              hint="VD: CH03, HCM01"
+            >
+              <input
+                type="text"
+                value={formData.branchCode}
+                disabled={isEditing}
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase().replace(/\s+/g, '');
+                  setFormData((prev) => ({ ...prev, branchCode: val }));
+                  if (errors.branchCode) setErrors((prev) => ({ ...prev, branchCode: null }));
+                  if (serverError) setServerError('');
+                }}
+                placeholder="VD: CH03"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: `1px solid ${errors.branchCode ? '#ef4444' : c.border}`,
+                  backgroundColor: isEditing ? `${c.bgSubtle}` : c.bgCard,
+                  color: c.fg,
+                  fontSize: '14px',
+                  outline: 'none',
+                  fontFamily: 'monospace',
+                  fontWeight: 600,
+                }}
+              />
+            </FormField>
+
+            <FormField
+              label="Tên Chi Nhánh"
+              required
+              error={errors.name}
+              hint="Tên hiển thị chuỗi cửa hàng"
+            >
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData((prev) => ({ ...prev, name: val }));
+                  if (errors.name) setErrors((prev) => ({ ...prev, name: null }));
+                  if (serverError) setServerError('');
+                }}
+                placeholder="VD: Siêu thị Tiện lợi Cầu Giấy"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: `1px solid ${errors.name ? '#ef4444' : c.border}`,
+                  backgroundColor: c.bgCard,
+                  color: c.fg,
+                  fontSize: '14px',
+                  outline: 'none',
+                }}
+              />
+            </FormField>
+          </div>
+
+          {/* 2. Địa Chỉ & Số điện thoại */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+            <FormField
+              label="Địa Chỉ Chi Nhánh"
+              required
+              error={errors.address}
+            >
+              <input
+                type="text"
+                value={formData.address}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData((prev) => ({ ...prev, address: val }));
+                  if (errors.address) setErrors((prev) => ({ ...prev, address: null }));
+                  if (serverError) setServerError('');
+                }}
+                placeholder="VD: 123 Cầu Giấy, Hà Nội"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: `1px solid ${errors.address ? '#ef4444' : c.border}`,
+                  backgroundColor: c.bgCard,
+                  color: c.fg,
+                  fontSize: '14px',
+                  outline: 'none',
+                }}
+              />
+            </FormField>
+
+            <FormField
+              label="Số Điện Thoại"
+              error={errors.phone}
+            >
+              <input
+                type="text"
+                value={formData.phone}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData((prev) => ({ ...prev, phone: val }));
+                  if (errors.phone) setErrors((prev) => ({ ...prev, phone: null }));
+                  if (serverError) setServerError('');
+                }}
+                placeholder="024 3833 2211"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: `1px solid ${errors.phone ? '#ef4444' : c.border}`,
+                  backgroundColor: c.bgCard,
+                  color: c.fg,
+                  fontSize: '14px',
+                  outline: 'none',
+                }}
+              />
+            </FormField>
+          </div>
+
+          {/* 3. Tọa độ Point (Latitude, Longitude) & Bán kính Geofence */}
+          <div
+            style={{
+              padding: '12px',
+              borderRadius: '10px',
+              backgroundColor: `${c.bgElev}`,
+              border: `1px solid ${c.border}`,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
           >
-            <input
-              type="text"
-              value={formData.branchCode}
-              disabled={isEditing}
-              onChange={(e) => {
-                const val = e.target.value.toUpperCase().replace(/\s+/g, '');
-                setFormData((prev) => ({ ...prev, branchCode: val }));
-                if (errors.branchCode) setErrors((prev) => ({ ...prev, branchCode: null }));
-                if (serverError) setServerError('');
-              }}
-              placeholder="Nhập mã chi nhánh (VD: CH03)"
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: '8px',
-                border: `1px solid ${errors.branchCode ? '#ef4444' : c.border}`,
-                backgroundColor: isEditing ? `${c.bgSubtle}` : c.bgCard,
-                color: c.fg,
-                fontSize: '14px',
-                outline: 'none',
-                fontFamily: 'monospace',
-                fontWeight: 600,
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              <FormField
+                label="Vĩ Độ (Latitude)"
+                required
+                error={errors.latitude}
+              >
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={formData.latitude}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setFormData((prev) => ({ ...prev, latitude: val }));
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    border: `1px solid ${c.border}`,
+                    backgroundColor: c.bgCard,
+                    color: c.fg,
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                  }}
+                />
+              </FormField>
+
+              <FormField
+                label="Kinh Độ (Longitude)"
+                required
+                error={errors.longitude}
+              >
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={formData.longitude}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setFormData((prev) => ({ ...prev, longitude: val }));
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    border: `1px solid ${c.border}`,
+                    backgroundColor: c.bgCard,
+                    color: c.fg,
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                  }}
+                />
+              </FormField>
+
+              <FormField
+                label="Bán Kính Geofence (m)"
+                hint="Vùng quét GPS cho phép"
+              >
+                <input
+                  type="number"
+                  min="20"
+                  max="1000"
+                  step="10"
+                  value={formData.radiusMeters}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 100;
+                    setFormData((prev) => ({ ...prev, radiusMeters: val }));
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    border: `1px solid ${c.border}`,
+                    backgroundColor: c.bgCard,
+                    color: c.fg,
+                    fontSize: '13px',
+                  }}
+                />
+              </FormField>
+            </div>
+
+            {/* Mini Leaflet Map Picker */}
+            <BranchMapPicker
+              latitude={formData.latitude}
+              longitude={formData.longitude}
+              radiusMeters={formData.radiusMeters}
+              onChange={({ latitude, longitude }) => {
+                setFormData((prev) => ({ ...prev, latitude, longitude }));
+                if (errors.latitude || errors.longitude) {
+                  setErrors((prev) => ({ ...prev, latitude: null, longitude: null }));
+                }
               }}
             />
-          </FormField>
+          </div>
 
-          {/* 2. Tên Chi Nhánh */}
-          <FormField
-            label="Tên Chi Nhánh"
-            required
-            error={errors.name}
-            hint="Tên hiển thị đầy đủ của cửa hàng/chi nhánh"
-          >
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => {
-                const val = e.target.value;
-                setFormData((prev) => ({ ...prev, name: val }));
-                if (errors.name) setErrors((prev) => ({ ...prev, name: null }));
-                if (serverError) setServerError('');
-              }}
-              placeholder="Nhập tên chi nhánh (VD: Siêu thị Tiện lợi Cầu Giấy)"
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: '8px',
-                border: `1px solid ${errors.name ? '#ef4444' : c.border}`,
-                backgroundColor: c.bgCard,
-                color: c.fg,
-                fontSize: '14px',
-                outline: 'none',
-              }}
-            />
-          </FormField>
-
-          {/* 3. Địa Chỉ */}
-          <FormField
-            label="Địa Chỉ Chi Nhánh"
-            required
-            error={errors.address}
-          >
-            <input
-              type="text"
-              value={formData.address}
-              onChange={(e) => {
-                const val = e.target.value;
-                setFormData((prev) => ({ ...prev, address: val }));
-                if (errors.address) setErrors((prev) => ({ ...prev, address: null }));
-                if (serverError) setServerError('');
-              }}
-              placeholder="Nhập địa chỉ (VD: 123 Cầu Giấy, Hà Nội)"
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: '8px',
-                border: `1px solid ${errors.address ? '#ef4444' : c.border}`,
-                backgroundColor: c.bgCard,
-                color: c.fg,
-                fontSize: '14px',
-                outline: 'none',
-              }}
-            />
-          </FormField>
-
-          {/* 4. Số Điện Thoại */}
-          <FormField
-            label="Số Điện Thoại Liên Hệ"
-            error={errors.phone}
-            hint="Số điện thoại hotline hoặc bàn tại cửa hàng"
-          >
-            <input
-              type="text"
-              value={formData.phone}
-              onChange={(e) => {
-                const val = e.target.value;
-                setFormData((prev) => ({ ...prev, phone: val }));
-                if (errors.phone) setErrors((prev) => ({ ...prev, phone: null }));
-                if (serverError) setServerError('');
-              }}
-              placeholder="Nhập số điện thoại (VD: 024 3833 2211)"
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: '8px',
-                border: `1px solid ${errors.phone ? '#ef4444' : c.border}`,
-                backgroundColor: c.bgCard,
-                color: c.fg,
-                fontSize: '14px',
-                outline: 'none',
-              }}
-            />
-          </FormField>
-
-          {/* 5. Cấu hình bảo mật Kiosk (Collapsible) */}
+          {/* 4. Cấu hình bảo mật Kiosk (Collapsible) */}
           <div
             style={{
               marginTop: '4px',
               borderTop: `1px dashed ${c.border}`,
-              paddingTop: '12px',
+              paddingTop: '8px',
             }}
           >
             <button
@@ -334,7 +466,7 @@ export default function BranchFormModal({
                 alignItems: 'center',
                 gap: '6px',
                 padding: 0,
-                marginBottom: showAdvanced ? '12px' : '0',
+                marginBottom: showAdvanced ? '10px' : '0',
               }}
             >
               <Icon
@@ -413,7 +545,7 @@ export default function BranchFormModal({
               display: 'flex',
               justifyContent: 'flex-end',
               gap: '10px',
-              marginTop: '12px',
+              marginTop: '10px',
             }}
           >
             <Button

@@ -184,7 +184,7 @@ export const LiveRosterDashboardPage = ({ storeId = 1 }) => {
                         )}
                       </div>
                     </td>
-                    <td className="py-4 px-5">{getStatusBadge(item.status)}</td>
+                    <td className="py-4 px-5">{renderStatusBadge(item.status)}</td>
                     <td className="py-4 px-5 text-right">
                       {item.attendanceId && !item.isFraudFlagged && (
                         <button

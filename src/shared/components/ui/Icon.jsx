@@ -1,4 +1,4 @@
-﻿// Icon — bộ icon SVG stroke tối giản dùng chung cho dashboard.
+// Icon — bộ icon SVG stroke tối giản dùng chung cho dashboard.
 // Dùng: <Icon name="grid" size={18} color="#f5b14a" />
 
 export default function Icon({ name, size = 18, color = 'currentColor', strokeWidth = 1.7 }) {
@@ -32,6 +32,18 @@ export default function Icon({ name, size = 18, color = 'currentColor', strokeWi
     screen: <><rect x="2.5" y="4.5" width="15" height="8" rx="1" {...p} /><path d="M5 16h10" {...p} /><path d="M10 12.5V16" {...p} /></>,
     'alert-triangle': <><path d="M10 3.2L2.5 16.5h15L10 3.2z" {...p} /><path d="M10 8v4" {...p} /><circle cx="10" cy="14.5" r="0.8" fill={color} stroke="none" /></>,
     refresh: <><path d="M17.5 10a7.5 7.5 0 11-2.2-5.3L18 7" {...p} /><path d="M18 2.5V7h-4.5" {...p} /></>,
+    store: <><path d="M2.5 7.5L3.5 3h13l1 4.5" {...p} /><path d="M2.5 7.5a2.5 2.5 0 005 0 2.5 2.5 0 005 0 2.5 2.5 0 005 0" {...p} /><path d="M3.5 10v7h13v-7M7.5 17v-4.5h5V17" {...p} /></>,
+    map: <><polygon points="1.5 5 7 2.5 13 5 18.5 2.5 18.5 15 13 17.5 7 15 1.5 17.5" {...p} /><line x1="7" y1="2.5" x2="7" y2="15" {...p} /><line x1="13" y1="5" x2="13" y2="17.5" {...p} /></>,
+    globe: <><circle cx="10" cy="10" r="7.5" {...p} /><path d="M2.5 10h15M10 2.5a11 11 0 010 15 11 11 0 010-15" {...p} /></>,
+    copy: <><rect x="6.5" y="6.5" width="10" height="10" rx="1.5" {...p} /><path d="M3.5 13.5v-9a1 1 0 011-1h9" {...p} /></>,
+    zap: <><polygon points="11 1.5 3.5 11 9.5 11 8.5 18.5 16.5 9 10.5 9 11 1.5" {...p} /></>,
+    menu: <><line x1="3" y1="5" x2="17" y2="5" {...p} /><line x1="3" y1="10" x2="17" y2="10" {...p} /><line x1="3" y1="15" x2="17" y2="15" {...p} /></>,
+    info: <><circle cx="10" cy="10" r="7.5" {...p} /><line x1="10" y1="9" x2="10" y2="14" {...p} /><circle cx="10" cy="6" r="0.8" fill={color} stroke="none" /></>,
+    sliders: <><line x1="3" y1="16" x2="3" y2="11" {...p} /><line x1="3" y1="7" x2="3" y2="4" {...p} /><line x1="10" y1="16" x2="10" y2="13" {...p} /><line x1="10" y1="9" x2="10" y2="4" {...p} /><line x1="17" y1="16" x2="17" y2="8" {...p} /><line x1="17" y1="4" x2="17" y2="4" {...p} /><circle cx="3" cy="9" r="2" {...p} /><circle cx="10" cy="11" r="2" {...p} /><circle cx="17" cy="6" r="2" {...p} /></>,
+    send: <><path d="M18.5 1.5l-8.5 8.5M18.5 1.5L12.5 18l-3-6.5-6.5-3 15.5-7z" {...p} /></>,
+    arrowLeft: <><path d="M16 10H4M9 5l-5 5 5 5" {...p} /></>,
+    arrowRight: <><path d="M4 10h12M11 5l5 5-5 5" {...p} /></>,
+    alert: <><path d="M10 3.2L2.5 16.5h15L10 3.2z" {...p} /><path d="M10 8v4" {...p} /><circle cx="10" cy="14.5" r="0.8" fill={color} stroke="none" /></>,
     dot: <circle cx="10" cy="10" r="2.5" fill={color} stroke="none" />,
   };
 

@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import DataTable from '@/shared/components/ui/DataTable';
 import Badge from '@/shared/components/ui/Badge';
@@ -82,6 +82,28 @@ export default function BranchTable({
       ),
     },
     {
+      key: 'coordinates',
+      label: 'TỌA ĐỘ POINT (GPS)',
+      width: '180px',
+      render: (row) => {
+        const lat = row.latitude ?? (row.location?.coordinates ? row.location.coordinates[1] : null);
+        const lng = row.longitude ?? (row.location?.coordinates ? row.location.coordinates[0] : null);
+        const radius = row.radiusMeters || 100;
+
+        return (
+          <div style={{ fontSize: '12px', color: c.fgSubtle, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: c.fg, fontFamily: 'monospace', fontWeight: 600 }}>
+              <Icon name="map" size={12} color={c.accent} />
+              <span>{lat ? `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}` : 'Chưa có tọa độ'}</span>
+            </div>
+            <div style={{ fontSize: '11px', color: c.fgFaint }}>
+              Bán kính: <strong style={{ color: c.accent }}>{radius}m</strong> Geofence
+            </div>
+          </div>
+        );
+      },
+    },
+    {
       key: 'phone',
       label: 'SỐ ĐIỆN THOẠI',
       width: '130px',
@@ -94,7 +116,7 @@ export default function BranchTable({
     {
       key: 'status',
       label: 'TRẠNG THÁI',
-      width: '130px',
+      width: '120px',
       render: (row) => {
         const isActive = (row.status || '').toUpperCase() === 'ACTIVE';
         return (
