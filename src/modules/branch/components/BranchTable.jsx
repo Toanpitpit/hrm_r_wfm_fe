@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import DataTable from '@/shared/components/ui/DataTable';
+import Pagination from '@/shared/components/ui/Pagination';
 import Badge from '@/shared/components/ui/Badge';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
@@ -8,23 +9,42 @@ import Icon from '@/shared/components/ui/Icon';
 /**
  * ==============================================================================
  * COMPONENT: BranchTable.jsx
- * UC 1.2: Danh sách chi nhánh & Cột thao tác
+ * UC 1.2: Danh sách chi nhánh, phân trang & thanh cuộn dọc
  * ==============================================================================
  * Bảng hiển thị:
- * - Mã, Tên, Địa chỉ, Số điện thoại
+ * - Mã, Cấp, Tên, Địa chỉ, Tọa độ GPS & Bán kính Geofence
  * - Trạng thái (Badge Active / Inactive / Locked)
- * - Số lượng Kiosk đang hoạt động (ví dụ: 2/3 Online)
- * - Cột thao tác: Sửa, Khóa/Mở, Quản lý Kiosk, Xóa
+ * - Cột thao tác: Sửa, Khóa/Mở, Xóa
+ * - Thanh cuộn dọc cố định tiêu đề (sticky header) & phân trang thông minh
  */
 export default function BranchTable({
   branches = [],
   loading = false,
   onEdit,
-  onManageKiosk,
   onToggleLock,
   onDelete,
 }) {
   const { c } = useAdminTheme();
+
+  // State phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const totalItems = branches.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+
+  // Tự động quay về trang 1 nếu số trang giảm (khi người dùng tìm kiếm hoặc lọc)
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
+
+  // Cắt mảng chi nhánh theo trang hiện tại
+  const paginatedBranches = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return branches.slice(start, start + pageSize);
+  }, [branches, currentPage, pageSize]);
 
   const columns = [
     {
@@ -47,6 +67,54 @@ export default function BranchTable({
           {row.branchCode || row.code || row.storeCode || `CH0${row.storeId || row.id}`}
         </span>
       ),
+    },
+    {
+      key: 'branchTier',
+      label: 'CẤP CN',
+      width: '110px',
+      render: (row) => {
+        const tier = Number(row.branchTier ?? row.tier ?? 2);
+        let label = 'Cấp 2';
+        let bg = 'rgba(59, 130, 246, 0.15)';
+        let border = 'rgba(59, 130, 246, 0.35)';
+        let color = '#60a5fa';
+        let fontWeight = 600;
+
+        if (tier === 1) {
+          label = 'Cấp 1';
+          bg = 'rgba(234, 179, 8, 0.15)';
+          border = 'rgba(234, 179, 8, 0.4)';
+          color = '#eab308';
+          fontWeight = 700;
+        } else if (tier === 3) {
+          label = 'Cấp 3';
+          bg = 'rgba(156, 163, 175, 0.15)';
+          border = 'rgba(156, 163, 175, 0.35)';
+          color = '#9ca3af';
+          fontWeight = 500;
+        }
+
+        return (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: fontWeight,
+              backgroundColor: bg,
+              border: `1px solid ${border}`,
+              color: color,
+              letterSpacing: '0.3px',
+              lineHeight: 1.2,
+            }}
+          >
+            {label}
+          </span>
+        );
+      },
     },
     {
       key: 'name',
@@ -88,7 +156,7 @@ export default function BranchTable({
       render: (row) => {
         const lat = row.latitude ?? (row.location?.coordinates ? row.location.coordinates[1] : null);
         const lng = row.longitude ?? (row.location?.coordinates ? row.location.coordinates[0] : null);
-        const radius = row.radiusMeters || 100;
+        const radius = row.geofenceRadiusMeters ?? row.radiusMeters ?? 100;
 
         return (
           <div style={{ fontSize: '12px', color: c.fgSubtle, display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -103,16 +171,7 @@ export default function BranchTable({
         );
       },
     },
-    {
-      key: 'phone',
-      label: 'SỐ ĐIỆN THOẠI',
-      width: '130px',
-      render: (row) => (
-        <span style={{ fontSize: '13px', color: c.fgSubtle }}>
-          {row.phone || '—'}
-        </span>
-      ),
-    },
+
     {
       key: 'status',
       label: 'TRẠNG THÁI',
@@ -137,31 +196,9 @@ export default function BranchTable({
       },
     },
     {
-      key: 'kiosks',
-      label: 'KIOSK QUẦY',
-      width: '130px',
-      render: (row) => {
-        const total = row.kioskCount ?? row.totalKiosks ?? (row.kiosks ? row.kiosks.length : 0);
-        const active = row.activeKiosks ?? (row.kiosks ? row.kiosks.filter(k => k.status === 'ACTIVE' || k.isOnline).length : 0);
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Badge tone={total > 0 ? (active > 0 ? 'accent' : 'neutral') : 'neutral'}>
-              <Icon
-                name="screen"
-                size={12}
-              />
-              <span style={{ marginLeft: '4px', fontWeight: 600 }}>
-                {active}/{total} Online
-              </span>
-            </Badge>
-          </div>
-        );
-      },
-    },
-    {
       key: 'actions',
       label: 'THAO TÁC',
-      width: '270px',
+      width: '200px',
       render: (row) => {
         const isActive = (row.status || '').toUpperCase() === 'ACTIVE';
         return (
@@ -173,20 +210,6 @@ export default function BranchTable({
               justifyContent: 'flex-start',
             }}
           >
-            {/* Nút Quản lý Kiosk */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onManageKiosk && onManageKiosk(row)}
-              title="Quản lý cấu hình Kiosk chi nhánh"
-            >
-              <Icon
-                name="screen"
-                size={13}
-              />
-              <span>Kiosk</span>
-            </Button>
-
             {/* Nút Sửa */}
             <Button
               variant="ghost"
@@ -241,11 +264,39 @@ export default function BranchTable({
   ];
 
   return (
-    <DataTable
-      columns={columns}
-      data={branches}
-      loading={loading}
-      emptyMessage="Chưa có chi nhánh nào được cấu hình trong hệ thống."
-    />
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '10px',
+        border: `1px solid ${c.border}`,
+        overflow: 'hidden',
+        backgroundColor: c.bgCard,
+      }}
+    >
+      {/* Vùng bảng dữ liệu với thanh cuộn dọc và tiêu đề cố định */}
+      <DataTable
+        columns={columns}
+        data={paginatedBranches}
+        loading={loading}
+        maxHeight="440px"
+        stickyHeader={true}
+        emptyMessage="Chưa có chi nhánh nào được cấu hình trong hệ thống."
+      />
+
+      {/* Thanh phân trang ở chân bảng */}
+      <Pagination
+        currentPage={currentPage}
+        totalItems={totalItems}
+        pageSize={pageSize}
+        pageSizeOptions={[5, 10, 20, 50]}
+        onPageChange={(page) => setCurrentPage(page)}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setCurrentPage(1);
+        }}
+        itemLabel="chi nhánh"
+      />
+    </div>
   );
 }

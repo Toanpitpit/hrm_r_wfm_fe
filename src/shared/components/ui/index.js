@@ -11,3 +11,4 @@ export { default as RowActions, IconButton } from './RowActions';
 export { default as SearchInput } from './SearchInput';
 export { default as Select } from './Select';
 export { default as StatCard } from './StatCard';
+export { default as Pagination } from './Pagination';

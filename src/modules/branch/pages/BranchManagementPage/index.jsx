@@ -22,12 +22,10 @@ import BranchMapView from '../../components/BranchMapView';
 import BranchFormModal from '../../components/BranchFormModal';
 import BranchLockModal from '../../components/BranchLockModal';
 import BranchDeleteModal from '../../components/BranchDeleteModal';
-import KioskManagerModal from '../../components/KioskManagerModal';
-import KioskGlobalMonitor from '../../components/KioskGlobalMonitor';
 
 /**
  * ==============================================================================
- * MODULE: Quản lý Danh mục Chi nhánh & Cấu hình Kiosk
+ * MODULE: Quản lý Danh mục Chi nhánh
  * ACTOR: Operations Admin
  * PAGE: BranchManagementPage (index.jsx)
  * ==============================================================================
@@ -35,9 +33,6 @@ import KioskGlobalMonitor from '../../components/KioskGlobalMonitor';
  * 1. Thêm / sửa / khóa / xóa chi nhánh toàn hệ thống kèm lý do lưu vết kiểm toán (Audit Log)
  * 2. Thiết lập tọa độ Point (Latitude / Longitude) & Bán kính Geofence chấm công GPS
  * 3. Tích hợp Bản đồ Leaflet tương tác trực quan hiển thị vị trí toàn chuỗi cơ sở
- * 4. Thiết lập cấu hình an ninh mạng: Dải IP Whitelist / Subnet cho trạm Kiosk
- * 5. Chuẩn hóa trình duyệt Kiosk Lockdown Mode tại quầy điểm danh
- * 6. Giám sát tình trạng kết nối mạng trạm Kiosk toàn chuỗi
  */
 export default function BranchManagementPage() {
   const navigate = useNavigate();
@@ -48,14 +43,14 @@ export default function BranchManagementPage() {
 
   const {
     branches,
-    allBranches,
-    kiosks,
     loading,
     stats,
     searchTerm,
     setSearchTerm,
     statusFilter,
     setStatusFilter,
+    tierFilter,
+    setTierFilter,
     // Modals state
     formModalOpen,
     setFormModalOpen,
@@ -69,27 +64,18 @@ export default function BranchManagementPage() {
     setDeleteModalOpen,
     deletingBranch,
     setDeletingBranch,
-    kioskModalOpen,
-    setKioskModalOpen,
-    selectedBranchForKiosk,
-    setSelectedBranchForKiosk,
-    globalMonitorOpen,
-    setGlobalMonitorOpen,
     // Handlers
     handleCreateBranch,
     handleUpdateBranch,
     handleToggleBranchStatus,
     handleDeleteBranch,
-    handleAddKiosk,
-    handleSaveKioskConfig,
-    handleToggleKioskLock,
   } = useBranch();
 
   // Navigation menu
   const navItems = [
     { id: 'dashboard', label: 'Tổng quan Dashboard', icon: 'dashboard' },
     { type: 'group', label: 'VẬN HÀNH & HỆ THỐNG' },
-    { id: 'branches', label: 'Danh mục Chi nhánh & Kiosk', icon: 'store' },
+    { id: 'branches', label: 'Danh mục Chi nhánh', icon: 'store' },
     { id: 'shift-master', label: 'Khung Ca Mẫu (Shift Master)', icon: 'clock' },
   ];
 
@@ -114,17 +100,17 @@ export default function BranchManagementPage() {
       topbar={
         <DashboardTopbar
           page="branches"
-          pageTitles={{ branches: 'Quản Lý Danh Mục Chi Nhánh & Cấu Hình Kiosk' }}
+          pageTitles={{ branches: 'Quản Lý Danh Mục Chi Nhánh' }}
           consoleLabel="Operations Admin"
           roleLabel="Quản trị vận hành"
-          fallbackTitle="Chi Nhánh & Kiosk"
+          fallbackTitle="Chi Nhánh"
         />
       }
     >
       {/* 1. Header trang */}
       <PageHeader
-        title="Quản Lý Danh Mục Chi Nhánh & Cấu Hình Kiosk"
-        subtitle="Quản trị danh mục chi nhánh, định vị tọa độ Point (GPS / Geofence), cấu hình an ninh mạng và cấp phát máy trạm Kiosk."
+        title="Quản Lý Danh Mục Chi Nhánh"
+        subtitle="Quản trị danh mục chi nhánh, định vị tọa độ Point (GPS / Geofence) và thiết lập bán kính cho phép chấm công."
         actions={
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             {/* View Mode Toggle (Table / Map) */}
@@ -183,18 +169,6 @@ export default function BranchManagementPage() {
               </button>
             </div>
 
-            {/* Nút mở giám sát Kiosk chuỗi */}
-            <Button
-              variant="outline"
-              onClick={() => setGlobalMonitorOpen(true)}
-            >
-              <Icon
-                name="pulse"
-                size={16}
-              />
-              <span>Giám Sát Kiosk Chuỗi</span>
-            </Button>
-
             {/* Nút thêm mới chi nhánh */}
             <Button
               variant="primary"
@@ -227,28 +201,36 @@ export default function BranchManagementPage() {
           value={stats.totalBranches}
           tone="neutral"
           icon="store"
-          hint="Toàn bộ hệ thống cửa hàng"
+          subtext="Toàn bộ hệ thống cửa hàng"
         />
         <StatCard
           label="ĐANG HOẠT ĐỘNG"
           value={stats.activeBranches}
-          tone="good"
+          tone="ok"
           icon="check"
-          hint="Đang mở cửa kinh doanh"
+          subtext="Đang mở cửa kinh doanh"
         />
         <StatCard
           label="TẠM KHÓA / BẢO TRÌ"
           value={stats.lockedBranches}
           tone={stats.lockedBranches > 0 ? 'bad' : 'neutral'}
           icon="lock"
-          hint="Đình chỉ Kiosk & Chấm công"
+          subtext="Tạm dừng hoạt động"
         />
         <StatCard
-          label="TRẠM KIOSK TRỰC TUYẾN"
-          value={`${stats.onlineKiosks}/${stats.totalKiosks}`}
-          tone="accent"
-          icon="screen"
-          hint="Máy trạm quầy đang kết nối"
+          label="PHÂN CẤP CHI NHÁNH"
+          value={
+            <div style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ color: '#eab308' }}>C1: {stats.tier1Count || 0}</span>
+              <span style={{ color: c.fgFaint }}>|</span>
+              <span style={{ color: '#60a5fa' }}>C2: {stats.tier2Count || 0}</span>
+              <span style={{ color: c.fgFaint }}>|</span>
+              <span style={{ color: '#9ca3af' }}>C3: {stats.tier3Count || 0}</span>
+            </div>
+          }
+          tone="neutral"
+          icon="building"
+          subtext="C1: Lớn · C2: Chuẩn · C3: Nhỏ"
         />
       </div>
 
@@ -260,10 +242,6 @@ export default function BranchManagementPage() {
             setEditingBranch(branch);
             setFormModalOpen(true);
           }}
-          onManageKiosk={(branch) => {
-            setSelectedBranchForKiosk(branch);
-            setKioskModalOpen(true);
-          }}
           onToggleLock={(branch) => {
             setLockingBranch(branch);
             setLockModalOpen(true);
@@ -271,7 +249,7 @@ export default function BranchManagementPage() {
         />
       ) : (
         <Panel>
-          {/* Bộ lọc tìm kiếm & trạng thái */}
+          {/* Bộ lọc tìm kiếm & trạng thái & cấp chi nhánh */}
           <div
             style={{
               display: 'flex',
@@ -290,17 +268,33 @@ export default function BranchManagementPage() {
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '13px', color: c.fgSubtle }}>Trạng thái:</span>
-              <Select
-                value={statusFilter}
-                onChange={setStatusFilter}
-                options={[
-                  { value: 'ALL', label: 'Tất cả trạng thái' },
-                  { value: 'ACTIVE', label: 'Đang hoạt động' },
-                  { value: 'INACTIVE', label: 'Tạm khóa' },
-                ]}
-              />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '13px', color: c.fgSubtle }}>Cấp CN:</span>
+                <Select
+                  value={tierFilter}
+                  onChange={setTierFilter}
+                  options={[
+                    { value: 'ALL', label: 'Tất cả cấp' },
+                    { value: '1', label: 'Cấp 1' },
+                    { value: '2', label: 'Cấp 2' },
+                    { value: '3', label: 'Cấp 3' },
+                  ]}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '13px', color: c.fgSubtle }}>Trạng thái:</span>
+                <Select
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  options={[
+                    { value: 'ALL', label: 'Tất cả trạng thái' },
+                    { value: 'ACTIVE', label: 'Đang hoạt động' },
+                    { value: 'INACTIVE', label: 'Tạm khóa' },
+                  ]}
+                />
+              </div>
             </div>
           </div>
 
@@ -311,10 +305,6 @@ export default function BranchManagementPage() {
             onEdit={(branch) => {
               setEditingBranch(branch);
               setFormModalOpen(true);
-            }}
-            onManageKiosk={(branch) => {
-              setSelectedBranchForKiosk(branch);
-              setKioskModalOpen(true);
             }}
             onToggleLock={(branch) => {
               setLockingBranch(branch);
@@ -371,7 +361,7 @@ export default function BranchManagementPage() {
           if (res?.success) {
             toast.success(
               nextStatus === 'LOCKED' || nextStatus === 'INACTIVE'
-                ? 'Đã khóa chi nhánh thành công! Các trạm Kiosk đã bị ngắt kết nối.'
+                ? 'Đã khóa chi nhánh thành công!'
                 : 'Đã mở khóa chi nhánh hoạt động trở lại!'
             );
           } else {
@@ -392,7 +382,7 @@ export default function BranchManagementPage() {
         onConfirm={async (storeId) => {
           const res = await handleDeleteBranch(storeId);
           if (res?.success) {
-            toast.success('Đã xóa chi nhánh và các trạm Kiosk liên quan thành công!');
+            toast.success('Đã xóa chi nhánh thành công!');
           } else {
             toast.error(res?.error || 'Không thể xóa chi nhánh');
           }
@@ -400,35 +390,6 @@ export default function BranchManagementPage() {
         }}
       />
 
-      {/* Modal Cấu hình máy trạm Kiosk cho chi nhánh */}
-      <KioskManagerModal
-        open={kioskModalOpen}
-        branch={selectedBranchForKiosk}
-        allKiosks={kiosks}
-        onClose={() => {
-          setKioskModalOpen(false);
-          setSelectedBranchForKiosk(null);
-        }}
-        onAddKiosk={async (storeId, kioskData) => {
-          const res = await handleAddKiosk(storeId, kioskData);
-          return res;
-        }}
-        onToggleKioskLock={async (kioskId, currentStatus) => {
-          const res = await handleToggleKioskLock(kioskId, currentStatus);
-          if (res?.success) {
-            toast.success('Đã cập nhật trạng thái trạm Kiosk thành công!');
-          }
-          return res;
-        }}
-      />
-
-      {/* Modal Giám sát Kiosk toàn chuỗi */}
-      <KioskGlobalMonitor
-        open={globalMonitorOpen}
-        kiosks={kiosks}
-        branches={allBranches}
-        onClose={() => setGlobalMonitorOpen(false)}
-      />
     </DashboardShell>
   );
 }

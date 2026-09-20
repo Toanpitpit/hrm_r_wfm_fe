@@ -76,7 +76,7 @@ export default function BranchDeleteModal({
               <strong>
                 [{branchCode}] {branchName}
               </strong>{' '}
-              khỏi hệ thống? Toàn bộ các trạm Kiosk tại chi nhánh này cũng sẽ bị xóa.
+              khỏi hệ thống? Thao tác này không thể hoàn tác và sẽ xóa toàn bộ cấu hình tọa độ GPS chi nhánh.
             </div>
           </div>
         </div>

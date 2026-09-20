@@ -30,7 +30,7 @@ export const ensureAdminToken = async () => {
 
   try {
     const res = await axios.post(
-      `${API_BASE_URL}/auth/login`,
+      `${API_BASE_URL.replace(/\/$/, '')}/Auth/login`,
       {
         username: 'ops.admin@rwfm.vn',
         password: 'Password@123',
@@ -113,6 +113,7 @@ const INITIAL_BRANCHES = [
     address: '123 Cầu Giấy, Q. Cầu Giấy, Hà Nội',
     phone: '024 3833 2211',
     status: 'ACTIVE',
+    branchTier: 1,
     latitude: 21.033333,
     longitude: 105.795000,
     radiusMeters: 100,
@@ -135,6 +136,7 @@ const INITIAL_BRANCHES = [
     address: '456 Lê Văn Việt, TP. Thủ Đức, TP. Hồ Chí Minh',
     phone: '028 3930 2288',
     status: 'ACTIVE',
+    branchTier: 2,
     latitude: 10.850000,
     longitude: 106.772000,
     radiusMeters: 150,
@@ -157,6 +159,7 @@ const INITIAL_BRANCHES = [
     address: '78 Nguyễn Huệ, P. Bến Nghé, Quận 1, TP. Hồ Chí Minh',
     phone: '028 3822 9900',
     status: 'ACTIVE',
+    branchTier: 3,
     latitude: 10.774500,
     longitude: 106.703200,
     radiusMeters: 120,
@@ -250,15 +253,16 @@ const setLocalKiosks = (list) => {
 /**
  * 1. Lấy danh sách tất cả chi nhánh từ Backend
  */
-export const getAllBranches = async () => {
+export const getAllBranches = async (params = {}) => {
   try {
-    const res = await apiClient.get(STORE_ENDPOINTS.LIST);
+    const res = await apiClient.get(STORE_ENDPOINTS.LIST, { params });
     const data = res.data?.data || res.data;
     if (Array.isArray(data)) {
       const mapped = data.map((item, idx) => {
         const lat = Number(item.latitude || item.lat || (item.location?.coordinates ? item.location.coordinates[1] : (idx === 0 ? 21.033333 : 10.850000)));
         const lng = Number(item.longitude || item.lng || (item.location?.coordinates ? item.location.coordinates[0] : (idx === 0 ? 105.795000 : 106.772000)));
-        const radius = Number(item.radiusMeters || item.radius || 100);
+        const radius = Number(item.geofenceRadiusMeters ?? item.radiusMeters ?? item.radius ?? 100);
+        const tier = Number(item.branchTier ?? item.tier ?? (idx === 0 ? 1 : idx === 2 ? 3 : 2));
 
         return {
           storeId: item.storeId || item.id,
@@ -274,9 +278,12 @@ export const getAllBranches = async () => {
           address: item.address || '',
           phone: item.phone || '',
           status: item.status || (item.isActive ? 'ACTIVE' : 'LOCKED'),
+          branchTier: tier,
+          tier: tier,
           latitude: lat,
           longitude: lng,
           radiusMeters: radius,
+          geofenceRadiusMeters: radius,
           location: {
             type: 'Point',
             coordinates: [lng, lat],
@@ -312,7 +319,8 @@ export const getBranchDetail = async (storeId) => {
     if (item) {
       const lat = Number(item.latitude || item.lat || (item.location?.coordinates ? item.location.coordinates[1] : 21.033333));
       const lng = Number(item.longitude || item.lng || (item.location?.coordinates ? item.location.coordinates[0] : 105.795000));
-      const radius = Number(item.radiusMeters || item.radius || 100);
+      const radius = Number(item.geofenceRadiusMeters ?? item.radiusMeters ?? item.radius ?? 100);
+      const tier = Number(item.branchTier ?? item.tier ?? 2);
 
       return {
         storeId: item.storeId || item.id,
@@ -325,9 +333,12 @@ export const getBranchDetail = async (storeId) => {
         address: item.address || '',
         phone: item.phone || '',
         status: item.status || 'ACTIVE',
+        branchTier: tier,
+        tier: tier,
         latitude: lat,
         longitude: lng,
         radiusMeters: radius,
+        geofenceRadiusMeters: radius,
         location: {
           type: 'Point',
           coordinates: [lng, lat],
@@ -356,7 +367,9 @@ export const createBranch = async (payload) => {
   const address = (payload.address || '').trim();
   const lat = Number(payload.latitude || 21.028511);
   const lng = Number(payload.longitude || 105.854167);
-  const radius = Number(payload.radiusMeters || 100);
+  const rawRadius = payload.geofenceRadiusMeters ?? payload.radiusMeters;
+  const radius = Number(rawRadius || 100);
+  const tier = Number(payload.branchTier || payload.tier || 2);
 
   await ensureAdminToken();
 
@@ -370,6 +383,9 @@ export const createBranch = async (payload) => {
       latitude: lat,
       longitude: lng,
       radiusMeters: radius,
+      geofenceRadiusMeters: radius,
+      branchTier: tier,
+      tier,
       location: {
         type: 'Point',
         coordinates: [lng, lat],
@@ -384,6 +400,7 @@ export const createBranch = async (payload) => {
     }
   } catch (err) {
     console.warn('[BranchService] Backend create error:', err.response?.data || err.message);
+    throw new Error(err.response?.data?.message || err.response?.data?.title || err.message || 'Lỗi tạo chi nhánh từ máy chủ');
   }
 
   const list = getLocalBranches();
@@ -395,9 +412,12 @@ export const createBranch = async (payload) => {
     address,
     phone: payload.phone || '',
     status: 'ACTIVE',
+    branchTier: tier,
+    tier,
     latitude: lat,
     longitude: lng,
     radiusMeters: radius,
+    geofenceRadiusMeters: radius,
     location: {
       type: 'Point',
       coordinates: [lng, lat],
@@ -420,15 +440,25 @@ export const createBranch = async (payload) => {
  * 4. Cập nhật thông tin chi nhánh & cấu hình Kiosk Network
  */
 export const updateBranch = async (storeId, payload) => {
+  // Chuẩn hóa dữ liệu đầu vào: cắt khoảng trắng dư thừa
   const name = (payload.name || payload.storeName || '').trim();
   const address = (payload.address || '').trim();
   const lat = payload.latitude !== undefined ? Number(payload.latitude) : undefined;
   const lng = payload.longitude !== undefined ? Number(payload.longitude) : undefined;
-  const radius = payload.radiusMeters !== undefined ? Number(payload.radiusMeters) : undefined;
+  
+  // Đồng bộ bán kính Geofence (ưu tiên geofenceRadiusMeters theo chuẩn Backend, fallback radiusMeters)
+  const rawRadius = payload.geofenceRadiusMeters ?? payload.radiusMeters;
+  const radius = rawRadius !== undefined && rawRadius !== '' ? Number(rawRadius) : undefined;
+  
+  // Đồng bộ phân cấp chi nhánh (ưu tiên branchTier, fallback tier)
+  const rawTier = payload.branchTier ?? payload.tier;
+  const tier = rawTier !== undefined && rawTier !== '' ? Number(rawTier) : undefined;
 
+  // Đảm bảo có token xác thực quyền Admin trước khi gọi API
   await ensureAdminToken();
 
   try {
+    // Gửi yêu cầu PUT cập nhật chi nhánh tới Backend API
     const res = await apiClient.put(STORE_ENDPOINTS.UPDATE(storeId), {
       name,
       address,
@@ -436,25 +466,41 @@ export const updateBranch = async (storeId, payload) => {
       latitude: lat,
       longitude: lng,
       radiusMeters: radius,
+      geofenceRadiusMeters: radius,
+      branchTier: tier,
+      tier,
       kioskAllowedIp: payload.kioskAllowedIp?.trim() || null,
       kioskAllowedBrowser: payload.kioskAllowedBrowser?.trim() || null,
       status: payload.status || 'ACTIVE',
     });
+
+    // Nếu Backend phản hồi thành công (200 OK hoặc 204 No Content), tải lại danh sách mới nhất từ server
     if (res.status === 200 || res.status === 204) {
       await getAllBranches();
       return true;
     }
   } catch (err) {
+    // Ghi log cảnh báo và ném lỗi rõ ràng để UI hiển thị thông báo lỗi (Toast error)
     console.warn('[BranchService] Backend update error:', err.response?.data || err.message);
+    throw new Error(err.response?.data?.message || err.response?.data?.title || err.message || 'Lỗi cập nhật chi nhánh từ máy chủ');
   }
 
+  // --- CƠ CHẾ FALLBACK CẬP NHẬT LOCALSTORAGE / MOCK CACHE ---
+  // Được dùng khi chạy chế độ offline hoặc đồng bộ dữ liệu đệm cục bộ
   const list = getLocalBranches();
   const index = list.findIndex((b) => String(b.storeId) === String(storeId));
   if (index !== -1) {
+    // Giữ nguyên tọa độ cũ nếu người dùng không truyền giá trị mới
     const currentLat = lat !== undefined ? lat : list[index].latitude || 21.028511;
     const currentLng = lng !== undefined ? lng : list[index].longitude || 105.854167;
-    const currentRadius = radius !== undefined ? radius : list[index].radiusMeters || 100;
+    
+    // Giữ nguyên bán kính cũ nếu không thay đổi (mặc định 100m nếu chưa có)
+    const currentRadius = radius !== undefined ? radius : (list[index].geofenceRadiusMeters ?? list[index].radiusMeters ?? 100);
+    
+    // Giữ nguyên phân cấp chi nhánh cũ nếu không thay đổi (mặc định Tier 2)
+    const currentTier = tier !== undefined ? tier : (list[index].branchTier ?? list[index].tier ?? 2);
 
+    // Cập nhật object chi nhánh với dữ liệu đã chuẩn hóa
     list[index] = {
       ...list[index],
       name: name || list[index].name,
@@ -463,10 +509,15 @@ export const updateBranch = async (storeId, payload) => {
       latitude: currentLat,
       longitude: currentLng,
       radiusMeters: currentRadius,
+      geofenceRadiusMeters: currentRadius,
+      branchTier: currentTier,
+      tier: currentTier,
+      // Cấu trúc không gian GeoJSON Point phục vụ hiển thị bản đồ (Leaflet / GIS)
       location: {
         type: 'Point',
         coordinates: [currentLng, currentLat],
       },
+      // Cấu hình mạng Kiosk hợp lệ (dải IP và trình duyệt cho phép)
       kioskAllowedIp:
         payload.kioskAllowedIp !== undefined
           ? payload.kioskAllowedIp
@@ -477,6 +528,8 @@ export const updateBranch = async (storeId, payload) => {
           : list[index].kioskAllowedBrowser,
       updatedAt: new Date().toISOString(),
     };
+
+    // Lưu lại danh sách mới vào localStorage
     setLocalBranches(list);
     return list[index];
   }
@@ -487,13 +540,17 @@ export const updateBranch = async (storeId, payload) => {
  * 5. Khóa / Mở khóa chi nhánh (kèm lý do Audit Log)
  */
 export const updateBranchStatus = async (storeId, status, reason = '') => {
+  // Đảm bảo token Admin hợp lệ
   await ensureAdminToken();
 
   try {
+    // Gửi PATCH request đổi trạng thái (ACTIVE / LOCKED) kèm lý do phục vụ Audit Log
     const res = await apiClient.patch(STORE_ENDPOINTS.UPDATE_STATUS(storeId), {
       status,
       reason: reason || (status === 'LOCKED' ? 'Khóa bởi quản trị viên' : 'Mở khóa hoạt động'),
     });
+
+    // Nếu Backend thành công, refresh lại danh sách chi nhánh
     if (res.status === 200 || res.status === 204) {
       await getAllBranches();
       return true;
@@ -503,6 +560,7 @@ export const updateBranchStatus = async (storeId, status, reason = '') => {
     throw new Error(err.response?.data?.message || err.message || 'Không thể đổi trạng thái chi nhánh');
   }
 
+  // Fallback: Cập nhật trạng thái và lý do khóa vào cache localStorage
   const list = getLocalBranches();
   const index = list.findIndex((b) => String(b.storeId) === String(storeId));
   if (index !== -1) {
@@ -541,20 +599,7 @@ export const deleteBranch = async (storeId) => {
 /**
  * 7. Lấy danh sách Kiosk toàn chuỗi (giám sát)
  */
-export const getAllKiosks = async () => {
-  await ensureAdminToken();
-  try {
-    const res = await apiClient.get(KIOSK_ADMIN_ENDPOINTS.LIST_ALL);
-    const data = res.data?.data || res.data;
-    if (Array.isArray(data)) {
-      setLocalKiosks(data);
-      return data;
-    }
-  } catch (err) {
-    console.warn('[BranchService] Backend Kiosk fetch error, fallback local:', err.message);
-  }
-  return getLocalKiosks();
-};
+export const getAllKiosks = async () => [];
 
 /**
  * 8. Thêm mới máy Kiosk cho chi nhánh

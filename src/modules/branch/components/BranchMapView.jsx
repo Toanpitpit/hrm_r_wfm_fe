@@ -15,7 +15,6 @@ import Icon from '@/shared/components/ui/Icon';
 export default function BranchMapView({
   branches = [],
   onEdit,
-  onManageKiosk,
   onToggleLock,
 }) {
   const { c, theme, fonts } = useAdminTheme();
@@ -30,7 +29,6 @@ export default function BranchMapView({
     const bgGrad = isActive
       ? `linear-gradient(135deg, ${c.accent}, #eab308)`
       : 'linear-gradient(135deg, #ef4444, #991b1b)';
-    const totalKiosks = branch.kioskCount ?? branch.totalKiosks ?? (branch.kiosks?.length || 0);
 
     return L.divIcon({
       className: 'branch-marker-node',
@@ -55,7 +53,7 @@ export default function BranchMapView({
             white-space: nowrap;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
           ">
-            ${branch.branchCode || 'CH'} · ${totalKiosks} Kiosk
+            ${branch.branchCode || 'CH'}
           </div>
           <div style="
             position: relative;
@@ -135,7 +133,7 @@ export default function BranchMapView({
     branches.forEach((b) => {
       const lat = Number(b.latitude) || 21.028511;
       const lng = Number(b.longitude) || 105.854167;
-      const radius = Number(b.radiusMeters) || 100;
+      const radius = Number(b.geofenceRadiusMeters ?? b.radiusMeters) || 100;
       const isActive = (b.status || '').toUpperCase() === 'ACTIVE';
 
       bounds.push([lat, lng]);
@@ -155,8 +153,6 @@ export default function BranchMapView({
         icon: createMarkerIcon(b),
       }).addTo(map);
 
-      const totalKiosks = b.kioskCount ?? b.totalKiosks ?? (b.kiosks?.length || 0);
-      const activeKiosks = b.activeKiosks ?? (b.kiosks?.filter((k) => k.status === 'ACTIVE' || k.isOnline).length || 0);
 
       const popupContent = `
         <div style="
@@ -197,9 +193,8 @@ export default function BranchMapView({
             color: #374151;
             margin-bottom: 10px;
           ">
-            <div><strong>Tọa độ Point:</strong> ${lat.toFixed(4)}, ${lng.toFixed(4)}</div>
-            <div style="margin-top: 2px;"><strong>Bán kính GPS:</strong> ${radius}m Geofence</div>
-            <div style="margin-top: 2px;"><strong>Trạm Kiosk:</strong> ${activeKiosks}/${totalKiosks} Online</div>
+            <div>Tọa độ Point: ${lat.toFixed(4)}, ${lng.toFixed(4)}</div>
+            <div style="margin-top: 2px;">Bán kính GPS: ${radius}m Geofence</div>
           </div>
         </div>
       `;
@@ -266,35 +261,6 @@ export default function BranchMapView({
           style={{ width: '100%', height: '100%', zIndex: 1 }}
         />
 
-        {/* Floating badge thông tin tổng hợp */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 14,
-            left: 14,
-            zIndex: 400,
-            background: `${c.bgRaised}f0`,
-            backdropFilter: 'blur(10px)',
-            border: `1px solid ${c.border}`,
-            borderRadius: '8px',
-            padding: '8px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} />
-            <span style={{ fontSize: '12px', fontWeight: 700, color: c.fg }}>
-              {branches.length} Chi Nhánh Chuỗi
-            </span>
-          </div>
-          <div style={{ width: 1, height: 14, background: c.border }} />
-          <div style={{ fontSize: '11.5px', color: c.fgSubtle }}>
-            Tọa độ chuẩn GeoJSON Point & Vòng quét Geofence
-          </div>
-        </div>
       </div>
 
       {/* 2. Side Panel: Danh sách cơ sở & Chi tiết chọn nhanh */}
@@ -330,8 +296,6 @@ export default function BranchMapView({
           {branches.map((b) => {
             const isSelected = selectedBranchId === b.storeId;
             const isActive = (b.status || '').toUpperCase() === 'ACTIVE';
-            const total = b.kioskCount ?? b.totalKiosks ?? (b.kiosks?.length || 0);
-            const active = b.activeKiosks ?? 0;
 
             return (
               <div
@@ -348,16 +312,40 @@ export default function BranchMapView({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span
-                    style={{
-                      fontFamily: 'monospace',
-                      fontWeight: 800,
-                      fontSize: '12px',
-                      color: c.accent,
-                    }}
-                  >
-                    {b.branchCode}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span
+                      style={{
+                        fontFamily: 'monospace',
+                        fontWeight: 800,
+                        fontSize: '12px',
+                        color: c.accent,
+                      }}
+                    >
+                      {b.branchCode}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        padding: '1px 5px',
+                        borderRadius: '4px',
+                        backgroundColor:
+                          Number(b.branchTier || b.tier || 2) === 1
+                            ? 'rgba(234, 179, 8, 0.2)'
+                            : Number(b.branchTier || b.tier || 2) === 3
+                              ? 'rgba(156, 163, 175, 0.2)'
+                              : 'rgba(59, 130, 246, 0.2)',
+                        color:
+                          Number(b.branchTier || b.tier || 2) === 1
+                            ? '#eab308'
+                            : Number(b.branchTier || b.tier || 2) === 3
+                              ? '#9ca3af'
+                              : '#60a5fa',
+                      }}
+                    >
+                      Cấp {b.branchTier || b.tier || 2}
+                    </span>
+                  </div>
                   <Badge tone={isActive ? 'good' : 'bad'}>
                     {isActive ? 'Hoạt động' : 'Tạm khóa'}
                   </Badge>
@@ -371,11 +359,8 @@ export default function BranchMapView({
                   📍 {b.address}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: c.fgFaint }}>
+                <div style={{ fontSize: '11px', color: c.fgFaint }}>
                   <span>Point: {b.latitude?.toFixed(2)}, {b.longitude?.toFixed(2)}</span>
-                  <span style={{ color: active > 0 ? '#10b981' : c.fgSubtle, fontWeight: 600 }}>
-                    🖥️ {active}/{total} Kiosk
-                  </span>
                 </div>
               </div>
             );
@@ -394,16 +379,7 @@ export default function BranchMapView({
             <div style={{ fontSize: '11px', color: c.fgSubtle, marginBottom: '8px', fontWeight: 600 }}>
               THAO TÁC NHANH: {selectedBranch.name}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onManageKiosk && onManageKiosk(selectedBranch)}
-              >
-                <Icon name="screen" size={13} />
-                <span>Kiosk ({selectedBranch.kioskCount ?? 0})</span>
-              </Button>
-
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
               <Button
                 variant="primary"
                 size="sm"
