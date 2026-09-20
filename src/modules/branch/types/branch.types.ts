@@ -1,6 +1,7 @@
 import { ApiResponse } from '@/shared/types/api.types';
 
 export type BranchStatus = 'ACTIVE' | 'LOCKED' | 'INACTIVE';
+export type BranchTier = 1 | 2 | 3;
 export type KioskStatus = 'ACTIVE' | 'LOCKED' | 'INACTIVE' | 'OFFLINE';
 
 /**
@@ -13,6 +14,7 @@ export interface Branch {
   address: string;
   phone?: string | null;
   status: BranchStatus;
+  branchTier?: BranchTier;
   kioskAllowedIp?: string | null;
   kioskAllowedBrowser?: string | null;
   kioskCount: number;
@@ -30,6 +32,7 @@ export interface CreateStoreDto {
   name: string;
   address: string;
   phone?: string | null;
+  branchTier?: BranchTier;
   kioskAllowedIp?: string | null;
   kioskAllowedBrowser?: string | null;
 }
@@ -41,6 +44,7 @@ export interface UpdateStoreDto {
   name: string;
   address: string;
   phone?: string | null;
+  branchTier?: BranchTier;
   kioskAllowedIp?: string | null;
   kioskAllowedBrowser?: string | null;
   status?: BranchStatus;

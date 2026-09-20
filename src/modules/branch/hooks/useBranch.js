@@ -1,22 +1,22 @@
-﻿import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import branchService from '../services/branch.service';
 
 /**
  * ==============================================================================
- * MODULE: Quản lý Danh mục Chi nhánh & Cấu hình Kiosk (Operations Admin)
+ * MODULE: Quản lý Danh mục Chi nhánh (Operations Admin)
  * HOOK: useBranch.js
  * ==============================================================================
  * Hook xử lý state, fetch dữ liệu từ Backend, tính toán thống kê và quản lý modal.
  */
 export function useBranch() {
   const [branches, setBranches] = useState([]);
-  const [kiosks, setKiosks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Bộ lọc tìm kiếm
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [tierFilter, setTierFilter] = useState('ALL');
 
   // Modals state
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -28,22 +28,13 @@ export function useBranch() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingBranch, setDeletingBranch] = useState(null);
 
-  const [kioskModalOpen, setKioskModalOpen] = useState(false);
-  const [selectedBranchForKiosk, setSelectedBranchForKiosk] = useState(null);
-
-  const [globalMonitorOpen, setGlobalMonitorOpen] = useState(false);
-
-  // Tải danh sách chi nhánh và Kiosk
+  // Tải danh sách chi nhánh
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const [branchList, kioskList] = await Promise.all([
-        branchService.getAllBranches(),
-        branchService.getAllKiosks(),
-      ]);
+      const branchList = await branchService.getAllBranches();
       setBranches(branchList || []);
-      setKiosks(kioskList || []);
     } catch (err) {
       setError(err.message || 'Không thể tải dữ liệu chi nhánh');
     } finally {
@@ -60,18 +51,20 @@ export function useBranch() {
     const totalBranches = branches.length;
     const activeBranches = branches.filter((b) => (b.status || '').toUpperCase() === 'ACTIVE').length;
     const lockedBranches = totalBranches - activeBranches;
-    const totalKiosks = kiosks.length;
-    const onlineKiosks = kiosks.filter((k) => (k.status || '').toUpperCase() === 'ACTIVE').length;
+    const tier1Count = branches.filter((b) => Number(b.branchTier || b.tier || 2) === 1).length;
+    const tier2Count = branches.filter((b) => Number(b.branchTier || b.tier || 2) === 2).length;
+    const tier3Count = branches.filter((b) => Number(b.branchTier || b.tier || 2) === 3).length;
     return {
       totalBranches,
       activeBranches,
       lockedBranches,
-      totalKiosks,
-      onlineKiosks,
+      tier1Count,
+      tier2Count,
+      tier3Count,
     };
-  }, [branches, kiosks]);
+  }, [branches]);
 
-  // Danh sách chi nhánh đã lọc theo Search và Status
+  // Danh sách chi nhánh đã lọc theo Search, Status và Tier
   const filteredBranches = useMemo(() => {
     return branches.filter((b) => {
       const matchSearch =
@@ -82,9 +75,12 @@ export function useBranch() {
       const matchStatus =
         statusFilter === 'ALL' ||
         (b.status || '').toUpperCase() === statusFilter.toUpperCase();
-      return matchSearch && matchStatus;
+      const matchTier =
+        tierFilter === 'ALL' ||
+        Number(b.branchTier || b.tier || 2) === Number(tierFilter);
+      return matchSearch && matchStatus && matchTier;
     });
-  }, [branches, searchTerm, statusFilter]);
+  }, [branches, searchTerm, statusFilter, tierFilter]);
 
   // Thao tác Tạo mới chi nhánh
   const handleCreateBranch = async (formData) => {
@@ -137,43 +133,9 @@ export function useBranch() {
     }
   };
 
-  // Thao tác Thêm Kiosk cho chi nhánh
-  const handleAddKiosk = async (storeId, kioskData) => {
-    try {
-      await branchService.createKiosk(storeId, kioskData);
-      await fetchData();
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
-  };
-
-  // Thao tác Cấu hình Kiosk của chi nhánh
-  const handleSaveKioskConfig = async (kioskId, config) => {
-    try {
-      await branchService.updateKioskConfig(kioskId, config);
-      await fetchData();
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
-  };
-
-  // Thao tác Đổi trạng thái Kiosk (Khóa / Mở khóa trạm)
-  const handleToggleKioskLock = async (kioskId, currentStatus) => {
-    try {
-      await branchService.toggleKioskLock(kioskId, currentStatus);
-      await fetchData();
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
-  };
-
   return {
     branches: filteredBranches,
     allBranches: branches,
-    kiosks,
     loading,
     error,
     stats,
@@ -181,6 +143,8 @@ export function useBranch() {
     setSearchTerm,
     statusFilter,
     setStatusFilter,
+    tierFilter,
+    setTierFilter,
     // Modals
     formModalOpen,
     setFormModalOpen,
@@ -194,21 +158,12 @@ export function useBranch() {
     setDeleteModalOpen,
     deletingBranch,
     setDeletingBranch,
-    kioskModalOpen,
-    setKioskModalOpen,
-    selectedBranchForKiosk,
-    setSelectedBranchForKiosk,
-    globalMonitorOpen,
-    setGlobalMonitorOpen,
     // Handlers
     refresh: fetchData,
     handleCreateBranch,
     handleUpdateBranch,
     handleToggleBranchStatus,
     handleDeleteBranch,
-    handleAddKiosk,
-    handleSaveKioskConfig,
-    handleToggleKioskLock,
   };
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Modal from '@/shared/components/ui/Modal';
 import { Field as FormField } from '@/shared/components/ui/FormField';
@@ -80,9 +80,7 @@ export default function BranchLockModal({
             {isLocking ? (
               <>
                 Bạn đang thực hiện khóa chi nhánh{' '}
-                <strong>{branch.name} ({branch.branchCode})</strong>. Tất cả
-                trạm Kiosk và phiên điểm danh tại đây sẽ bị ngắt kết nối ngay
-                lập tức!
+                <strong>{branch.name} ({branch.branchCode})</strong>. Các hoạt động phân ca và điểm danh tại chi nhánh này sẽ tạm ngừng!
               </>
             ) : (
               <>

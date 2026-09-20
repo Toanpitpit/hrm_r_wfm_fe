@@ -6,14 +6,32 @@
 import { useState } from 'react';
 import { useAdminTheme } from '../../context/ThemeContext';
 
-export default function DataTable({ columns = [], rows, data, density = 'regular', emptyText }) {
+export default function DataTable({
+  columns = [],
+  rows,
+  data,
+  density = 'regular',
+  emptyText,
+  emptyMessage,
+  loading = false,
+  maxHeight,
+  stickyHeader = true,
+}) {
   const { c, fonts } = useAdminTheme();
   const py = density === 'compact' ? 9 : density === 'comfy' ? 17 : 13;
   const tableRows = rows || data || [];
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: fonts.body }}>
+    <div
+      className="custom-table-scrollbar"
+      style={{
+        overflowX: 'auto',
+        overflowY: maxHeight ? 'auto' : undefined,
+        maxHeight: maxHeight || undefined,
+        position: 'relative',
+      }}
+    >
+      <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontFamily: fonts.body }}>
         <thead>
           <tr>
             {columns.map((col, i) => (
@@ -30,6 +48,10 @@ export default function DataTable({ columns = [], rows, data, density = 'regular
                   borderBottom: `1px solid ${c.border}`,
                   whiteSpace: 'nowrap',
                   width: col.w || col.width,
+                  position: (stickyHeader && maxHeight) ? 'sticky' : undefined,
+                  top: (stickyHeader && maxHeight) ? 0 : undefined,
+                  zIndex: 10,
+                  backgroundColor: c.bgCard,
                 }}
               >
                 {col.label || col.title}
@@ -38,14 +60,43 @@ export default function DataTable({ columns = [], rows, data, density = 'regular
           </tr>
         </thead>
         <tbody>
-          {tableRows.map((row, ri) => (
-            <TableRow key={ri} columns={columns} row={row} py={py} />
-          ))}
+          {loading ? (
+            <tr>
+              <td
+                colSpan={columns.length}
+                style={{
+                  padding: 48,
+                  textAlign: 'center',
+                  color: c.fgSubtle,
+                  fontSize: 13,
+                  borderBottom: `1px solid ${c.borderSub}`,
+                }}
+              >
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      border: `2px solid ${c.border}`,
+                      borderTopColor: c.accent,
+                      borderRadius: '50%',
+                      animation: 'spin 0.8s linear infinite',
+                    }}
+                  />
+                  <span>Đang tải dữ liệu...</span>
+                </div>
+              </td>
+            </tr>
+          ) : (
+            tableRows.map((row, ri) => (
+              <TableRow key={row.storeId || row.id || ri} columns={columns} row={row} py={py} />
+            ))
+          )}
         </tbody>
       </table>
-      {tableRows.length === 0 && (
+      {!loading && tableRows.length === 0 && (
         <div style={{ padding: 40, textAlign: 'center', color: c.fgFaint, fontSize: 13 }}>
-          {emptyText || 'Không có dữ liệu phù hợp.'}
+          {emptyText || emptyMessage || 'Không có dữ liệu phù hợp.'}
         </div>
       )}
     </div>
