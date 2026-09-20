@@ -1,12 +1,5 @@
 // AdminThemeContext — quản lý token màu (Dark/Light), màu nhấn và mật độ bảng
 // cho toàn bộ khu vực Admin. Mọi component con dùng hook useAdminTheme().
-//
-// Cách dùng:
-//   <AdminThemeProvider>
-//     <AdminApp />
-//   </AdminThemeProvider>
-//
-//   const { c, fonts } = useAdminTheme();  // c = bộ token màu đang áp dụng
 
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo, useState } from 'react';
@@ -17,36 +10,36 @@ export const fonts = {
   body: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
 };
 
-// --- Bộ token nền tối (Cinematic Dark) ---
+// --- Bảng màu nền tối Horizon (Horizon Dark Theme) + Chữ TRẮNG ---
 export const darkTokens = {
-  bg: '#0a0908',
-  bgRaised: '#14110d',
-  bgCard: '#16130e',
-  bgElev: '#1c1812',
-  bgHover: '#221d15',
-  fg: '#ffffff',
-  fgMuted: 'rgba(255,255,255,0.82)',
-  fgSubtle: 'rgba(255,255,255,0.52)',
-  fgFaint: 'rgba(255,255,255,0.34)',
-  border: 'rgba(255,255,255,0.10)',
-  borderSub: 'rgba(255,255,255,0.06)',
-  track: 'rgba(255,255,255,0.07)',
+  bg: '#0b0e14',        // Deep Horizon Space Midnight
+  bgRaised: '#121721',  // Horizon Raised surface
+  bgCard: '#161c27',    // Horizon Card surface
+  bgElev: '#1d2433',    // Horizon Elevated Panel
+  bgHover: '#252f42',   // Horizon Hover Highlight
+  fg: '#ffffff',        // Màu chữ TRẮNG (Crisp White)
+  fgMuted: 'rgba(255, 255, 255, 0.88)',
+  fgSubtle: 'rgba(255, 255, 255, 0.60)',
+  fgFaint: 'rgba(255, 255, 255, 0.38)',
+  border: 'rgba(255, 255, 255, 0.12)',
+  borderSub: 'rgba(255, 255, 255, 0.07)',
+  track: 'rgba(255, 255, 255, 0.08)',
 };
 
-// --- Bộ token nền sáng (Warm paper) ---
+// --- Bảng màu nền sáng Sorbet (Sorbet Palette) + Chữ ĐEN ---
 export const lightTokens = {
-  bg: '#f3f0ea',
-  bgRaised: '#ffffff',
-  bgCard: '#ffffff',
-  bgElev: '#efeae1',
-  bgHover: '#f4f0e8',
-  fg: '#1b1813',
-  fgMuted: 'rgba(27,24,19,0.80)',
-  fgSubtle: 'rgba(27,24,19,0.55)',
-  fgFaint: 'rgba(27,24,19,0.40)',
-  border: 'rgba(27,24,19,0.13)',
-  borderSub: 'rgba(27,24,19,0.07)',
-  track: 'rgba(27,24,19,0.09)',
+  bg: '#fffaf6',        // Fresh Cream Sorbet Background
+  bgRaised: '#ffffff',  // Pure White Sorbet Raised Container
+  bgCard: '#ffffff',    // Sorbet Card surface
+  bgElev: '#fff0eb',    // Peach Sorbet Elevated Surface
+  bgHover: '#ffe4dc',   // Warm Sorbet Hover
+  fg: '#000000',        // Màu chữ ĐEN (Pure Crisp Black)
+  fgMuted: 'rgba(0, 0, 0, 0.88)',  // Chữ đen đậm rõ nét
+  fgSubtle: 'rgba(0, 0, 0, 0.65)', // Chữ đen vừa
+  fgFaint: 'rgba(0, 0, 0, 0.45)',  // Chữ đen nhạt
+  border: 'rgba(0, 0, 0, 0.12)',
+  borderSub: 'rgba(0, 0, 0, 0.06)',
+  track: 'rgba(0, 0, 0, 0.07)',
 };
 
 // Màu trạng thái (ok / cảnh báo / lỗi / thông tin) + biến thể nền mờ.
@@ -79,25 +72,31 @@ export function badgeToneMap(c) {
 
 const AdminThemeContext = createContext(null);
 
-export function AdminThemeProvider({ children, defaultTheme = 'light', defaultAccent = '#f5b14a' }) {
+export function AdminThemeProvider({ children, defaultTheme = 'light', defaultAccent = '#f97316' }) {
   const [theme, setTheme] = useState(defaultTheme);   // 'light' | 'dark'
   const [accent, setAccent] = useState(defaultAccent);
   const [density, setDensity] = useState('regular');  // 'compact' | 'regular' | 'comfy'
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const value = useMemo(() => {
-    const base = theme === 'light' ? lightTokens : darkTokens;
+    const isLight = theme === 'light';
+    const base = isLight ? lightTokens : darkTokens;
+    // Dynamic default accent for Sorbet (Sorbet Coral Orange #f97316) and Horizon (Horizon Cyan #38bdf8)
+    const effectiveAccent = (accent === '#f5b14a' || accent === '#f97316')
+      ? (isLight ? '#f97316' : '#38bdf8')
+      : accent;
+
     const c = {
       ...base,
-      accent,
-      accentDim: hexA(accent, 0.16),
-      ink: '#0a0908', // màu chữ cố định trên nền màu nhấn
-      tones: buildTones(accent),
+      accent: effectiveAccent,
+      accentDim: hexA(effectiveAccent, 0.16),
+      ink: isLight ? '#ffffff' : '#0b0e14', // contrast text inside primary accent buttons
+      tones: buildTones(effectiveAccent),
     };
     return {
       c, fonts,
       theme, setTheme,
-      accent, setAccent,
+      accent, setAccent: setAccent,
       density, setDensity,
       sidebarCollapsed, setSidebarCollapsed,
     };

@@ -79,15 +79,13 @@ export default function BranchMapPicker({
         attributionControl: false,
       });
 
-      // Lựa chọn tile layer phù hợp theme
-      const tileUrl =
-        theme === 'dark'
-          ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      // Nguồn Tile Layer Nền Sáng OpenStreetMap (Miễn phí, không cần API Key)
+      const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
       L.tileLayer(tileUrl, {
         maxZoom: 19,
-        subdomains: 'abcd',
+        subdomains: 'abc',
+        attribution: '&copy; OpenStreetMap contributors',
       }).addTo(map);
 
       // Thêm Marker
