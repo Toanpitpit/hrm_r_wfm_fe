@@ -105,15 +105,12 @@ export default function BranchMapView({
         attributionControl: false,
       });
 
-      // Tile Layer CartoDB Voyager / OSM
-      const tileUrl =
-        theme === 'dark'
-          ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      // OpenStreetMap: 100% miễn phí, không yêu cầu API Key, không watermark
+      const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
       L.tileLayer(tileUrl, {
         maxZoom: 19,
-        subdomains: 'abcd',
+        attribution: '&copy; OpenStreetMap contributors',
       }).addTo(map);
 
       mapInstanceRef.current = map;
@@ -182,7 +179,7 @@ export default function BranchMapView({
           </div>
 
           <div style="font-size: 12px; color: #4b5563; margin-bottom: 8px; line-height: 1.4;">
-            📍 ${b.address || 'Chưa có địa chỉ'}
+            ${b.address || 'Chưa có địa chỉ'}
           </div>
 
           <div style="
@@ -258,9 +255,9 @@ export default function BranchMapView({
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
         <div
           ref={mapContainerRef}
-          style={{ width: '100%', height: '100%', zIndex: 1 }}
+          className={theme === 'dark' ? 'leaflet-dark-mode' : ''}
+          style={{ width: '100%', height: '100%', zIndex: 1, backgroundColor: theme === 'dark' ? '#1e293b' : '#f8fafc' }}
         />
-
       </div>
 
       {/* 2. Side Panel: Danh sách cơ sở & Chi tiết chọn nhanh */}
@@ -296,6 +293,8 @@ export default function BranchMapView({
           {branches.map((b) => {
             const isSelected = selectedBranchId === b.storeId;
             const isActive = (b.status || '').toUpperCase() === 'ACTIVE';
+            const total = b.kioskCount ?? b.totalKiosks ?? (b.kiosks?.length || 0);
+            const active = b.activeKiosks ?? 0;
 
             return (
               <div
@@ -356,11 +355,14 @@ export default function BranchMapView({
                 </div>
 
                 <div style={{ fontSize: '11.5px', color: c.fgSubtle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '6px' }}>
-                  📍 {b.address}
+                  {b.address}
                 </div>
 
-                <div style={{ fontSize: '11px', color: c.fgFaint }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: c.fgFaint }}>
                   <span>Point: {b.latitude?.toFixed(2)}, {b.longitude?.toFixed(2)}</span>
+                  <span style={{ color: active > 0 ? '#10b981' : c.fgSubtle, fontWeight: 600 }}>
+                    Kiosk: {active}/{total}
+                  </span>
                 </div>
               </div>
             );

@@ -109,12 +109,12 @@ export default function LoginPage() {
     if (role === 'STORE_MANAGER' || role.includes('MANAGER')) {
       navigate('/store-manager/schedules');
     } else if (role === 'SHIFT_LEADER' || role.includes('LEADER')) {
-      navigate('/store-manager/schedules');
+      navigate('/employee/my-calendar');
     } else if (
       ['CASHIER', 'SALES_STAFF', 'SECURITY_GUARD', 'EMPLOYEE'].includes(role) ||
       role.includes('STAFF') || role.includes('GUARD') || role.includes('CASHIER')
     ) {
-      navigate('/employee/schedule');
+      navigate('/employee/my-calendar');
     } else if (
       role === 'OPERATIONS_ADMIN' || role === 'BUSINESS_OWNER' ||
       role.includes('ADMIN') || role.includes('OWNER')
@@ -176,7 +176,7 @@ export default function LoginPage() {
       if (role === 'STORE_MANAGER' || role.includes('MANAGER') || roleName.includes('QUẢN LÝ')) {
         navigate('/store-manager/kiosk-codes');
       } else if (isStaff) {
-        navigate('/employee/schedule');
+        navigate('/employee/my-calendar');
       } else {
         navigate('/dashboard');
       }

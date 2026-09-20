@@ -31,6 +31,17 @@ export default function Icon({ name, size = 18, color = 'currentColor', strokeWi
     logout: <><path d="M8 17H4.5A1.5 1.5 0 013 15.5v-11A1.5 1.5 0 014.5 3H8M13 13l3-3-3-3M16 10H7" {...p} /></>,
     screen: <><rect x="2.5" y="4.5" width="15" height="8" rx="1" {...p} /><path d="M5 16h10" {...p} /><path d="M10 12.5V16" {...p} /></>,
     'alert-triangle': <><path d="M10 3.2L2.5 16.5h15L10 3.2z" {...p} /><path d="M10 8v4" {...p} /><circle cx="10" cy="14.5" r="0.8" fill={color} stroke="none" /></>,
+    alertTriangle: <><path d="M10 3.2L2.5 16.5h15L10 3.2z" {...p} /><path d="M10 8v4" {...p} /><circle cx="10" cy="14.5" r="0.8" fill={color} stroke="none" /></>,
+    checkCircle: <><circle cx="10" cy="10" r="7.5" {...p} /><path d="M7 10l2 2 4-4" {...p} /></>,
+    'check-circle': <><circle cx="10" cy="10" r="7.5" {...p} /><path d="M7 10l2 2 4-4" {...p} /></>,
+    info: <><circle cx="10" cy="10" r="7.5" {...p} /><path d="M10 9v5M10 6.5h.01" {...p} /></>,
+    zap: <path d="M11 2L4 11h6l-1 7 7-9h-6l1-7z" {...p} />,
+    arrowLeft: <path d="M13 16l-6-6 6-6" {...p} />,
+    'arrow-left': <path d="M13 16l-6-6 6-6" {...p} />,
+    arrowRight: <path d="M7 4l6 6-6 6" {...p} />,
+    'arrow-right': <path d="M7 4l6 6-6 6" {...p} />,
+    sliders: <><path d="M3 5h8M15 5h2M7 10h10M3 15h4M11 15h6" {...p} /><circle cx="13" cy="5" r="2" {...p} /><circle cx="5" cy="10" r="2" {...p} /><circle cx="9" cy="15" r="2" {...p} /></>,
+    send: <><path d="M18 2L9 11M18 2l-6 16-3-7-7-3 16-6z" {...p} /></>,
     refresh: <><path d="M17.5 10a7.5 7.5 0 11-2.2-5.3L18 7" {...p} /><path d="M18 2.5V7h-4.5" {...p} /></>,
     store: <><path d="M2.5 7.5L3.5 3h13l1 4.5" {...p} /><path d="M2.5 7.5a2.5 2.5 0 005 0 2.5 2.5 0 005 0 2.5 2.5 0 005 0" {...p} /><path d="M3.5 10v7h13v-7M7.5 17v-4.5h5V17" {...p} /></>,
     map: <><polygon points="1.5 5 7 2.5 13 5 18.5 2.5 18.5 15 13 17.5 7 15 1.5 17.5" {...p} /><line x1="7" y1="2.5" x2="7" y2="15" {...p} /><line x1="13" y1="5" x2="13" y2="17.5" {...p} /></>,
@@ -45,6 +56,8 @@ export default function Icon({ name, size = 18, color = 'currentColor', strokeWi
     arrowRight: <><path d="M4 10h12M11 5l5 5-5 5" {...p} /></>,
     alert: <><path d="M10 3.2L2.5 16.5h15L10 3.2z" {...p} /><path d="M10 8v4" {...p} /><circle cx="10" cy="14.5" r="0.8" fill={color} stroke="none" /></>,
     dot: <circle cx="10" cy="10" r="2.5" fill={color} stroke="none" />,
+    shield: <path d="M10 2.5L4 5v5c0 4 3 7.5 6 8.5 3-1 6-4.5 6-8.5V5l-6-2.5z" {...p} />,
+    swap: <><path d="M14 6l3 3-3 3M17 9H6a3 3 0 00-3 3" {...p} /><path d="M6 14l-3-3 3-3M3 11h11a3 3 0 003-3" {...p} /></>,
   };
 
   return (

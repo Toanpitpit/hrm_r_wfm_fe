@@ -87,6 +87,70 @@ export const autoScheduleWeekly = async (payload) => {
   return response.data;
 };
 
+/**
+ * Gửi đơn xin chuyển/đổi ca làm việc.
+ */
+export const createSwapRequest = async (payload) => {
+  const response = await axiosInstance.post(API_ENDPOINTS.SHIFTS.SWAP_REQUEST, payload);
+  return response.data;
+};
+
+/**
+ * Quản lý phê duyệt hoặc từ chối đơn chuyển/đổi ca.
+ */
+export const reviewSwapRequest = async (payload) => {
+  const response = await axiosInstance.post(API_ENDPOINTS.SHIFTS.SWAP_REVIEW, payload);
+  return response.data;
+};
+
+/**
+ * Lấy danh sách các đơn đổi/chuyển ca của cửa hàng cho Quản lý duyệt.
+ */
+export const getStoreSwapRequests = async (storeId) => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_STORE_SWAPS(storeId));
+  return response.data;
+};
+
+/**
+ * Nhân viên lấy danh sách các đơn đổi/chuyển ca của chính mình.
+ */
+export const getMySwapRequests = async () => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_MY_SWAPS);
+  return response.data;
+};
+
+/**
+ * Lấy danh sách đồng nghiệp cùng chi nhánh để chọn đổi/chuyển ca.
+ */
+export const getColleaguesForSwap = async (branchId) => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_COLLEAGUES(branchId));
+  return response.data;
+};
+
+/**
+ * Lấy danh sách các ca làm việc tương lai của đồng nghiệp để chọn đổi.
+ */
+export const getColleagueShifts = async (colleagueEmployeeId) => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_COLLEAGUE_SHIFTS(colleagueEmployeeId));
+  return response.data;
+};
+
+/**
+ * Lấy danh sách ca làm việc của nhân viên đang đăng nhập.
+ */
+export const getMyShifts = async (startDate, endDate) => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_MY_SHIFTS(startDate, endDate));
+  return response.data;
+};
+
+/**
+ * Lấy danh sách ca làm việc của một nhân viên theo ID.
+ */
+export const getEmployeeShifts = async (employeeId, startDate, endDate) => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_EMPLOYEE_SHIFTS(employeeId, startDate, endDate));
+  return response.data;
+};
+
 export default {
   getShiftTemplates,
   getWeeklyScheduleMatrix,
@@ -98,5 +162,13 @@ export default {
   checkWeeklyConflicts,
   publishWeeklySchedule,
   autoScheduleWeekly,
+  createSwapRequest,
+  reviewSwapRequest,
+  getStoreSwapRequests,
+  getMySwapRequests,
+  getColleaguesForSwap,
+  getColleagueShifts,
+  getMyShifts,
+  getEmployeeShifts,
 };
 

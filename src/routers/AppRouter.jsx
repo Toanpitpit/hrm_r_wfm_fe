@@ -5,7 +5,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 const LoginPage = lazy(() => import('@/modules/auth/pages/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('@/modules/auth/pages/ForgotPasswordPage'));
 const DashboardPage = lazy(() => import('@/modules/dashboard/pages/DashboardPage'));
-const EmployeeDashboardPage = lazy(() => import('@/modules/dashboard/pages/EmployeeDashboardPage'));
 const KioskCodePage = lazy(() => import('@/modules/kiosk/pages/KioskCodePage'));
 const BranchManagementPage = lazy(() => import('@/modules/branch/pages/BranchManagementPage'));
 const ShiftMasterPage = lazy(() => import('@/modules/schedule/pages/ShiftMasterPage'));
@@ -15,6 +14,9 @@ const AttendanceOtpPage = lazy(() => import('@/modules/attendance/pages/Attendan
 const MyCalendarPage = lazy(() => import('@/modules/attendance/pages/MyCalendarPage'));
 const AttendanceHistoryPage = lazy(() => import('@/modules/attendance/pages/AttendanceHistoryPage'));
 const EmployeeManagementPage = lazy(() => import('@/modules/employee/pages/EmployeeManagementPage'));
+const ShiftRequestsPage = lazy(() => import('@/modules/schedule/pages/ShiftRequestsPage'));
+const StoreDispatchPage = lazy(() => import('@/modules/dispatch/pages/StoreDispatchPage'));
+const DispatchNetworkMetricsPage = lazy(() => import('@/modules/dispatch/pages/DispatchNetworkMetricsPage'));
 
 // Placeholder cho Kiosk login
 
@@ -57,20 +59,20 @@ const AdminProtectedRoute = ({ children }) => {
     'EMPLOYEE',
     'STAFF'
   ].includes(role) ||
-  role.includes('LEADER') ||
-  role.includes('CASHIER') ||
-  role.includes('SALES') ||
-  role.includes('STAFF') ||
-  role.includes('EMPLOYEE') ||
-  role.includes('SECURITY') ||
-  roleName.includes('TRƯỞNG CA') ||
-  roleName.includes('THU NGÂN') ||
-  roleName.includes('BÁN HÀNG') ||
-  roleName.includes('BẢO VỆ') ||
-  roleName.includes('NHÂN VIÊN');
+    role.includes('LEADER') ||
+    role.includes('CASHIER') ||
+    role.includes('SALES') ||
+    role.includes('STAFF') ||
+    role.includes('EMPLOYEE') ||
+    role.includes('SECURITY') ||
+    roleName.includes('TRƯỞNG CA') ||
+    roleName.includes('THU NGÂN') ||
+    roleName.includes('BÁN HÀNG') ||
+    roleName.includes('BẢO VỆ') ||
+    roleName.includes('NHÂN VIÊN');
 
   if (isStaff) {
-    return <Navigate to="/employee/schedule" replace />;
+    return <Navigate to="/employee/my-calendar" replace />;
   }
 
   return children;
@@ -101,20 +103,20 @@ const ManagerOrAdminProtectedRoute = ({ children }) => {
     'EMPLOYEE',
     'STAFF'
   ].includes(role) ||
-  role.includes('LEADER') ||
-  role.includes('CASHIER') ||
-  role.includes('SALES') ||
-  role.includes('STAFF') ||
-  role.includes('EMPLOYEE') ||
-  role.includes('SECURITY') ||
-  roleName.includes('TRƯỞNG CA') ||
-  roleName.includes('THU NGÂN') ||
-  roleName.includes('BÁN HÀNG') ||
-  roleName.includes('BẢO VỆ') ||
-  roleName.includes('NHÂN VIÊN');
+    role.includes('LEADER') ||
+    role.includes('CASHIER') ||
+    role.includes('SALES') ||
+    role.includes('STAFF') ||
+    role.includes('EMPLOYEE') ||
+    role.includes('SECURITY') ||
+    roleName.includes('TRƯỞNG CA') ||
+    roleName.includes('THU NGÂN') ||
+    roleName.includes('BÁN HÀNG') ||
+    roleName.includes('BẢO VỆ') ||
+    roleName.includes('NHÂN VIÊN');
 
   if (isStaff) {
-    return <Navigate to="/employee/schedule" replace />;
+    return <Navigate to="/employee/my-calendar" replace />;
   }
 
   return children;
@@ -155,10 +157,13 @@ const AppRouter = () => {
           <Route path="/store-manager/kiosk-codes" element={<KioskCodePage />} />
           <Route path="/kiosk-codes" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
           <Route path="/kiosk-management" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
+          <Route path="/store-manager/dispatches" element={<StoreDispatchPage />} />
+          <Route path="/dispatches" element={<Navigate to="/store-manager/dispatches" replace />} />
 
           {/* ═══════════════ EMPLOYEE ROUTES ═══════════════ */}
-          <Route path="/employee/schedule" element={<EmployeeDashboardPage />} />
+          <Route path="/employee/schedule" element={<Navigate to="/employee/my-calendar" replace />} />
           <Route path="/employee/my-calendar" element={<MyCalendarPage />} />
+          <Route path="/employee/shift-requests" element={<ShiftRequestsPage />} />
           <Route path="/employee/attendance-history" element={<AttendanceHistoryPage />} />
           <Route path="/employee/attendance-otp" element={<AttendanceOtpPage />} />
           <Route path="/attendance-otp" element={<Navigate to="/employee/attendance-otp" replace />} />
@@ -196,6 +201,15 @@ const AppRouter = () => {
               </AdminProtectedRoute>
             }
           />
+          <Route
+            path="/admin/dispatch-network"
+            element={
+              <AdminProtectedRoute>
+                <DispatchNetworkMetricsPage />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route path="/dispatch-network" element={<Navigate to="/admin/dispatch-network" replace />} />
 
           {/* ═══════════════ FALLBACK ROUTE ═══════════════ */}
           <Route path="*" element={<Navigate to="/login" replace />} />

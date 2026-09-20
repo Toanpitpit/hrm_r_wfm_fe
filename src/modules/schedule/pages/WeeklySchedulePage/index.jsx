@@ -22,12 +22,16 @@ import AssignFullTimeModal from '../../components/AssignFullTimeModal';
 import AssignShiftCellModal from '../../components/AssignShiftCellModal';
 import PublishScheduleModal from '../../components/PublishScheduleModal';
 import AutoScheduleModal from '../../components/AutoScheduleModal';
+import ShiftSwapReviewModal from '../../components/ShiftSwapReviewModal';
+
+import { useToast } from '@/components/ui/toast/ToastProvider';
 
 import styles from './WeeklySchedulePage.module.css';
 
 export default function WeeklySchedulePage() {
   const { c } = useAdminTheme();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const {
     branchId,
@@ -36,8 +40,6 @@ export default function WeeklySchedulePage() {
     matrix,
     loading,
     actionLoading,
-    toastMessage,
-    setToastMessage,
     searchTerm,
     setSearchTerm,
     roleFilter,
@@ -47,6 +49,7 @@ export default function WeeklySchedulePage() {
     goToPreviousWeek,
     goToNextWeek,
     goToCurrentWeek,
+    fetchWeeklyMatrix,
     handleGenerateWeekly,
     handleUpdateRequirement,
     handleAssignFullTimeBatch,
@@ -73,17 +76,19 @@ export default function WeeklySchedulePage() {
     setIsAutoScheduleModalOpen,
   } = useWeeklySchedule(1);
 
+  const [isSwapReviewModalOpen, setIsSwapReviewModalOpen] = useState(false);
+
 
   // Navigation Items cho Store Manager Sidebar
   const navItems = [
-    { id: 'dashboard', label: 'Tổng quan cửa hàng', icon: 'home', onClick: () => alert('Tính năng Tổng quan cửa hàng đang được phát triển.') },
+    { id: 'dashboard', label: 'Tổng quan cửa hàng', icon: 'home', onClick: () => toast.info('Tính năng Tổng quan cửa hàng đang được phát triển.') },
     { type: 'group', label: 'Quản lý Kiosk & Điểm Danh' },
     { id: 'kiosk-codes', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes' },
-    { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen', onClick: () => alert('Tính năng Danh sách trạm Kiosk đang được phát triển.') },
-    { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse', onClick: () => alert('Tính năng Điểm danh chi nhánh đang được phát triển.') },
+    { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen', onClick: () => toast.info('Tính năng Danh sách trạm Kiosk đang được phát triển.') },
+    { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse', onClick: () => toast.info('Tính năng Điểm danh chi nhánh đang được phát triển.') },
     { type: 'group', label: 'Nhân sự & Lịch Ca Chi Nhánh' },
     { id: 'weekly-schedules', label: 'Quản lý Lịch Ca (UC 2.1 & 2.3)', icon: 'calendar', path: '/store-manager/schedules' },
-    { id: 'store-employees', label: 'Nhân sự Chi Nhánh', icon: 'users', onClick: () => alert('Tính năng Quản lý nhân sự chi nhánh đang được phát triển.') },
+    { id: 'store-employees', label: 'Nhân sự Chi Nhánh', icon: 'users', onClick: () => toast.info('Tính năng Quản lý nhân sự chi nhánh đang được phát triển.') },
   ];
 
   const handleSidebarNavigate = (id) => {
@@ -124,38 +129,6 @@ export default function WeeklySchedulePage() {
       }
     >
       <div className={styles.container}>
-        {/* Toast Thông báo */}
-        {toastMessage && (
-          <div
-            style={{
-              marginBottom: 16,
-              padding: '12px 16px',
-              borderRadius: 8,
-              background: toastMessage.type === 'success' ? `${c.tones.good}20` : `${c.tones.bad}20`,
-              border: `1px solid ${toastMessage.type === 'success' ? c.tones.good : c.tones.bad}`,
-              color: c.fg,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Icon
-                name={toastMessage.type === 'success' ? 'checkCircle' : 'alertTriangle'}
-                size={18}
-                style={{ color: toastMessage.type === 'success' ? c.tones.good : c.tones.bad }}
-              />
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{toastMessage.text}</span>
-            </div>
-            <button
-              onClick={() => setToastMessage(null)}
-              style={{ background: 'transparent', border: 'none', color: c.fgFaint, cursor: 'pointer', fontSize: 16 }}
-            >
-              ×
-            </button>
-          </div>
-        )}
-
         {/* Tiêu đề trang */}
         <PageHeader
           title="Thiết Lập Định Mức & Phân Bổ Ca Tuần"
@@ -191,6 +164,34 @@ export default function WeeklySchedulePage() {
             variant={weeklyStats.status === 'PUBLISHED' ? 'good' : 'warning'}
             hint={weeklyStats.status === 'PUBLISHED' ? 'Nhân viên đã nhận thông báo' : 'Chưa phát hành'}
           />
+        </div>
+
+        {/* Nút thao tác Xét duyệt đơn đổi / chuyển ca */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -6 }}>
+          <button
+            type="button"
+            onClick={() => setIsSwapReviewModalOpen(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 18px',
+              borderRadius: 8,
+              background: `${c.accent}20`,
+              color: c.accent,
+              border: `1px solid ${c.accent}`,
+              fontWeight: 750,
+              fontSize: 13,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <Icon name="swap" size={15} color={c.accent} />
+            <span>Xét Duyệt Đơn Đổi / Chuyển Ca Trực</span>
+          </button>
         </div>
 
         {/* Bộ điều hướng tuần & Nút hành động */}
@@ -233,10 +234,10 @@ export default function WeeklySchedulePage() {
               onChange={setRoleFilter}
               options={[
                 { value: 'ALL', label: 'Tất cả vị trí' },
+                { value: 'SHIFT_LEADER', label: 'Trưởng ca (SHIFT_LEADER)' },
                 { value: 'CASHIER', label: 'Thu ngân (CASHIER)' },
-                { value: 'SALES', label: 'Bán hàng (SALES)' },
-                { value: 'SECURITY', label: 'Bảo vệ (SECURITY)' },
-                { value: 'SHIFT_LEADER', label: 'Trưởng ca (LEADER)' },
+                { value: 'SALES', label: 'Bán hàng (SALES_STAFF)' },
+                { value: 'SECURITY', label: 'Bảo vệ (SECURITY_GUARD)' },
               ]}
             />
           </div>
@@ -248,7 +249,10 @@ export default function WeeklySchedulePage() {
         {/* Ma trận phân bổ lịch tuần */}
         <WeeklyRosterMatrix
           days={matrix?.days || []}
+          schedules={matrix?.schedules || []}
+          templates={templates}
           employees={filteredEmployees}
+          allEmployees={matrix?.employeeRosters || []}
           loading={loading}
           isPublished={weeklyStats.status === 'PUBLISHED'}
           onCellClick={(cellData) => {
@@ -256,6 +260,10 @@ export default function WeeklySchedulePage() {
             setIsAssignCellModalOpen(true);
           }}
           onDeleteAssignment={handleDeleteAssignment}
+          onEditScheduleQuota={(schedule) => {
+            setSelectedScheduleForQuota(schedule);
+            setIsQuotaModalOpen(true);
+          }}
         />
 
         {/* Modals */}
@@ -313,6 +321,16 @@ export default function WeeklySchedulePage() {
           conflictReport={conflictReport}
           onConfirmPublish={handleConfirmPublish}
           actionLoading={actionLoading}
+        />
+
+        {/* Modal phê duyệt đơn đổi / chuyển ca */}
+        <ShiftSwapReviewModal
+          isOpen={isSwapReviewModalOpen}
+          onClose={() => setIsSwapReviewModalOpen(false)}
+          storeId={branchId || 1}
+          onReviewed={() => {
+            fetchWeeklyMatrix();
+          }}
         />
       </div>
     </DashboardShell>

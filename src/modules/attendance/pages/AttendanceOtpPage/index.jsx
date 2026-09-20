@@ -70,8 +70,8 @@ export default function AttendanceOtpPage() {
   } = useCheckInMobile();
 
   const handleSidebarNavigate = (id) => {
-    if (id === 'employee-schedule') {
-      navigate('/employee/schedule');
+    if (id === 'my-calendar') {
+      navigate('/employee/my-calendar');
     } else if (id === 'attendance-otp') {
       navigate('/employee/attendance-otp');
     } else if (id === 'live-roster') {
@@ -176,7 +176,7 @@ export default function AttendanceOtpPage() {
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: portalTitle, href: '/employee/schedule' },
+            { label: portalTitle, href: '/employee/my-calendar' },
             { label: 'Mã Điểm Danh Kiosk' },
           ]}
         />

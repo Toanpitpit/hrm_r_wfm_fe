@@ -4,6 +4,7 @@ export { default as DataTable } from './DataTable';
 export { Field, TextInput, Textarea } from './FormField';
 export { default as Icon } from './Icon';
 export { default as Modal } from './Modal';
+export { default as ConfirmModal } from './ConfirmModal';
 export { default as PageHeader } from './PageHeader';
 export { default as Panel } from './Panel';
 export { default as ProgressBar } from './ProgressBar';

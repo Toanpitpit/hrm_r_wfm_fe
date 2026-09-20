@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useToast } from '@/components/ui/toast/ToastProvider';
 import scheduleService from '../services/schedule.service';
 
 /**
@@ -45,9 +46,36 @@ export const DAY_NAMES_VN = [
 ];
 
 /**
+ * Tiện ích chuẩn hóa tên ca làm việc, xử lý triệt để lỗi font chữ hoặc dấu hỏi chấm Unicode.
+ */
+export const formatShiftTemplateName = (name) => {
+  if (!name || typeof name !== 'string') return name || '';
+  let clean = name;
+  clean = clean.replace(/Chi\?u/gi, 'Chiều');
+  clean = clean.replace(/T\?i/gi, 'Tối');
+  clean = clean.replace(/\?êm/gi, 'Đêm');
+  clean = clean.replace(/S\?ng/gi, 'Sáng');
+  if (/^ca\s*1\b/i.test(clean) && clean.includes('?')) {
+    clean = clean.replace(/Ca\s*1\s*-\s*.*?(?=\(|$)/i, 'Ca 1 - Sáng ');
+  }
+  if (/^ca\s*2\b/i.test(clean) && clean.includes('?')) {
+    clean = clean.replace(/Ca\s*2\s*-\s*.*?(?=\(|$)/i, 'Ca 2 - Chiều ');
+  }
+  if (/^ca\s*3\b/i.test(clean) && clean.includes('?')) {
+    clean = clean.replace(/Ca\s*3\s*-\s*.*?(?=\(|$)/i, 'Ca 3 - Tối ');
+  }
+  if (/^ca\s*4\b/i.test(clean) && clean.includes('?')) {
+    clean = clean.replace(/Ca\s*4\s*-\s*.*?(?=\(|$)/i, 'Ca 4 - Đêm ');
+  }
+  return clean.trim();
+};
+
+
+/**
  * Hook quản lý toàn bộ nghiệp vụ Lịch Ca Tuần (UC 2.1 & UC 2.3).
  */
 export function useWeeklySchedule(initialBranchId = 1) {
+  const toast = useToast();
   const [branchId, setBranchId] = useState(initialBranchId);
   const [weekStartDate, setWeekStartDate] = useState(getMondayOfWeek());
 
@@ -56,7 +84,6 @@ export function useWeeklySchedule(initialBranchId = 1) {
   const [matrix, setMatrix] = useState(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
 
   // Bộ lọc tìm kiếm nhân viên
   const [searchTerm, setSearchTerm] = useState('');
@@ -145,14 +172,14 @@ export function useWeeklySchedule(initialBranchId = 1) {
       });
 
       if (res.success) {
-        setToastMessage({ type: 'success', text: 'Khởi tạo khung mẫu tuần & định mức thành công!' });
+        toast.success('Khởi tạo khung mẫu tuần & định mức thành công!');
         await fetchWeeklyMatrix();
         setIsQuotaModalOpen(false);
       } else {
-        setToastMessage({ type: 'error', text: res.message || 'Khởi tạo khung ca thất bại.' });
+        toast.error(res.message || 'Khởi tạo khung ca thất bại.');
       }
     } catch (err) {
-      setToastMessage({ type: 'error', text: err.response?.data?.message || 'Có lỗi xảy ra khi tạo khung ca.' });
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi tạo khung ca.');
     } finally {
       setActionLoading(false);
     }
@@ -172,15 +199,15 @@ export function useWeeklySchedule(initialBranchId = 1) {
       });
 
       if (res.success) {
-        setToastMessage({ type: 'success', text: 'Cập nhật định mức ca thành công!' });
+        toast.success('Cập nhật định mức ca thành công!');
         await fetchWeeklyMatrix();
         setSelectedScheduleForQuota(null);
         setIsQuotaModalOpen(false);
       } else {
-        setToastMessage({ type: 'error', text: res.message || 'Cập nhật định mức thất bại.' });
+        toast.error(res.message || 'Cập nhật định mức thất bại.');
       }
     } catch (err) {
-      setToastMessage({ type: 'error', text: err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật định mức.' });
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật định mức.');
     } finally {
       setActionLoading(false);
     }
@@ -201,14 +228,14 @@ export function useWeeklySchedule(initialBranchId = 1) {
       });
 
       if (res.success) {
-        setToastMessage({ type: 'success', text: res.message || 'Phân bổ nhân sự Full-time thành công!' });
+        toast.success(res.message || 'Phân bổ nhân sự Full-time thành công!');
         await fetchWeeklyMatrix();
         setIsFullTimeModalOpen(false);
       } else {
-        setToastMessage({ type: 'error', text: res.message || 'Phân bổ thất bại.' });
+        toast.error(res.message || 'Phân bổ thất bại.');
       }
     } catch (err) {
-      setToastMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi phân bổ nhân sự.' });
+      toast.error(err.response?.data?.message || 'Lỗi khi phân bổ nhân sự.');
     } finally {
       setActionLoading(false);
     }
@@ -228,15 +255,15 @@ export function useWeeklySchedule(initialBranchId = 1) {
       });
 
       if (res.success) {
-        setToastMessage({ type: 'success', text: 'Gán ca làm việc thành công!' });
+        toast.success('Gán ca làm việc thành công!');
         await fetchWeeklyMatrix();
         setIsAssignCellModalOpen(false);
         setSelectedCellData(null);
       } else {
-        setToastMessage({ type: 'error', text: res.message || 'Gán ca thất bại.' });
+        toast.error(res.message || 'Gán ca thất bại.');
       }
     } catch (err) {
-      setToastMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi gán ca làm việc.' });
+      toast.error(err.response?.data?.message || 'Lỗi khi gán ca làm việc.');
     } finally {
       setActionLoading(false);
     }
@@ -250,15 +277,15 @@ export function useWeeklySchedule(initialBranchId = 1) {
     try {
       const res = await scheduleService.deleteShiftAssignment(assignmentId);
       if (res.success) {
-        setToastMessage({ type: 'success', text: 'Đã hủy phân công ca làm việc.' });
+        toast.success('Đã hủy phân công ca làm việc.');
         await fetchWeeklyMatrix();
         setIsAssignCellModalOpen(false);
         setSelectedCellData(null);
       } else {
-        setToastMessage({ type: 'error', text: res.message || 'Hủy ca thất bại.' });
+        toast.error(res.message || 'Hủy ca thất bại.');
       }
     } catch (err) {
-      setToastMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi xóa phân công ca.' });
+      toast.error(err.response?.data?.message || 'Lỗi khi xóa phân công ca.');
     } finally {
       setActionLoading(false);
     }
@@ -275,10 +302,10 @@ export function useWeeklySchedule(initialBranchId = 1) {
         setConflictReport(res.data);
         setIsPublishModalOpen(true);
       } else {
-        setToastMessage({ type: 'error', text: res.message || 'Không thể kiểm tra xung đột lịch tuần.' });
+        toast.error(res.message || 'Không thể kiểm tra xung đột lịch tuần.');
       }
     } catch (err) {
-      setToastMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi kiểm tra xung đột.' });
+      toast.error(err.response?.data?.message || 'Lỗi kiểm tra xung đột.');
     } finally {
       setActionLoading(false);
     }
@@ -296,14 +323,14 @@ export function useWeeklySchedule(initialBranchId = 1) {
       });
 
       if (res.success) {
-        setToastMessage({ type: 'success', text: res.message || 'Đã công bố phát hành lịch tuần thành công!' });
+        toast.success(res.message || 'Đã công bố phát hành lịch tuần thành công!');
         await fetchWeeklyMatrix();
         setIsPublishModalOpen(false);
       } else {
-        setToastMessage({ type: 'error', text: res.message || 'Công bố lịch thất bại.' });
+        toast.error(res.message || 'Công bố lịch thất bại.');
       }
     } catch (err) {
-      setToastMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi công bố lịch tuần.' });
+      toast.error(err.response?.data?.message || 'Lỗi khi công bố lịch tuần.');
     } finally {
       setActionLoading(false);
     }
@@ -320,7 +347,10 @@ export function useWeeklySchedule(initialBranchId = 1) {
       const matchRole =
         roleFilter === 'ALL' ||
         emp.roleCode === roleFilter ||
-        emp.roleName === roleFilter;
+        emp.roleName === roleFilter ||
+        (roleFilter === 'SALES' && (emp.roleCode === 'SALES_STAFF' || emp.roleCode === 'SALES')) ||
+        (roleFilter === 'SECURITY' && (emp.roleCode === 'SECURITY_GUARD' || emp.roleCode === 'SECURITY')) ||
+        (roleFilter === 'SHIFT_LEADER' && (emp.roleCode === 'SHIFT_LEADER' || emp.roleCode === 'LEADER'));
 
       return matchSearch && matchRole;
     });
@@ -336,8 +366,9 @@ export function useWeeklySchedule(initialBranchId = 1) {
     let understaffedCount = 0;
 
     matrix.schedules.forEach((s) => {
-      totalAssignments += (s.assignedCashierCount + s.assignedSalesCount + s.assignedSecurityCount);
+      totalAssignments += ((s.assignedLeaderCount || 0) + s.assignedCashierCount + s.assignedSalesCount + s.assignedSecurityCount);
       if (
+        (s.assignedLeaderCount || 0) < (s.requiredLeader || 1) ||
         s.assignedCashierCount < s.requiredCashier ||
         s.assignedSalesCount < s.requiredSales ||
         s.assignedSecurityCount < s.requiredSecurity
@@ -373,23 +404,14 @@ export function useWeeklySchedule(initialBranchId = 1) {
       });
 
       if (res.success) {
-        setToastMessage({
-          type: 'success',
-          text: res.message || 'Tự động xếp lịch ca tuần thành công với Google OR-Tools!',
-        });
+        toast.success(res.message || 'Tự động xếp lịch ca tuần thành công với Google OR-Tools!');
         await fetchWeeklyMatrix();
         setIsAutoScheduleModalOpen(false);
       } else {
-        setToastMessage({
-          type: 'error',
-          text: res.message || 'Không tìm được phương án xếp ca tối ưu.',
-        });
+        toast.error(res.message || 'Không tìm được phương án xếp ca tối ưu.');
       }
     } catch (err) {
-      setToastMessage({
-        type: 'error',
-        text: err.response?.data?.message || 'Có lỗi xảy ra khi chạy thuật toán tự động xếp ca.',
-      });
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi chạy thuật toán tự động xếp ca.');
     } finally {
       setActionLoading(false);
     }
@@ -404,8 +426,6 @@ export function useWeeklySchedule(initialBranchId = 1) {
     matrix,
     loading,
     actionLoading,
-    toastMessage,
-    setToastMessage,
     searchTerm,
     setSearchTerm,
     roleFilter,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Badge from '@/shared/components/ui/Badge';
+import Icon from '@/shared/components/ui/Icon';
 
 const renderStatusBadge = (status) => {
   switch (status) {
@@ -16,110 +17,71 @@ const renderStatusBadge = (status) => {
   }
 };
 
-export const WeekCalendar = ({ days = [] }) => {
+export const WeekCalendar = ({ days = [], onOpenSwapModal }) => {
   const { c, fonts } = useAdminTheme();
   const todayStr = new Date().toISOString().split('T')[0];
 
   return (
     <div
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: c.bgCard,
-        width: '100%',
-        padding: 16,
+        border: `1px solid ${c.border}`,
+        borderRadius: 8,
+        background: c.bgPaper,
+        overflow: 'hidden',
+        fontFamily: fonts.body,
       }}
     >
-      {/* Grid Header */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          backgroundColor: c.bgElev,
-          border: `1px solid ${c.border}`,
-          borderRadius: '6px 6px 0 0',
-        }}
-      >
-        {days.map((day, idx) => {
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: `1px solid ${c.border}` }}>
+        {days.map((day) => {
           const isToday = day.date === todayStr;
-          const [, monthStr, dateStr] = day.date.split('-');
-          const isLast = idx === days.length - 1;
           return (
             <div
               key={day.date}
               style={{
-                padding: '14px 10px',
+                padding: '12px 8px',
                 textAlign: 'center',
-                borderRight: isLast ? 'none' : `1px solid ${c.borderSub}`,
-                backgroundColor: isToday ? c.accentDim : 'transparent',
+                background: isToday ? `${c.accent}15` : c.bgElev,
+                borderRight: `1px solid ${c.border}`,
               }}
             >
-              <div
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  color: isToday ? c.accent : c.fgSubtle,
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                }}
-              >
+              <div style={{ fontSize: 13, fontWeight: 700, color: isToday ? c.accent : c.fg }}>
                 {day.dayOfWeek}
               </div>
-              <div
-                style={{
-                  fontSize: 16,
-                  fontWeight: 800,
-                  color: isToday ? c.accent : c.fg,
-                  marginTop: 4,
-                  fontFamily: fonts.display,
-                }}
-              >
-                {dateStr}/{monthStr}
+              <div style={{ fontSize: 12, color: isToday ? c.accent : c.fgSubtle, marginTop: 2 }}>
+                {day.date.split('-').reverse().slice(0, 2).join('/')}
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Grid Body */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          minHeight: 420,
-          border: `1px solid ${c.border}`,
-          borderTop: 'none',
-          borderRadius: '0 0 6px 6px',
-        }}
-      >
-        {days.map((day, idx) => {
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: 320 }}>
+        {days.map((day) => {
           const isToday = day.date === todayStr;
-          const isLast = idx === days.length - 1;
           return (
             <div
               key={day.date}
               style={{
-                padding: '14px 10px',
-                borderRight: isLast ? 'none' : `1px solid ${c.borderSub}`,
-                backgroundColor: isToday ? 'rgba(242, 202, 80, 0.02)' : c.bgCard,
+                padding: '12px 8px',
+                borderRight: `1px solid ${c.border}`,
+                background: isToday ? `${c.accent}05` : 'transparent',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 10,
+                gap: 8,
               }}
             >
               {day.shifts && day.shifts.length > 0 ? (
                 day.shifts.map((shift) => (
                   <div
-                    key={shift.assignmentId}
+                    key={shift.scheduleId || shift.assignmentId}
                     style={{
+                      padding: 10,
                       borderRadius: 6,
-                      padding: 12,
+                      background: c.bgCard,
+                      border: `1px solid ${c.border}`,
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: 6,
-                      backgroundColor: c.bgElev,
-                      border: `1px solid ${c.borderSub}`,
-                      borderLeft: `3px solid ${c.accent}`,
+                      gap: 4,
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -132,14 +94,42 @@ export const WeekCalendar = ({ days = [] }) => {
                       {shift.startTime?.substring(0, 5)} - {shift.endTime?.substring(0, 5)}
                     </div>
 
-                    <div style={{ fontSize: 12, color: c.fgSubtle }}>
-                      📍 {shift.branchName}
+                    <div style={{ fontSize: 12, color: c.fgSubtle, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Icon name="pin" size={12} color={c.fgSubtle} />
+                      <span>{shift.branchName}</span>
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                       {renderStatusBadge(shift.attendanceStatus)}
                       {shift.isDispatched && <Badge tone="info">Điều Động</Badge>}
                     </div>
+
+                    {onOpenSwapModal && (shift.attendanceStatus === 'NOT_YET' || day.date >= todayStr) && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenSwapModal({ ...shift, date: day.date, dayOfWeek: day.dayOfWeek })}
+                        style={{
+                          marginTop: 6,
+                          padding: '5px 10px',
+                          background: `${c.accent}15`,
+                          color: c.accent,
+                          border: `1px solid ${c.accent}40`,
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          width: '100%',
+                          justifyContent: 'center',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <Icon name="swap" size={13} color={c.accent} />
+                        <span>Đổi / Chuyển Ca</span>
+                      </button>
+                    )}
                   </div>
                 ))
               ) : (

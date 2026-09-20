@@ -3,7 +3,7 @@ import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Modal from '@/shared/components/ui/Modal';
 import Button from '@/shared/components/ui/Button';
 import FormField from '@/shared/components/ui/FormField';
-import { formatVNDate } from '../hooks/useWeeklySchedule';
+import { formatVNDate, formatShiftTemplateName } from '../hooks/useWeeklySchedule';
 
 export default function SetQuotaModal({
   isOpen,
@@ -71,7 +71,7 @@ export default function SetQuotaModal({
       onClose={onClose}
       title={
         isSingleMode
-          ? `Điều Chỉnh Định Mức Ca: ${selectedSchedule.shiftTemplateName} (${formatVNDate(selectedSchedule.workDate)})`
+          ? `Điều Chỉnh Định Mức Ca: ${formatShiftTemplateName(selectedSchedule.shiftTemplateName)} (${formatVNDate(selectedSchedule.workDate)})`
           : 'Thiết Lập Định Mức Ca Chuẩn Cho Cả Tuần (UC 2.1)'
       }
     >
@@ -82,8 +82,27 @@ export default function SetQuotaModal({
               Thiết lập nhu cầu số lượng nhân sự từng vị trí cần có mặt trong ca trực này:
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-              <FormField label="Thu ngân (CASHIER)">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+              <FormField label="Trưởng ca">
+                <input
+                  type="number"
+                  value={1}
+                  disabled
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: `${c.accentDim}20`,
+                    border: `1px solid ${c.border}`,
+                    color: c.accent,
+                    fontWeight: 700,
+                    cursor: 'not-allowed',
+                  }}
+                  title="Quy định chuỗi cửa hàng tiện lợi: mỗi ca trực bắt buộc tối thiểu 1 Trưởng ca trực"
+                />
+              </FormField>
+
+              <FormField label="Thu ngân">
                 <input
                   type="number"
                   min="0"
@@ -102,7 +121,7 @@ export default function SetQuotaModal({
                 />
               </FormField>
 
-              <FormField label="Bán hàng (SALES)">
+              <FormField label="Bán hàng">
                 <input
                   type="number"
                   min="0"
@@ -121,7 +140,7 @@ export default function SetQuotaModal({
                 />
               </FormField>
 
-              <FormField label="Bảo vệ (SECURITY)">
+              <FormField label="Bảo vệ">
                 <input
                   type="number"
                   min="0"
@@ -189,8 +208,27 @@ export default function SetQuotaModal({
             </div>
 
             {/* Định mức mặc định */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 14 }}>
-              <FormField label="Định mức Thu ngân / ca">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
+              <FormField label="Trưởng ca / ca">
+                <input
+                  type="number"
+                  value={1}
+                  disabled
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: `${c.accentDim}20`,
+                    border: `1px solid ${c.border}`,
+                    color: c.accent,
+                    fontWeight: 700,
+                    cursor: 'not-allowed',
+                  }}
+                  title="Quy định chuỗi: mỗi ca trực bắt buộc tối thiểu 1 Trưởng ca trực"
+                />
+              </FormField>
+
+              <FormField label="Thu ngân / ca">
                 <input
                   type="number"
                   min="0"
@@ -209,7 +247,7 @@ export default function SetQuotaModal({
                 />
               </FormField>
 
-              <FormField label="Định mức Bán hàng / ca">
+              <FormField label="Bán hàng / ca">
                 <input
                   type="number"
                   min="0"
@@ -228,7 +266,7 @@ export default function SetQuotaModal({
                 />
               </FormField>
 
-              <FormField label="Định mức Bảo vệ / ca">
+              <FormField label="Bảo vệ / ca">
                 <input
                   type="number"
                   min="0"
