@@ -25,7 +25,7 @@ import {
 } from '../../services/schedule.service';
 
 export default function ShiftRequestsPage() {
-  const { c, fonts } = useAdminTheme();
+  const { c, fonts, isDark } = useAdminTheme();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -447,43 +447,56 @@ export default function ShiftRequestsPage() {
             <button
               onClick={() => setActiveTab('CREATE')}
               style={{
-                padding: '8px 18px',
-                borderRadius: 8,
+                padding: '8px 16px',
+                borderRadius: 6,
+                border: `1px solid ${activeTab === 'CREATE' ? c.accent : c.border}`,
+                background: activeTab === 'CREATE' ? 'rgba(242, 202, 80, 0.12)' : 'transparent',
+                color: activeTab === 'CREATE' ? c.accent : c.fgMuted,
                 fontSize: 13,
-                fontWeight: 600,
+                fontWeight: activeTab === 'CREATE' ? 700 : 500,
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
-                border: `1px solid ${activeTab === 'CREATE' ? c.accent : c.borderSub}`,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                backgroundColor: activeTab === 'CREATE' ? c.accent : c.bgCard,
-                color: activeTab === 'CREATE' ? '#000' : c.fgMuted,
+                gap: 6,
+                transition: 'all 0.15s ease',
               }}
             >
-              <Icon name="document" size={16} color={activeTab === 'CREATE' ? '#000' : c.fgMuted} />
+              <Icon name="document" size={16} color={activeTab === 'CREATE' ? c.accent : c.fgMuted} />
               <span>Tạo Đơn Điều Chỉnh Ca</span>
             </button>
 
             <button
               onClick={() => setActiveTab('MY_REQUESTS')}
               style={{
-                padding: '8px 18px',
-                borderRadius: 8,
+                padding: '8px 16px',
+                borderRadius: 6,
+                border: `1px solid ${activeTab === 'MY_REQUESTS' ? c.accent : c.border}`,
+                background: activeTab === 'MY_REQUESTS' ? 'rgba(242, 202, 80, 0.12)' : 'transparent',
+                color: activeTab === 'MY_REQUESTS' ? c.accent : c.fgMuted,
                 fontSize: 13,
-                fontWeight: 600,
+                fontWeight: activeTab === 'MY_REQUESTS' ? 700 : 500,
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
-                border: `1px solid ${activeTab === 'MY_REQUESTS' ? c.accent : c.borderSub}`,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                backgroundColor: activeTab === 'MY_REQUESTS' ? c.accent : c.bgCard,
-                color: activeTab === 'MY_REQUESTS' ? '#000' : c.fgMuted,
+                gap: 6,
+                transition: 'all 0.15s ease',
               }}
             >
-              <Icon name="pulse" size={16} color={activeTab === 'MY_REQUESTS' ? '#000' : c.fgMuted} />
-              <span>Lịch Sử Đơn Của Tôi ({Array.isArray(myRequests) ? myRequests.length : 0})</span>
+              <Icon name="pulse" size={16} color={activeTab === 'MY_REQUESTS' ? c.accent : c.fgMuted} />
+              <span>Lịch Sử Đơn Của Tôi</span>
+              <span
+                style={{
+                  background: activeTab === 'MY_REQUESTS' ? `${c.accent}20` : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+                  color: activeTab === 'MY_REQUESTS' ? c.accent : c.fgSubtle,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  borderRadius: 10,
+                  padding: '1px 6px',
+                  marginLeft: 2,
+                }}
+              >
+                {Array.isArray(myRequests) ? myRequests.length : 0}
+              </span>
             </button>
           </div>
         )}
@@ -798,43 +811,46 @@ export default function ShiftRequestsPage() {
                   { key: 'PENDING', label: 'Chờ Xét Duyệt', count: pendingCount },
                   { key: 'APPROVED', label: 'Đã Phê Duyệt', count: approvedCount },
                   { key: 'REJECTED', label: 'Đã Từ Chối', count: rejectedCount },
-                ].map(({ key, label, count }) => (
-                  <button
-                    key={key}
-                    onClick={() => {
-                      setReviewFilter(key);
-                      setReviewPage(1);
-                    }}
-                    style={{
-                      padding: '7px 14px',
-                      borderRadius: 8,
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      border: `1px solid ${reviewFilter === key ? c.accent : c.borderSub}`,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      backgroundColor: reviewFilter === key ? c.accent : c.bgRaised,
-                      color: reviewFilter === key ? '#000' : c.fgMuted,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <span>{label}</span>
-                    <span
+                ].map(({ key, label, count }) => {
+                  const active = reviewFilter === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setReviewFilter(key);
+                        setReviewPage(1);
+                      }}
                       style={{
-                        padding: '1px 6px',
-                        borderRadius: 10,
-                        fontSize: 10.5,
-                        fontWeight: 700,
-                        backgroundColor: reviewFilter === key ? 'rgba(0,0,0,0.2)' : c.bgCard,
-                        color: reviewFilter === key ? '#000' : c.fgSubtle,
+                        padding: '8px 16px',
+                        borderRadius: 6,
+                        border: `1px solid ${active ? c.accent : c.border}`,
+                        background: active ? 'rgba(242, 202, 80, 0.12)' : 'transparent',
+                        color: active ? c.accent : c.fgMuted,
+                        fontSize: 13,
+                        fontWeight: active ? 700 : 500,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        transition: 'all 0.15s ease',
                       }}
                     >
-                      {count}
-                    </span>
-                  </button>
-                ))}
+                      <span>{label}</span>
+                      <span
+                        style={{
+                          background: active ? `${c.accent}20` : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+                          color: active ? c.accent : c.fgSubtle,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          borderRadius: 10,
+                          padding: '1px 6px',
+                        }}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Search Box */}

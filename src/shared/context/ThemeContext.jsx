@@ -1,17 +1,5 @@
-<<<<<<< Updated upstream
-// AdminThemeContext — quản lý token màu (Dark/Light), màu nhấn và mật độ bảng
-// cho toàn bộ khu vực Admin. Mọi component con dùng hook useAdminTheme().
-//
-// Cách dùng:
-//   <AdminThemeProvider>
-//     <AdminApp />
-//   </AdminThemeProvider>
-//
-//   const { c, fonts } = useAdminTheme();  // c = bộ token màu đang áp dụng
-=======
 // AdminThemeContext — RWFM Modern Tech Mint/Teal Design System Tokens (Dark & Light)
 // Cung cấp token màu, typography, sidebar và dark/light theme chuẩn theo tông màu RWFM Mint/Teal SaaS hiện đại.
->>>>>>> Stashed changes
 
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo, useState } from 'react';
@@ -22,38 +10,6 @@ export const fonts = {
   body: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
 };
 
-<<<<<<< Updated upstream
-// --- Bộ token nền tối (Cinematic Dark) ---
-export const darkTokens = {
-  bg: '#0a0908',
-  bgRaised: '#14110d',
-  bgCard: '#16130e',
-  bgElev: '#1c1812',
-  bgHover: '#221d15',
-  fg: '#ffffff',
-  fgMuted: 'rgba(255,255,255,0.82)',
-  fgSubtle: 'rgba(255,255,255,0.52)',
-  fgFaint: 'rgba(255,255,255,0.34)',
-  border: 'rgba(255,255,255,0.10)',
-  borderSub: 'rgba(255,255,255,0.06)',
-  track: 'rgba(255,255,255,0.07)',
-};
-
-// --- Bộ token nền sáng (Warm paper) ---
-export const lightTokens = {
-  bg: '#f3f0ea',
-  bgRaised: '#ffffff',
-  bgCard: '#ffffff',
-  bgElev: '#efeae1',
-  bgHover: '#f4f0e8',
-  fg: '#1b1813',
-  fgMuted: 'rgba(27,24,19,0.80)',
-  fgSubtle: 'rgba(27,24,19,0.55)',
-  fgFaint: 'rgba(27,24,19,0.40)',
-  border: 'rgba(27,24,19,0.13)',
-  borderSub: 'rgba(27,24,19,0.07)',
-  track: 'rgba(27,24,19,0.09)',
-=======
 // ─── Sidebar Tokens cho Light Mode (Trắng sáng tinh tế, thanh điều hướng nổi bật) ───
 export const lightSidebarTokens = {
   bg: '#FFFFFF',
@@ -124,7 +80,6 @@ export const lightTokens = {
   border: '#E2E8F0',       // Viền thẻ
   borderSub: '#EEF5F2',
   track: 'rgba(13, 148, 136, 0.06)',
->>>>>>> Stashed changes
 };
 
 // ─── Dark Mode — Deep Midnight Slate Black (Tối toàn diện) ─────────────────
@@ -179,10 +134,6 @@ export function badgeToneMap(c) {
 
 const AdminThemeContext = createContext(null);
 
-<<<<<<< Updated upstream
-export function AdminThemeProvider({ children, defaultTheme = 'light', defaultAccent = '#f5b14a' }) {
-  const [theme, setTheme] = useState(defaultTheme);   // 'light' | 'dark'
-=======
 export function AdminThemeProvider({ children, defaultTheme = 'light', defaultAccent = '#0D9488' }) {
   const [theme, setThemeState] = useState(() => {
     try {
@@ -201,21 +152,11 @@ export function AdminThemeProvider({ children, defaultTheme = 'light', defaultAc
     }
   };
 
->>>>>>> Stashed changes
   const [accent, setAccent] = useState(defaultAccent);
   const [density, setDensity] = useState('regular');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const value = useMemo(() => {
-<<<<<<< Updated upstream
-    const base = theme === 'light' ? lightTokens : darkTokens;
-    const c = {
-      ...base,
-      accent,
-      accentDim: hexA(accent, 0.16),
-      ink: '#0a0908', // màu chữ cố định trên nền màu nhấn
-      tones: buildTones(accent),
-=======
     const isLight = theme === 'light';
     const base = isLight ? lightTokens : darkTokens;
     const effectiveAccent = '#0D9488'; // RWFM Modern Teal
@@ -234,7 +175,6 @@ export function AdminThemeProvider({ children, defaultTheme = 'light', defaultAc
       ink: '#FFFFFF',
       sidebar: currentSidebar,
       tones: buildTones(effectiveAccent),
->>>>>>> Stashed changes
     };
     return {
       c, fonts,

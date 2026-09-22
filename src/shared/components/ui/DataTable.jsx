@@ -11,10 +11,6 @@ export default function DataTable({
   emptyText,
   emptyMessage,
   loading = false,
-<<<<<<< Updated upstream
-  maxHeight,
-  stickyHeader = true,
-=======
   pagination = true,
   page: controlledPage,
   pageSize: controlledPageSize = 10,
@@ -22,7 +18,8 @@ export default function DataTable({
   onPageChange: controlledOnPageChange,
   onPageSizeChange: controlledOnPageSizeChange,
   pageSizeOptions = [5, 10, 20, 50],
->>>>>>> Stashed changes
+  stickyHeader = false,
+  maxHeight,
 }) {
   const { c, fonts } = useAdminTheme();
   const py = density === 'compact' ? 10 : density === 'comfy' ? 18 : 14;
@@ -69,19 +66,10 @@ export default function DataTable({
 
   return (
     <div
-<<<<<<< Updated upstream
-      className="custom-table-scrollbar"
       style={{
         overflowX: 'auto',
         overflowY: maxHeight ? 'auto' : undefined,
         maxHeight: maxHeight || undefined,
-        position: 'relative',
-      }}
-    >
-      <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontFamily: fonts.body }}>
-=======
-      style={{
-        overflowX: 'auto',
         borderRadius: 14,
         border: `1px solid ${c.border}`,
         background: c.bgCard,
@@ -89,7 +77,6 @@ export default function DataTable({
       }}
     >
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: fonts?.body || 'inherit' }}>
->>>>>>> Stashed changes
         <thead>
           <tr style={{ background: c.bgElev }}>
             {columns.map((col, i) => (
@@ -106,10 +93,10 @@ export default function DataTable({
                   borderBottom: `1px solid ${c.border}`,
                   whiteSpace: 'nowrap',
                   width: col.w || col.width,
-                  position: (stickyHeader && maxHeight) ? 'sticky' : undefined,
-                  top: (stickyHeader && maxHeight) ? 0 : undefined,
+                  position: stickyHeader ? 'sticky' : undefined,
+                  top: stickyHeader ? 0 : undefined,
                   zIndex: 10,
-                  backgroundColor: c.bgCard,
+                  backgroundColor: c.bgElev || c.bgCard,
                 }}
               >
                 {col.label || col.title}
@@ -120,27 +107,11 @@ export default function DataTable({
         <tbody>
           {loading ? (
             <tr>
-<<<<<<< Updated upstream
-              <td
-                colSpan={columns.length}
-                style={{
-                  padding: 48,
-                  textAlign: 'center',
-                  color: c.fgSubtle,
-                  fontSize: 13,
-                  borderBottom: `1px solid ${c.borderSub}`,
-                }}
-              >
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-                  <div
-                    style={{
-=======
               <td colSpan={columns.length || 1} style={{ padding: '48px 24px', textAlign: 'center', color: c.fgSubtle }}>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13.5px' }}>
                   <span
                     style={{
                       display: 'inline-block',
->>>>>>> Stashed changes
                       width: 18,
                       height: 18,
                       border: `2px solid ${c.border}`,
@@ -154,27 +125,16 @@ export default function DataTable({
               </td>
             </tr>
           ) : (
-<<<<<<< Updated upstream
-            tableRows.map((row, ri) => (
-              <TableRow key={row.storeId || row.id || ri} columns={columns} row={row} py={py} />
-=======
             displayRows.map((row, ri) => (
               <TableRow key={ri} columns={columns} row={row} py={py} isLast={ri === displayRows.length - 1} />
->>>>>>> Stashed changes
             ))
           )}
         </tbody>
       </table>
-<<<<<<< Updated upstream
-      {!loading && tableRows.length === 0 && (
-        <div style={{ padding: 40, textAlign: 'center', color: c.fgFaint, fontSize: 13 }}>
-          {emptyText || emptyMessage || 'Không có dữ liệu phù hợp.'}
-=======
 
       {!loading && tableRows.length === 0 && (
         <div style={{ padding: '48px 24px', textAlign: 'center', color: c.fgSubtle, fontSize: 13.5 }}>
           {messageEmpty}
->>>>>>> Stashed changes
         </div>
       )}
 

@@ -18,14 +18,9 @@ export default function DashboardSidebar({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-<<<<<<< Updated upstream
-  const { c, fonts, sidebarCollapsed: collapsed } = useAdminTheme();
-  const width = collapsed ? 84 : 278;
-=======
   const { c, fonts, sidebarCollapsed: collapsed, setSidebarCollapsed } = useAdminTheme();
   const sb = c.sidebar;
   const width = collapsed ? 72 : 252;
->>>>>>> Stashed changes
 
   // Read stored user profile from localStorage
   let user = null;
@@ -72,27 +67,6 @@ export default function DashboardSidebar({
     }
 
     if (item.id === 'dashboard') {
-<<<<<<< Updated upstream
-      if (roleCode === 'STORE_MANAGER') navigate('/store-manager/kiosk-codes');
-      else navigate('/dashboard');
-    } else if (item.id === 'branches') {
-      if (roleCode === 'STORE_MANAGER') {
-        alert('Tài khoản Quản lý Cửa hàng không có quyền truy cập Danh mục Chi nhánh toàn hệ thống.');
-        return;
-      }
-      navigate('/branches');
-    } else if (item.id === 'shift-master') {
-      if (roleCode === 'STORE_MANAGER') {
-        alert('Tài khoản Quản lý Cửa hàng không có quyền truy cập Bộ Khung Ca Mẫu toàn hệ thống.');
-        return;
-      }
-      navigate('/shifts/templates');
-    } else if (item.id === 'shifts') {
-      if (roleCode === 'STORE_MANAGER') {
-        alert('Chức năng Lập lịch ca chi nhánh cho Store Manager đang được phát triển.');
-        return;
-      }
-=======
       navigate('/dashboard');
     } else if (item.id === 'my-calendar') {
       navigate('/employee/my-calendar');
@@ -103,7 +77,6 @@ export default function DashboardSidebar({
     } else if (item.id === 'branches') {
       navigate('/branches');
     } else if (item.id === 'shift-master') {
->>>>>>> Stashed changes
       navigate('/shifts/templates');
     } else if (item.id === 'kiosk-codes') {
       navigate('/store-manager/kiosk-codes');
@@ -114,32 +87,6 @@ export default function DashboardSidebar({
 
   // Check active item strictly based on route
   const isItemActive = (item) => {
-<<<<<<< Updated upstream
-    if (item.active !== undefined) return Boolean(item.active);
-    if (page && item.id === page) return true;
-    if (item.path && item.path !== '#' && currentPath === item.path && (!page || page === item.id)) return true;
-    if (item.id === 'dashboard' && currentPath === '/dashboard' && (!page || page === 'dashboard')) return true;
-    if (item.id === 'weekly-schedules' && currentPath === '/store-manager/schedules' && (!page || page === 'weekly-schedules')) return true;
-    if (item.id === 'kiosk-codes' && currentPath === '/store-manager/kiosk-codes' && (!page || page === 'kiosk-codes')) return true;
-    if (item.id === 'my-calendar' && currentPath === '/employee/my-calendar' && (!page || page === 'my-calendar')) return true;
-    if (item.id === 'branches' && currentPath === '/branches' && (!page || page === 'branches')) return true;
-    if (item.id === 'shift-master' && currentPath === '/shifts/templates' && (!page || page === 'shift-master')) return true;
-    return false;
-  };
-
-  // Source navigation items (use prop if provided, else read centralized role config)
-  const sourceNavItems = (navItems && navItems.length > 0) ? navItems : getNavItemsForRole(roleCode);
-
-  // Filter navigation items strictly based on logged-in user role
-  const effectiveNavItems = sourceNavItems.filter((item) => {
-    if (roleCode === 'STORE_MANAGER') {
-      // Store Manager must NEVER see Operations Admin features (Master Ca, Branch Directory, Master Data)
-      if (item.id === 'shift-master' || item.id === 'branches') return false;
-      if (item.type === 'group' && (item.label?.includes('Master Data') || item.label?.includes('Quản trị'))) return false;
-    }
-    return true;
-  });
-=======
     if (item.path) {
       if (currentPath === item.path) return true;
       if (item.path !== '/' && item.path !== '/dashboard' && currentPath.startsWith(item.path)) {
@@ -157,7 +104,6 @@ export default function DashboardSidebar({
   const effectiveNavItems = (navItems && navItems.length > 0)
     ? navItems
     : getNavItemsForRole(roleCode);
->>>>>>> Stashed changes
 
   return (
     <aside
@@ -165,15 +111,6 @@ export default function DashboardSidebar({
         width,
         minWidth: width,
         height: '100vh',
-<<<<<<< Updated upstream
-        background: `linear-gradient(180deg, ${c.bgRaised}, ${c.bgCard})`,
-        borderRight: `1px solid ${c.border}`,
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'width .22s ease',
-        boxShadow: '8px 0 30px rgba(0,0,0,0.06)',
-        zIndex: 60,
-=======
         background: sb.bg,
         borderRight: `1px solid ${sb.border}`,
         display: 'flex',
@@ -182,40 +119,15 @@ export default function DashboardSidebar({
         zIndex: 60,
         transition: 'width 0.22s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s ease, border-color 0.25s ease',
         userSelect: 'none',
->>>>>>> Stashed changes
       }}
     >
       {/* Brand Header — Logo Badge + RWFM Enterprise + 3-Line Menu Button */}
       <div
         style={{
-<<<<<<< Updated upstream
-          padding: collapsed ? '18px 14px' : '18px',
-=======
           height: 70,
->>>>>>> Stashed changes
           display: 'flex',
           alignItems: 'center',
           gap: 12,
-<<<<<<< Updated upstream
-          borderBottom: `1px solid ${c.border}`,
-          height: 84,
-        }}
-      >
-        <span
-          style={{
-            width: 46,
-            height: 46,
-            borderRadius: 10,
-            background: `linear-gradient(145deg, ${c.accent}, ${c.accentDim})`,
-            color: c.ink,
-            display: 'grid',
-            placeItems: 'center',
-            fontFamily: fonts.display,
-            fontSize: 23,
-            flexShrink: 0,
-            border: `1px solid ${c.accent}`,
-            boxShadow: `0 10px 24px ${c.accentDim}`,
-=======
           padding: '0 16px',
           borderBottom: `1px solid ${sb.borderHeader}`,
           flexShrink: 0,
@@ -242,23 +154,10 @@ export default function DashboardSidebar({
             overflow: 'hidden',
             cursor: 'pointer',
             transition: 'transform 0.15s ease',
->>>>>>> Stashed changes
           }}
           onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
           onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
         >
-<<<<<<< Updated upstream
-          {brandName.charAt(0)}
-        </span>
-        {!collapsed && (
-          <div>
-            <div style={{ fontFamily: fonts.display, fontSize: 20, letterSpacing: 1.5, color: c.fg, fontWeight: 800 }}>
-              {brandName}
-            </div>
-            <div style={{ marginTop: 2, fontSize: 9, fontWeight: 800, letterSpacing: 1.8, color: c.accent, textTransform: 'uppercase' }}>
-              {actualConsoleLabel}
-            </div>
-=======
           <img
             src="/logo.png"
             alt="RWFM Logo"
@@ -289,7 +188,6 @@ export default function DashboardSidebar({
             }}
           >
             {brandName}
->>>>>>> Stashed changes
           </div>
         </div>
 
@@ -329,24 +227,6 @@ export default function DashboardSidebar({
         )}
       </div>
 
-<<<<<<< Updated upstream
-      {/* Navigation List */}
-      <nav style={{ flex: 1, overflowY: 'auto', padding: collapsed ? '16px 10px' : '16px 14px' }}>
-        {effectiveNavItems.map((item, index) => {
-          if (item.type === 'group') {
-            return collapsed ? (
-              <div key={`group-${index}`} style={{ height: 1, background: c.borderSub, margin: '12px 8px' }} />
-            ) : (
-              <div
-                key={`group-${index}`}
-                style={{
-                  fontSize: 9.5,
-                  fontWeight: 800,
-                  letterSpacing: 1.6,
-                  color: c.fgFaint,
-                  textTransform: 'uppercase',
-                  padding: '16px 12px 6px',
-=======
       {/* Navigation List — Grouped Structure */}
       <nav
         style={{
@@ -377,7 +257,6 @@ export default function DashboardSidebar({
                   opacity: collapsed ? 0 : 1,
                   maxHeight: collapsed ? 8 : 36,
                   transition: 'opacity 0.18s ease, max-height 0.22s ease, padding 0.22s ease',
->>>>>>> Stashed changes
                 }}
               >
                 {item.label}
@@ -392,34 +271,11 @@ export default function DashboardSidebar({
               key={idx}
               type="button"
               onClick={() => handleItemClick(item)}
-<<<<<<< Updated upstream
-              title={collapsed ? item.label : ''}
-              onMouseEnter={(e) => {
-                if (!active) e.currentTarget.style.background = c.bgHover;
-              }}
-              onMouseLeave={(e) => {
-                if (!active) e.currentTarget.style.background = 'transparent';
-              }}
-=======
               title={collapsed ? item.label : undefined}
->>>>>>> Stashed changes
               style={{
                 width: '100%',
                 display: 'flex',
                 alignItems: 'center',
-<<<<<<< Updated upstream
-                gap: 12,
-                padding: collapsed ? '10px 0' : '9px 10px',
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                marginBottom: 6,
-                background: active ? `linear-gradient(90deg, ${c.accentDim}, ${c.bgElev})` : 'transparent',
-                border: `1px solid ${active ? c.accent : 'transparent'}`,
-                borderRadius: 8,
-                color: active ? c.accent : c.fgSubtle,
-                fontSize: 13.5,
-                fontWeight: active ? 750 : 550,
-                fontFamily: fonts.body,
-=======
                 justifyContent: 'flex-start',
                 padding: '10px 12px',
                 borderRadius: 10,
@@ -427,40 +283,8 @@ export default function DashboardSidebar({
                 border: active ? sb.activeBorder : '1px solid transparent',
                 color: active ? sb.activeText : sb.fgSubtle,
                 boxShadow: active && sb.activeText === '#FFFFFF' ? '0 4px 12px rgba(13, 148, 136, 0.3)' : 'none',
->>>>>>> Stashed changes
                 cursor: 'pointer',
                 outline: 'none',
-<<<<<<< Updated upstream
-              }}
-            >
-              <span
-                style={{
-                  width: 34,
-                  height: 34,
-                  flexShrink: 0,
-                  display: 'grid',
-                  placeItems: 'center',
-                  color: active ? c.accent : c.fgSubtle,
-                  background: active ? `${c.accent}25` : c.track,
-                  borderRadius: 7,
-                  border: `1px solid ${active ? `${c.accent}40` : 'transparent'}`,
-                }}
-              >
-                <Icon name={item.icon || 'dot'} size={17} />
-              </span>
-              {!collapsed && <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
-              {!collapsed && item.badge && (
-                <span
-                  style={{
-                    minWidth: 22,
-                    padding: '2px 7px',
-                    borderRadius: 10,
-                    background: c.tones.bad,
-                    color: '#fff',
-                    fontSize: 10,
-                    fontWeight: 800,
-                    textAlign: 'center',
-=======
                 transition: 'background 0.18s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.18s ease',
                 overflow: 'hidden',
               }}
@@ -513,7 +337,6 @@ export default function DashboardSidebar({
                     opacity: collapsed ? 0 : 1,
                     maxWidth: collapsed ? 0 : 40,
                     transition: 'opacity 0.18s ease, max-width 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
->>>>>>> Stashed changes
                   }}
                 >
                   {item.badge}
@@ -527,69 +350,6 @@ export default function DashboardSidebar({
         })}
       </nav>
 
-<<<<<<< Updated upstream
-      {/* User / Profile Footer */}
-      <div style={{ padding: 14, borderTop: `1px solid ${c.border}` }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 11,
-            padding: collapsed ? '6px 0' : '11px',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            background: collapsed ? 'transparent' : c.bgElev,
-            border: collapsed ? 'none' : `1px solid ${c.border}`,
-            borderRadius: 9,
-          }}
-        >
-          <span
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 9,
-              background: c.accentDim,
-              color: c.accent,
-              display: 'grid',
-              placeItems: 'center',
-              fontFamily: fonts.display,
-              fontSize: 17,
-              flexShrink: 0,
-              border: `1px solid ${c.accent}`,
-            }}
-          >
-            {actualAvatarLetter}
-          </span>
-          {!collapsed && (
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 750, color: c.fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {actualName}
-              </div>
-              <div style={{ marginTop: 2, fontSize: 10.5, color: c.fgFaint }}>
-                {actualRole}
-              </div>
-            </div>
-          )}
-          {!collapsed && (
-            <button
-              onClick={handleLogout}
-              style={{
-                width: 30,
-                height: 30,
-                background: c.track,
-                border: `1px solid ${c.border}`,
-                borderRadius: 7,
-                color: c.fgFaint,
-                display: 'grid',
-                placeItems: 'center',
-                cursor: 'pointer',
-              }}
-              title="Đăng xuất"
-              aria-label="Đăng xuất"
-            >
-              <Icon name="logout" size={16} />
-            </button>
-          )}
-=======
       {/* Footer User Profile */}
       <div
         style={{
@@ -657,7 +417,6 @@ export default function DashboardSidebar({
               {actualRole}
             </div>
           </div>
->>>>>>> Stashed changes
         </div>
 
         {/* Logout Button */}
