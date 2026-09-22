@@ -215,20 +215,21 @@ export default function KioskCodePage() {
       sidebar={
         <DashboardSidebar
           page="kiosk-codes"
+          activePath="/store-manager/kiosk-codes"
           onNavigate={handleSidebarNavigate}
           defaultDisplayName={storedUser?.fullName || 'Cửa Hàng Trưởng'}
           roleLabel={storedUser?.roleName || (storedUser?.storeName ? `Quản lý ${storedUser.storeName}` : 'Quản lý Chi Nhánh CH01')}
           avatarLetter={storedUser?.fullName?.charAt(0) || 'S'}
-          brandName="RWFM KIOSK"
+          brandName="RWFM Enterprise"
         />
       }
 
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: storedUser?.roleName || 'Store Manager', href: '#' },
-            { label: 'Quản Lý Kiosk', href: '#' },
-            { label: 'Mã Kích Hoạt' },
+            { label: 'Store Manager', href: '/store-manager/schedules' },
+            { label: 'Quản Lý Nhân Sự & Kiosk', href: '/store-manager/kiosk-codes' },
+            { label: 'Mã Kích Hoạt Kiosk' },
           ]}
         />
       }

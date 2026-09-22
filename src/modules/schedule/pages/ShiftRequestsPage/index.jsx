@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import { useToast } from '@/components/ui/toast/ToastProvider';
@@ -6,12 +6,14 @@ import DashboardShell from '@/shared/components/layout/DashboardShell';
 import DashboardSidebar from '@/shared/components/layout/DashboardSidebar';
 import DashboardTopbar from '@/shared/components/layout/DashboardTopbar';
 import PageHeader from '@/shared/components/ui/PageHeader';
+import StatCard from '@/shared/components/ui/StatCard';
 import Panel from '@/shared/components/ui/Panel';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
 import Badge from '@/shared/components/ui/Badge';
 import FormField from '@/shared/components/ui/FormField';
-import { getNavItemsForRole } from '@/shared/constants/navigation.config';
+import SearchInput from '@/shared/components/ui/SearchInput';
+import Pagination from '@/shared/components/ui/Pagination';
 import {
   getMySwapRequests,
   getStoreSwapRequests,
@@ -21,7 +23,6 @@ import {
   getColleagueShifts,
   getEmployeeShifts
 } from '../../services/schedule.service';
-import axiosInstance from '@/config/axios.config';
 
 export default function ShiftRequestsPage() {
   const { c, fonts } = useAdminTheme();
@@ -51,8 +52,6 @@ export default function ShiftRequestsPage() {
 
   const isShiftLeader = userRole === 'SHIFT_LEADER' || userRole === 'LEADER' || roleName.includes('trưởng ca');
 
-  // Quản lý cửa hàng KHÔNG có chức năng tạo đơn chuyển ca, CHỈ có quyền DUYỆT đơn.
-  // Trưởng ca (Shift Leader) và Nhân viên trong ca chỉ có quyền TẠO ĐƠN và XEM ĐƠN CỦA MÌNH, KHÔNG có quyền duyệt đơn.
   const canCreateRequest = !isStoreManager;
   const canReview = isStoreManager;
 
@@ -71,8 +70,6 @@ export default function ShiftRequestsPage() {
     portalTitle = 'SECURITY PORTAL';
   }
 
-  const navItems = getNavItemsForRole(userRole);
-
   const handleSidebarNavigate = (id) => {
     if (id === 'my-calendar') navigate('/employee/my-calendar');
     else if (id === 'shift-requests') navigate('/employee/shift-requests');
@@ -82,6 +79,7 @@ export default function ShiftRequestsPage() {
     else if (id === 'store-schedules') navigate('/store-manager/schedules');
     else if (id === 'employees') navigate('/employees');
     else if (id === 'kiosk-codes') navigate('/store-manager/kiosk-codes');
+    else if (id === 'dispatches') navigate('/store-manager/dispatches');
   };
 
   const [activeTab, setActiveTab] = useState(isStoreManager ? 'REVIEW' : 'CREATE');
@@ -101,14 +99,19 @@ export default function ShiftRequestsPage() {
   const [loadingColleagues, setLoadingColleagues] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // My requests state
+  // My requests state & pagination
   const [myRequests, setMyRequests] = useState([]);
   const [loadingMyRequests, setLoadingMyRequests] = useState(false);
+  const [myPage, setMyPage] = useState(1);
+  const [myPageSize, setMyPageSize] = useState(10);
 
-  // Store requests state (For Manager / Leader)
+  // Store requests state & pagination (For Manager / Leader)
   const [storeRequests, setStoreRequests] = useState([]);
   const [loadingStoreRequests, setLoadingStoreRequests] = useState(false);
-  const [reviewFilter, setReviewFilter] = useState('PENDING'); // 'PENDING', 'APPROVED', 'REJECTED'
+  const [reviewFilter, setReviewFilter] = useState('ALL'); // 'ALL', 'PENDING', 'APPROVED', 'REJECTED'
+  const [searchTerm, setSearchTerm] = useState('');
+  const [reviewPage, setReviewPage] = useState(1);
+  const [reviewPageSize, setReviewPageSize] = useState(10);
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
   // 1. Fetch upcoming shifts of current user
@@ -285,12 +288,12 @@ export default function ShiftRequestsPage() {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'APPROVED':
-        return <Badge tone="approved">Đã Phê Duyệt</Badge>;
+        return <Badge tone="active" dot>Đã Phê Duyệt</Badge>;
       case 'REJECTED':
-        return <Badge tone="rejected">Đã Từ Chối</Badge>;
+        return <Badge tone="bad" dot>Đã Từ Chối</Badge>;
       case 'PENDING':
       default:
-        return <Badge tone="pending">Chờ Phê Duyệt</Badge>;
+        return <Badge tone="warn" dot>Chờ Xét Duyệt</Badge>;
     }
   };
 
@@ -299,11 +302,58 @@ export default function ShiftRequestsPage() {
       case 'LEAVE':
         return <Badge tone="warn">Xin Nghỉ Ca</Badge>;
       case 'SWAP':
-        return <Badge tone="active">Đổi Ca Cho Nhau</Badge>;
+        return <Badge tone="active">Đổi Ca Trực</Badge>;
       case 'TRANSFER':
       default:
-        return <Badge tone="info">Đổi / Chuyển Ca</Badge>;
+        return <Badge tone="info">Chuyển Ca</Badge>;
     }
+  };
+
+  const pendingCount = Array.isArray(storeRequests) ? storeRequests.filter((r) => r.status === 'PENDING').length : 0;
+  const approvedCount = Array.isArray(storeRequests) ? storeRequests.filter((r) => r.status === 'APPROVED').length : 0;
+  const rejectedCount = Array.isArray(storeRequests) ? storeRequests.filter((r) => r.status === 'REJECTED').length : 0;
+
+  // Filter store requests
+  const filteredStoreRequests = useMemo(() => {
+    if (!Array.isArray(storeRequests)) return [];
+    return storeRequests.filter((req) => {
+      // Filter status
+      if (reviewFilter !== 'ALL' && req.status !== reviewFilter) return false;
+      // Search term
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase();
+        const matchName = req.requesterName?.toLowerCase().includes(q);
+        const matchRole = req.requesterRoleName?.toLowerCase().includes(q);
+        const matchShift = req.requesterShiftName?.toLowerCase().includes(q);
+        const matchTarget = req.targetName?.toLowerCase().includes(q);
+        const matchReason = req.reason?.toLowerCase().includes(q);
+        return matchName || matchRole || matchShift || matchTarget || matchReason;
+      }
+      return true;
+    });
+  }, [storeRequests, reviewFilter, searchTerm]);
+
+  const pagedStoreRequests = useMemo(() => {
+    return filteredStoreRequests.slice((reviewPage - 1) * reviewPageSize, reviewPage * reviewPageSize);
+  }, [filteredStoreRequests, reviewPage, reviewPageSize]);
+
+  const thStyle = {
+    padding: '12px 16px',
+    fontSize: 12,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    color: c.fgSubtle,
+    borderBottom: `1px solid ${c.border}`,
+    textAlign: 'left',
+  };
+
+  const tdStyle = {
+    padding: '14px 16px',
+    fontSize: 13,
+    color: c.fg,
+    borderBottom: `1px solid ${c.borderSub}`,
+    verticalAlign: 'middle',
   };
 
   return (
@@ -313,35 +363,34 @@ export default function ShiftRequestsPage() {
           page="shift-requests"
           activePath="/employee/shift-requests"
           onNavigate={handleSidebarNavigate}
-          navItems={navItems}
           consoleLabel={portalTitle}
           defaultDisplayName={storedUser?.fullName || 'Nhân viên Chi nhánh'}
           roleLabel={roleSubtitle}
           avatarLetter={storedUser?.fullName ? storedUser.fullName.charAt(0).toUpperCase() : 'E'}
+          brandName="RWFM Enterprise"
         />
       }
       topbar={
         <DashboardTopbar
-          breadcrumbs={[
-            { label: portalTitle, href: '/employee/my-calendar' },
-            { label: 'Đơn Xin Đổi & Điều Chỉnh Lịch' },
-          ]}
+          breadcrumbs={
+            isStoreManager
+              ? [
+                  { label: 'Store Manager', href: '/store-manager/schedules' },
+                  { label: 'Quản Lý Nhân Sự & Kiosk', href: '/employees' },
+                  { label: 'Duyệt Đơn Đổi Ca' },
+                ]
+              : [
+                  { label: 'Cá Nhân', href: '/employee/my-calendar' },
+                  { label: 'Tiện Ích', href: '/employee/shift-requests' },
+                  { label: 'Đơn Đổi & Xin Nghỉ' },
+                ]
+          }
         />
       }
     >
-      <div
-        style={{
-          padding: '24px 28px',
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 24,
-          fontFamily: fonts?.body || 'inherit',
-          color: c.fg,
-        }}
-      >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <PageHeader
-          index={`${portalTitle} · ${isStoreManager ? 'PHÊ DUYỆT ĐƠN' : 'ĐIỀU CHỈNH LỊCH'}`}
+          index={isStoreManager ? "Store Manager · Phê Duyệt Đơn" : "Employee Portal · Điều Chỉnh Lịch"}
           title={isStoreManager ? 'Phê Duyệt Đơn Xin Nghỉ & Đổi Ca Chi Nhánh' : 'Quản Lý Đơn Xin Đổi & Điều Chỉnh Lịch Ca'}
           desc={
             isStoreManager
@@ -350,88 +399,97 @@ export default function ShiftRequestsPage() {
           }
         />
 
-        {/* Tab Header Controls */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            borderBottom: `1px solid ${c.borderSub}`,
-            paddingBottom: 4,
-          }}
-        >
-          {canCreateRequest && (
-            <>
-              <button
-                onClick={() => setActiveTab('CREATE')}
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: 4,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  border: `1px solid ${activeTab === 'CREATE' ? c.accent : c.borderSub}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  backgroundColor: activeTab === 'CREATE' ? c.accent : c.bgCard,
-                  color: activeTab === 'CREATE' ? c.ink : c.fgMuted,
-                }}
-              >
-                <Icon name="document" size={16} color={activeTab === 'CREATE' ? c.ink : c.fgMuted} />
-                <span>Tạo Đơn Điều Chỉnh Ca</span>
-              </button>
+        {/* Manager Summary Stat Cards */}
+        {isStoreManager && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+            <StatCard
+              title="ĐƠN CẦN BẠN XÉT DUYỆT"
+              value={pendingCount}
+              subtext="Đơn xin nghỉ & đổi ca chờ duyệt"
+              icon="clock"
+              tone={pendingCount > 0 ? 'warn' : 'neutral'}
+            />
+            <StatCard
+              title="ĐƠN ĐÃ PHÊ DUYỆT"
+              value={approvedCount}
+              subtext="Đã đồng ý & tự động cập nhật lịch"
+              icon="check"
+              tone="ok"
+            />
+            <StatCard
+              title="ĐƠN ĐÃ TỪ CHỐI"
+              value={rejectedCount}
+              subtext="Đã từ chối đơn không hợp lệ"
+              icon="close"
+              tone={rejectedCount > 0 ? 'bad' : 'neutral'}
+            />
+            <StatCard
+              title="TỔNG SỐ ĐƠN TIẾP NHẬN"
+              value={Array.isArray(storeRequests) ? storeRequests.length : 0}
+              subtext="Tổng số đơn toàn chi nhánh"
+              icon="calendar"
+              tone="info"
+            />
+          </div>
+        )}
 
-              <button
-                onClick={() => setActiveTab('MY_REQUESTS')}
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: 4,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  border: `1px solid ${activeTab === 'MY_REQUESTS' ? c.accent : c.borderSub}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  backgroundColor: activeTab === 'MY_REQUESTS' ? c.accent : c.bgCard,
-                  color: activeTab === 'MY_REQUESTS' ? c.ink : c.fgMuted,
-                }}
-              >
-                <Icon name="pulse" size={16} color={activeTab === 'MY_REQUESTS' ? c.ink : c.fgMuted} />
-                <span>Lịch Sử Đơn Của Tôi ({Array.isArray(myRequests) ? myRequests.length : 0})</span>
-              </button>
-            </>
-          )}
-
-          {canReview && (
+        {/* Tab Header Controls (Only for Staff who have multiple tabs) */}
+        {canCreateRequest && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              borderBottom: `1px solid ${c.borderSub}`,
+              paddingBottom: 8,
+            }}
+          >
             <button
-              onClick={() => setActiveTab('REVIEW')}
+              onClick={() => setActiveTab('CREATE')}
               style={{
-                padding: '10px 16px',
-                borderRadius: 4,
+                padding: '8px 18px',
+                borderRadius: 8,
                 fontSize: 13,
-                fontWeight: 700,
+                fontWeight: 600,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                border: `1px solid ${activeTab === 'REVIEW' ? c.accent : c.borderSub}`,
+                border: `1px solid ${activeTab === 'CREATE' ? c.accent : c.borderSub}`,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                backgroundColor: activeTab === 'REVIEW' ? c.accent : c.bgCard,
-                color: activeTab === 'REVIEW' ? c.ink : c.fgMuted,
+                backgroundColor: activeTab === 'CREATE' ? c.accent : c.bgCard,
+                color: activeTab === 'CREATE' ? '#000' : c.fgMuted,
               }}
             >
-              <Icon name="users" size={16} color={activeTab === 'REVIEW' ? c.ink : c.fgMuted} />
-              <span>Phê Duyệt Đơn Chi Nhánh ({Array.isArray(storeRequests) ? storeRequests.filter((r) => r.status === 'PENDING').length : 0} Chờ)</span>
+              <Icon name="document" size={16} color={activeTab === 'CREATE' ? '#000' : c.fgMuted} />
+              <span>Tạo Đơn Điều Chỉnh Ca</span>
             </button>
-          )}
-        </div>
 
-        {/* TAB 1: FORM TẠO ĐƠN */}
-        {activeTab === 'CREATE' && (
+            <button
+              onClick={() => setActiveTab('MY_REQUESTS')}
+              style={{
+                padding: '8px 18px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                border: `1px solid ${activeTab === 'MY_REQUESTS' ? c.accent : c.borderSub}`,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                backgroundColor: activeTab === 'MY_REQUESTS' ? c.accent : c.bgCard,
+                color: activeTab === 'MY_REQUESTS' ? '#000' : c.fgMuted,
+              }}
+            >
+              <Icon name="pulse" size={16} color={activeTab === 'MY_REQUESTS' ? '#000' : c.fgMuted} />
+              <span>Lịch Sử Đơn Của Tôi ({Array.isArray(myRequests) ? myRequests.length : 0})</span>
+            </button>
+          </div>
+        )}
+
+        {/* TAB 1: FORM TẠO ĐƠN (STAFF) */}
+        {activeTab === 'CREATE' && canCreateRequest && (
           <Panel title="Khởi Tạo Yêu Cầu Điều Chỉnh Lịch Ca">
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingTop: 10 }}>
               {/* Mode Selector */}
@@ -444,50 +502,54 @@ export default function ShiftRequestsPage() {
                     type="button"
                     onClick={() => setRequestType('LEAVE')}
                     style={{
-                      padding: '16px 18px',
-                      borderRadius: 6,
+                      padding: 16,
+                      borderRadius: 8,
+                      border: `1.5px solid ${requestType === 'LEAVE' ? c.accent : c.border}`,
+                      backgroundColor: requestType === 'LEAVE' ? 'rgba(16, 185, 129, 0.08)' : c.bgCard,
                       textAlign: 'left',
-                      border: requestType === 'LEAVE' ? `2px solid ${c.accent}` : `1px solid ${c.border}`,
-                      backgroundColor: requestType === 'LEAVE' ? c.accentDim : c.bgCard,
                       cursor: 'pointer',
                       transition: 'all 0.2s',
                     }}
                   >
-                    <div style={{ fontSize: 14, fontWeight: 800, color: requestType === 'LEAVE' ? c.accent : c.fg, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Icon name="calendar" size={16} color={requestType === 'LEAVE' ? c.accent : c.fg} />
-                      <span>1. Xin Nghỉ Ca (Có Việc Bận)</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                      <Icon name="calendar" size={18} color={requestType === 'LEAVE' ? c.accent : c.fgMuted} />
+                      <span style={{ fontSize: 14, fontWeight: 700, color: requestType === 'LEAVE' ? c.accent : c.fg }}>
+                        1. Xin Nghỉ Ca Đột Xuất
+                      </span>
                     </div>
-                    <div style={{ fontSize: 12, color: c.fgSubtle, lineHeight: 1.5 }}>
-                      Bạn có việc bận không thể đi làm ca này. Cửa hàng trưởng sẽ xem xét lý do, nếu duyệt sẽ hủy ca của bạn và tự xếp nhân sự khác thay thế.
-                    </div>
+                    <p style={{ margin: 0, fontSize: 12, color: c.fgSubtle, lineHeight: 1.4 }}>
+                      Xin nghỉ ca làm việc đã được phân công do có việc bận hoặc lý do cá nhân.
+                    </p>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setRequestType('SWAP')}
                     style={{
-                      padding: '16px 18px',
-                      borderRadius: 6,
+                      padding: 16,
+                      borderRadius: 8,
+                      border: `1.5px solid ${requestType === 'SWAP' ? c.accent : c.border}`,
+                      backgroundColor: requestType === 'SWAP' ? 'rgba(16, 185, 129, 0.08)' : c.bgCard,
                       textAlign: 'left',
-                      border: requestType === 'SWAP' ? `2px solid ${c.accent}` : `1px solid ${c.border}`,
-                      backgroundColor: requestType === 'SWAP' ? c.accentDim : c.bgCard,
                       cursor: 'pointer',
                       transition: 'all 0.2s',
                     }}
                   >
-                    <div style={{ fontSize: 14, fontWeight: 800, color: requestType === 'SWAP' ? c.accent : c.fg, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Icon name="swap" size={16} color={requestType === 'SWAP' ? c.accent : c.fg} />
-                      <span>2. Đổi Ca Cho Nhau (2 Chiều)</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                      <Icon name="swap" size={18} color={requestType === 'SWAP' ? c.accent : c.fgMuted} />
+                      <span style={{ fontSize: 14, fontWeight: 700, color: requestType === 'SWAP' ? c.accent : c.fg }}>
+                        2. Đổi Ca Cho Đồng Nghiệp
+                      </span>
                     </div>
-                    <div style={{ fontSize: 12, color: c.fgSubtle, lineHeight: 1.5 }}>
-                      Hai người đồng ý đổi ca cho nhau (bạn làm ca của đồng nghiệp và đồng nghiệp làm ca của bạn). Quản lý duyệt sẽ tự động hoán đổi lịch 2 người.
-                    </div>
+                    <p style={{ margin: 0, fontSize: 12, color: c.fgSubtle, lineHeight: 1.4 }}>
+                      Tráo đổi ca trực tương đương giữa bạn và đồng nghiệp cùng chi nhánh.
+                    </p>
                   </button>
                 </div>
               </div>
 
-              {/* Step 1: Select My Shift */}
-              <FormField label="Ca trực tương lai của bạn cần xin điều chỉnh (*)">
+              {/* Step 1: Select My Assignment */}
+              <FormField label="Chọn ca trực của bạn cần điều chỉnh (*)">
                 <select
                   value={selectedMyAssignmentId}
                   onChange={(e) => setSelectedMyAssignmentId(e.target.value)}
@@ -496,48 +558,29 @@ export default function ShiftRequestsPage() {
                     backgroundColor: c.bgRaised,
                     border: `1px solid ${c.border}`,
                     borderRadius: 4,
-                    padding: '12px 16px',
+                    padding: '10px 14px',
                     color: c.fg,
                     fontSize: 13,
                     fontFamily: fonts?.body || 'inherit',
                     outline: 'none',
                   }}
-                  disabled={loadingShifts}
                 >
-                  <option value="" style={{ backgroundColor: c.bgElev, color: c.fg }}>-- Chọn ca trực tương lai của bạn --</option>
+                  <option value="" style={{ backgroundColor: c.bgElev, color: c.fgMuted }}>
+                    {loadingShifts ? 'Đang tải ca trực của bạn...' : '-- Chọn ca trực của bạn --'}
+                  </option>
                   {Array.isArray(myUpcomingShifts) &&
-                    myUpcomingShifts.map((s) => (
-                      <option key={s.assignmentId} value={s.assignmentId} style={{ backgroundColor: c.bgElev, color: c.fg }}>
-                        {s.workDate} ({s.shiftName}: {s.startTime} - {s.endTime}) - {s.storeName}
+                    myUpcomingShifts.map((sh) => (
+                      <option key={sh.assignmentId} value={sh.assignmentId} style={{ backgroundColor: c.bgElev, color: c.fg }}>
+                        {sh.workDate} ({sh.shiftName}: {sh.startTime} - {sh.endTime})
                       </option>
                     ))}
                 </select>
               </FormField>
 
-              {/* Step 2: Information or Target Colleague Selection */}
-              {requestType === 'LEAVE' ? (
-                <div
-                  style={{
-                    padding: '12px 16px',
-                    borderRadius: 6,
-                    backgroundColor: `${c.accentDim}30`,
-                    border: `1px solid ${c.accent}`,
-                    color: c.fg,
-                    fontSize: 12.5,
-                    lineHeight: 1.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                  }}
-                >
-                  <Icon name="info" size={18} color={c.accent} style={{ flexShrink: 0 }} />
-                  <span>
-                    <strong>Quy trình xin nghỉ:</strong> Sau khi gửi đơn, Cửa hàng trưởng sẽ xem xét lý do bạn cung cấp. Khi được duyệt, ca làm việc này sẽ được gỡ khỏi lịch của bạn để Cửa hàng trưởng chủ động phân công nhân sự khác thay thế.
-                  </span>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                  <FormField label="Đồng nghiệp đồng ý đổi ca (* - Chỉ cùng vị trí/vai trò)">
+              {/* Step 2 (SWAP only): Select Colleague and their shift */}
+              {requestType === 'SWAP' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+                  <FormField label="Chọn đồng nghiệp cùng chi nhánh (*)">
                     <select
                       value={selectedColleagueId}
                       onChange={(e) => setSelectedColleagueId(e.target.value)}
@@ -546,51 +589,47 @@ export default function ShiftRequestsPage() {
                         backgroundColor: c.bgRaised,
                         border: `1px solid ${c.border}`,
                         borderRadius: 4,
-                        padding: '12px 16px',
+                        padding: '10px 14px',
                         color: c.fg,
                         fontSize: 13,
                         fontFamily: fonts?.body || 'inherit',
                         outline: 'none',
                       }}
-                      disabled={loadingColleagues}
                     >
-                      <option value="" style={{ backgroundColor: c.bgElev, color: c.fg }}>
-                        {loadingColleagues
-                          ? 'Đang tải danh sách đồng nghiệp...'
-                          : Array.isArray(colleagues) && colleagues.length === 0
-                          ? '-- Không tìm thấy đồng nghiệp cùng vai trò --'
-                          : '-- Chọn đồng nghiệp cùng vai trò/vị trí --'}
+                      <option value="" style={{ backgroundColor: c.bgElev, color: c.fgMuted }}>
+                        {loadingColleagues ? 'Đang tải đồng nghiệp...' : '-- Chọn đồng nghiệp đổi ca --'}
                       </option>
                       {Array.isArray(colleagues) &&
                         colleagues.map((col) => (
                           <option key={col.employeeId} value={col.employeeId} style={{ backgroundColor: c.bgElev, color: c.fg }}>
-                            {col.fullName} ({col.roleName}) - Mã: NV{col.employeeId}
+                            {col.fullName} ({col.roleName})
                           </option>
                         ))}
                     </select>
                   </FormField>
 
-                  <FormField label="Ca trực của đồng nghiệp bạn nhận làm bù (*)">
+                  <FormField label="Chọn ca trực của đồng nghiệp để đổi (*)">
                     <select
                       value={selectedTargetAssignmentId}
                       onChange={(e) => setSelectedTargetAssignmentId(e.target.value)}
+                      disabled={!selectedColleagueId || colleagueShifts.length === 0}
                       style={{
                         width: '100%',
-                        backgroundColor: c.bgRaised,
+                        backgroundColor: !selectedColleagueId ? c.bgCard : c.bgRaised,
                         border: `1px solid ${c.border}`,
                         borderRadius: 4,
-                        padding: '12px 16px',
+                        padding: '10px 14px',
                         color: c.fg,
                         fontSize: 13,
                         fontFamily: fonts?.body || 'inherit',
                         outline: 'none',
+                        opacity: !selectedColleagueId ? 0.6 : 1,
                       }}
-                      disabled={!selectedColleagueId || !Array.isArray(colleagueShifts) || colleagueShifts.length === 0}
                     >
-                      <option value="" style={{ backgroundColor: c.bgElev, color: c.fg }}>
+                      <option value="" style={{ backgroundColor: c.bgElev, color: c.fgMuted }}>
                         {!selectedColleagueId
-                          ? '-- Chọn đồng nghiệp trước --'
-                          : !Array.isArray(colleagueShifts) || colleagueShifts.length === 0
+                          ? '-- Vui lòng chọn đồng nghiệp trước --'
+                          : colleagueShifts.length === 0
                           ? 'Đồng nghiệp không có ca trực khả dụng'
                           : '-- Chọn ca trực của đồng nghiệp --'}
                       </option>
@@ -635,8 +674,8 @@ export default function ShiftRequestsPage() {
           </Panel>
         )}
 
-        {/* TAB 2: LỊCH SỬ ĐƠN CỦA TÔI */}
-        {activeTab === 'MY_REQUESTS' && (
+        {/* TAB 2: LỊCH SỬ ĐƠN CỦA TÔI (STAFF) */}
+        {activeTab === 'MY_REQUESTS' && canCreateRequest && (
           <Panel title="Danh Sách Đơn Xin Đổi & Điều Chỉnh Lịch Cá Nhân">
             {loadingMyRequests ? (
               <div style={{ padding: 40, textAlign: 'center', color: c.fgSubtle, fontSize: 13 }}>
@@ -647,195 +686,312 @@ export default function ShiftRequestsPage() {
                 Bạn chưa gửi đơn xin điều chỉnh lịch ca nào.
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 10 }}>
-                {myRequests.map((req) => (
-                  <div
-                    key={req.swapRequestId}
-                    style={{
-                      padding: '18px 20px',
-                      borderRadius: 4,
-                      backgroundColor: c.bgCard,
-                      border: `1px solid ${c.border}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: 16,
-                    }}
-                  >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        {getRequestTypeBadge(req.requestType)}
-                        {getStatusBadge(req.status)}
-                        <span style={{ fontSize: 12, color: c.fgSubtle }}>
-                          Khởi tạo: {new Date(req.createdAt).toLocaleString('vi-VN')}
-                        </span>
-                      </div>
-
-                      <div style={{ fontSize: 14, fontWeight: 700, color: c.fg }}>
-                        Ca trực của bạn:{' '}
-                        <span style={{ color: c.accent }}>
-                          {req.requesterWorkDate} ({req.requesterShiftName}: {req.requesterTimeRange})
-                        </span>
-                      </div>
-
-                      {req.targetName && (
-                        <div style={{ fontSize: 13, color: c.fgMuted }}>
-                          Đối tác tiếp nhận: <strong style={{ color: c.fg }}>{req.targetName}</strong>
-                          {req.targetWorkDate && (
-                            <span style={{ marginLeft: 6, color: c.fgSubtle }}>
-                              (Ca đổi: {req.targetWorkDate} {req.targetShiftName} {req.targetTimeRange})
-                            </span>
-                          )}
+              <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 10 }}>
+                  {myRequests.slice((myPage - 1) * myPageSize, myPage * myPageSize).map((req) => (
+                    <div
+                      key={req.swapRequestId}
+                      style={{
+                        padding: '18px 20px',
+                        borderRadius: 8,
+                        backgroundColor: c.bgCard,
+                        border: `1px solid ${c.border}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: 16,
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {getRequestTypeBadge(req.requestType)}
+                          {getStatusBadge(req.status)}
+                          <span style={{ fontSize: 12, color: c.fgSubtle }}>
+                            Khởi tạo: {new Date(req.createdAt).toLocaleString('vi-VN')}
+                          </span>
                         </div>
-                      )}
 
-                      {req.reason && (
-                        <div style={{ fontSize: 12, color: c.fgSubtle, fontStyle: 'italic' }}>
-                          "Lý do: {req.reason}"
+                        <div style={{ fontSize: 14, fontWeight: 700, color: c.fg }}>
+                          Ca trực của bạn:{' '}
+                          <span style={{ color: c.accent }}>
+                            {req.requesterWorkDate} ({req.requesterShiftName}: {req.requesterTimeRange})
+                          </span>
+                        </div>
+
+                        {req.targetName && (
+                          <div style={{ fontSize: 13, color: c.fgMuted }}>
+                            Đối tác tiếp nhận: <strong style={{ color: c.fg }}>{req.targetName}</strong>
+                            {req.targetWorkDate && (
+                              <span style={{ marginLeft: 6, color: c.fgSubtle }}>
+                                (Ca đổi: {req.targetWorkDate} {req.targetShiftName} {req.targetTimeRange})
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {req.reason && (
+                          <div style={{ fontSize: 12, color: c.fgSubtle, fontStyle: 'italic' }}>
+                            "Lý do: {req.reason}"
+                          </div>
+                        )}
+                      </div>
+
+                      {req.reviewedByName && (
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: c.fgSubtle,
+                            textAlign: 'right',
+                            paddingLeft: 16,
+                            borderLeft: `1px solid ${c.borderSub}`,
+                          }}
+                        >
+                          <div>
+                            Người duyệt: <strong style={{ color: c.fg }}>{req.reviewedByName}</strong>
+                          </div>
+                          <div>{req.reviewedAt ? new Date(req.reviewedAt).toLocaleString('vi-VN') : ''}</div>
                         </div>
                       )}
                     </div>
+                  ))}
+                </div>
 
-                    {req.reviewedByName && (
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: c.fgSubtle,
-                          textAlign: 'right',
-                          paddingLeft: 16,
-                          borderLeft: `1px solid ${c.borderSub}`,
-                        }}
-                      >
-                        <div>
-                          Người duyệt: <strong style={{ color: c.fg }}>{req.reviewedByName}</strong>
-                        </div>
-                        <div>{req.reviewedAt ? new Date(req.reviewedAt).toLocaleString('vi-VN') : ''}</div>
-                      </div>
-                    )}
+                {myRequests.length > 0 && (
+                  <div style={{ marginTop: 16 }}>
+                    <Pagination
+                      page={myPage}
+                      pageSize={myPageSize}
+                      totalItems={myRequests.length}
+                      onPageChange={setMyPage}
+                      onPageSizeChange={(sz) => {
+                        setMyPageSize(sz);
+                        setMyPage(1);
+                      }}
+                      pageSizeOptions={[5, 10, 20]}
+                    />
                   </div>
-                ))}
+                )}
               </div>
             )}
           </Panel>
         )}
 
-        {/* TAB 3: PHÊ DUYỆT ĐƠN CHI NHÁNH */}
+        {/* TAB 3: PHÊ DUYỆT ĐƠN CHI NHÁNH (STORE MANAGER) */}
         {activeTab === 'REVIEW' && canReview && (
-          <Panel title="Phê Duyệt Đơn Đổi & Điều Chỉnh Lịch Chi Nhánh">
-            {/* Filter controls */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16, paddingTop: 6 }}>
-              {['PENDING', 'APPROVED', 'REJECTED'].map((st) => (
-                <button
-                  key={st}
-                  onClick={() => setReviewFilter(st)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 4,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    border: `1px solid ${reviewFilter === st ? c.accent : c.borderSub}`,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    backgroundColor: reviewFilter === st ? c.accent : c.bgCard,
-                    color: reviewFilter === st ? c.ink : c.fgSubtle,
+          <Panel title="Danh Sách Đơn Xin Nghỉ & Đổi Ca Chi Nhánh">
+            {/* Filter bar & Search */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 16,
+                marginBottom: 16,
+              }}
+            >
+              {/* Tab Pills */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { key: 'ALL', label: 'Tất Cả', count: Array.isArray(storeRequests) ? storeRequests.length : 0 },
+                  { key: 'PENDING', label: 'Chờ Xét Duyệt', count: pendingCount },
+                  { key: 'APPROVED', label: 'Đã Phê Duyệt', count: approvedCount },
+                  { key: 'REJECTED', label: 'Đã Từ Chối', count: rejectedCount },
+                ].map(({ key, label, count }) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setReviewFilter(key);
+                      setReviewPage(1);
+                    }}
+                    style={{
+                      padding: '7px 14px',
+                      borderRadius: 8,
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      border: `1px solid ${reviewFilter === key ? c.accent : c.borderSub}`,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      backgroundColor: reviewFilter === key ? c.accent : c.bgRaised,
+                      color: reviewFilter === key ? '#000' : c.fgMuted,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <span>{label}</span>
+                    <span
+                      style={{
+                        padding: '1px 6px',
+                        borderRadius: 10,
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        backgroundColor: reviewFilter === key ? 'rgba(0,0,0,0.2)' : c.bgCard,
+                        color: reviewFilter === key ? '#000' : c.fgSubtle,
+                      }}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Box */}
+              <div style={{ width: 280 }}>
+                <SearchInput
+                  value={searchTerm}
+                  onChange={(val) => {
+                    setSearchTerm(val);
+                    setReviewPage(1);
                   }}
-                >
-                  {st === 'PENDING' ? 'Chờ Phê Duyệt' : st === 'APPROVED' ? 'Đã Phê Duyệt' : 'Đã Từ Chối'}
-                </button>
-              ))}
+                  placeholder="Tìm nhân viên, ca làm, lý do..."
+                />
+              </div>
             </div>
 
+            {/* Table or Empty State */}
             {loadingStoreRequests ? (
-              <div style={{ padding: 40, textAlign: 'center', color: c.fgSubtle, fontSize: 13 }}>
+              <div style={{ padding: 48, textAlign: 'center', color: c.fgSubtle, fontSize: 13 }}>
                 Đang tải danh sách đơn chi nhánh...
               </div>
+            ) : filteredStoreRequests.length === 0 ? (
+              <div
+                style={{
+                  padding: '48px 24px',
+                  textAlign: 'center',
+                  color: c.fgSubtle,
+                  backgroundColor: c.bgRaised,
+                  borderRadius: 8,
+                  border: `1px dashed ${c.border}`,
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 500 }}>
+                  Không tìm thấy đơn xin nghỉ ca / đổi ca nào phù hợp với bộ lọc.
+                </div>
+              </div>
             ) : (
-              (() => {
-                const filtered = Array.isArray(storeRequests) ? storeRequests.filter((r) => r.status === reviewFilter) : [];
-                if (filtered.length === 0) {
-                  return (
-                    <div style={{ padding: 40, textAlign: 'center', color: c.fgSubtle, fontSize: 13 }}>
-                      Không có đơn nào trong mục này.
-                    </div>
-                  );
-                }
-                return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {filtered.map((req) => (
-                      <div
-                        key={req.swapRequestId}
-                        style={{
-                          padding: '18px 20px',
-                          borderRadius: 4,
-                          backgroundColor: c.bgCard,
-                          border: `1px solid ${c.border}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          flexWrap: 'wrap',
-                          gap: 16,
-                        }}
-                      >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            {getRequestTypeBadge(req.requestType)}
-                            {getStatusBadge(req.status)}
-                            <span style={{ fontSize: 12, color: c.fgSubtle }}>
-                              Người làm đơn: <strong style={{ color: c.fg }}>{req.requesterName}</strong> ({req.requesterRoleName})
+              <div>
+                <div style={{ overflowX: 'auto', borderRadius: 8, border: `1px solid ${c.border}` }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: fonts.body }}>
+                    <thead>
+                      <tr style={{ backgroundColor: c.bgElev, borderBottom: `1px solid ${c.border}` }}>
+                        <th style={thStyle}>Mã Đơn</th>
+                        <th style={thStyle}>Nhân Sự Làm Đơn</th>
+                        <th style={thStyle}>Hình Thức</th>
+                        <th style={thStyle}>Ca Trực Cần Điều Chỉnh</th>
+                        <th style={thStyle}>Đồng Nghiệp Tiếp Nhận</th>
+                        <th style={thStyle}>Lý Do</th>
+                        <th style={thStyle}>Trạng Thái</th>
+                        <th style={{ ...thStyle, textAlign: 'right' }}>Thao Tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedStoreRequests.map((req) => (
+                        <tr
+                          key={req.swapRequestId}
+                          style={{
+                            borderBottom: `1px solid ${c.borderSub}`,
+                            transition: 'background 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = c.bgRaised)}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
+                          <td style={tdStyle}>
+                            <span style={{ fontWeight: 700, color: c.accent, fontSize: 12 }}>
+                              #SR-{String(req.swapRequestId).padStart(4, '0')}
                             </span>
-                          </div>
-
-                          <div style={{ fontSize: 14, fontWeight: 700, color: c.fg }}>
-                            Ca xin điều chỉnh:{' '}
-                            <span style={{ color: c.accent }}>
-                              {req.requesterWorkDate} ({req.requesterShiftName}: {req.requesterTimeRange})
-                            </span>
-                          </div>
-
-                          {req.targetName && (
-                            <div style={{ fontSize: 13, color: c.fgMuted }}>
-                              Đồng nghiệp liên quan: <strong style={{ color: c.fg }}>{req.targetName}</strong>
-                              {req.targetWorkDate && (
-                                <span style={{ marginLeft: 6, color: c.fgSubtle }}>
-                                  (Ca đổi: {req.targetWorkDate} {req.targetShiftName} {req.targetTimeRange})
-                                </span>
-                              )}
+                          </td>
+                          <td style={tdStyle}>
+                            <div style={{ fontWeight: 600, color: c.fg }}>{req.requesterName}</div>
+                            <div style={{ fontSize: 11.5, color: c.fgSubtle }}>{req.requesterRoleName || 'Nhân viên'}</div>
+                          </td>
+                          <td style={tdStyle}>{getRequestTypeBadge(req.requestType)}</td>
+                          <td style={tdStyle}>
+                            <div style={{ fontWeight: 600, color: c.fg }}>
+                              {req.requesterShiftName}
                             </div>
-                          )}
-
-                          {req.reason && (
-                            <div style={{ fontSize: 12, color: c.fgSubtle, fontStyle: 'italic' }}>
-                              "Lý do: {req.reason}"
+                            <div style={{ fontSize: 11.5, color: c.fgSubtle }}>
+                              📅 {req.requesterWorkDate} ({req.requesterTimeRange})
                             </div>
-                          )}
-                        </div>
+                          </td>
+                          <td style={tdStyle}>
+                            {req.targetName && req.targetName !== 'Không có (Xin nghỉ ca)' ? (
+                              <div>
+                                <div style={{ fontWeight: 600, color: c.fg }}>{req.targetName}</div>
+                                {req.targetWorkDate && (
+                                  <div style={{ fontSize: 11.5, color: c.fgSubtle }}>
+                                    Ca đổi: {req.targetWorkDate} {req.targetShiftName}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: 12, color: c.fgSubtle }}>— (Xin nghỉ)</span>
+                            )}
+                          </td>
+                          <td style={tdStyle}>
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: c.fgMuted,
+                                maxWidth: 200,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                              title={req.reason}
+                            >
+                              {req.reason || '—'}
+                            </div>
+                          </td>
+                          <td style={tdStyle}>{getStatusBadge(req.status)}</td>
+                          <td style={{ ...tdStyle, textAlign: 'right' }}>
+                            {req.status === 'PENDING' ? (
+                              <div style={{ display: 'inline-flex', gap: 6 }}>
+                                <Button
+                                  variant="success"
+                                  size="sm"
+                                  loading={actionLoadingId === req.swapRequestId}
+                                  onClick={() => handleReviewAction(req.swapRequestId, true)}
+                                >
+                                  Duyệt
+                                </Button>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  loading={actionLoadingId === req.swapRequestId}
+                                  onClick={() => handleReviewAction(req.swapRequestId, false)}
+                                >
+                                  Từ Chối
+                                </Button>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: 11.5, color: c.fgSubtle }}>
+                                {req.reviewedByName && <div>Bởi: {req.reviewedByName}</div>}
+                                {req.reviewedAt && <div>{new Date(req.reviewedAt).toLocaleDateString('vi-VN')}</div>}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-                        {req.status === 'PENDING' && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <Button
-                              variant="success"
-                              size="sm"
-                              loading={actionLoadingId === req.swapRequestId}
-                              onClick={() => handleReviewAction(req.swapRequestId, true)}
-                            >
-                              Phê Duyệt & Tự Đổi Lịch
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              loading={actionLoadingId === req.swapRequestId}
-                              onClick={() => handleReviewAction(req.swapRequestId, false)}
-                            >
-                              Từ Chối
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()
+                <div style={{ marginTop: 16 }}>
+                  <Pagination
+                    page={reviewPage}
+                    pageSize={reviewPageSize}
+                    totalItems={filteredStoreRequests.length}
+                    onPageChange={setReviewPage}
+                    onPageSizeChange={(sz) => {
+                      setReviewPageSize(sz);
+                      setReviewPage(1);
+                    }}
+                    pageSizeOptions={[5, 10, 20]}
+                  />
+                </div>
+              </div>
             )}
           </Panel>
         )}

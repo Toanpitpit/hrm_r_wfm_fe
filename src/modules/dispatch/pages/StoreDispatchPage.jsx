@@ -155,6 +155,8 @@ export default function StoreDispatchPage() {
         <DashboardSidebar
           page="dispatches"
           activePath="/store-manager/dispatches"
+          brandName="RWFM Enterprise"
+          consoleLabel="STORE MANAGER CONSOLE"
           defaultDisplayName={currentUser?.fullName || 'Cửa Hàng Trưởng'}
           roleLabel={currentUser?.roleName || (currentUser?.storeName ? `Quản lý ${currentUser.storeName}` : 'Quản lý Cửa Hàng')}
         />
@@ -162,8 +164,8 @@ export default function StoreDispatchPage() {
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: 'Store Manager', href: '#' },
-            { label: 'Quản Lý Nhân Sự & Ca Trực', href: '#' },
+            { label: 'Store Manager', href: '/store-manager/schedules' },
+            { label: 'Quản Lý Nhân Sự & Kiosk', href: '/store-manager/dispatches' },
             { label: 'Điều Động Nhân Sự' },
           ]}
         />

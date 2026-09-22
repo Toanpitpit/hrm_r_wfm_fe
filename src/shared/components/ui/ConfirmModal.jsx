@@ -17,15 +17,15 @@ export default function ConfirmModal({
   loading = false,
   icon = 'alertTriangle',
 }) {
-  const { c, fonts } = useAdminTheme();
+  const { c } = useAdminTheme();
   const isModalOpen = open !== undefined ? open : (isOpen !== undefined ? isOpen : false);
 
   if (!isModalOpen) return null;
 
   const isDanger = confirmVariant === 'danger';
-  const iconColor = isDanger ? c.tones.bad : c.accent;
-  const iconBg = isDanger ? `${c.tones.bad}18` : `${c.accentDim}30`;
-  const iconBorder = isDanger ? `${c.tones.bad}40` : `${c.accent}40`;
+  const iconColor = isDanger ? '#EF4444' : '#4F46E5';
+  const iconBg = isDanger ? 'rgba(239, 68, 68, 0.12)' : 'rgba(79, 70, 229, 0.12)';
+  const iconBorder = isDanger ? 'rgba(239, 68, 68, 0.25)' : 'rgba(79, 70, 229, 0.25)';
 
   return (
     <Modal
@@ -46,16 +46,6 @@ export default function ConfirmModal({
             variant={confirmVariant}
             onClick={onConfirm}
             loading={loading}
-            style={
-              isDanger
-                ? {
-                    background: c.tones.bad,
-                    color: '#fff',
-                    border: `1px solid ${c.tones.bad}`,
-                    fontWeight: 700,
-                  }
-                : undefined
-            }
           >
             {confirmText}
           </Button>
@@ -67,7 +57,7 @@ export default function ConfirmModal({
           style={{
             width: 44,
             height: 44,
-            borderRadius: 10,
+            borderRadius: 12,
             background: iconBg,
             border: `1px solid ${iconBorder}`,
             display: 'flex',
@@ -76,16 +66,16 @@ export default function ConfirmModal({
             flexShrink: 0,
           }}
         >
-          <Icon name={icon} size={22} style={{ color: iconColor }} />
+          <Icon name={icon} size={22} color={iconColor} />
         </div>
 
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           {message && (
             <div
               style={{
                 fontSize: 14,
                 color: c.fg,
-                lineHeight: 1.5,
+                lineHeight: 1.55,
                 fontWeight: 500,
               }}
             >

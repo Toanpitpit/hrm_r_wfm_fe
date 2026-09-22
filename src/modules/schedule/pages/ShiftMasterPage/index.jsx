@@ -87,25 +87,26 @@ export default function ShiftMasterPage() {
       sidebar={
         <DashboardSidebar
           page="shift-master"
+          activePath="/shifts/templates"
           onNavigate={handleNavigate}
-          navItems={navItems}
           consoleLabel="OPERATIONS CONSOLE"
-          brandName="RWFM OPS"
+          brandName="RWFM Enterprise"
           roleLabel="Operations Admin"
         />
       }
       topbar={
         <DashboardTopbar
-          page="shift-master"
-          pageTitles={{ 'shift-master': 'Bộ Khung Ca Mẫu Toàn Hệ Thống' }}
-          consoleLabel="Operations Admin"
-          roleLabel="Quản trị vận hành"
-          fallbackTitle="Khung Ca Mẫu"
+          breadcrumbs={[
+            { label: 'Quản Trị Vận Hành', href: '/dashboard' },
+            { label: 'Vận Hành & Hệ Thống', href: '/shifts/templates' },
+            { label: 'Khung Ca Mẫu' },
+          ]}
         />
       }
     >
       {/* 1. Header trang */}
       <PageHeader
+        index="Operations Admin · Khung Ca Chuẩn"
         title="Bộ Khung Ca Mẫu Toàn Hệ Thống"
         subtitle="Thiết lập và chuẩn hóa các khung ca làm việc mặc định toàn chuỗi để ngăn chặn việc tạo ca sai lệch tại các chi nhánh."
         actions={

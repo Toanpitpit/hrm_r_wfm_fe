@@ -248,23 +248,23 @@ export default function EmployeeManagementPage() {
           page="employees"
           activePath="/employees"
           onNavigate={handleNavigate}
-          navItems={navItems}
           consoleLabel={isStoreManager ? 'STORE MANAGER CONSOLE' : 'OPERATIONS CONSOLE'}
-          brandName="RWFM OPS"
+          brandName="RWFM Enterprise"
           roleLabel={isStoreManager ? `Quản lý ${currentBranchName}` : 'Operations Admin'}
         />
       }
       topbar={
         <DashboardTopbar
-          page="employees"
-          pageTitles={{ employees: 'Khai Báo & Quản Lý Hồ Sơ Nhân Sự ' }}
-          consoleLabel={isStoreManager ? 'Store Manager' : 'Operations Admin'}
-          roleLabel={isStoreManager ? 'Quản lý Chi nhánh' : 'Quản trị vận hành'}
-          fallbackTitle="Hồ Sơ Nhân Sự"
+          breadcrumbs={[
+            { label: isStoreManager ? 'Store Manager' : 'Quản Trị Vận Hành', href: isStoreManager ? '/store-manager/schedules' : '/dashboard' },
+            { label: isStoreManager ? 'Quản Lý Nhân Sự & Kiosk' : 'Vận Hành & Hệ Thống', href: '/employees' },
+            { label: 'Hồ Sơ Nhân Sự' },
+          ]}
         />
       }
     >
       <PageHeader
+        index={isStoreManager ? 'Store Manager · Quản Lý Nhân Sự' : 'Operations Admin · Hồ Sơ Nhân Sự'}
         title={
           isStoreManager
             ? `Quản Lý Nhân Sự Chi Nhánh: ${currentBranchName}`

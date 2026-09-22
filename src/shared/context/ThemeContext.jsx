@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 // AdminThemeContext — quản lý token màu (Dark/Light), màu nhấn và mật độ bảng
 // cho toàn bộ khu vực Admin. Mọi component con dùng hook useAdminTheme().
 //
@@ -7,6 +8,10 @@
 //   </AdminThemeProvider>
 //
 //   const { c, fonts } = useAdminTheme();  // c = bộ token màu đang áp dụng
+=======
+// AdminThemeContext — RWFM Modern Tech Mint/Teal Design System Tokens (Dark & Light)
+// Cung cấp token màu, typography, sidebar và dark/light theme chuẩn theo tông màu RWFM Mint/Teal SaaS hiện đại.
+>>>>>>> Stashed changes
 
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo, useState } from 'react';
@@ -17,6 +22,7 @@ export const fonts = {
   body: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
 };
 
+<<<<<<< Updated upstream
 // --- Bộ token nền tối (Cinematic Dark) ---
 export const darkTokens = {
   bg: '#0a0908',
@@ -47,25 +53,117 @@ export const lightTokens = {
   border: 'rgba(27,24,19,0.13)',
   borderSub: 'rgba(27,24,19,0.07)',
   track: 'rgba(27,24,19,0.09)',
+=======
+// ─── Sidebar Tokens cho Light Mode (Trắng sáng tinh tế, thanh điều hướng nổi bật) ───
+export const lightSidebarTokens = {
+  bg: '#FFFFFF',
+  bgHover: 'rgba(13, 148, 136, 0.08)',
+  bgActive: 'linear-gradient(135deg, #0D9488 0%, #14B8A6 100%)',
+  activeBorder: '1px solid transparent',
+  activeText: '#FFFFFF',
+  activeIcon: '#FFFFFF',
+  activeBadgeBg: 'rgba(255, 255, 255, 0.25)',
+  activeBadgeText: '#FFFFFF',
+  fg: '#0F172A',
+  fgSubtle: '#475569',
+  fgFaint: '#94A3B8',
+  border: '#E8EFEA',
+  borderHeader: '#EEF4F1',
+  track: 'rgba(13, 148, 136, 0.06)',
+  categoryLabel: '#0D9488',
+  brandBadgeBg: '#FFFFFF',
+  brandBadgeBorder: '1px solid #CCFBF1',
+  brandBadgeShadow: '0 3px 12px rgba(13, 148, 136, 0.15)',
+  brandText: '#0F172A',
+  footerBg: '#F4FAF8',
+  footerBorder: '#E8EFEA',
+  hamburgerColor: '#64748B',
+  hamburgerHoverColor: '#0D9488',
+  hamburgerHoverBg: 'rgba(13, 148, 136, 0.08)',
 };
 
-// Màu trạng thái (ok / cảnh báo / lỗi / thông tin) + biến thể nền mờ.
-export function buildTones(accent) {
+// ─── Sidebar Tokens cho Dark Mode (Tối đồng bộ toàn diện) ───
+export const darkSidebarTokens = {
+  bg: '#080D10',
+  bgHover: 'rgba(255, 255, 255, 0.06)',
+  bgActive: 'rgba(20, 184, 166, 0.20)',
+  activeBorder: '1px solid rgba(20, 184, 166, 0.40)',
+  activeText: '#2DD4BF',
+  activeIcon: '#2DD4BF',
+  activeBadgeBg: 'rgba(20, 184, 166, 0.25)',
+  activeBadgeText: '#2DD4BF',
+  fg: '#FFFFFF',
+  fgSubtle: '#8A99AD',
+  fgFaint: 'rgba(255, 255, 255, 0.28)',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderHeader: 'rgba(255, 255, 255, 0.06)',
+  track: 'rgba(255, 255, 255, 0.08)',
+  categoryLabel: 'rgba(255, 255, 255, 0.40)',
+  brandBadgeBg: '#111C22',
+  brandBadgeBorder: '1px solid rgba(255, 255, 255, 0.10)',
+  brandBadgeShadow: '0 4px 14px rgba(0, 0, 0, 0.4)',
+  brandText: '#FFFFFF',
+  footerBg: '#0B1217',
+  footerBorder: 'rgba(255, 255, 255, 0.08)',
+  hamburgerColor: '#8A99AD',
+  hamburgerHoverColor: '#2DD4BF',
+  hamburgerHoverBg: 'rgba(255, 255, 255, 0.08)',
+};
+
+// ─── Light Mode — RWFM Clean Mint Slate White ──────────────────────────────
+export const lightTokens = {
+  bg: '#F4FAF8',           // Nền xám ngọc sáng tươi mát
+  bgRaised: '#FFFFFF',     // Nền container
+  bgCard: '#FFFFFF',       // Thẻ card trắng tinh
+  bgElev: '#EBF7F4',       // Bề mặt nâng cao
+  bgHover: '#E2F3EE',      // Hover
+  fg: '#0F172A',           // Màu chữ đậm nét
+  fgMuted: 'rgba(15, 23, 42, 0.88)',
+  fgSubtle: '#475569',     // Màu chữ phụ
+  fgFaint: '#94A3B8',      // Chữ mờ
+  border: '#E2E8F0',       // Viền thẻ
+  borderSub: '#EEF5F2',
+  track: 'rgba(13, 148, 136, 0.06)',
+>>>>>>> Stashed changes
+};
+
+// ─── Dark Mode — Deep Midnight Slate Black (Tối toàn diện) ─────────────────
+export const darkTokens = {
+  bg: '#000000ff',           // Nền đen sâu thẳm
+  bgRaised: '#080808ff',     // Bề mặt raised
+  bgCard: '#080808ff',       // Thẻ card đen nhạt
+  bgElev: '#080808ff',       // Panel elevated
+  bgHover: '#101010ff',      // Hover highlight
+  fg: '#F8FAFC',           // Chữ trắng tinh
+  fgMuted: 'rgba(255, 255, 255, 0.90)',
+  fgSubtle: '#94A3B8',     // Chữ phụ sáng rõ
+  fgFaint: 'rgba(255, 255, 255, 0.28)',
+  border: '#1D2B35',       // Viền thẻ tối
+  borderSub: 'rgba(255, 255, 255, 0.07)',
+  track: 'rgba(255, 255, 255, 0.06)',
+};
+
+// ─── Status Tones (RWFM Mint & Teal Palette) ────────────────────────────────
+export function buildTones() {
   return {
-    ok: 'oklch(0.74 0.13 152)',
-    okDim: 'oklch(0.74 0.13 152 / 0.16)',
-    good: 'oklch(0.74 0.13 152)',
-    goodDim: 'oklch(0.74 0.13 152 / 0.16)',
-    bad: 'oklch(0.66 0.17 27)',
-    badDim: 'oklch(0.66 0.17 27 / 0.16)',
-    warn: accent,
-    warnDim: hexA(accent, 0.16),
-    info: 'oklch(0.72 0.12 240)',
-    infoDim: 'oklch(0.72 0.12 240 / 0.16)',
+    ok: '#0D9488',
+    okDim: 'rgba(13, 148, 136, 0.14)',
+    good: '#0D9488',
+    goodDim: 'rgba(13, 148, 136, 0.14)',
+    bad: '#EF4444',
+    badDim: 'rgba(239, 68, 68, 0.14)',
+    warn: '#F59E0B',
+    warnDim: 'rgba(245, 158, 11, 0.14)',
+    info: '#06B6D4',
+    infoDim: 'rgba(6, 182, 212, 0.14)',
+    blue: '#3B82F6',
+    blueDim: 'rgba(59, 130, 246, 0.14)',
+    purple: '#8B5CF6',
+    purpleDim: 'rgba(139, 92, 246, 0.14)',
   };
 }
 
-// Bảng phối tone cho Badge: tên tone -> [màu chữ, màu nền].
+// ─── Badge Tone Mapping ────────────────────────────────────────────────────
 export function badgeToneMap(c) {
   const t = c.tones;
   return {
@@ -73,19 +171,43 @@ export function badgeToneMap(c) {
     bad: [t.bad, t.badDim], banned: [t.bad, t.badDim], closed: [t.bad, t.badDim], rejected: [t.bad, t.badDim],
     warn: [t.warn, t.warnDim], pending: [t.warn, t.warnDim], maintenance: [t.warn, t.warnDim], paused: [t.warn, t.warnDim],
     info: [t.info, t.infoDim], refunded: [t.info, t.infoDim],
+    blue: [t.blue, t.blueDim],
+    purple: [t.purple, t.purpleDim],
     neutral: [c.fgSubtle, c.track], inactive: [c.fgSubtle, c.track], expired: [c.fgSubtle, c.track],
   };
 }
 
 const AdminThemeContext = createContext(null);
 
+<<<<<<< Updated upstream
 export function AdminThemeProvider({ children, defaultTheme = 'light', defaultAccent = '#f5b14a' }) {
   const [theme, setTheme] = useState(defaultTheme);   // 'light' | 'dark'
+=======
+export function AdminThemeProvider({ children, defaultTheme = 'light', defaultAccent = '#0D9488' }) {
+  const [theme, setThemeState] = useState(() => {
+    try {
+      return localStorage.getItem('app_theme') || defaultTheme;
+    } catch {
+      return defaultTheme;
+    }
+  });
+
+  const setTheme = (newTheme) => {
+    setThemeState(newTheme);
+    try {
+      localStorage.setItem('app_theme', newTheme);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+>>>>>>> Stashed changes
   const [accent, setAccent] = useState(defaultAccent);
-  const [density, setDensity] = useState('regular');  // 'compact' | 'regular' | 'comfy'
+  const [density, setDensity] = useState('regular');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const value = useMemo(() => {
+<<<<<<< Updated upstream
     const base = theme === 'light' ? lightTokens : darkTokens;
     const c = {
       ...base,
@@ -93,6 +215,26 @@ export function AdminThemeProvider({ children, defaultTheme = 'light', defaultAc
       accentDim: hexA(accent, 0.16),
       ink: '#0a0908', // màu chữ cố định trên nền màu nhấn
       tones: buildTones(accent),
+=======
+    const isLight = theme === 'light';
+    const base = isLight ? lightTokens : darkTokens;
+    const effectiveAccent = '#0D9488'; // RWFM Modern Teal
+    const currentSidebar = isLight ? lightSidebarTokens : darkSidebarTokens;
+
+    const c = {
+      ...base,
+      accent: effectiveAccent,
+      accentHover: '#0F766E',
+      accentDim: hexA(effectiveAccent, 0.14),
+      accentGrad: 'linear-gradient(135deg, #0D9488 0%, #14B8A6 100%)',
+      primary: '#0D9488',
+      primaryHover: '#0F766E',
+      primaryDark: '#115E59',
+      primaryLight: '#2DD4BF',
+      ink: '#FFFFFF',
+      sidebar: currentSidebar,
+      tones: buildTones(effectiveAccent),
+>>>>>>> Stashed changes
     };
     return {
       c, fonts,

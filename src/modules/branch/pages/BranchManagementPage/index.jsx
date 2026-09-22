@@ -90,27 +90,41 @@ export default function BranchManagementPage() {
       sidebar={
         <DashboardSidebar
           page="branches"
+          activePath="/branches"
           onNavigate={handleNavigate}
-          navItems={navItems}
           consoleLabel="OPERATIONS CONSOLE"
-          brandName="RWFM OPS"
+          brandName="RWFM Enterprise"
           roleLabel="Operations Admin"
         />
       }
       topbar={
         <DashboardTopbar
+<<<<<<< Updated upstream
           page="branches"
           pageTitles={{ branches: 'Quản Lý Danh Mục Chi Nhánh' }}
           consoleLabel="Operations Admin"
           roleLabel="Quản trị vận hành"
           fallbackTitle="Chi Nhánh"
+=======
+          breadcrumbs={[
+            { label: 'Quản Trị Vận Hành', href: '/dashboard' },
+            { label: 'Vận Hành & Hệ Thống', href: '/branches' },
+            { label: 'Chi Nhánh & Kiosk' },
+          ]}
+>>>>>>> Stashed changes
         />
       }
     >
       {/* 1. Header trang */}
       <PageHeader
+<<<<<<< Updated upstream
         title="Quản Lý Danh Mục Chi Nhánh"
         subtitle="Quản trị danh mục chi nhánh, định vị tọa độ Point (GPS / Geofence) và thiết lập bán kính cho phép chấm công."
+=======
+        index="Operations Admin · Quản Trị Chi Nhánh"
+        title="Quản Lý Danh Mục Chi Nhánh & Cấu Hình Kiosk"
+        subtitle="Quản trị danh mục chi nhánh, định vị tọa độ Point (GPS / Geofence), cấu hình an ninh mạng và cấp phát máy trạm Kiosk."
+>>>>>>> Stashed changes
         actions={
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             {/* View Mode Toggle (Table / Map) */}
