@@ -35,6 +35,12 @@ export default function WeeklySchedulePage() {
 
   const {
     branchId,
+    setBranchId,
+    accessibleBranches,
+    isGlobalManager,
+    assignedBranch,
+    branchesLoading,
+    permissionError,
     weekStartDate,
     templates,
     matrix,
@@ -74,7 +80,7 @@ export default function WeeklySchedulePage() {
     conflictReport,
     isAutoScheduleModalOpen,
     setIsAutoScheduleModalOpen,
-  } = useWeeklySchedule(1);
+  } = useWeeklySchedule();
 
   const [isSwapReviewModalOpen, setIsSwapReviewModalOpen] = useState(false);
 
@@ -87,7 +93,7 @@ export default function WeeklySchedulePage() {
     { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen', onClick: () => toast.info('Tính năng Danh sách trạm Kiosk đang được phát triển.') },
     { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse', onClick: () => toast.info('Tính năng Điểm danh chi nhánh đang được phát triển.') },
     { type: 'group', label: 'Nhân sự & Lịch Ca Chi Nhánh' },
-    { id: 'weekly-schedules', label: 'Quản lý Lịch Ca (UC 2.1 & 2.3)', icon: 'calendar', path: '/store-manager/schedules' },
+    { id: 'weekly-schedules', label: 'Quản lý Lịch Ca', icon: 'calendar', path: '/store-manager/schedules' },
     { id: 'store-employees', label: 'Nhân sự Chi Nhánh', icon: 'users', onClick: () => toast.info('Tính năng Quản lý nhân sự chi nhánh đang được phát triển.') },
   ];
 
@@ -123,7 +129,7 @@ export default function WeeklySchedulePage() {
         <DashboardTopbar
           breadcrumbs={[
             { label: storedUser?.roleName || 'Store Manager', href: '/store-manager/schedules' },
-            { label: 'Lập Lịch Ca Tuần (UC 2.1 & UC 2.3)' },
+            { label: 'Lập Lịch Ca Tuần' },
           ]}
         />
       }
@@ -133,8 +139,136 @@ export default function WeeklySchedulePage() {
         <PageHeader
           title="Thiết Lập Định Mức & Phân Bổ Ca Tuần"
           subtitle="Quản lý định mức nhu cầu nhân sự, gán lịch Full-time, kiểm tra xung đột và công bố lịch tuần"
-          badge={matrix?.branchName ? `Chi nhánh: ${matrix.branchName}` : 'Chi nhánh: Siêu Thị Quận 1'}
+          badge={
+            isGlobalManager
+              ? 'Toàn quyền Quản trị Vận hành'
+              : assignedBranch?.name
+              ? `Cơ sở: ${assignedBranch.name}`
+              : matrix?.branchName
+              ? `Cơ sở: ${matrix.branchName}`
+              : 'Phân quyền Chi nhánh'
+          }
         />
+
+        {/* Cảnh báo phân quyền nếu tài khoản quản lý chưa có cơ sở */}
+        {permissionError && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '14px 20px',
+              borderRadius: 10,
+              backgroundColor: '#fffbeb',
+              border: '1px solid #fde68a',
+              color: '#92400e',
+              marginBottom: 18,
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
+            <Icon name="alertTriangle" size={22} color="#d97706" />
+            <span>{permissionError}</span>
+          </div>
+        )}
+
+        {/* Thanh chọn / thông tin phân quyền cơ sở (Branch Isolation) */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            padding: '12px 20px',
+            marginBottom: 18,
+            borderRadius: 12,
+            background: c.bgCard,
+            border: `1px solid ${c.border}`,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          }}
+        >
+          {isGlobalManager ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    background: `${c.accent}20`,
+                    color: c.accent,
+                  }}
+                >
+                  <Icon name="home" size={18} color={c.accent} />
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: c.textPrimary }}>
+                  Cơ sở quản lý lập lịch:
+                </span>
+              </div>
+              <div style={{ minWidth: 280 }}>
+                <Select
+                  value={String(branchId || '')}
+                  onChange={(val) => setBranchId(Number(val))}
+                  options={accessibleBranches.map((b) => ({
+                    value: String(b.id),
+                    label: `${b.branchCode ? `[${b.branchCode}] ` : ''}${b.name}`,
+                  }))}
+                  disabled={actionLoading || loading || branchesLoading}
+                />
+              </div>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 650,
+                  color: '#0284c7',
+                  background: '#e0f2fe',
+                  padding: '4px 12px',
+                  borderRadius: 20,
+                  border: '1px solid #bae6fd',
+                }}
+              >
+                Quyền Quản Trị Hệ Thống (Xem & Lập lịch mọi cơ sở)
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 16px',
+                  borderRadius: 20,
+                  background: `${c.accent}15`,
+                  border: `1px solid ${c.accent}40`,
+                  color: c.accent,
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                <Icon name="lock" size={14} color={c.accent} />
+                <span>
+                  Cơ sở phụ trách: {assignedBranch?.name || matrix?.branchName || (branchId ? `Chi nhánh #${branchId}` : 'Chưa phân công')}
+                </span>
+              </div>
+              <span style={{ fontSize: 12, color: c.textTertiary, fontWeight: 500 }}>
+                (Tài khoản Cửa hàng trưởng được phân quyền cố định theo cơ sở trực thuộc)
+              </span>
+            </div>
+          )}
+
+          {matrix?.branchName && (
+            <div style={{ fontSize: 12, color: c.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>Trạng thái cơ sở:</span>
+              <span style={{ fontWeight: 700, color: '#16a34a' }}>● Hoạt động bình thường</span>
+            </div>
+          )}
+        </div>
+
 
         {/* Thống kê nhanh */}
         <div className={styles.statsGrid}>
@@ -159,10 +293,22 @@ export default function WeeklySchedulePage() {
           />
           <StatCard
             label="TRẠNG THÁI TUẦN"
-            value={weeklyStats.status === 'PUBLISHED' ? 'ĐÃ CÔNG BỐ' : 'BẢN NHÁP'}
+            value={
+              weeklyStats.status === 'PUBLISHED'
+                ? 'ĐÃ CÔNG BỐ'
+                : weeklyStats.totalSchedules === 0
+                ? 'CHƯA TẠO CA'
+                : 'CHƯA CÔNG BỐ'
+            }
             icon="send"
-            variant={weeklyStats.status === 'PUBLISHED' ? 'good' : 'warning'}
-            hint={weeklyStats.status === 'PUBLISHED' ? 'Nhân viên đã nhận thông báo' : 'Chưa phát hành'}
+            variant={weeklyStats.status === 'PUBLISHED' ? 'good' : weeklyStats.totalSchedules === 0 ? 'neutral' : 'warning'}
+            hint={
+              weeklyStats.status === 'PUBLISHED'
+                ? 'Nhân viên đã nhận thông báo'
+                : weeklyStats.totalSchedules === 0
+                ? 'Chưa có ca làm việc trong tuần'
+                : 'Lịch đang soạn thảo'
+            }
           />
         </div>
 

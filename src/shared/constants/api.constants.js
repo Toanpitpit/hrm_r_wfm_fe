@@ -22,8 +22,10 @@ export const API_ENDPOINTS = Object.freeze({
     DEACTIVATE: (kioskId) => `/kiosk/${kioskId}`,
   },
   SHIFTS: {
+    ACCESSIBLE_BRANCHES: '/shifts/accessible-branches',
     TEMPLATES: '/shifts/templates',
     WEEKLY_MATRIX: (branchId, weekStartDate) => `/shifts/schedules/weekly-matrix?branchId=${branchId}&weekStartDate=${weekStartDate}`,
+
     GENERATE_WEEKLY: '/shifts/schedules/generate-weekly',
     UPDATE_REQUIREMENT: (scheduleId) => `/shifts/schedules/${scheduleId}/requirements`,
     ASSIGN_FULLTIME_BATCH: '/shifts/assignments/assign-fulltime-batch',

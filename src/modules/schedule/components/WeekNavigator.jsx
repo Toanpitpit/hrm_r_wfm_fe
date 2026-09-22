@@ -112,14 +112,14 @@ export default function WeekNavigator({
           ) : isPartial ? (
             <Badge variant="info">CÔNG BỐ MỘT PHẦN</Badge>
           ) : (
-            <Badge variant="warning">BẢN NHÁP (DRAFT)</Badge>
+            <Badge variant="warning">CHƯA CÔNG BỐ</Badge>
           )}
         </div>
       </div>
 
       {/* Nút hành động */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        {/* Nút UC 2.1: Thiết lập định mức */}
+        {/* Thiết lập định mức */}
         <Button
           variant="secondary"
           onClick={onOpenQuotaModal}
@@ -129,7 +129,7 @@ export default function WeekNavigator({
           Định Mức Tuần
         </Button>
 
-        {/* Nút UC 2.1: Tự động xếp ca bằng Google OR-Tools */}
+        {/* Tự động xếp ca */}
         <Button
           variant="secondary"
           onClick={onOpenAutoScheduleModal}
@@ -137,7 +137,7 @@ export default function WeekNavigator({
           style={{ borderColor: c.accent, color: c.accent }}
         >
           <Icon name="zap" size={15} style={{ marginRight: 6 }} />
-          Tự Động Xếp Ca (OR-Tools)
+          Tự Động Xếp Ca
         </Button>
 
         {/* Nút UC 2.1: Gán nhanh Full-time */}
