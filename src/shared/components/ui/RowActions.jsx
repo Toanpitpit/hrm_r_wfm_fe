@@ -7,33 +7,38 @@ import Icon from './Icon';
 
 export default function RowActions({ lock, onView, onEdit, onLock, onDelete }) {
   return (
-    <div style={{ display: 'inline-flex', gap: 4, justifyContent: 'flex-end' }}>
-      {onView && <IconButton name="eye" onClick={onView} />}
-      {onEdit && <IconButton name="edit" onClick={onEdit} />}
-      {lock != null && onLock && <IconButton name={lock ? 'lock' : 'unlock'} onClick={onLock} />}
-      {onDelete && <IconButton name="trash" danger onClick={onDelete} />}
+    <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+      {onView && <IconButton name="eye" onClick={onView} title="Xem chi tiết" />}
+      {onEdit && <IconButton name="edit" onClick={onEdit} title="Chỉnh sửa" />}
+      {lock != null && onLock && <IconButton name={lock ? 'lock' : 'unlock'} onClick={onLock} title={lock ? 'Mở khóa' : 'Khóa'} />}
+      {onDelete && <IconButton name="trash" danger onClick={onDelete} title="Xóa" />}
     </div>
   );
 }
 
-export function IconButton({ name, danger, onClick }) {
+export function IconButton({ name, danger, onClick, title }) {
   const { c } = useAdminTheme();
   const [hover, setHover] = useState(false);
 
   return (
     <button
+      type="button"
       onClick={onClick}
+      title={title}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
+        width: 32,
+        height: 32,
         background: hover ? (danger ? c.tones.badDim : c.bgElev) : 'transparent',
         border: `1px solid ${hover ? (danger ? c.tones.bad : c.border) : 'transparent'}`,
-        borderRadius: 2,
-        padding: 7,
-        color: danger && hover ? c.tones.bad : c.fgSubtle,
+        borderRadius: 8,
+        color: danger ? (hover ? c.tones.bad : '#EF4444') : (hover ? '#4F46E5' : c.fgSubtle),
         display: 'grid',
         placeItems: 'center',
-        transition: 'all .12s',
+        cursor: 'pointer',
+        transition: 'all .15s ease',
+        outline: 'none',
       }}
     >
       <Icon name={name} size={15} />

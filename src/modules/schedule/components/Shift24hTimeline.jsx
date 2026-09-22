@@ -15,7 +15,7 @@ import Icon from '@/shared/components/ui/Icon';
  * - Lưới thước đo 24h sắc nét (00:00 -> 24:00).
  */
 export default function Shift24hTimeline({ shifts = [] }) {
-  const { c, fonts } = useAdminTheme();
+  const { c, fonts, isDark } = useAdminTheme();
   const [hoveredShiftId, setHoveredShiftId] = useState(null);
 
   const activeShifts = (shifts || []).filter((s) => s.isActive);
@@ -29,9 +29,11 @@ export default function Shift24hTimeline({ shifts = [] }) {
 
   // Màu sắc nhận diện từng nhóm ca
   const getShiftColor = (shift) => {
-    if (shift.colorCode) return shift.colorCode;
-    if (shift.isOvernight || shift.shiftCode === 'CA_DEM') return '#a855f7'; // Tím neon ca đêm
-    if (shift.shiftCode === 'CA_CHIEU') return '#f59e0b'; // Vàng cam ca chiều
+    if (shift.colorCode && shift.colorCode !== '#2563eb') return shift.colorCode;
+    const code = (shift.shiftCode || '').toUpperCase();
+    const name = (shift.shiftName || '').toLowerCase();
+    if (shift.isOvernight || code.includes('DEM') || name.includes('đêm')) return '#a855f7'; // Tím neon ca đêm
+    if (code.includes('CHIEU') || name.includes('chiều')) return '#f59e0b'; // Vàng cam ca chiều
     return '#38bdf8'; // Xanh dương tươi ca sáng
   };
 
@@ -266,77 +268,106 @@ export default function Shift24hTimeline({ shifts = [] }) {
                 )}
 
                 {/* Các khối ca */}
-                {segments.map((seg) => (
-                  <div
-                    key={seg.key}
-                    style={{
-                      position: 'absolute',
-                      left: seg.left,
-                      width: seg.width,
-                      height: '100%',
-                      background: `linear-gradient(135deg, ${color}28, ${color}16)`,
-                      border: `1px solid ${isHovered ? color : `${color}60`}`,
-                      borderRadius: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0 10px',
-                      color: c.fg,
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      overflow: 'hidden',
-                      whiteSpace: 'nowrap',
-                      boxShadow: isHovered ? `0 4px 14px ${color}35` : `0 2px 6px ${color}15`,
-                      transform: isHovered ? 'translateY(-1px)' : 'none',
-                      transition: 'all 0.18s ease',
-                      cursor: 'pointer',
-                    }}
-                    title={`${cleanName} (${shift.startTime?.slice(0, 5)} - ${shift.endTime?.slice(0, 5)}) • ${shift.workHours || 7.5}h làm việc`}
-                  >
-                    {/* Tên ca & Điểm chấm màu */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
+                {segments.map((seg) => {
+                  const isNarrow = parseFloat(seg.width) < 12;
+
+                  // Màu chữ tên ca theo độ tương phản
+                  const titleColor = isDark
+                    ? '#ffffff'
+                    : color === '#38bdf8'
+                    ? '#0369a1'
+                    : color === '#f59e0b'
+                    ? '#b45309'
+                    : '#6d28d9';
+
+                  // Màu chữ khung giờ
+                  const badgeColor = isDark
+                    ? color
+                    : color === '#38bdf8'
+                    ? '#0284c7'
+                    : color === '#f59e0b'
+                    ? '#b45309'
+                    : '#7c3aed';
+
+                  const badgeBg = isDark ? 'rgba(0,0,0,0.45)' : `${color}20`;
+
+                  return (
+                    <div
+                      key={seg.key}
+                      style={{
+                        position: 'absolute',
+                        left: seg.left,
+                        width: seg.width,
+                        height: '100%',
+                        background: isDark
+                          ? `linear-gradient(135deg, ${color}28, ${color}16)`
+                          : `linear-gradient(135deg, ${color}24, ${color}12)`,
+                        border: `1.5px solid ${isHovered ? color : `${color}60`}`,
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: isNarrow ? 'center' : 'space-between',
+                        padding: isNarrow ? '0 4px' : '0 10px',
+                        color: c.fg,
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                        boxShadow: isHovered ? `0 4px 14px ${color}35` : `0 2px 6px ${color}15`,
+                        transform: isHovered ? 'translateY(-1px)' : 'none',
+                        transition: 'all 0.18s ease',
+                        cursor: 'pointer',
+                      }}
+                      title={`${cleanName} (${shift.startTime?.slice(0, 5)} - ${shift.endTime?.slice(0, 5)}) • ${shift.workHours || 7.5}h làm việc`}
+                    >
+                      {/* Tên ca & Điểm chấm màu */}
+                      {!isNarrow && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
+                          <span
+                            style={{
+                              width: '7px',
+                              height: '7px',
+                              borderRadius: '50%',
+                              backgroundColor: color,
+                              flexShrink: 0,
+                              boxShadow: `0 0 6px ${color}`,
+                            }}
+                          />
+                          <span
+                            style={{
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              fontWeight: 700,
+                              fontSize: '12px',
+                              color: titleColor,
+                            }}
+                          >
+                            {cleanName}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Khung giờ hiển thị tinh gọn */}
                       <span
                         style={{
-                          width: '7px',
-                          height: '7px',
-                          borderRadius: '50%',
-                          backgroundColor: color,
-                          flexShrink: 0,
-                          boxShadow: `0 0 6px ${color}`,
-                        }}
-                      />
-                      <span
-                        style={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
+                          fontSize: isNarrow ? '10px' : '11px',
+                          fontFamily: 'monospace',
                           fontWeight: 700,
-                          fontSize: '12px',
-                          color: '#ffffff',
+                          color: badgeColor,
+                          backgroundColor: badgeBg,
+                          padding: isNarrow ? '2px 4px' : '2px 6px',
+                          borderRadius: '4px',
+                          border: `1px solid ${color}40`,
+                          marginLeft: isNarrow ? '0' : '6px',
+                          flexShrink: 0,
                         }}
                       >
-                        {cleanName}
+                        {seg.displayTime}
                       </span>
                     </div>
-
-                    {/* Khung giờ hiển thị tinh gọn */}
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontFamily: 'monospace',
-                        color: color,
-                        backgroundColor: 'rgba(0,0,0,0.4)',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        border: `1px solid ${color}35`,
-                        marginLeft: '6px',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {seg.displayTime}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             );
           })}

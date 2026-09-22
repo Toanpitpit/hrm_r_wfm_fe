@@ -64,7 +64,37 @@ const authService = {
     const response = await axiosInstance.post('/Auth/google-login', { idToken });
     return response.data;
   },
+
+  /**
+   * Đổi mật khẩu tài khoản
+   * @param {Object} data - { currentPassword, newPassword, confirmPassword }
+   * @returns {Promise<Object>} ApiResponse<bool>
+   */
+  changePassword: async (data) => {
+    const response = await axiosInstance.post('/Auth/change-password', data);
+    return response.data;
+  },
+
+  /**
+   * Cập nhật thông tin hồ sơ cá nhân
+   * @param {Object} data - { fullName, phone, email }
+   * @returns {Promise<Object>} ApiResponse<UserSummaryDto>
+   */
+  updateProfile: async (data) => {
+    const response = await axiosInstance.put('/Auth/profile', data);
+    return response.data;
+  },
+
+  /**
+   * Lấy danh sách thông báo hệ thống của người dùng
+   * @returns {Promise<Object>} ApiResponse<List<NotificationItemDto>>
+   */
+  getNotifications: async () => {
+    const response = await axiosInstance.get('/Auth/notifications');
+    return response.data;
+  },
 };
 
 export default authService;
+
 
