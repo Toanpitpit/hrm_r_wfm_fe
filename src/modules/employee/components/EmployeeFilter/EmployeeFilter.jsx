@@ -96,11 +96,12 @@ export default function EmployeeFilter({
             width: '100%',
             padding: '9px 12px 9px 36px',
             background: c.bgCard,
-            border: `1px solid ${c.border}`,
-            borderRadius: '6px',
+            border: `1.5px solid ${c.border}`,
+            borderRadius: '10px',
             color: c.fg,
-            fontSize: '13px',
+            fontSize: '13.5px',
             outline: 'none',
+            transition: 'border-color .15s ease, box-shadow .15s ease',
           }}
         />
         {search && (

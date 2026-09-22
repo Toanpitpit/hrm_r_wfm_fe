@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Icon from '@/shared/components/ui/Icon';
 import Badge from '@/shared/components/ui/Badge';
 import Button from '@/shared/components/ui/Button';
+import Pagination from '@/shared/components/ui/Pagination';
 
 // Styling map cho 5 vai trò cửa hàng + quản trị
 const ROLE_BADGE_MAP = {
@@ -32,6 +33,15 @@ export default function EmployeeTable({
   canManageSystem = false, // True for Admin & Business Owner
 }) {
   const { c, fonts } = useAdminTheme();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Reset page when dataset changes
+  useEffect(() => {
+    setPage(1);
+  }, [employees.length]);
+
+  const displayEmployees = employees.slice((page - 1) * pageSize, page * pageSize);
 
   if (loading) {
     return (
@@ -129,7 +139,7 @@ export default function EmployeeTable({
           </tr>
         </thead>
         <tbody>
-          {employees.map((emp, index) => {
+          {displayEmployees.map((emp, index) => {
             const isInactive = emp.status === 'INACTIVE';
             const roleBadge = ROLE_BADGE_MAP[emp.roleCode] || {
               label: emp.roleName || emp.roleCode || 'Nhân Viên',
@@ -299,6 +309,20 @@ export default function EmployeeTable({
           })}
         </tbody>
       </table>
+
+      {employees.length > 0 && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={employees.length}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          pageSizeOptions={[5, 10, 20, 50]}
+        />
+      )}
     </div>
   );
 }

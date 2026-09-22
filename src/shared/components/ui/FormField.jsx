@@ -11,14 +11,14 @@ export function Field({ label, hint, children, full, error, required }) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 6, gridColumn: full ? '1 / -1' : 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', color: error ? '#ef4444' : c.fgSubtle }}>
-          {label} {required && <span style={{ color: '#ef4444' }}>*</span>}
+        <span style={{ fontSize: 13, fontWeight: 500, color: error ? '#EF4444' : c.fg }}>
+          {label} {required && <span style={{ color: '#EF4444' }}>*</span>}
         </span>
-        {hint && <span style={{ fontSize: 11, color: c.fgFaint }}>{hint}</span>}
+        {hint && <span style={{ fontSize: 11.5, color: c.fgFaint }}>{hint}</span>}
       </div>
       {children}
       {error && (
-        <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: 500, marginTop: 2 }}>
+        <span style={{ fontSize: '12px', color: '#EF4444', fontWeight: 500, marginTop: 2 }}>
           {error}
         </span>
       )}
@@ -29,6 +29,13 @@ export function Field({ label, hint, children, full, error, required }) {
 export function TextInput({ value, onChange, placeholder, type = 'text', disabled = false, error, ...props }) {
   const { c, fonts } = useAdminTheme();
   const [focus, setFocus] = useState(false);
+
+  const borderColor = error ? '#EF4444' : focus ? '#4F46E5' : c.border;
+  const boxShadow = focus
+    ? error
+      ? '0 0 0 3px rgba(239,68,68,0.14)'
+      : '0 0 0 3px rgba(79,70,229,0.14)'
+    : 'none';
 
   const handleChange = (e) => {
     if (!onChange) return;
@@ -47,16 +54,20 @@ export function TextInput({ value, onChange, placeholder, type = 'text', disable
       onBlur={() => setFocus(false)}
       style={{
         background: disabled ? c.track : c.bgRaised,
-        border: `1px solid ${error ? '#ef4444' : focus ? c.accent : c.border}`,
-        borderRadius: 6,
+        border: `1.5px solid ${borderColor}`,
+        borderRadius: 10,
         color: disabled ? c.fgSubtle : c.fg,
         fontSize: 13.5,
         fontFamily: fonts.body,
-        padding: '10px 12px',
+        padding: '10px 13px',
         outline: 'none',
-        transition: 'border .15s',
+        height: 42,
+        transition: 'border 0.15s, box-shadow 0.15s',
         cursor: disabled ? 'not-allowed' : 'text',
         opacity: disabled ? 0.75 : 1,
+        width: '100%',
+        boxSizing: 'border-box',
+        boxShadow,
       }}
     />
   );
@@ -65,6 +76,13 @@ export function TextInput({ value, onChange, placeholder, type = 'text', disable
 export function Textarea({ value, onChange, placeholder, rows = 4, disabled = false, error, ...props }) {
   const { c, fonts } = useAdminTheme();
   const [focus, setFocus] = useState(false);
+
+  const borderColor = error ? '#EF4444' : focus ? '#4F46E5' : c.border;
+  const boxShadow = focus
+    ? error
+      ? '0 0 0 3px rgba(239,68,68,0.14)'
+      : '0 0 0 3px rgba(79,70,229,0.14)'
+    : 'none';
 
   const handleChange = (e) => {
     if (!onChange) return;
@@ -83,15 +101,18 @@ export function Textarea({ value, onChange, placeholder, rows = 4, disabled = fa
       onBlur={() => setFocus(false)}
       style={{
         background: disabled ? c.track : c.bgRaised,
-        border: `1px solid ${error ? '#ef4444' : focus ? c.accent : c.border}`,
-        borderRadius: 6,
+        border: `1.5px solid ${borderColor}`,
+        borderRadius: 10,
         color: disabled ? c.fgSubtle : c.fg,
         fontSize: 13.5,
         fontFamily: fonts.body,
-        padding: '10px 12px',
+        padding: '10px 13px',
         outline: 'none',
         resize: 'vertical',
-        transition: 'border .15s',
+        transition: 'border 0.15s, box-shadow 0.15s',
+        width: '100%',
+        boxSizing: 'border-box',
+        boxShadow,
       }}
     />
   );

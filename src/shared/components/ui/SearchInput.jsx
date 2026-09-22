@@ -15,15 +15,17 @@ export default function SearchInput({ placeholder, value, onChange, width = 260 
         display: 'inline-flex',
         alignItems: 'center',
         gap: 9,
-        padding: '9px 13px',
-        background: c.bgRaised,
-        border: `1px solid ${focus ? c.accent : c.border}`,
-        borderRadius: 2,
+        padding: '8px 13px',
+        background: c.bgElev,
+        border: `1.5px solid ${focus ? '#4F46E5' : c.border}`,
+        borderRadius: 10,
         width,
-        transition: 'border .15s',
+        transition: 'border 0.15s, box-shadow 0.15s',
+        boxShadow: focus ? '0 0 0 3px rgba(79,70,229,0.12)' : 'none',
+        boxSizing: 'border-box',
       }}
     >
-      <Icon name="search" size={15} color={c.fgFaint} />
+      <Icon name="search" size={15} color={focus ? '#4F46E5' : c.fgFaint} />
       <input
         value={value || ''}
         onChange={(e) => onChange && onChange(e.target.value)}

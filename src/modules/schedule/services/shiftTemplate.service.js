@@ -225,9 +225,14 @@ export const getAllShiftTemplates = async (includeInactive = true) => {
         workHours:
           item.workHours ??
           calculateWorkHours(item.startTime, item.endTime, item.breakMinutes),
-        isOvernight:
-          item.isOvernight ?? checkIsOvernight(item.startTime, item.endTime),
-        colorCode: item.colorCode || '#2563eb',
+        colorCode:
+          item.colorCode && item.colorCode !== '#2563eb'
+            ? item.colorCode
+            : (item.isOvernight || (item.shiftCode || '').toUpperCase().includes('DEM') || (item.shiftName || '').toLowerCase().includes('đêm'))
+            ? '#a855f7'
+            : ((item.shiftCode || '').toUpperCase().includes('CHIEU') || (item.shiftName || '').toLowerCase().includes('chiều'))
+            ? '#f59e0b'
+            : '#38bdf8',
         isSystemDefault:
           item.isSystemDefault !== undefined
             ? Boolean(item.isSystemDefault)

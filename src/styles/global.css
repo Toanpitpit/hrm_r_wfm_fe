@@ -1,6 +1,5 @@
 /* ============================================================
-   Global Styles — Import tất cả CSS foundation
-   File này được import tại main.jsx
+   Global Styles — Apex Dashboard Theme
    ============================================================ */
 
 @import './variables.css';
@@ -14,59 +13,61 @@
 body {
   font-family: var(--font-family);
   font-size: var(--font-size-base);
-  font-weight: var(--font-weight-normal);
-  line-height: var(--line-height-normal);
   color: var(--color-text);
   background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ==================== HEADINGS ==================== */
-h1 {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-bold);
-}
-
-h2 {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-semibold);
-}
-
-h3 {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-}
-
-h4 {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-medium);
-}
+h1 { font-size: var(--font-size-3xl); font-weight: 700; letter-spacing: -0.5px; }
+h2 { font-size: var(--font-size-2xl); font-weight: 700; letter-spacing: -0.4px; }
+h3 { font-size: var(--font-size-xl); font-weight: 600; letter-spacing: -0.2px; }
+h4 { font-size: var(--font-size-lg); font-weight: 600; }
 
 /* ==================== LINKS ==================== */
 a {
   color: var(--color-primary);
-  transition: color var(--transition-fast);
+  text-decoration: none;
+  transition: color 0.15s ease;
 }
 
 a:hover {
   color: var(--color-primary-hover);
 }
 
-/* ==================== SCROLLBAR (Optional) ==================== */
+/* ==================== SCROLLBAR ==================== */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-bg-secondary);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-text-muted);
-  border-radius: var(--border-radius-full);
+  background: rgba(138, 153, 173, 0.25);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-secondary);
+  background: rgba(138, 153, 173, 0.45);
+}
+
+/* ==================== FOCUS VISIBLE ==================== */
+:focus-visible {
+  outline: 2px solid #0D9488;
+  outline-offset: 2px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ==================== KEYFRAMES ==================== */

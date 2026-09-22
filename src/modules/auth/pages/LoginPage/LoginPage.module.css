@@ -1,14 +1,353 @@
-/* LoginPage.module.css — Clean Tech SaaS Light Theme */
+/* LoginPage.module.css — Apex Dashboard Theme Style */
 
-.loginContainer {
-  animation: fadeInUp 0.4s ease both;
+.pageContainer {
+  min-height: 100vh;
+  display: flex;
+  background-color: #F4FAF8;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #0F172A;
 }
 
-@keyframes fadeInUp {
+/* ── Cột trái: RWFM Modern Mint/Teal Glow Gradient ───── */
+.heroPanel {
+  display: none;
+  flex: 1.1;
+  background: linear-gradient(145deg, #042F2E 0%, #0F766E 40%, #0D9488 75%, #14B8A6 100%);
+  color: #ffffff;
+  padding: 48px;
+  position: relative;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 960px) {
+  .heroPanel {
+    display: flex;
+  }
+}
+
+.heroCenteredBrand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.heroLogoBadge {
+  width: 68px;
+  height: 68px;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+}
+
+.heroLogoBadge img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.heroBrandName {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #ffffff;
+}
+
+/* ── Cột phải: Form Panel ─────────────────────────────────── */
+.formPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  min-height: 100vh;
+  background: #F8FAFC;
+}
+
+.formContainer {
+  width: 100%;
+  max-width: 440px;
+}
+
+.mobileBrand {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.mobileLogoBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid #E2E8F0;
+  margin-bottom: 14px;
+}
+
+.mobileLogoBadge img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.formTitle {
+  font-size: 26px;
+  font-weight: 700;
+  color: #0F172A;
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+
+.loginCard {
+  background: #ffffff;
+  border: 1px solid #E2E8F0;
+  border-radius: 20px;
+  padding: 32px 28px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+}
+
+.formGroup {
+  margin-bottom: 18px;
+}
+
+.inputLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  margin-bottom: 7px;
+}
+
+.inputWrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1.5px solid #CBD5E1;
+  background: #ffffff;
+  transition: all 0.15s ease-in-out;
+}
+
+.inputWrapper:focus-within {
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.inputWrapperError {
+  border-color: #EF4444;
+  background-color: #FFF5F5;
+}
+
+.inputWrapperError:focus-within {
+  border-color: #EF4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
+}
+
+.inputIcon {
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.inputField {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: #0F172A;
+  font-family: inherit;
+  width: 100%;
+}
+
+.inputField::placeholder {
+  color: #94A3B8;
+}
+
+.inputField:disabled {
+  color: #94A3B8;
+  cursor: not-allowed;
+}
+
+.errorText {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #EF4444;
+  font-weight: 500;
+}
+
+.formOptions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.checkboxLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #475569;
+  user-select: none;
+}
+
+.checkboxInput {
+  accent-color: #0D9488;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.forgotLink {
+  font-size: 13px;
+  color: #0D9488;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.forgotLink:hover {
+  color: #0F766E;
+  text-decoration: underline;
+}
+
+.submitBtn {
+  width: 100%;
+  height: 46px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14.5px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.3);
+  transition: all 0.2s ease;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0F766E 0%, #0D9488 100%);
+  box-shadow: 0 6px 20px rgba(13, 148, 136, 0.4);
+  transform: translateY(-1px);
+}
+
+.submitBtn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+}
+
+.submitBtn:disabled {
+  background: #94A3B8;
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 16px;
+}
+
+.dividerLine {
+  flex: 1;
+  height: 1px;
+  background: #E2E8F0;
+}
+
+.dividerText {
+  font-size: 12.5px;
+  color: #64748B;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.googleBtnWrapper {
+  display: flex;
+  width: 100%;
+  padding: 4px 0;
+}
+
+.googleFullBtn {
+  width: 100%;
+  height: 46px;
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1.5px solid #E2E8F0;
+  color: #1E293B;
+  font-size: 14.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.googleFullBtn:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.googleFullBtn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

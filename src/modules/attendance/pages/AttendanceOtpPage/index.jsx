@@ -165,18 +165,20 @@ export default function AttendanceOtpPage() {
       sidebar={
         <DashboardSidebar
           page="attendance-otp"
+          activePath="/employee/attendance-otp"
           onNavigate={handleSidebarNavigate}
-          navItems={navItems}
           consoleLabel={portalTitle}
           defaultDisplayName={storedUser?.fullName || 'Nhân viên Chi nhánh'}
           roleLabel={roleSubtitle}
           avatarLetter={storedUser?.fullName ? storedUser.fullName.charAt(0).toUpperCase() : 'E'}
+          brandName="RWFM Enterprise"
         />
       }
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: portalTitle, href: '/employee/my-calendar' },
+            { label: 'Cá Nhân', href: '/employee/my-calendar' },
+            { label: 'Tiện Ích', href: '/employee/attendance-otp' },
             { label: 'Mã Điểm Danh Kiosk' },
           ]}
         />
