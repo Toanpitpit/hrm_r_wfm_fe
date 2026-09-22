@@ -20,32 +20,10 @@ body {
 }
 
 /* ==================== HEADINGS ==================== */
-<<<<<<< Updated upstream
-h1 {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-bold);
-}
-
-h2 {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-semibold);
-}
-
-h3 {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-}
-
-h4 {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-medium);
-}
-=======
 h1 { font-size: var(--font-size-3xl); font-weight: 700; letter-spacing: -0.5px; }
 h2 { font-size: var(--font-size-2xl); font-weight: 700; letter-spacing: -0.4px; }
 h3 { font-size: var(--font-size-xl); font-weight: 600; letter-spacing: -0.2px; }
 h4 { font-size: var(--font-size-lg); font-weight: 600; }
->>>>>>> Stashed changes
 
 /* ==================== LINKS ==================== */
 a {

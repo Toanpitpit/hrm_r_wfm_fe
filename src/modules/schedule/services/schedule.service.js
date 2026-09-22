@@ -130,8 +130,12 @@ export const getColleaguesForSwap = async (branchId) => {
 /**
  * Lấy danh sách các ca làm việc tương lai của đồng nghiệp để chọn đổi.
  */
-export const getColleagueShifts = async (colleagueEmployeeId) => {
-  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_COLLEAGUE_SHIFTS(colleagueEmployeeId));
+export const getColleagueShifts = async (colleagueEmployeeId, requestingAssignmentId = null) => {
+  const params = {};
+  if (requestingAssignmentId) {
+    params.requestingAssignmentId = requestingAssignmentId;
+  }
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_COLLEAGUE_SHIFTS(colleagueEmployeeId), { params });
   return response.data;
 };
 

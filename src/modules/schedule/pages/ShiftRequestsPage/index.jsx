@@ -114,20 +114,22 @@ export default function ShiftRequestsPage() {
   const [reviewPageSize, setReviewPageSize] = useState(10);
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
-  // 1. Fetch upcoming shifts of current user
+  // 1. Fetch upcoming shifts of current user (chỉ lấy ca từ ngày mai trở đi - tuân thủ báo trước ít nhất 1 ngày)
   const fetchMyUpcomingShifts = () => {
     if (!employeeId) return;
     setLoadingShifts(true);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const startDateStr = tomorrow.toISOString().split('T')[0];
     const nextWeek = new Date();
     nextWeek.setDate(nextWeek.getDate() + 14);
     const endDateStr = nextWeek.toISOString().split('T')[0];
 
-    getEmployeeShifts(employeeId, todayStr, endDateStr)
+    getEmployeeShifts(employeeId, startDateStr, endDateStr)
       .then((res) => {
         const list = res?.data || res;
         if (Array.isArray(list)) {
-          setMyUpcomingShifts(list);
+          setMyUpcomingShifts(list.filter((s) => s.workDate >= startDateStr));
         } else {
           setMyUpcomingShifts([]);
         }
@@ -144,7 +146,7 @@ export default function ShiftRequestsPage() {
         if (res?.success && Array.isArray(res.data)) {
           setColleagues(res.data);
         } else {
-          setColleagues([]);
+          setColleagueShifts([]);
         }
       })
       .catch(() => setColleagues([]))
@@ -154,7 +156,7 @@ export default function ShiftRequestsPage() {
   // 3. Fetch colleague shifts when colleague changes (SWAP mode)
   useEffect(() => {
     if (requestType === 'SWAP' && selectedColleagueId) {
-      getColleagueShifts(selectedColleagueId)
+      getColleagueShifts(selectedColleagueId, selectedMyAssignmentId)
         .then((res) => {
           if (res?.success && Array.isArray(res.data)) {
             setColleagueShifts(res.data);
@@ -167,7 +169,7 @@ export default function ShiftRequestsPage() {
       setColleagueShifts([]);
       setSelectedTargetAssignmentId('');
     }
-  }, [requestType, selectedColleagueId]);
+  }, [requestType, selectedColleagueId, selectedMyAssignmentId]);
 
   // Initial loads
   useEffect(() => {
@@ -647,11 +649,15 @@ export default function ShiftRequestsPage() {
                           : '-- Chọn ca trực của đồng nghiệp --'}
                       </option>
                       {Array.isArray(colleagueShifts) &&
-                        colleagueShifts.map((cs) => (
-                          <option key={cs.assignmentId} value={cs.assignmentId} style={{ backgroundColor: c.bgElev, color: c.fg }}>
-                            {cs.workDate} ({cs.shiftName}: {cs.timeRange})
-                          </option>
-                        ))}
+                        colleagueShifts.map((cs) => {
+                          const selectedMyShift = myUpcomingShifts.find((sh) => String(sh.assignmentId) === String(selectedMyAssignmentId));
+                          const isSameDay = selectedMyShift && cs.workDate === selectedMyShift.workDate;
+                          return (
+                            <option key={cs.assignmentId} value={cs.assignmentId} style={{ backgroundColor: c.bgElev, color: c.fg }}>
+                              {cs.workDate} ({cs.shiftName}: {cs.timeRange}){isSameDay ? ' [Đổi cùng ngày]' : ''}
+                            </option>
+                          );
+                        })}
                     </select>
                   </FormField>
                 </div>

@@ -54,12 +54,16 @@ export default function ShiftSwapModal({
     }
   }, [isOpen, shift]);
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const shiftDate = shift?.date || shift?.workDate;
+  const isAdvanceNoticeValid = Boolean(shiftDate && shiftDate > todayStr);
+
   // Load shifts of selected colleague when in SWAP mode
   useEffect(() => {
     if (requestType === 'SWAP' && selectedColleagueId) {
       setLoadingShifts(true);
       setSelectedTargetAssignmentId('');
-      getColleagueShifts(selectedColleagueId)
+      getColleagueShifts(selectedColleagueId, shift?.assignmentId)
         .then((res) => {
           if (res?.success && res.data) {
             setColleagueShifts(res.data);
@@ -76,10 +80,15 @@ export default function ShiftSwapModal({
       setColleagueShifts([]);
       setSelectedTargetAssignmentId('');
     }
-  }, [requestType, selectedColleagueId]);
+  }, [requestType, selectedColleagueId, shift?.assignmentId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!isAdvanceNoticeValid) {
+      toast.error('Đơn xin đổi/nghỉ ca phải được gửi trước ngày làm việc ít nhất 1 ngày.');
+      return;
+    }
 
     if (requestType === 'LEAVE') {
       if (!reason.trim()) {
@@ -139,13 +148,34 @@ export default function ShiftSwapModal({
           <Button variant="ghost" kind="ghost" onClick={onClose} disabled={submitting}>
             Hủy Bỏ
           </Button>
-          <Button variant="primary" kind="primary" onClick={handleSubmit} disabled={submitting}>
+          <Button variant="primary" kind="primary" onClick={handleSubmit} disabled={submitting || !isAdvanceNoticeValid}>
             {submitting ? 'Đang Gửi...' : 'Gửi Đơn Cho Quản Lý'}
           </Button>
         </div>
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {!isAdvanceNoticeValid && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 6,
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#ef4444',
+              fontSize: 12.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              lineHeight: 1.4,
+            }}
+          >
+            <Icon name="alert-circle" size={16} color="#ef4444" style={{ flexShrink: 0 }} />
+            <span>
+              <strong>Không đủ điều kiện:</strong> Đơn xin đổi/nghỉ ca phải được gửi trước ngày làm việc ít nhất 1 ngày. Ca trực hôm nay hoặc trong quá khứ không thể tạo đơn.
+            </span>
+          </div>
+        )}
         {/* Thông tin ca trực hiện tại */}
         <div
           style={{
@@ -306,11 +336,14 @@ export default function ShiftSwapModal({
                       ? '-- Đồng nghiệp không có ca trực nào sắp tới để đổi --'
                       : '-- Chọn ca của đồng nghiệp --'}
                   </option>
-                  {colleagueShifts.map((cs) => (
-                    <option key={cs.assignmentId} value={cs.assignmentId}>
-                      {cs.workDate}: {formatShiftTemplateName(cs.shiftName)} ({cs.timeRange})
-                    </option>
-                  ))}
+                  {colleagueShifts.map((cs) => {
+                    const isSameDay = cs.workDate === shiftDate;
+                    return (
+                      <option key={cs.assignmentId} value={cs.assignmentId}>
+                        {cs.workDate}: {formatShiftTemplateName(cs.shiftName)} ({cs.timeRange}){isSameDay ? ' [Đổi cùng ngày]' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               )}
             </FormField>
