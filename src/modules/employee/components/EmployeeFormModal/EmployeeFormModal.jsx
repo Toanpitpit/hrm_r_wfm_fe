@@ -5,6 +5,7 @@ import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
 import { Field, TextInput } from '@/shared/components/ui/FormField';
 import { CONTRACT_TYPES, STORE_ROLES } from '../../services/employee.service';
+import headcountService from '../../services/headcount.service';
 
 export default function EmployeeFormModal({
   isOpen,
@@ -34,11 +35,24 @@ export default function EmployeeFormModal({
     branchName: '',
     contractType: 'FULL_TIME',
     password: '',
+    importRequestId: '',
+    expansionReason: '',
   });
 
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Quản lý Quota và Đơn mở rộng của Chi nhánh đang chọn
+  const [branchQuota, setBranchQuota] = useState(null);
+  const [availableRequests, setAvailableRequests] = useState([]);
+  const [loadingQuota, setLoadingQuota] = useState(false);
+
+  // Tính toán trạng thái đạt trần định biên chuẩn
+  const isStandardQuotaReached = Boolean(
+    branchQuota &&
+    (branchQuota.isStandardQuotaReached ?? branchQuota.isQuotaReached ?? (branchQuota.currentHeadcount >= branchQuota.standardQuota))
+  );
 
   // Phân quyền chọn Vai trò:
   // Store Manager chỉ được tạo 4 vai trò vận hành (không được tạo Admin hoặc Store Manager khác)
@@ -65,13 +79,15 @@ export default function EmployeeFormModal({
         branchName: initialData.branchName || currentStoreBranchName || '',
         contractType: initialData.contractType || 'FULL_TIME',
         password: '',
+        importRequestId: initialData.importRequestId ? String(initialData.importRequestId) : '',
+        expansionReason: initialData.expansionReason || '',
       });
     } else {
       const defaultBranchId = isStoreManager && currentStoreBranchId
         ? String(currentStoreBranchId)
         : branches[0]?.id || branches[0]?.storeId
-        ? String(branches[0].id || branches[0].storeId)
-        : '1';
+          ? String(branches[0].id || branches[0].storeId)
+          : '1';
 
       const defaultBranch = branches.find(
         (b) => String(b.id || b.storeId) === String(defaultBranchId)
@@ -92,10 +108,54 @@ export default function EmployeeFormModal({
         branchName: defaultBranch?.name || currentStoreBranchName || 'Chi nhánh Cửa Hàng',
         contractType: 'FULL_TIME',
         password: `Rwfm@${Math.floor(100000 + Math.random() * 900000)}`,
+        importRequestId: '',
+        expansionReason: '',
       });
     }
     setErrors({});
   }, [initialData, isOpen, isStoreManager, currentStoreBranchId]);
+
+  // Tải thông tin định biên khi chọn chi nhánh (khi tạo mới)
+  useEffect(() => {
+    const targetBranchId = formData.branchId || formData.homeBranchId;
+    if (!targetBranchId || isEdit || !isOpen) return;
+
+    let mounted = true;
+    const fetchQuota = async () => {
+      setLoadingQuota(true);
+      try {
+        const foundBranch = branches.find((b) => String(b.id || b.storeId) === String(targetBranchId));
+        const tier = foundBranch?.branchTier || foundBranch?.tier || 2;
+        const [quotaRes, reqsRes] = await Promise.all([
+          headcountService.getBranchHeadcountStatus(targetBranchId, tier),
+          headcountService.getAvailableRequests(targetBranchId),
+        ]);
+        if (mounted) {
+          if (quotaRes.success) setBranchQuota(quotaRes.data);
+          if (reqsRes.success) {
+            setAvailableRequests(reqsRes.data);
+            // Tự động chọn đơn đầu tiên nếu có và chưa chọn
+            if (reqsRes.data.length > 0) {
+              setFormData((prev) => ({
+                ...prev,
+                importRequestId: prev.importRequestId || String(reqsRes.data[0].id),
+                expansionReason: prev.expansionReason || reqsRes.data[0].reason || '',
+              }));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Lỗi khi tải quota chi nhánh:', err);
+      } finally {
+        if (mounted) setLoadingQuota(false);
+      }
+    };
+
+    fetchQuota();
+    return () => {
+      mounted = false;
+    };
+  }, [formData.branchId, formData.homeBranchId, branches, isEdit, isOpen]);
 
   const handleGeneratePassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
@@ -138,6 +198,16 @@ export default function EmployeeFormModal({
       errs.branchId = 'Bắt buộc phải chọn chi nhánh công tác hợp lệ.';
     }
 
+    // Kiểm tra Quota nếu chi nhánh đã đạt trần định biên chuẩn
+    if (!isEdit && isStandardQuotaReached) {
+      if (!formData.importRequestId) {
+        errs.importRequestId = 'Chi nhánh đã đạt trần định biên. Bắt buộc phải chọn Đơn Mở Rộng Định Biên đã duyệt.';
+      }
+      if (!formData.expansionReason?.trim()) {
+        errs.expansionReason = 'Vui lòng nhập lý do bổ sung nhân sự vượt định biên chuẩn.';
+      }
+    }
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -158,6 +228,12 @@ export default function EmployeeFormModal({
         const foundB = branches.find((b) => String(b.id || b.storeId) === String(val));
         if (foundB) {
           updated.branchName = foundB.name;
+        }
+      }
+      if (field === 'importRequestId') {
+        const foundReq = availableRequests.find((r) => String(r.id) === String(val));
+        if (foundReq && !prev.expansionReason) {
+          updated.expansionReason = foundReq.reason;
         }
       }
       return updated;
@@ -186,12 +262,14 @@ export default function EmployeeFormModal({
   const title = isEdit
     ? `Cập Nhật Hồ Sơ Nhân Sự: ${initialData?.fullName || ''}`
     : isStoreManager
-    ? 'Khai Báo Nhân Sự Chi Nhánh (Tự Động Gửi Welcome Email)'
-    : 'Khai Báo Hồ Sơ Nhân Sự Chuỗi Bán Lẻ (RBAC)';
+      ? 'Khai Báo Nhân Sự Chi Nhánh (Tự Động Gửi Welcome Email)'
+      : 'Khai Báo Hồ Sơ Nhân Sự Chuỗi Bán Lẻ (RBAC)';
 
   const sub = isEdit
     ? 'Chỉnh sửa thông tin liên hệ, chi nhánh công tác và hình thức hợp đồng lao động.'
     : 'Hệ thống tự động băm mật khẩu bảo mật và kích hoạt gửi Welcome Email có thông tin tài khoản & link đăng nhập.';
+
+  const isBlockedByQuota = !isEdit && isStandardQuotaReached && availableRequests.length === 0;
 
   return (
     <Modal
@@ -199,15 +277,28 @@ export default function EmployeeFormModal({
       onClose={onClose}
       title={title}
       sub={sub}
-      width={640}
+      width={680}
       footer={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', width: '100%' }}>
-          <Button variant="ghost" onClick={onClose} disabled={submitting}>
-            Hủy Bỏ
-          </Button>
-          <Button variant="primary" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? 'Đang xử lý...' : isEdit ? 'Lưu Thay Đổi' : 'Xác Nhận Khai Báo'}
-          </Button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          {isBlockedByQuota ? (
+            <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: 500 }}>
+              * Chi nhánh đã đầy định biên và không có đơn mở rộng khả dụng.
+            </span>
+          ) : (
+            <div />
+          )}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <Button variant="ghost" onClick={onClose} disabled={submitting}>
+              Hủy Bỏ
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSubmit}
+              disabled={submitting || isBlockedByQuota}
+            >
+              {submitting ? 'Đang xử lý...' : isEdit ? 'Lưu Thay Đổi' : 'Xác Nhận Khai Báo'}
+            </Button>
+          </div>
         </div>
       }
     >
@@ -294,11 +385,14 @@ export default function EmployeeFormModal({
               }}
             >
               <option value="">-- Chọn vai trò --</option>
-              {availableRoles.map((r) => (
-                <option key={r.id} value={String(r.id)}>
-                  {r.roleName} ({r.roleCode})
-                </option>
-              ))}
+              {availableRoles
+                // Lọc bỏ các vai trò Chủ doanh nghiệp và Admin trước khi render
+                .filter((r) => !['BUSINESS_OWNER', 'OPERATIONS_ADMIN', 'ADMIN'].includes(r.roleCode))
+                .map((r) => (
+                  <option key={r.id} value={String(r.id)}>
+                    {r.roleName} ({r.roleCode})
+                  </option>
+                ))}
             </select>
           </Field>
 
@@ -333,6 +427,110 @@ export default function EmployeeFormModal({
             </select>
           </Field>
         </div>
+
+        {/* Thông tin Định Biên Chi Nhánh & Đơn Mở Rộng (Khi Tạo Mới) */}
+        {!isEdit && branchQuota && (
+          <div
+            style={{
+              padding: '12px 14px',
+              borderRadius: '8px',
+              background: isStandardQuotaReached
+                ? 'rgba(245, 158, 11, 0.08)'
+                : 'rgba(34, 197, 94, 0.08)',
+              border: `1px solid ${isStandardQuotaReached
+                  ? 'rgba(245, 158, 11, 0.3)'
+                  : 'rgba(34, 197, 94, 0.3)'
+                }`,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600 }}>
+                <Icon
+                  name={isStandardQuotaReached ? 'warning' : 'check'}
+                  size={16}
+                  color={isStandardQuotaReached ? '#f59e0b' : '#22c55e'}
+                />
+                <span style={{ color: isStandardQuotaReached ? '#fde047' : '#86efac' }}>
+                  Định biên Chi nhánh: {branchQuota.currentHeadcount} / {branchQuota.standardQuota} nhân sự (Tier {branchQuota.branchTier})
+                </span>
+              </div>
+              <span style={{ fontSize: '11.5px', color: c.fgSubtle }}>
+                {branchQuota.inactiveCount > 0 ? `Đã nghỉ: ${branchQuota.inactiveCount} (Đã dôi dư vị trí)` : ''}
+              </span>
+            </div>
+
+            {/* Chi nhánh còn định biên chuẩn */}
+            {!isStandardQuotaReached ? (
+              <p style={{ margin: 0, fontSize: '12px', color: c.fgSubtle }}>
+                Định biên chuẩn còn trống{' '}
+                <strong style={{ color: '#22c55e' }}>
+                  {branchQuota.standardQuota - branchQuota.currentHeadcount} vị trí
+                </strong>
+                . Bạn có thể khai báo trực tiếp bù đắp định biên mà không cần gắn đơn ngoại lệ.
+              </p>
+            ) : (
+              /* Chi nhánh đã đầy định biên */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <p style={{ margin: 0, fontSize: '12px', color: '#fde047' }}>
+                  <strong>Lưu ý:</strong> Chi nhánh đã đạt tối đa định biên chuẩn. Khai báo nhân viên này sẽ được tính vào{' '}
+                  <strong>Định biên mở rộng</strong> và bắt buộc phải gắn mã Đơn Đề Xuất đã được duyệt.
+                </p>
+
+                {availableRequests.length === 0 ? (
+                  <div
+                    style={{
+                      padding: '8px 12px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: '#fca5a5',
+                    }}
+                  >
+                    Chi nhánh này chưa có Đơn Mở Rộng Định Biên nào khả dụng. Vui lòng thẩm định đơn đề xuất trước khi tiếp tục khai báo.
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <Field label="Chọn Đơn Mở Rộng Định Biên Đã Duyệt *" required error={errors.importRequestId}>
+                      <select
+                        value={formData.importRequestId}
+                        onChange={(e) => handleChange('importRequestId', e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '9px 12px',
+                          background: c.bgRaised,
+                          border: `1px solid ${errors.importRequestId ? '#ef4444' : c.border}`,
+                          borderRadius: '6px',
+                          color: c.fg,
+                          fontSize: '12.5px',
+                          outline: 'none',
+                        }}
+                      >
+                        <option value="">-- Chọn đơn mở rộng khả dụng --</option>
+                        {availableRequests.map((req) => (
+                          <option key={req.id} value={String(req.id)}>
+                            Đơn #{req.id} - Còn {req.additionalQuantity} slot ({req.reason?.slice(0, 30)}...)
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field label="Lý Do Bổ Sung Vượt Quota *" required error={errors.expansionReason}>
+                      <TextInput
+                        value={formData.expansionReason}
+                        onChange={(e) => handleChange('expansionReason', e.target.value)}
+                        placeholder="VD: Mở rộng quầy ca tối"
+                      />
+                    </Field>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Hình thức hợp đồng */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>

@@ -7,7 +7,7 @@ export const NAV_ITEMS_BY_ROLE = {
   OPERATIONS_ADMIN: [
     { id: 'dashboard', label: 'Bảng Điều Khiển Overview', icon: 'home', path: '/dashboard' },
     { type: 'group', label: 'Quản trị Master Data' },
-    { id: 'employees', label: 'Khai Báo & Quản Lý Nhân Sự', icon: 'users', path: '/employees' },
+    { id: 'employees', label: 'Quản Lý Nhân Sự & Định Biên', icon: 'users', path: '/employees' },
     { id: 'branches', label: 'Danh mục Chi nhánh & Kiosk', icon: 'store', path: '/branches' },
     { id: 'shift-master', label: 'Bộ Khung Ca Mẫu', icon: 'calendar', path: '/shifts/templates' },
     { id: 'dispatch-network', label: 'Ma Trận Điều Động Chi Nhánh', icon: 'pulse', path: '/admin/dispatch-network' },
@@ -17,7 +17,7 @@ export const NAV_ITEMS_BY_ROLE = {
   STORE_MANAGER: [
     { id: 'dashboard', label: 'Mã Kích Hoạt Kiosk', icon: 'lock', path: '/store-manager/kiosk-codes' },
     { type: 'group', label: 'Quản Lý Nhân Sự & Ca Trực' },
-    { id: 'employees', label: 'Khai Báo Nhân Sự Chi Nhánh', icon: 'users', path: '/employees' },
+    { id: 'employees', label: 'Nhân Sự & Định Biên Chi Nhánh', icon: 'users', path: '/employees' },
     { id: 'store-schedules', label: 'Lịch Phân Công Ca Tuần', icon: 'calendar', path: '/store-manager/schedules' },
     { id: 'shift-requests', label: 'Duyệt Đơn Đổi & Điều Chỉnh Lịch', icon: 'document', path: '/employee/shift-requests' },
     { id: 'dispatches', label: 'Điều Động Nhân Sự', icon: 'users', path: '/store-manager/dispatches' },

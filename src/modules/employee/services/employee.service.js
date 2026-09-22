@@ -1,4 +1,5 @@
 import axiosInstance from '@/config/axios.config';
+import headcountService from './headcount.service';
 
 /**
  * ==============================================================================
@@ -265,8 +266,9 @@ export const employeeService = {
   },
 
   /**
-   * 5. Khai báo nhân sự mới (POST /api/Users/employees)
-   * Tự động gửi Welcome Email trong background bởi Backend
+   * 5. Khai báo nhân sự mới (POST /api/v1/users/employees & POST /api/Users/employees)
+   * Phân quyền RBAC nghiêm ngặt: Chỉ OPERATIONS_ADMIN và ADMIN hệ thống.
+   * Thẩm định định biên chi nhánh (BranchTier Quotas) và bù trừ lùi chỉ tiêu ImportRequestId.
    */
   async createEmployee(payload) {
     const formattedPayload = {
@@ -280,10 +282,24 @@ export const employeeService = {
       branchId: Number(payload.branchId || payload.homeBranchId),
       password: payload.password,
       contractType: payload.contractType || 'FULL_TIME',
+      ...(payload.importRequestId ? { importRequestId: Number(payload.importRequestId) } : {}),
+      ...(payload.expansionReason ? { expansionReason: payload.expansionReason } : {}),
     };
 
     try {
-      const res = await axiosInstance.post('Users/employees', formattedPayload);
+      // Ưu tiên gọi chuẩn RESTful v1
+      let res;
+      try {
+        res = await axiosInstance.post('v1/users/employees', formattedPayload);
+      } catch (err1) {
+        if (err1.response?.status === 404) {
+          // Thử alias Users/employees
+          res = await axiosInstance.post('Users/employees', formattedPayload);
+        } else {
+          throw err1;
+        }
+      }
+
       const created = res.data?.data || res.data;
       return {
         success: true,
@@ -291,9 +307,19 @@ export const employeeService = {
         message: 'Khai báo hồ sơ nhân sự thành công! Welcome Email kèm thông tin đăng nhập đã được tự động gửi tới email nhân sự.',
       };
     } catch (err) {
+      const status = err.response?.status;
       const msg = err.response?.data?.message || err.response?.data?.title || err.message;
-      if (err.response?.status === 400 || err.response?.status === 403) {
-        return { success: false, message: msg };
+      if (status === 403) {
+        return {
+          success: false,
+          message: 'Từ chối quyền truy cập (403): Chỉ Quản trị vận hành (Operations Admin) mới có quyền tạo nhân sự.',
+        };
+      }
+      if (status === 400) {
+        return {
+          success: false,
+          message: msg || 'Yêu cầu không hợp lệ (400): Vui lòng kiểm tra lại thông tin hoặc định biên chi nhánh.',
+        };
       }
       console.warn('[EmployeeService] Backend createEmployee error, saving locally:', msg);
     }
@@ -314,10 +340,17 @@ export const employeeService = {
       branchName: payload.branchName || 'Chi nhánh Cầu Giấy',
       contractType: payload.contractType || 'FULL_TIME',
       status: 'ACTIVE',
+      importRequestId: payload.importRequestId ? Number(payload.importRequestId) : null,
+      expansionReason: payload.expansionReason || null,
       createdAt: new Date().toISOString(),
     };
     list.unshift(newEmployee);
     saveLocalEmployees(list);
+
+    // Trừ lùi hạn mức mở rộng nếu có
+    if (payload.importRequestId) {
+      headcountService.consumeQuotaLocally(payload.importRequestId);
+    }
 
     return {
       success: true,
