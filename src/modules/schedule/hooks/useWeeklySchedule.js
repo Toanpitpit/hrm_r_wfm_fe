@@ -76,7 +76,17 @@ export const formatShiftTemplateName = (name) => {
  */
 export function useWeeklySchedule(initialBranchId = null) {
   const toast = useToast();
-  const [branchId, setBranchId] = useState(initialBranchId);
+  const storedUser = (() => {
+    try {
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const [branchId, setBranchId] = useState(
+    initialBranchId || storedUser?.storeId || storedUser?.homeBranchId || storedUser?.branchId || null
+  );
   const [weekStartDate, setWeekStartDate] = useState(getMondayOfWeek());
 
   // Phân quyền cơ sở (Branch Isolation)
