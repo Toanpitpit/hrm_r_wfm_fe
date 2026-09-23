@@ -74,10 +74,17 @@ export const formatShiftTemplateName = (name) => {
 /**
  * Hook quản lý toàn bộ nghiệp vụ Lịch Ca Tuần (UC 2.1 & UC 2.3).
  */
-export function useWeeklySchedule(initialBranchId = 1) {
+export function useWeeklySchedule(initialBranchId = null) {
   const toast = useToast();
   const [branchId, setBranchId] = useState(initialBranchId);
   const [weekStartDate, setWeekStartDate] = useState(getMondayOfWeek());
+
+  // Phân quyền cơ sở (Branch Isolation)
+  const [accessibleBranches, setAccessibleBranches] = useState([]);
+  const [isGlobalManager, setIsGlobalManager] = useState(false);
+  const [assignedBranch, setAssignedBranch] = useState(null);
+  const [branchesLoading, setBranchesLoading] = useState(true);
+  const [permissionError, setPermissionError] = useState(null);
 
   // Dữ liệu từ API
   const [templates, setTemplates] = useState([]);
@@ -103,6 +110,51 @@ export function useWeeklySchedule(initialBranchId = 1) {
 
   const [isAutoScheduleModalOpen, setIsAutoScheduleModalOpen] = useState(false);
 
+  /**
+   * Tải danh sách cơ sở tài khoản được phép quản lý lập lịch (Branch Isolation).
+   */
+  const loadAccessibleBranches = useCallback(async () => {
+    setBranchesLoading(true);
+    try {
+      const res = await scheduleService.getAccessibleBranches();
+      if (res.success && res.data) {
+        setIsGlobalManager(Boolean(res.data.isGlobalManager));
+        const branchList = res.data.branches || [];
+        setAccessibleBranches(branchList);
+
+        if (!res.data.isGlobalManager) {
+          // Store Manager / Shift Leader: khóa cứng vào chi nhánh phụ trách
+          if (res.data.assignedBranchId) {
+            setBranchId(res.data.assignedBranchId);
+            setAssignedBranch({
+              id: res.data.assignedBranchId,
+              name: res.data.assignedBranchName,
+              code: res.data.assignedBranchCode,
+            });
+            setPermissionError(null);
+          } else {
+            setPermissionError('Tài khoản quản lý của bạn chưa được phân công cơ sở chi nhánh cụ thể. Vui lòng liên hệ Quản trị viên để được gán chi nhánh.');
+          }
+        } else {
+          // Global Manager (Operations Admin / Business Owner): chọn chi nhánh đầu tiên nếu chưa có
+          if (branchList.length > 0) {
+            setBranchId((prev) => {
+              const exists = branchList.some((b) => b.id === prev);
+              return exists ? prev : branchList[0].id;
+            });
+          }
+          setPermissionError(null);
+        }
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải danh sách cơ sở có quyền truy cập:', err);
+      if (err.response?.status === 403) {
+        setPermissionError(err.response?.data?.message || 'Bạn không có quyền truy cập lập lịch.');
+      }
+    } finally {
+      setBranchesLoading(false);
+    }
+  }, []);
 
   /**
    * Tải danh sách ca chuẩn.
@@ -122,29 +174,40 @@ export function useWeeklySchedule(initialBranchId = 1) {
    * Tải dữ liệu ma trận lịch tuần.
    */
   const fetchWeeklyMatrix = useCallback(async () => {
+    if (!branchId) return;
     setLoading(true);
     try {
       const res = await scheduleService.getWeeklyScheduleMatrix(branchId, weekStartDate);
       if (res.success && res.data) {
         setMatrix(res.data);
+        setPermissionError(null);
       } else {
         setMatrix(null);
       }
     } catch (err) {
       console.error('Lỗi khi tải ma trận lịch tuần:', err);
+      if (err.response?.status === 403) {
+        const msg = err.response.data?.message || 'Bạn không có quyền quản lý lịch ca của cơ sở này.';
+        setPermissionError(msg);
+        toast.error(msg);
+      }
       setMatrix(null);
     } finally {
       setLoading(false);
     }
-  }, [branchId, weekStartDate]);
+  }, [branchId, weekStartDate, toast]);
 
   useEffect(() => {
+    loadAccessibleBranches();
     loadTemplates();
-  }, [loadTemplates]);
+  }, [loadAccessibleBranches, loadTemplates]);
 
   useEffect(() => {
-    fetchWeeklyMatrix();
-  }, [fetchWeeklyMatrix]);
+    if (branchId) {
+      fetchWeeklyMatrix();
+    }
+  }, [branchId, fetchWeeklyMatrix]);
+
 
   // Điều hướng tuần
   const goToPreviousWeek = () => setWeekStartDate((prev) => addWeeks(prev, -1));
@@ -420,8 +483,14 @@ export function useWeeklySchedule(initialBranchId = 1) {
   return {
     branchId,
     setBranchId,
+    accessibleBranches,
+    isGlobalManager,
+    assignedBranch,
+    branchesLoading,
+    permissionError,
     weekStartDate,
     setWeekStartDate,
+
     templates,
     matrix,
     loading,

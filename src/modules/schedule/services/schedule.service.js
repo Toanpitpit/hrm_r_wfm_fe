@@ -14,6 +14,15 @@ export const getShiftTemplates = async () => {
 };
 
 /**
+ * Lấy danh sách cơ sở chi nhánh mà tài khoản được quyền lập lịch ca tuần (Branch Isolation).
+ */
+export const getAccessibleBranches = async () => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.ACCESSIBLE_BRANCHES);
+  return response.data;
+};
+
+
+/**
  * Lấy ma trận phân bổ ca tuần (7 ngày).
  * @param {number|string} branchId 
  * @param {string} weekStartDate (YYYY-MM-DD)
@@ -156,8 +165,10 @@ export const getEmployeeShifts = async (employeeId, startDate, endDate) => {
 };
 
 export default {
+  getAccessibleBranches,
   getShiftTemplates,
   getWeeklyScheduleMatrix,
+
   generateWeeklySchedule,
   updateScheduleRequirement,
   assignFullTimeBatch,

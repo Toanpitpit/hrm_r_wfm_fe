@@ -80,7 +80,7 @@ export default function AssignFullTimeModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Gán Nhanh Nhân Sự Full-Time Vào Ca Tuần (UC 2.1)"
+      title="Gán Nhanh Nhân Sự Full-Time Vào Ca Tuần"
     >
       <form onSubmit={handleSubmit}>
         <div

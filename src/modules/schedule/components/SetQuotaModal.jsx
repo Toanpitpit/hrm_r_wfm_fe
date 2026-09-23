@@ -72,7 +72,7 @@ export default function SetQuotaModal({
       title={
         isSingleMode
           ? `Điều Chỉnh Định Mức Ca: ${formatShiftTemplateName(selectedSchedule.shiftTemplateName)} (${formatVNDate(selectedSchedule.workDate)})`
-          : 'Thiết Lập Định Mức Ca Chuẩn Cho Cả Tuần (UC 2.1)'
+          : 'Thiết Lập Định Mức Ca Chuẩn Cho Cả Tuần'
       }
     >
       <form onSubmit={handleSubmit}>
