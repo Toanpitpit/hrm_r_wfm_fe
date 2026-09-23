@@ -67,8 +67,11 @@ export default function ReviewHeadcountModal({
       const expiryDate = new Date(Date.now() + days * 86400000).toISOString();
 
       await onSubmit(request.id, {
+        isApproved: decision === 'APPROVED',
         status: decision,
+        decision,
         approvedQuantity: decision === 'APPROVED' ? parseInt(approvedQuantity, 10) : 0,
+        expirationDays: days,
         adminNotes: adminNotes.trim(),
         expiresAt: decision === 'APPROVED' ? expiryDate : null,
       });
@@ -120,61 +123,118 @@ export default function ReviewHeadcountModal({
             borderRadius: '8px',
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
-            gap: '12px',
+            gap: '14px 18px',
             fontSize: '13px',
           }}
         >
           <div>
-            <span style={{ color: c.fgSubtle, display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>
+            <span style={{ color: c.fgSubtle, display: 'block', fontSize: '11px', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.03em' }}>
               Chi Nhánh Yêu Cầu
             </span>
-            <strong style={{ color: c.fg, fontSize: '14px' }}>{request.branchName || `Chi nhánh #${request.branchId}`}</strong>
+            <strong style={{ color: c.fg, fontSize: '13.5px', lineHeight: 1.4, display: 'block' }}>
+              {request.branchName || `Chi nhánh #${request.branchId}`}
+            </strong>
           </div>
           <div>
-            <span style={{ color: c.fgSubtle, display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>
+            <span style={{ color: c.fgSubtle, display: 'block', fontSize: '11px', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.03em' }}>
               Người Đề Xuất
             </span>
-            <strong style={{ color: c.fg }}>{request.requestedBy || 'Store Manager'}</strong>
+            <strong style={{ color: c.fg, fontSize: '13.5px', lineHeight: 1.4, display: 'block' }}>
+              {request.requestedBy || 'Store Manager'}
+            </strong>
           </div>
           <div>
-            <span style={{ color: c.fgSubtle, display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>
+            <span style={{ color: c.fgSubtle, display: 'block', fontSize: '11px', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.03em' }}>
               Số Lượng Xin Mở Rộng
             </span>
-            <strong style={{ color: '#f59e0b', fontSize: '16px' }}>{request.totalRequested} nhân sự</strong>
+            <div style={{ display: 'flex', alignItems: 'center', minHeight: '30px' }}>
+              <strong style={{ color: '#f59e0b', fontSize: '15px' }}>{request.totalRequested} nhân sự</strong>
+            </div>
           </div>
           <div>
-            <span style={{ color: c.fgSubtle, display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>
-              File Excel Đính Kèm
+            <span style={{ color: c.fgSubtle, display: 'block', fontSize: '11px', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.03em' }}>
+              File Đính Kèm
             </span>
-            <button
-              type="button"
-              onClick={() => headcountService.downloadRequestFile(request)}
-              style={{
-                marginTop: '4px',
-                background: 'rgba(212, 175, 55, 0.12)',
-                border: `1px solid ${c.accent}`,
-                borderRadius: '6px',
-                padding: '5px 10px',
-                color: c.accent,
-                fontWeight: 600,
-                fontSize: '12px',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s ease',
-              }}
-              title="Bấm để tải về và mở file đính kèm từ Cửa Hàng Trưởng"
-            >
-              <Icon name="download" size={14} color={c.accent} />
-              <span>Tải & Mở File: {request.fileName || 'Danh_sach.xlsx'}</span>
-            </button>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', minHeight: '30px', flexWrap: 'wrap' }}>
+              {/* Icon loại file */}
+              <Icon name={headcountService.getFileIcon(request)} size={15} color={c.accent} />
+              <span
+                style={{
+                  fontSize: '12px',
+                  color: c.fgMuted,
+                  fontWeight: 600,
+                  maxWidth: '140px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+                title={request.fileName || 'De_Xuat_Dinh_Bien.xlsx'}
+              >
+                {request.fileName || 'De_Xuat_Dinh_Bien.xlsx'}
+              </span>
+              {/* Nút Xem trực tiếp */}
+              <button
+                type="button"
+                onClick={async () => {
+                  const result = await headcountService.viewRequestFile(request);
+                  if (result && !result.success && result.message) {
+                    alert(result.message);
+                  }
+                }}
+                style={{
+                  background: 'rgba(13, 148, 136, 0.10)',
+                  border: `1px solid rgba(13, 148, 136, 0.30)`,
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  color: c.accent,
+                  fontWeight: 600,
+                  fontSize: '11.5px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.2s ease',
+                }}
+                title="Xem trực tiếp tài liệu (tab mới)"
+              >
+                <Icon name="eye" size={12} color={c.accent} />
+                <span>Xem</span>
+              </button>
+              {/* Nút Tải về */}
+              <button
+                type="button"
+                onClick={async () => {
+                  const result = await headcountService.downloadRequestFile(request);
+                  if (result && !result.success && result.message) {
+                    alert(result.message);
+                  }
+                }}
+                style={{
+                  background: 'rgba(13, 148, 136, 0.06)',
+                  border: `1px solid ${c.border}`,
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  color: c.fgSubtle,
+                  fontWeight: 600,
+                  fontSize: '11.5px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.2s ease',
+                }}
+                title="Tải file về máy"
+              >
+                <Icon name="download" size={12} color={c.fgSubtle} />
+                <span>Tải</span>
+              </button>
+            </div>
           </div>
-          <div style={{ gridColumn: 'span 2', borderTop: `1px solid ${c.borderSub}`, paddingTop: '8px' }}>
-            <span style={{ color: c.fgSubtle, display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>
+          <div style={{ gridColumn: 'span 2', borderTop: `1px solid ${c.borderSub}`, paddingTop: '10px' }}>
+            <span style={{ color: c.fgSubtle, display: 'block', fontSize: '11px', textTransform: 'uppercase', marginBottom: '3px', letterSpacing: '0.03em' }}>
               Giải Trình Lý Do
             </span>
-            <div style={{ color: c.fgMuted, marginTop: '2px', fontStyle: 'italic' }}>
+            <div style={{ color: c.fgMuted, marginTop: '2px', fontStyle: 'italic', fontSize: '12.5px', lineHeight: 1.4 }}>
               "{request.reason || 'Không có giải trình'}"
             </div>
           </div>
@@ -233,11 +293,11 @@ export default function ReviewHeadcountModal({
 
         {/* Khi Phê duyệt: cho phép duyệt một phần & thời hạn */}
         {decision === 'APPROVED' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'start' }}>
             <Field
               label="Số Lượng Thực Duyệt"
               required
-              hint={`Tối đa: ${request.totalRequested} nhân sự`}
+              helper={`Tối đa: ${request.totalRequested} nhân sự`}
               error={errors.approvedQuantity}
             >
               <TextInput
@@ -245,14 +305,18 @@ export default function ReviewHeadcountModal({
                 min="1"
                 max={request.totalRequested || 50}
                 value={approvedQuantity}
-                onChange={(e) => setApprovedQuantity(e.target.value)}
+                onChange={(e) => {
+                  setApprovedQuantity(e.target.value);
+                  if (errors.approvedQuantity) setErrors((prev) => ({ ...prev, approvedQuantity: null }));
+                }}
+                error={Boolean(errors.approvedQuantity)}
               />
             </Field>
 
             <Field
               label="Thời Hạn Hiệu Lực (Ngày)"
               required
-              hint="Mặc định: 30 ngày kể từ ngày duyệt"
+              helper="Mặc định: 30 ngày kể từ ngày duyệt"
               error={errors.expiresAtDays}
             >
               <TextInput
@@ -260,7 +324,11 @@ export default function ReviewHeadcountModal({
                 min="1"
                 max="180"
                 value={expiresAtDays}
-                onChange={(e) => setExpiresAtDays(e.target.value)}
+                onChange={(e) => {
+                  setExpiresAtDays(e.target.value);
+                  if (errors.expiresAtDays) setErrors((prev) => ({ ...prev, expiresAtDays: null }));
+                }}
+                error={Boolean(errors.expiresAtDays)}
               />
             </Field>
           </div>
@@ -295,7 +363,10 @@ export default function ReviewHeadcountModal({
         >
           <textarea
             value={adminNotes}
-            onChange={(e) => setAdminNotes(e.target.value)}
+            onChange={(e) => {
+              setAdminNotes(e.target.value);
+              if (errors.adminNotes) setErrors((prev) => ({ ...prev, adminNotes: null }));
+            }}
             placeholder={
               decision === 'APPROVED'
                 ? 'Nhập chỉ đạo hoặc phân bổ ngân sách nhân sự nếu cần...'
@@ -313,6 +384,7 @@ export default function ReviewHeadcountModal({
               fontFamily: fonts.body,
               resize: 'vertical',
               outline: 'none',
+              boxSizing: 'border-box',
             }}
           />
         </Field>

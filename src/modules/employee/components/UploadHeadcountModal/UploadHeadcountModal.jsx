@@ -4,6 +4,7 @@ import Modal from '@/shared/components/ui/Modal';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
 import { Field, TextInput } from '@/shared/components/ui/FormField';
+import { getFileIconName } from '@/shared/services/file.service';
 
 export default function UploadHeadcountModal({
   isOpen,
@@ -31,8 +32,33 @@ export default function UploadHeadcountModal({
     }
   }, [isOpen, branchId]);
 
-  // Download template mẫu
-  const handleDownloadTemplate = () => {
+  // Download template mẫu — gọi API backend (ClosedXML) nếu có, fallback CSV local
+  const handleDownloadTemplate = async () => {
+    try {
+      // Tải template từ backend (ClosedXML, 2 sheet)
+      const { default: axiosInstance } = await import('@/config/axios.config');
+      const res = await axiosInstance.get('v1/headcount-requests/template', {
+        responseType: 'blob',
+        timeout: 15000,
+      });
+      if (res.status === 200 && res.data) {
+        const blob = new Blob([res.data], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Mau_De_Xuat_Mo_Rong_Dinh_Bien.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+        return;
+      }
+    } catch {
+      // Fallback CSV local
+    }
+
     const csvContent =
       'STT,Mã Vị Trí,Chức Danh Đề Xuất,Số Lượng,Hình Thức Hợp Đồng,Ca Làm Việc Dự Kiến,Lý Do Chi Tiết\n' +
       '1,TN-01,Nhân Viên Thu Ngân,2,PART_TIME,Ca Tối (18:00 - 22:30),Tăng cường giờ cao điểm mua sắm\n' +
@@ -46,18 +72,33 @@ export default function UploadHeadcountModal({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const validExtensions = ['.xlsx', '.xls', '.csv'];
+      const validExtensions = ['.xlsx', '.xls', '.csv', '.pdf'];
       const ext = '.' + file.name.split('.').pop().toLowerCase();
       if (!validExtensions.includes(ext)) {
         setErrors((prev) => ({
           ...prev,
-          file: 'Chỉ chấp nhận định dạng file Excel (.xlsx, .xls) hoặc .csv.',
+          file: `Chỉ chấp nhận: ${validExtensions.join(', ')}. File của bạn có đuôi "${ext}".`,
         }));
+        setSelectedFile(null);
+        return;
+      }
+      const maxSizeMB = 20;
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        setErrors((prev) => ({
+          ...prev,
+          file: `Dung lượng file vượt quá ${maxSizeMB}MB. File của bạn: ${(file.size / 1024 / 1024).toFixed(1)}MB.`,
+        }));
+        setSelectedFile(null);
+        return;
+      }
+      if (file.size === 0) {
+        setErrors((prev) => ({ ...prev, file: 'File rỗng, vui lòng chọn file hợp lệ.' }));
         setSelectedFile(null);
         return;
       }
@@ -79,7 +120,7 @@ export default function UploadHeadcountModal({
       errs.reason = 'Vui lòng nhập lý do đề xuất mở rộng định biên.';
     }
     if (!selectedFile) {
-      errs.file = 'Vui lòng đính kèm file Excel danh sách nhân sự đề xuất (.xlsx).';
+      errs.file = 'Vui lòng đính kèm file Excel (.xlsx) hoặc tài liệu PDF đề xuất.';
     }
 
     setErrors(errs);
@@ -157,19 +198,19 @@ export default function UploadHeadcountModal({
         <div
           style={{
             padding: '12px 14px',
-            background: 'rgba(242, 202, 80, 0.08)',
-            border: '1px solid rgba(242, 202, 80, 0.25)',
+            background: 'rgba(13, 148, 136, 0.06)',
+            border: '1px solid rgba(13, 148, 136, 0.20)',
             borderRadius: '8px',
             display: 'flex',
             alignItems: 'flex-start',
             gap: '10px',
             fontSize: '12.5px',
-            color: '#fef08a',
+            color: c.fgMuted,
           }}
         >
-          <Icon name="lock" size={16} color="#f2ca50" style={{ marginTop: '2px', flexShrink: 0 }} />
+          <Icon name="info" size={16} color={c.accent} style={{ marginTop: '2px', flexShrink: 0 }} />
           <span>
-            <strong>Quy định Định biên (Headcount Quota):</strong> Cửa hàng trưởng không thể tự tạo nhân viên trực tiếp khi chi nhánh đã đạt trần định biên. Đơn đề xuất này sẽ được Operations Admin thẩm định và cấp hạn mức bổ sung linh hoạt (thời hạn 30 ngày).
+            <strong style={{ color: c.accent }}>Quy định Định biên (Headcount Quota):</strong> Cửa hàng trưởng không thể tự tạo nhân viên khi chi nhánh đã đạt trần. Đơn đề xuất này sẽ được Operations Admin thẩm định và cấp hạn mức bổ sung linh hoạt (<strong>thời hạn 30 ngày</strong>).
           </span>
         </div>
 
@@ -238,16 +279,24 @@ export default function UploadHeadcountModal({
         </Field>
 
         {/* Khu vực Upload File */}
-        <Field label="Đính Kèm File Excel Chi Tiết (.xlsx / .xls)" required error={errors.file}>
+        <Field label="Đính Kèm File (.xlsx / .xls / .csv / .pdf)" required error={errors.file}>
           <div
             onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (e.dataTransfer.files?.[0]) {
+                const syntheticEvent = { target: { files: e.dataTransfer.files } };
+                handleFileChange(syntheticEvent);
+              }
+            }}
             style={{
-              border: `2px dashed ${errors.file ? '#ef4444' : selectedFile ? '#22c55e' : c.border}`,
+              border: `2px dashed ${errors.file ? '#EF4444' : selectedFile ? '#0D9488' : c.border}`,
               borderRadius: '8px',
               padding: '24px 16px',
               textAlign: 'center',
               cursor: 'pointer',
-              background: selectedFile ? 'rgba(34, 197, 94, 0.04)' : c.bgCard,
+              background: selectedFile ? 'rgba(13, 148, 136, 0.04)' : c.bgCard,
               transition: 'all 0.2s ease',
             }}
           >
@@ -255,7 +304,7 @@ export default function UploadHeadcountModal({
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".xlsx,.xls,.csv"
+              accept=".xlsx,.xls,.csv,.pdf"
               style={{ display: 'none' }}
             />
             <div
@@ -263,19 +312,19 @@ export default function UploadHeadcountModal({
                 width: '40px',
                 height: '40px',
                 borderRadius: '50%',
-                background: selectedFile ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                background: selectedFile ? 'rgba(13, 148, 136, 0.12)' : 'rgba(13, 148, 136, 0.06)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: selectedFile ? '#22c55e' : c.accent,
+                color: selectedFile ? '#0D9488' : c.accent,
                 marginBottom: '8px',
               }}
             >
-              <Icon name={selectedFile ? 'check' : 'upload'} size={20} />
+              <Icon name={selectedFile ? getFileIconName(selectedFile.name) : 'upload'} size={20} />
             </div>
             {selectedFile ? (
               <div>
-                <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#86efac' }}>
+                <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#0D9488' }}>
                   {selectedFile.name}
                 </div>
                 <div style={{ fontSize: '12px', color: c.fgSubtle, marginTop: '2px' }}>
@@ -285,10 +334,11 @@ export default function UploadHeadcountModal({
             ) : (
               <div>
                 <div style={{ fontSize: '13.5px', fontWeight: 500, color: c.fg }}>
-                  Kéo thả file Excel vào đây hoặc <span style={{ color: c.accent, textDecoration: 'underline' }}>chọn từ máy tính</span>
+                  Kéo thả file vào đây hoặc{' '}
+                  <span style={{ color: c.accent, textDecoration: 'underline' }}>chọn từ máy tính</span>
                 </div>
                 <div style={{ fontSize: '11.5px', color: c.fgSubtle, marginTop: '4px' }}>
-                  Hỗ trợ định dạng .xlsx, .xls, dung lượng tối đa 10MB
+                  Hỗ trợ: .xlsx, .xls, .csv (Excel/CSV) và .pdf • Dung lượng tối đa 20MB
                 </div>
               </div>
             )}

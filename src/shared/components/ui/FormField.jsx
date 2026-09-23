@@ -6,17 +6,26 @@
 import { useState } from 'react';
 import { useAdminTheme } from '../../context/ThemeContext';
 
-export function Field({ label, hint, children, full, error, required }) {
+export function Field({ label, hint, helper, children, full, error, required, style }) {
   const { c } = useAdminTheme();
   return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 6, gridColumn: full ? '1 / -1' : 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: error ? '#EF4444' : c.fg }}>
-          {label} {required && <span style={{ color: '#EF4444' }}>*</span>}
-        </span>
-        {hint && <span style={{ fontSize: 11.5, color: c.fgFaint }}>{hint}</span>}
-      </div>
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 6, gridColumn: full ? '1 / -1' : 'auto', ...style }}>
+      {(label || hint) && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {label && (
+            <span style={{ fontSize: 13, fontWeight: 500, color: error ? '#EF4444' : c.fg }}>
+              {label} {required && <span style={{ color: '#EF4444' }}>*</span>}
+            </span>
+          )}
+          {hint && <span style={{ fontSize: 11.5, color: c.fgFaint }}>{hint}</span>}
+        </div>
+      )}
       {children}
+      {helper && !error && (
+        <span style={{ fontSize: '11.5px', color: c.fgFaint, marginTop: 2 }}>
+          {helper}
+        </span>
+      )}
       {error && (
         <span style={{ fontSize: '12px', color: '#EF4444', fontWeight: 500, marginTop: 2 }}>
           {error}

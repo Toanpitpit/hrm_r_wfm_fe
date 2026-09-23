@@ -519,6 +519,168 @@ export const employeeService = {
       message: 'Đặt lại mật khẩu tài khoản thành công!',
     };
   },
+
+  /**
+   * 10. Tải file mẫu import nhân sự (GET /api/v1/users/employees/import-template)
+   * Backend dùng ClosedXML sinh file .xlsx 2 sheet: Danh_Sach_Nhan_Su + Huong_Dan_Va_Danh_Muc.
+   * Dùng Blob URL để tải file, không redirect — tránh lỗi corrupt file.
+   * @returns {{ success, message, fileName }}
+   */
+  async downloadImportTemplate() {
+    let blobUrl = null;
+    try {
+      const res = await axiosInstance.get('v1/users/employees/import-template', {
+        responseType: 'blob',
+        timeout: 30000,
+      });
+
+      // Lấy tên file từ Content-Disposition (RFC 5987 UTF-8)
+      const disposition = res.headers?.['content-disposition'] || '';
+      let fileName = 'Mau_Import_Nhan_Su.xlsx';
+      const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+      const asciiMatch = disposition.match(/filename="([^"]+)"/i) || disposition.match(/filename=([^;]+)/i);
+      if (utf8Match?.[1]) {
+        fileName = decodeURIComponent(utf8Match[1].trim());
+      } else if (asciiMatch?.[1]) {
+        fileName = asciiMatch[1].trim().replace(/"/g, '');
+      }
+
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      blobUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+
+      return { success: true, fileName, message: `Đã tải file mẫu "${fileName}" thành công!` };
+    } catch (err) {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      const status = err.response?.status;
+      if (status === 401) return { success: false, message: 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.' };
+      if (status === 403) return { success: false, message: 'Bạn không có quyền tải file mẫu này.' };
+      console.warn('[EmployeeService] downloadImportTemplate error:', err.message);
+      // Fallback: sinh file CSV local
+      return this._downloadImportTemplateFallback();
+    }
+  },
+
+  /**
+   * Fallback tạo CSV template local khi backend không khả dụng
+   * @private
+   */
+  _downloadImportTemplateFallback() {
+    const csvContent =
+      '\uFEFFSTT,Mã Nhân Viên,Họ Và Tên,Email,Số Điện Thoại,Mã Vai Trò,Hình Thức,Mã Chi Nhánh,Mật Khẩu Khởi Tạo\n' +
+      '1,NV101,Nguyễn Văn An,an.nguyen@rwfm.vn,0912345678,CASHIER,FULL_TIME,CN001,Rwfm@123456\n' +
+      '2,NV102,Trần Thị Bình,binh.tran@rwfm.vn,0923456789,SALES_STAFF,PART_TIME,CN001,Rwfm@123456\n';
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Mau_Import_Nhan_Su.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+    return { success: true, fileName: 'Mau_Import_Nhan_Su.csv', message: 'Đã tải file mẫu CSV (fallback).' };
+  },
+
+  /**
+   * 11. Import nhân sự hàng loạt (POST /api/v1/users/employees/import)
+   * Chỉ OPERATIONS_ADMIN và ADMIN mới có quyền gọi API này.
+   *
+   * @param {{ file, defaultBranchId?, importRequestId?, expansionReason? }} params
+   *   - file: File Excel/CSV cần import
+   *   - defaultBranchId: Chi nhánh mặc định (fallback nếu file không chứa cột Mã Chi Nhánh)
+   *   - importRequestId: Mã đơn mở rộng định biên (bắt buộc nếu chi nhánh đã đạt trần)
+   *   - expansionReason: Lý do nếu dùng chỉ tiêu mở rộng
+   *
+   * @returns {{ success, data: BulkImportResultDto, message }}
+   *   BulkImportResultDto: { totalRows, successCount, failureCount, errors: [{ rowIndex, rowData, errorMessages }] }
+   */
+  async importEmployees({ file, defaultBranchId, importRequestId, expansionReason } = {}) {
+    if (!file) {
+      return { success: false, message: 'Vui lòng chọn file Excel/CSV để import.' };
+    }
+
+    // FE validate — Backend vẫn tự validate độc lập
+    const ext = ('.' + file.name.split('.').pop()).toLowerCase();
+    const allowedExts = ['.xlsx', '.xls', '.csv'];
+    if (!allowedExts.includes(ext)) {
+      return {
+        success: false,
+        message: `Định dạng file không hỗ trợ. Vui lòng chọn: ${allowedExts.join(', ')}.`,
+      };
+    }
+    const maxSizeMB = 20;
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      return {
+        success: false,
+        message: `Dung lượng file vượt quá ${maxSizeMB}MB. File của bạn: ${(file.size / 1024 / 1024).toFixed(1)}MB.`,
+      };
+    }
+    if (file.size === 0) {
+      return { success: false, message: 'File rỗng, vui lòng chọn file hợp lệ.' };
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    if (defaultBranchId != null) {
+      formData.append('defaultBranchId', String(defaultBranchId));
+    }
+    if (importRequestId != null) {
+      formData.append('importRequestId', String(importRequestId));
+    }
+    if (expansionReason) {
+      formData.append('expansionReason', expansionReason);
+    }
+
+    try {
+      const res = await axiosInstance.post('v1/users/employees/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000, // 2 phút cho batch lớn
+      });
+
+      const data = res.data?.data || res.data;
+      // Chuẩn hóa BulkImportResultDto
+      const result = {
+        totalRows: data?.totalRows ?? data?.TotalRows ?? 0,
+        successCount: data?.successCount ?? data?.SuccessCount ?? 0,
+        failureCount: data?.failureCount ?? data?.FailureCount ?? 0,
+        errors: data?.errors ?? data?.Errors ?? [],
+      };
+
+      const { successCount, failureCount, totalRows } = result;
+      let message = '';
+      if (failureCount === 0 && successCount > 0) {
+        message = `Import thành công! Đã tạo ${successCount}/${totalRows} nhân sự.`;
+      } else if (successCount > 0 && failureCount > 0) {
+        message = `Import một phần: ${successCount} thành công, ${failureCount} thất bại trên tổng ${totalRows} dòng.`;
+      } else {
+        message = `Import thất bại: Tất cả ${failureCount} dòng đều có lỗi. Vui lòng kiểm tra và thử lại.`;
+      }
+
+      return { success: successCount > 0, data: result, message, isPartialSuccess: successCount > 0 && failureCount > 0 };
+    } catch (err) {
+      const status = err.response?.status;
+      const errData = err.response?.data;
+      let msg = errData?.message || errData?.title;
+      if (!msg && errData?.errors) {
+        msg = Object.values(errData.errors).flat().join(', ');
+      }
+      if (status === 401) return { success: false, message: 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.' };
+      if (status === 403) return { success: false, message: 'Bạn không có quyền thực hiện import nhân sự hàng loạt (403 Forbidden).' };
+      return { success: false, message: msg || err.message || 'Lỗi không xác định khi import nhân sự.' };
+    }
+  },
 };
 
 export default employeeService;
+
