@@ -58,6 +58,8 @@ export default function Icon({ name, size = 18, color = 'currentColor', strokeWi
     dot: <circle cx="10" cy="10" r="2.5" fill={color} stroke="none" />,
     shield: <path d="M10 2.5L4 5v5c0 4 3 7.5 6 8.5 3-1 6-4.5 6-8.5V5l-6-2.5z" {...p} />,
     swap: <><path d="M14 6l3 3-3 3M17 9H6a3 3 0 00-3 3" {...p} /><path d="M6 14l-3-3 3-3M3 11h11a3 3 0 003-3" {...p} /></>,
+    layers: <><polygon points="10 2 17 6 10 10 3 6 10 2" {...p} /><path d="M3 10l7 4 7-4M3 14l7 4 7-4" {...p} /></>,
+    award: <><circle cx="10" cy="7" r="4.5" {...p} /><path d="M7 11.5L5 18l5-2.5 5 2.5-2-6.5" {...p} /></>,
   };
 
   return (
