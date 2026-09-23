@@ -17,6 +17,8 @@ const renderStatusBadge = (status) => {
       return <Badge tone="warn" dot>Chưa Check-out</Badge>;
     case 'ABSENT':
       return <Badge tone="bad" dot>Vắng Mặt</Badge>;
+    case 'CANCELLED':
+      return <Badge tone="neutral" dot>Nghỉ Phép</Badge>;
     case 'NOT_YET':
     default:
       return <Badge tone="neutral" dot>Chưa Đến Giờ</Badge>;

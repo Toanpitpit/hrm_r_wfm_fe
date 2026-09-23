@@ -34,8 +34,8 @@ export default function Modal({ open, isOpen, onClose, title, sub, children, wid
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(4,3,2,0.72)',
-        backdropFilter: 'blur(3px)',
+        background: 'rgba(10,10,20,0.65)',
+        backdropFilter: 'blur(6px)',
         zIndex: 200,
         display: 'grid',
         placeItems: 'center',
@@ -49,19 +49,32 @@ export default function Modal({ open, isOpen, onClose, title, sub, children, wid
         style={{
           position: 'relative',
           overflow: 'hidden',
-          background: `linear-gradient(155deg, ${c.bgCard}, ${c.bgRaised})`,
+          background: c.bgCard,
           border: `1px solid ${c.border}`,
-          borderRadius: 14,
+          borderRadius: 20,
           width,
           maxWidth: 'calc(100vw - 40px)',
           maxHeight: 'calc(100vh - 40px)',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 34px 100px rgba(0,0,0,0.48)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.22), 0 0 0 1px rgba(79,70,229,0.06)',
           animation: 'lx-pop-in .18s cubic-bezier(.2,.9,.3,1.2)',
         }}
       >
-        <span style={{ position: 'absolute', width: 220, height: 220, right: -105, top: -145, borderRadius: '50%', background: c.accentDim, pointerEvents: 'none' }} />
+        {/* Indigo accent bar at top */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          background: 'linear-gradient(90deg, #4F46E5 0%, #7C3AED 100%)',
+          borderRadius: '20px 20px 0 0',
+          pointerEvents: 'none',
+          zIndex: 1,
+        }} />
+
+        {/* Header */}
         <div
           style={{
             position: 'relative',
@@ -69,25 +82,70 @@ export default function Modal({ open, isOpen, onClose, title, sub, children, wid
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-start',
-            padding: '14px 22px',
-            background: `linear-gradient(90deg, ${c.bgElev}, ${c.bgCard})`,
+            padding: '20px 24px 16px',
             borderBottom: `1px solid ${c.border}`,
+            zIndex: 1,
           }}
         >
           <div style={{ minWidth: 0, paddingRight: 18 }}>
-            <div style={{ marginBottom: 4, color: c.accent, fontSize: 9, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase' }}>Admin Portal</div>
-            <div style={{ fontFamily: fonts.display, fontSize: 19, letterSpacing: 0.5, textTransform: 'uppercase', lineHeight: 1.1 }}>
+            <div style={{
+              fontFamily: fonts.display,
+              fontSize: 17,
+              fontWeight: 700,
+              lineHeight: 1.2,
+              color: c.fg,
+            }}>
               {title}
             </div>
-            {sub && <div style={{ fontSize: 11.5, color: c.fgSubtle, marginTop: 3 }}>{sub}</div>}
+            {sub && <div style={{ fontSize: 12.5, color: c.fgSubtle, marginTop: 4 }}>{sub}</div>}
           </div>
-          <button type="button" onClick={onClose} title="Đóng" style={{ width: 32, height: 32, flexShrink: 0, display: 'grid', placeItems: 'center', background: c.track, border: `1px solid ${c.border}`, borderRadius: 8, color: c.fgSubtle, cursor: 'pointer' }}>
-            <Icon name="x" size={18} />
+          <button
+            type="button"
+            onClick={onClose}
+            title="Đóng"
+            style={{
+              width: 32,
+              height: 32,
+              flexShrink: 0,
+              display: 'grid',
+              placeItems: 'center',
+              background: c.track,
+              border: `1px solid ${c.border}`,
+              borderRadius: 9,
+              color: c.fgSubtle,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(239,68,68,0.12)';
+              e.currentTarget.style.color = '#EF4444';
+              e.currentTarget.style.borderColor = 'rgba(239,68,68,0.30)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = c.track;
+              e.currentTarget.style.color = c.fgSubtle;
+              e.currentTarget.style.borderColor = c.border;
+            }}
+          >
+            <Icon name="x" size={16} />
           </button>
         </div>
 
-        <div className="lx-modal-body" style={{ position: 'relative', flex: '1 1 auto', minHeight: 0, padding: '18px 22px', overflow: 'auto' }}>{children}</div>
+        {/* Body */}
+        <div
+          className="lx-modal-body"
+          style={{
+            position: 'relative',
+            flex: '1 1 auto',
+            minHeight: 0,
+            padding: '20px 24px',
+            overflow: 'auto',
+          }}
+        >
+          {children}
+        </div>
 
+        {/* Footer */}
         {footer && (
           <div
             style={{
@@ -96,7 +154,7 @@ export default function Modal({ open, isOpen, onClose, title, sub, children, wid
               display: 'flex',
               justifyContent: 'flex-end',
               gap: 10,
-              padding: '12px 22px',
+              padding: '14px 24px',
               background: c.bgElev,
               borderTop: `1px solid ${c.border}`,
             }}

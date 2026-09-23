@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
-import { Badge, Button } from '@/shared/components/ui';
+import { Badge, Button, Pagination } from '@/shared/components/ui';
 
 /**
  * Bảng hiển thị danh sách các lệnh điều động nhân sự liên chi nhánh.
@@ -16,6 +16,14 @@ export default function DispatchListTable({
   emptyText = 'Chưa có lệnh điều động nhân sự nào.',
 }) {
   const { c, fonts } = useAdminTheme();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [dispatches.length]);
+
+  const displayDispatches = dispatches.slice((page - 1) * pageSize, page * pageSize);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -88,7 +96,7 @@ export default function DispatchListTable({
           </tr>
         </thead>
         <tbody>
-          {dispatches.map((item) => {
+          {displayDispatches.map((item) => {
             const isSource = currentStoreId && Number(item.fromStoreId) === Number(currentStoreId);
             const isTarget = currentStoreId && Number(item.toStoreId) === Number(currentStoreId);
             const canReview = isSource && item.status === 'PENDING';
@@ -234,6 +242,20 @@ export default function DispatchListTable({
           })}
         </tbody>
       </table>
+
+      {dispatches.length > 0 && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={dispatches.length}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          pageSizeOptions={[5, 10, 20, 50]}
+        />
+      )}
     </div>
   );
 }
