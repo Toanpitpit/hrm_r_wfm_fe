@@ -1,4 +1,5 @@
 import axiosInstance from '@/config/axios.config';
+import fileService, { getFileIconName, validateUploadFile } from '@/shared/services/file.service';
 
 /**
  * ==============================================================================
@@ -349,6 +350,22 @@ export const headcountService = {
    * 4. Store Manager upload file Excel xin mở rộng định biên (POST /v1/headcount-requests/upload)
    */
   async uploadRequest({ branchId, branchName, file, requestedQuantity, reason }) {
+    // FE validate file trước khi gửi (Backend vẫn validate độc lập)
+    if (file) {
+      const ext = ('.' + file.name.split('.').pop()).toLowerCase();
+      const allowedExts = ['.xlsx', '.xls', '.csv', '.pdf'];
+      if (!allowedExts.includes(ext)) {
+        return { success: false, message: `Định dạng file không được hỗ trợ. Vui lòng chọn: ${allowedExts.join(', ')}.` };
+      }
+      const maxSizeMB = 20;
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        return { success: false, message: `Dung lượng file vượt quá ${maxSizeMB}MB. File của bạn: ${(file.size / 1024 / 1024).toFixed(1)}MB.` };
+      }
+      if (file.size === 0) {
+        return { success: false, message: 'File rỗng, vui lòng chọn file hợp lệ.' };
+      }
+    }
+
     const formData = new FormData();
     formData.append('branchId', branchId);
     formData.append('totalRequested', requestedQuantity);
@@ -361,6 +378,7 @@ export const headcountService = {
     try {
       const res = await axiosInstance.post('v1/headcount-requests/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000, // 60s cho file lớn
       });
       return {
         success: true,
@@ -422,12 +440,17 @@ export const headcountService = {
   /**
    * 5. Operations Admin thẩm định & phê duyệt đơn (POST /v1/headcount-requests/{id}/review)
    */
-  async reviewRequest(id, { approvedQuantity, status, adminNotes, expiresAt }) {
+  async reviewRequest(id, { approvedQuantity, status, adminNotes, expiresAt, isApproved: explicitIsApproved, expirationDays }) {
+    const isApproved = explicitIsApproved !== undefined ? Boolean(explicitIsApproved) : (status === 'APPROVED' || status === 'APPROVE');
     const payload = {
-      approvedQuantity: Number(approvedQuantity || 0),
-      status, // 'APPROVED' hoặc 'REJECTED'
+      isApproved,
+      status: isApproved ? 'APPROVED' : 'REJECTED',
+      decision: isApproved ? 'APPROVED' : 'REJECTED',
+      action: isApproved ? 'APPROVE' : 'REJECT',
+      approvedQuantity: isApproved ? Number(approvedQuantity || 0) : 0,
+      expirationDays: Number(expirationDays || 30),
       adminNotes: adminNotes || '',
-      expiresAt: expiresAt || new Date(Date.now() + 30 * 86400000).toISOString(),
+      expiresAt: isApproved ? (expiresAt || new Date(Date.now() + 30 * 86400000).toISOString()) : null,
     };
 
     try {
@@ -500,13 +523,49 @@ export const headcountService = {
   },
 
   /**
-   * Trừ lùi 1 chỉ tiêu khi nhân sự được tạo với ImportRequestId (Client-side fallback)
+   * Xác định icon phù hợp theo loại file (pdf, xlsx, csv)
    */
+  getFileIcon(req) {
+    return getFileIconName(req?.fileName || '');
+  },
+
   /**
-   * 7. Mo hoac tai file dinh kem cua don de xuat mo rong dinh bien
+   * 7. Xem trực tiếp file đính kèm — AN TOÀN VỀ AUTHENTICATION
+   * - PDF: mở inline trên tab mới (ưu tiên Presigned URL, fallback Blob URL)
+   * - Excel/CSV: tải về bằng Blob URL (browser không thể preview native)
+   * Không dùng window.open(endpoint) trực tiếp cho endpoint yêu cầu Bearer Token.
    */
-  downloadRequestFile(req) {
+  async viewRequestFile(req) {
     if (!req) return;
+
+    // Nếu là blob: URL local (file vừa upload chưa save)
+    const ext = ('.' + (req.fileName || '').split('.').pop()).toLowerCase();
+    if (req.filePath && (req.filePath.startsWith('blob:') || req.filePath.startsWith('data:'))) {
+      if (ext === '.pdf') {
+        window.open(req.filePath, '_blank', 'noopener,noreferrer');
+      } else {
+        const a = document.createElement('a');
+        a.href = req.filePath;
+        a.download = req.fileName || 'De_Xuat_Dinh_Bien.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      return { success: true };
+    }
+
+    // Dùng fileService để xem file an toàn qua Blob URL
+    return await fileService.viewHeadcountFile(req);
+  },
+
+  /**
+   * 8. Tải file đính kèm về máy — AN TOÀN VỀ AUTHENTICATION
+   * Dùng Axios Blob URL để giữ đúng tên file và auth, sửa lỗi file corrupt do redirect.
+   */
+  async downloadRequestFile(req) {
+    if (!req) return;
+
+    // Nếu là blob: URL local
     if (req.filePath && (req.filePath.startsWith('blob:') || req.filePath.startsWith('data:'))) {
       const a = document.createElement('a');
       a.href = req.filePath;
@@ -514,13 +573,23 @@ export const headcountService = {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      return;
+      return { success: true };
     }
 
-    const baseUrl = axiosInstance.defaults.baseURL || 'http://localhost:5050/api/';
-    const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
-    const downloadUrl = cleanBase + 'v1/headcount-requests/' + req.id + '/download';
-    window.open(downloadUrl, '_blank');
+    // Nếu downloadUrl đã có sẵn (từ s3Key)
+    if (req.downloadUrl && req.s3Key) {
+      return await fileService.downloadFile({
+        s3Key: req.s3Key,
+        downloadUrl: req.downloadUrl,
+        fileName: req.fileName || 'De_Xuat_Dinh_Bien.xlsx',
+      });
+    }
+
+    // Fallback: Download qua Blob URL từ endpoint backend
+    return await fileService.downloadHeadcountFile(
+      req.id,
+      req.fileName || 'De_Xuat_Dinh_Bien.xlsx'
+    );
   },
 
   consumeQuotaLocally(importRequestId) {

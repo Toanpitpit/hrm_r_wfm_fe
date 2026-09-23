@@ -58,7 +58,20 @@ export default function Icon({ name, size = 18, color = 'currentColor', strokeWi
     dot: <circle cx="10" cy="10" r="2.5" fill={color} stroke="none" />,
     shield: <path d="M10 2.5L4 5v5c0 4 3 7.5 6 8.5 3-1 6-4.5 6-8.5V5l-6-2.5z" {...p} />,
     swap: <><path d="M14 6l3 3-3 3M17 9H6a3 3 0 00-3 3" {...p} /><path d="M6 14l-3-3 3-3M3 11h11a3 3 0 003-3" {...p} /></>,
+    upload: <><path d="M10 3v10M6 7l4-4 4 4" {...p} /><path d="M4 15v1a1 1 0 001 1h10a1 1 0 001-1v-1" {...p} /></>,
+    download: <><path d="M10 17V7M6 13l4 4 4-4" {...p} /><path d="M4 15v1a1 1 0 001 1h10a1 1 0 001-1v-1" {...p} /></>,
+    file: <><path d="M13 3H6a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V7l-2-4z" {...p} /><path d="M13 3v4h4" {...p} /></>,
+    'file-text': <><path d="M13 3H6a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V7l-2-4z" {...p} /><path d="M13 3v4h4M8 11h4M8 14h3" {...p} /></>,
+    'file-spreadsheet': <><path d="M13 3H6a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V7l-2-4z" {...p} /><path d="M13 3v4h4M8 11h4M8 14h4M8 8h1" {...p} /><path d="M12 11v6M8 9v9" {...p} /></>,
+    'file-pdf': <><path d="M13 3H6a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V7l-2-4z" {...p} /><path d="M13 3v4h4" {...p} /><text x="5.5" y="15" fontSize="5" fontWeight="700" fill={color} stroke="none" fontFamily="sans-serif">PDF</text></>,
+    warning: <><path d="M10 3.2L2.5 16.5h15L10 3.2z" {...p} /><path d="M10 8v4" {...p} /><circle cx="10" cy="14.5" r="0.8" fill={color} stroke="none" /></>,
+    close: <><path d="M5 5l10 10M15 5L5 15" {...p} /></>,
+    document: <><path d="M13 3H6a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V7l-2-4z" {...p} /><path d="M13 3v4h4M7.5 11h5M7.5 14h3" {...p} /></>,
+    'import': <><path d="M4 14v2a1 1 0 001 1h10a1 1 0 001-1v-2" {...p} /><path d="M10 3v10M6 9l4 4 4-4" {...p} /></>,
+    table: <><rect x="3" y="4" width="14" height="12" rx="1" {...p} /><path d="M3 8h14M7 8v8M12 8v8" {...p} /></>,
+    'table-import': <><rect x="2" y="3" width="12" height="10" rx="1" {...p} /><path d="M2 7h12M5 7v6M10 7v6" {...p} /><path d="M16 10v7M13 14l3 3 3-3" {...p} /></>,
   };
+
 
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" style={{ display: 'block', flexShrink: 0 }}>

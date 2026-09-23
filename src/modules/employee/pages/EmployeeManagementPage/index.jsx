@@ -27,6 +27,7 @@ import HeadcountQuotaCard from '@/modules/employee/components/HeadcountQuotaCard
 import UploadHeadcountModal from '@/modules/employee/components/UploadHeadcountModal/UploadHeadcountModal';
 import ReviewHeadcountModal from '@/modules/employee/components/ReviewHeadcountModal/ReviewHeadcountModal';
 import HeadcountRequestList from '@/modules/employee/components/HeadcountRequestList/HeadcountRequestList';
+import BulkImportEmployeeModal from '@/modules/employee/components/BulkImportEmployeeModal/BulkImportEmployeeModal';
 
 export default function EmployeeManagementPage() {
   const { c, fonts } = useAdminTheme();
@@ -87,6 +88,7 @@ export default function EmployeeManagementPage() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedReviewRequest, setSelectedReviewRequest] = useState(null);
+  const [bulkImportModalOpen, setBulkImportModalOpen] = useState(false);
 
   // 3. Tải Danh mục Roles và Branches (GET /api/Users/roles & GET /api/Users/branches)
   useEffect(() => {
@@ -387,23 +389,23 @@ export default function EmployeeManagementPage() {
         }
         subtitle={
           isStoreManager
-            ? 'Theo dõi danh sách nhân sự tại chi nhánh và gửi đề xuất mở rộng định biên (Excel) tới Operations Admin.'
+            ? 'Theo dõi danh sách nhân sự và tình trạng đề xuất định biên tại chi nhánh.'
             : 'Khai báo nhân sự mới, kiểm soát định biên chi nhánh (Tier 1/2/3) và thẩm định phê duyệt đề xuất mở rộng.'
         }
         actions={
-          <div style={{ display: 'flex', gap: '10px' }}>
-            {/* Store Manager: Chỉ được gửi đề xuất mở rộng, bị tước quyền tạo nhân viên trực tiếp (Strict RBAC) */}
-            {isStoreManager ? (
+          !isStoreManager && (
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {/* Operations Admin & Owner: Quyền tạo nhân viên + Import Hàng Loạt */}
               <Button
-                variant="primary"
-                onClick={() => setUploadModalOpen(true)}
+                variant="ghost"
+                onClick={() => setBulkImportModalOpen(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                id="btn-bulk-import-employees"
+                title="Import nhân sự hàng loạt từ file Excel/CSV"
               >
-                <Icon name="upload" size={16} />
-                <span>Đề Xuất Mở Rộng Định Biên (.xlsx)</span>
+                <Icon name="table-import" size={16} />
+                <span>Import Hàng Loạt</span>
               </Button>
-            ) : (
-              /* Operations Admin & Owner: Quyền tạo nhân viên duy nhất */
               <Button
                 variant="primary"
                 onClick={handleOpenCreateModal}
@@ -412,8 +414,8 @@ export default function EmployeeManagementPage() {
                 <Icon name="plus" size={16} />
                 <span>Khai Báo Nhân Sự Mới</span>
               </Button>
-            )}
-          </div>
+            </div>
+          )
         }
       />
 
@@ -430,7 +432,7 @@ export default function EmployeeManagementPage() {
           icon="users"
           title={isStoreManager ? 'Tổng Nhân Sự Chi Nhánh' : 'Tổng Nhân Sự Cửa Hàng'}
           value={totalEmployees}
-          color="#f2ca50"
+          color="var(--color-primary, #0D9488)"
           subtitle={`${roleStats.cashier} Thu ngân • ${roleStats.sales} Bán hàng`}
         />
         <StatCard
@@ -651,6 +653,23 @@ export default function EmployeeManagementPage() {
         onSubmit={handleReviewHeadcount}
         request={selectedReviewRequest}
       />
+
+      {/* Modal: Import Nhân Sự Hàng Loạt (Operations Admin & Admin only) */}
+      {canManageSystem && (
+        <BulkImportEmployeeModal
+          isOpen={bulkImportModalOpen}
+          onClose={() => setBulkImportModalOpen(false)}
+          onSuccess={() => {
+            fetchEmployees();
+            toast?.success?.('Import nhân sự hoàn tất! Đã cập nhật danh sách.');
+          }}
+          branches={branches}
+          availableImportRequests={headcountRequests.filter(
+            (r) => r.status === 'APPROVED' && r.additionalQuantity > 0
+          )}
+          currentBranchId={isStoreManager ? currentBranchId : null}
+        />
+      )}
     </DashboardShell>
   );
 }
