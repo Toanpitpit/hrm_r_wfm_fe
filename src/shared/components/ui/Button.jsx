@@ -1,5 +1,5 @@
-// Button — nút bấm dùng chung. kind | variant: primary | ghost | danger | soft | secondary | outline.
-// Dùng: <Button kind="primary" icon="plus" onClick={...}>Thêm</Button>
+// Button — Nút chuẩn giao diện Apex Dashboard (Emerald Green theme)
+// Props: type, kind/variant, icon, children, onClick, size, style, disabled, loading
 
 import { useState } from 'react';
 import { useAdminTheme } from '../../context/ThemeContext';
@@ -13,7 +13,7 @@ export default function Button({
   children,
   onClick,
   size = 'md',
-  style,
+  style = {},
   disabled = false,
   loading = false,
   ...props
@@ -21,63 +21,92 @@ export default function Button({
   const { c, fonts } = useAdminTheme();
   const [hover, setHover] = useState(false);
 
-  const buttonKind =
-    kind ||
-    (variant === 'secondary' || variant === 'outline'
-      ? 'soft'
-      : variant === 'danger'
-      ? 'danger'
-      : variant === 'success'
-      ? 'success'
-      : variant === 'primary'
-      ? 'primary'
-      : 'ghost');
+  const effectiveKind = kind || variant || 'ghost';
 
-  const sizes = { sm: '7px 12px', md: '10px 16px', lg: '13px 22px' };
-  const kinds = {
-    primary: { background: c.accent, color: c.ink, border: `1px solid ${c.accent}` },
-    ghost: { background: 'transparent', color: c.fgMuted, border: `1px solid ${c.border}` },
-    danger: { background: c.tones.badDim, color: c.tones.bad, border: `1px solid ${c.tones.bad}` },
-    success: { background: c.tones.goodDim, color: c.tones.good, border: `1px solid ${c.tones.good}` },
-    soft: { background: c.bgElev, color: c.fgMuted, border: `1px solid ${c.borderSub}` },
+  const sizeStyles = {
+    sm: { padding: '7px 14px', fontSize: 12.5, height: 34 },
+    md: { padding: '9px 18px', fontSize: 13.5, height: 40 },
+    lg: { padding: '12px 24px', fontSize: 14.5, height: 46 },
+  }[size] || { padding: '9px 18px', fontSize: 13.5, height: 40 };
+
+  const getVariantStyles = () => {
+    switch (effectiveKind) {
+      case 'primary':
+        return {
+          background: hover && !disabled ? (c.primaryHover || '#0F766E') : (c.primary || '#0D9488'),
+          color: '#FFFFFF',
+          border: '1px solid transparent',
+          boxShadow: hover && !disabled ? '0 4px 14px rgba(13, 148, 136, 0.35)' : '0 2px 8px rgba(13, 148, 136, 0.20)',
+          fontWeight: 600,
+        };
+      case 'danger':
+        return {
+          background: hover && !disabled ? 'rgba(239, 68, 68, 0.22)' : c.tones.badDim,
+          color: c.tones.bad,
+          border: `1px solid ${hover ? c.tones.bad : 'transparent'}`,
+          fontWeight: 600,
+        };
+      case 'success':
+        return {
+          background: hover && !disabled ? 'rgba(13, 148, 136, 0.22)' : c.tones.goodDim,
+          color: c.tones.good,
+          border: `1px solid ${hover ? c.tones.good : 'transparent'}`,
+          fontWeight: 600,
+        };
+      case 'soft':
+        return {
+          background: hover && !disabled ? c.bgHover : c.bgElev,
+          color: c.fg,
+          border: `1px solid ${c.border}`,
+          fontWeight: 500,
+        };
+      case 'ghost':
+      default:
+        return {
+          background: hover && !disabled ? c.bgElev : 'transparent',
+          color: hover && !disabled ? c.fg : c.fgSubtle,
+          border: `1px solid ${c.border}`,
+          fontWeight: 500,
+        };
+    }
   };
 
-  const currentKindStyle = kinds[buttonKind] || kinds.ghost;
-  const isBtnDisabled = disabled || loading;
+  const vStyles = getVariantStyles();
 
   return (
     <button
       type={type}
-      disabled={isBtnDisabled}
-      onClick={onClick}
+      onClick={disabled || loading ? undefined : onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      {...props}
+      disabled={disabled || loading}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: 8,
-        padding: sizes[size] || sizes.md,
-        borderRadius: 4,
-        whiteSpace: 'nowrap',
-        fontSize: 12.5,
-        fontWeight: buttonKind === 'primary' ? 800 : 600,
-        letterSpacing: buttonKind === 'primary' ? 0.5 : 0.2,
-        textTransform: buttonKind === 'primary' ? 'uppercase' : 'none',
+        borderRadius: 10,
         fontFamily: fonts.body,
-        transition: 'all .15s',
-        filter: hover && !isBtnDisabled ? 'brightness(1.12)' : 'none',
-        cursor: isBtnDisabled ? 'not-allowed' : 'pointer',
-        opacity: isBtnDisabled ? 0.6 : 1,
-        ...currentKindStyle,
+        cursor: disabled || loading ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.6 : 1,
+        transition: 'all 0.18s ease',
+        outline: 'none',
+        boxSizing: 'border-box',
+        whiteSpace: 'nowrap',
+        transform: hover && !disabled && effectiveKind === 'primary' ? 'translateY(-1px)' : 'none',
+        ...sizeStyles,
+        ...vStyles,
         ...style,
       }}
+      {...props}
     >
       {loading ? (
-        <Icon name="refresh" size={size === 'sm' ? 14 : 16} />
-      ) : (
-        icon && <Icon name={icon} size={size === 'sm' ? 14 : 16} />
-      )}
+        <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite' }}>
+          <Icon name="refresh" size={size === 'sm' ? 14 : 16} />
+        </span>
+      ) : icon ? (
+        <Icon name={icon} size={size === 'sm' ? 14 : 16} />
+      ) : null}
       {children}
     </button>
   );

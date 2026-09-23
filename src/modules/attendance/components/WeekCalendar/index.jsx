@@ -3,7 +3,11 @@ import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Badge from '@/shared/components/ui/Badge';
 import Icon from '@/shared/components/ui/Icon';
 
-const renderStatusBadge = (status) => {
+const renderStatusBadge = (status, assignmentStatus) => {
+  if (status === 'CANCELLED' || assignmentStatus === 'CANCELLED') {
+    return <Badge tone="neutral" dot>Đã Nghỉ Phép</Badge>;
+  }
+
   switch (status) {
     case 'COMPLETED':
       return <Badge tone="ok" dot>Đã Hoàn Thành</Badge>;
@@ -71,67 +75,71 @@ export const WeekCalendar = ({ days = [], onOpenSwapModal }) => {
               }}
             >
               {day.shifts && day.shifts.length > 0 ? (
-                day.shifts.map((shift) => (
-                  <div
-                    key={shift.scheduleId || shift.assignmentId}
-                    style={{
-                      padding: 10,
-                      borderRadius: 6,
-                      background: c.bgCard,
-                      border: `1px solid ${c.border}`,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 4,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: c.fg }}>
-                        {shift.shiftName}
-                      </span>
-                    </div>
+                day.shifts.map((shift) => {
+                  const isCancelled = shift.attendanceStatus === 'CANCELLED' || shift.assignmentStatus === 'CANCELLED';
+                  return (
+                    <div
+                      key={shift.scheduleId || shift.assignmentId}
+                      style={{
+                        padding: 10,
+                        borderRadius: 6,
+                        background: isCancelled ? c.bgElev : c.bgCard,
+                        opacity: isCancelled ? 0.75 : 1,
+                        border: `1px solid ${c.border}`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: isCancelled ? c.fgSubtle : c.fg }}>
+                          {shift.shiftName}
+                        </span>
+                      </div>
 
-                    <div style={{ fontSize: 12, fontWeight: 700, color: c.accent, fontFamily: 'monospace' }}>
-                      {shift.startTime?.substring(0, 5)} - {shift.endTime?.substring(0, 5)}
-                    </div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: isCancelled ? c.fgSubtle : c.accent, fontFamily: 'monospace' }}>
+                        {shift.startTime?.substring(0, 5)} - {shift.endTime?.substring(0, 5)}
+                      </div>
 
-                    <div style={{ fontSize: 12, color: c.fgSubtle, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Icon name="pin" size={12} color={c.fgSubtle} />
-                      <span>{shift.branchName}</span>
-                    </div>
+                      <div style={{ fontSize: 12, color: c.fgSubtle, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Icon name="pin" size={12} color={c.fgSubtle} />
+                        <span>{shift.branchName}</span>
+                      </div>
 
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                      {renderStatusBadge(shift.attendanceStatus)}
-                      {shift.isDispatched && <Badge tone="info">Điều Động</Badge>}
-                    </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                        {renderStatusBadge(shift.attendanceStatus, shift.assignmentStatus)}
+                        {shift.isDispatched && <Badge tone="info">Điều Động</Badge>}
+                      </div>
 
-                    {onOpenSwapModal && (shift.attendanceStatus === 'NOT_YET' || day.date >= todayStr) && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenSwapModal({ ...shift, date: day.date, dayOfWeek: day.dayOfWeek })}
-                        style={{
-                          marginTop: 6,
-                          padding: '5px 10px',
-                          background: `${c.accent}15`,
-                          color: c.accent,
-                          border: `1px solid ${c.accent}40`,
-                          borderRadius: 4,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          width: '100%',
-                          justifyContent: 'center',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        <Icon name="swap" size={13} color={c.accent} />
-                        <span>Đổi / Chuyển Ca</span>
-                      </button>
-                    )}
-                  </div>
-                ))
+                      {onOpenSwapModal && !isCancelled && (shift.attendanceStatus === 'NOT_YET' || day.date >= todayStr) && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenSwapModal({ ...shift, date: day.date, dayOfWeek: day.dayOfWeek })}
+                          style={{
+                            marginTop: 6,
+                            padding: '5px 10px',
+                            background: `${c.accent}15`,
+                            color: c.accent,
+                            border: `1px solid ${c.accent}40`,
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            width: '100%',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <Icon name="swap" size={13} color={c.accent} />
+                          <span>Đổi / Chuyển Ca</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
               ) : (
                 <div style={{ fontSize: 12, color: c.fgFaint, textAlign: 'center', padding: '32px 0', fontStyle: 'italic' }}>
                   Nghỉ

@@ -147,6 +147,8 @@ export default function DispatchNetworkMetricsPage() {
         <DashboardSidebar
           page="dispatch-network"
           activePath="/admin/dispatch-network"
+          brandName="RWFM Enterprise"
+          consoleLabel="OPERATIONS CONSOLE"
           defaultDisplayName={currentUser?.fullName || 'Quản trị viên'}
           roleLabel={currentUser?.roleName || 'Quản trị vận hành'}
         />
@@ -154,8 +156,8 @@ export default function DispatchNetworkMetricsPage() {
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: currentUser?.roleName || 'Quản Trị Vận Hành', href: '#' },
-            { label: 'Giám Sát Mạng Lưới', href: '#' },
+            { label: 'Quản Trị Vận Hành', href: '/dashboard' },
+            { label: 'Giám Sát Mạng Lưới', href: '/admin/dispatch-network' },
             { label: 'Ma Trận Điều Động' },
           ]}
         />

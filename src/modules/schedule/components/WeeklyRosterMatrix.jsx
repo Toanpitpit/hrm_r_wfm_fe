@@ -281,6 +281,7 @@ export default function WeeklyRosterMatrix({
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <Icon name="clock" size={16} color={shift.color} />
                         <span style={{ fontWeight: 800, fontSize: 13.5, color: shift.color }}>
                           {shift.name}
                         </span>

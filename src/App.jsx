@@ -14,7 +14,7 @@ import ErrorBoundary from './shared/components/ErrorBoundary';
 const App = () => {
   return (
     <ErrorBoundary>
-      <AdminThemeProvider defaultTheme="dark" defaultAccent="#f5b14a">
+      <AdminThemeProvider defaultTheme="light" defaultAccent="#10B981">
         <ToastProvider>
           <AppRouter />
         </ToastProvider>

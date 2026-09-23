@@ -89,8 +89,8 @@ export default function AttendanceHistoryPage() {
       sidebar={
         <DashboardSidebar
           page="employee-attendance"
-          onNavigate={handleSidebarNavigate}
-          navItems={navItems}
+          activePath="/employee/attendance-history"
+          brandName="RWFM Enterprise"
           consoleLabel={portalTitle}
           defaultDisplayName={storedUser?.fullName || 'Nhân viên Chi nhánh'}
           roleLabel={roleSubtitle}
@@ -100,8 +100,9 @@ export default function AttendanceHistoryPage() {
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: portalTitle, href: '/employee/my-calendar' },
-            { label: 'Lịch Sử Chấm Công' },
+            { label: 'Cá Nhân', href: '/employee/my-calendar' },
+            { label: 'Tiện Ích', href: '/employee/attendance-history' },
+            { label: 'Lịch Sử Điểm Danh' },
           ]}
         />
       }

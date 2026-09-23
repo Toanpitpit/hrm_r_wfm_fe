@@ -11,6 +11,7 @@ import StatCard from '@/shared/components/ui/StatCard';
 import SearchInput from '@/shared/components/ui/SearchInput';
 import Select from '@/shared/components/ui/Select';
 import Icon from '@/shared/components/ui/Icon';
+import Button from '@/shared/components/ui/Button';
 
 // Schedule Hook & Components
 import { useWeeklySchedule } from '../../hooks/useWeeklySchedule';
@@ -119,7 +120,10 @@ export default function WeeklySchedulePage() {
       sidebar={
         <DashboardSidebar
           page="weekly-schedules"
+          activePath="/store-manager/schedules"
           onNavigate={handleSidebarNavigate}
+          brandName="RWFM Enterprise"
+          consoleLabel="STORE MANAGER CONSOLE"
           defaultDisplayName={storedUser?.fullName || 'Quản Lý Cửa Hàng'}
           roleLabel={storedUser?.roleName || 'Cửa hàng trưởng'}
           avatarLetter={storedUser?.fullName?.charAt(0) || 'M'}
@@ -128,8 +132,9 @@ export default function WeeklySchedulePage() {
       topbar={
         <DashboardTopbar
           breadcrumbs={[
-            { label: storedUser?.roleName || 'Store Manager', href: '/store-manager/schedules' },
-            { label: 'Lập Lịch Ca Tuần' },
+            { label: 'Store Manager', href: '/store-manager/schedules' },
+            { label: 'Phân Ca & Lịch Làm', href: '/store-manager/schedules' },
+            { label: 'Phân Ca Tuần' },
           ]}
         />
       }
@@ -137,6 +142,7 @@ export default function WeeklySchedulePage() {
       <div className={styles.container}>
         {/* Tiêu đề trang */}
         <PageHeader
+          index="Store Manager · Phân Bổ Ca Tuần"
           title="Thiết Lập Định Mức & Phân Bổ Ca Tuần"
           subtitle="Quản lý định mức nhu cầu nhân sự, gán lịch Full-time, kiểm tra xung đột và công bố lịch tuần"
           badge={
@@ -310,34 +316,6 @@ export default function WeeklySchedulePage() {
                 : 'Lịch đang soạn thảo'
             }
           />
-        </div>
-
-        {/* Nút thao tác Xét duyệt đơn đổi / chuyển ca */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -6 }}>
-          <button
-            type="button"
-            onClick={() => setIsSwapReviewModalOpen(true)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '9px 18px',
-              borderRadius: 8,
-              background: `${c.accent}20`,
-              color: c.accent,
-              border: `1px solid ${c.accent}`,
-              fontWeight: 750,
-              fontSize: 13,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <Icon name="swap" size={15} color={c.accent} />
-            <span>Xét Duyệt Đơn Đổi / Chuyển Ca Trực</span>
-          </button>
         </div>
 
         {/* Bộ điều hướng tuần & Nút hành động */}
