@@ -5,8 +5,7 @@ import Modal from '@/shared/components/ui/Modal';
 import Button from '@/shared/components/ui/Button';
 import FormField from '@/shared/components/ui/FormField';
 import Select from '@/shared/components/ui/Select';
-import Icon from '@/shared/components/ui/Icon';
-import { DAY_NAMES_VN } from '../hooks/useWeeklySchedule';
+import { DAY_NAMES_VN, formatVNDate } from '../hooks/useWeeklySchedule';
 
 export default function AssignFullTimeModal({
   isOpen,
@@ -239,6 +238,21 @@ export default function AssignFullTimeModal({
                     <span style={{ fontSize: 11, color: c.fgFaint, fontFamily: 'monospace' }}>
                       ({emp.employeeCode})
                     </span>
+                    {emp.isDispatched && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          padding: '1px 6px',
+                          borderRadius: 4,
+                          background: 'rgba(2, 132, 199, 0.15)',
+                          color: '#0284c7',
+                          fontWeight: 700,
+                        }}
+                        title={`Điều chuyển từ ${emp.originBranchName || 'cơ sở gốc'} (${formatVNDate(emp.dispatchStartDate)} - ${formatVNDate(emp.dispatchEndDate)})`}
+                      >
+                        ĐIỀU CHUYỂN {emp.dispatchStartDate ? `(từ ${formatVNDate(emp.dispatchStartDate)})` : ''}
+                      </span>
+                    )}
                   </div>
                   <span
                     style={{
