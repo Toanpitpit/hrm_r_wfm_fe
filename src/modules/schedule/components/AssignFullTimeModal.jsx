@@ -5,6 +5,7 @@ import Modal from '@/shared/components/ui/Modal';
 import Button from '@/shared/components/ui/Button';
 import FormField from '@/shared/components/ui/FormField';
 import Select from '@/shared/components/ui/Select';
+import Icon from '@/shared/components/ui/Icon';
 import { DAY_NAMES_VN, formatVNDate } from '../hooks/useWeeklySchedule';
 
 export default function AssignFullTimeModal({
