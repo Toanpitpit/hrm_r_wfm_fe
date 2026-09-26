@@ -76,6 +76,8 @@ export default function DashboardSidebar({
       navigate('/employees');
     } else if (item.id === 'branches') {
       navigate('/branches');
+    } else if (item.id === 'branch-tiers' || item.id === 'tiers') {
+      navigate('/branch-tiers');
     } else if (item.id === 'shift-master') {
       navigate('/shifts/templates');
     } else if (item.id === 'kiosk-codes') {

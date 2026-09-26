@@ -70,6 +70,8 @@ export default function Icon({ name, size = 18, color = 'currentColor', strokeWi
     'import': <><path d="M4 14v2a1 1 0 001 1h10a1 1 0 001-1v-2" {...p} /><path d="M10 3v10M6 9l4 4 4-4" {...p} /></>,
     table: <><rect x="3" y="4" width="14" height="12" rx="1" {...p} /><path d="M3 8h14M7 8v8M12 8v8" {...p} /></>,
     'table-import': <><rect x="2" y="3" width="12" height="10" rx="1" {...p} /><path d="M2 7h12M5 7v6M10 7v6" {...p} /><path d="M16 10v7M13 14l3 3 3-3" {...p} /></>,
+    layers: <><polygon points="10 2 17 6 10 10 3 6 10 2" {...p} /><path d="M3 10l7 4 7-4M3 14l7 4 7-4" {...p} /></>,
+    award: <><circle cx="10" cy="7" r="4.5" {...p} /><path d="M7 11.5L5 18l5-2.5 5 2.5-2-6.5" {...p} /></>,
   };
 
 

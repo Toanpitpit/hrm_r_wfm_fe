@@ -42,7 +42,7 @@ export default function ShiftRequestsPage() {
   const userRole = (storedUser?.role || storedUser?.Role || '').toUpperCase();
   const roleName = (storedUser?.roleName || '').toLowerCase();
   const employeeId = storedUser?.employeeId || storedUser?.EmployeeId || storedUser?.id || storedUser?.Id;
-  const branchId = storedUser?.branchId || storedUser?.homeBranchId || 1;
+  const branchId = storedUser?.storeId || storedUser?.branchId || storedUser?.homeBranchId || 1;
 
   const isStoreManager = [
     'STORE_MANAGER',

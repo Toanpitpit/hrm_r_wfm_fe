@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import DataTable from '@/shared/components/ui/DataTable';
-import Pagination from '@/shared/components/ui/Pagination';
 import Badge from '@/shared/components/ui/Badge';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
@@ -9,13 +8,12 @@ import Icon from '@/shared/components/ui/Icon';
 /**
  * ==============================================================================
  * COMPONENT: BranchTable.jsx
- * UC 1.2: Danh sách chi nhánh, phân trang & thanh cuộn dọc
+ * Danh sách chi nhánh & phân trang
  * ==============================================================================
  * Bảng hiển thị:
  * - Mã, Cấp, Tên, Địa chỉ, Tọa độ GPS & Bán kính Geofence
  * - Trạng thái (Badge Active / Inactive / Locked)
  * - Cột thao tác: Sửa, Khóa/Mở, Xóa
- * - Thanh cuộn dọc cố định tiêu đề (sticky header) & phân trang thông minh
  */
 export default function BranchTable({
   branches = [],
@@ -25,26 +23,6 @@ export default function BranchTable({
   onDelete,
 }) {
   const { c } = useAdminTheme();
-
-  // State phân trang
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-
-  const totalItems = branches.length;
-  const totalPages = Math.ceil(totalItems / pageSize) || 1;
-
-  // Tự động quay về trang 1 nếu số trang giảm (khi người dùng tìm kiếm hoặc lọc)
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1);
-    }
-  }, [totalPages, currentPage]);
-
-  // Cắt mảng chi nhánh theo trang hiện tại
-  const paginatedBranches = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return branches.slice(start, start + pageSize);
-  }, [branches, currentPage, pageSize]);
 
   const columns = [
     {
@@ -264,39 +242,13 @@ export default function BranchTable({
   ];
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        borderRadius: '10px',
-        border: `1px solid ${c.border}`,
-        overflow: 'hidden',
-        backgroundColor: c.bgCard,
-      }}
-    >
-      {/* Vùng bảng dữ liệu với thanh cuộn dọc và tiêu đề cố định */}
-      <DataTable
-        columns={columns}
-        data={paginatedBranches}
-        loading={loading}
-        maxHeight="440px"
-        stickyHeader={true}
-        emptyMessage="Chưa có chi nhánh nào được cấu hình trong hệ thống."
-      />
-
-      {/* Thanh phân trang ở chân bảng */}
-      <Pagination
-        currentPage={currentPage}
-        totalItems={totalItems}
-        pageSize={pageSize}
-        pageSizeOptions={[5, 10, 20, 50]}
-        onPageChange={(page) => setCurrentPage(page)}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          setCurrentPage(1);
-        }}
-        itemLabel="chi nhánh"
-      />
-    </div>
+    <DataTable
+      columns={columns}
+      data={branches}
+      loading={loading}
+      pageSize={10}
+      pageSizeOptions={[5, 10, 20, 50]}
+      emptyMessage="Chưa có chi nhánh nào được cấu hình trong hệ thống."
+    />
   );
 }

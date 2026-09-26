@@ -34,6 +34,15 @@ export default function WeeklySchedulePage() {
   const navigate = useNavigate();
   const toast = useToast();
 
+  const storedUser = (() => {
+    try {
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  })();
+
   const {
     branchId,
     setBranchId,
@@ -105,15 +114,6 @@ export default function WeeklySchedulePage() {
       navigate('/store-manager/schedules');
     }
   };
-
-  const storedUser = (() => {
-    try {
-      const u = localStorage.getItem('user');
-      return u ? JSON.parse(u) : null;
-    } catch {
-      return null;
-    }
-  })();
 
   return (
     <DashboardShell
@@ -451,7 +451,7 @@ export default function WeeklySchedulePage() {
         <ShiftSwapReviewModal
           isOpen={isSwapReviewModalOpen}
           onClose={() => setIsSwapReviewModalOpen(false)}
-          storeId={branchId || 1}
+          storeId={branchId || storedUser?.storeId || storedUser?.homeBranchId || 1}
           onReviewed={() => {
             fetchWeeklyMatrix();
           }}

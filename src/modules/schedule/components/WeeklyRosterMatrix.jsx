@@ -683,7 +683,7 @@ export default function WeeklyRosterMatrix({
                             >
                               {emp.fullName}
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 3 }}>
                               <span style={{ fontSize: 11, color: c.fgFaint, fontFamily: 'monospace' }}>
                                 {emp.employeeCode}
                               </span>
@@ -699,6 +699,36 @@ export default function WeeklyRosterMatrix({
                               >
                                 {emp.roleName || emp.roleCode}
                               </span>
+                              {emp.isDispatched && (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    padding: '1px 6px',
+                                    borderRadius: 4,
+                                    background: 'rgba(2, 132, 199, 0.15)',
+                                    color: '#0284c7',
+                                    fontWeight: 700,
+                                  }}
+                                  title={`Điều chuyển từ ${emp.originBranchName || 'cơ sở gốc'} (${formatVNDate(emp.dispatchStartDate)} - ${formatVNDate(emp.dispatchEndDate)})`}
+                                >
+                                  ĐIỀU CHUYỂN {emp.dispatchStartDate ? `(từ ${formatVNDate(emp.dispatchStartDate)})` : ''}
+                                </span>
+                              )}
+                              {emp.isDispatchedAway && (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    padding: '1px 6px',
+                                    borderRadius: 4,
+                                    background: 'rgba(217, 119, 6, 0.15)',
+                                    color: '#d97706',
+                                    fontWeight: 700,
+                                  }}
+                                  title={`Điều chuyển sang ${emp.destinationBranchName || 'cơ sở khác'} (${formatVNDate(emp.dispatchAwayStartDate)} - ${formatVNDate(emp.dispatchAwayEndDate)})`}
+                                >
+                                  ĐIỀU CHUYỂN ĐI
+                                </span>
+                              )}
                               <span style={{ fontSize: 10, color: c.accent, fontWeight: 700 }}>
                                 ({totalShiftsInWeek} ca)
                               </span>

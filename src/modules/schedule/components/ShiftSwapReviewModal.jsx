@@ -11,20 +11,25 @@ import { getStoreSwapRequests, reviewSwapRequest } from '../services/schedule.se
 export default function ShiftSwapReviewModal({
   isOpen,
   onClose,
-  storeId = 1,
+  storeId = null,
   onReviewed,
 }) {
   const { c } = useAdminTheme();
   const toast = useToast();
+  const storedUser = (() => {
+    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
+  })();
+  const effectiveStoreId = storeId || storedUser?.storeId || storedUser?.homeBranchId || storedUser?.branchId || 1;
+
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [filterTab, setFilterTab] = useState('PENDING'); // 'PENDING', 'APPROVED', 'REJECTED', 'ALL'
 
   const fetchStoreRequests = () => {
-    if (!storeId) return;
+    if (!effectiveStoreId) return;
     setLoading(true);
-    getStoreSwapRequests(storeId)
+    getStoreSwapRequests(effectiveStoreId)
       .then((res) => {
         if (res?.success && res.data) {
           setRequests(res.data);
@@ -43,7 +48,7 @@ export default function ShiftSwapReviewModal({
     if (isOpen) {
       fetchStoreRequests();
     }
-  }, [isOpen, storeId]);
+  }, [isOpen, effectiveStoreId]);
 
   const handleReview = async (swapRequestId, isApproved) => {
     try {
