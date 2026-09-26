@@ -175,8 +175,8 @@ export default function BulkImportEmployeeModal({
   const statusConfig = {
     success: { color: '#0D9488', bg: 'rgba(13, 148, 136, 0.08)', border: 'rgba(13, 148, 136, 0.25)', icon: 'check' },
     partial: { color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.25)', icon: 'warning' },
-    error:   { color: '#EF4444', bg: 'rgba(239, 68, 68, 0.08)',   border: 'rgba(239, 68, 68, 0.25)',   icon: 'x' },
-    idle:    { color: c.fgSubtle, bg: 'transparent', border: 'transparent', icon: 'info' },
+    error: { color: '#EF4444', bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.25)', icon: 'x' },
+    idle: { color: c.fgSubtle, bg: 'transparent', border: 'transparent', icon: 'info' },
   };
 
   const currentStatus = statusConfig[importStatus] || statusConfig.idle;
@@ -202,7 +202,7 @@ export default function BulkImportEmployeeModal({
       open={isOpen}
       onClose={isImporting ? undefined : onClose}
       title="Import Nhân Sự Hàng Loạt"
-      sub="Tải file mẫu Excel chuẩn từ hệ thống, điền thông tin nhân sự và import hàng loạt. Chỉ ADMIN mới có quyền sử dụng chức năng này."
+      sub="Tải file mẫu Excel chuẩn từ hệ thống, điền thông tin nhân sự và import hàng loạt."
       width={680}
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', width: '100%', gap: '10px' }}>
@@ -326,7 +326,7 @@ export default function BulkImportEmployeeModal({
           {/* Chọn chi nhánh mặc định */}
           {branches.length > 0 && (
             <div style={{ marginTop: '12px' }}>
-              <label style={labelStyle}>Chi Nhánh Mặc Định (Fallback)</label>
+              <label style={labelStyle}>Chi Nhánh Mặc Định</label>
               <select
                 value={defaultBranchId}
                 onChange={(e) => setDefaultBranchId(e.target.value)}
@@ -351,60 +351,6 @@ export default function BulkImportEmployeeModal({
             </div>
           )}
         </div>
-
-        {/* ── BƯỚC 3: Định biên mở rộng (Tùy chọn) ── */}
-        {availableImportRequests.length > 0 && (
-          <div style={{ padding: '14px 16px', background: 'rgba(245, 158, 11, 0.05)', borderRadius: '8px', border: `1px solid rgba(245, 158, 11, 0.15)` }}>
-            <div style={sectionHeaderStyle}>
-              <span style={stepNumStyle(!!importRequestId)}>3</span>
-              <span>Định Biên Mở Rộng (Tùy Chọn)</span>
-            </div>
-            <p style={{ fontSize: '12px', color: c.fgMuted, marginBottom: '12px', marginLeft: '30px', lineHeight: '1.5' }}>
-              Nếu nhập nhân sự vào chi nhánh đã đạt trần định biên, chọn đơn mở rộng đã được phê duyệt.
-            </p>
-            <div style={{ marginLeft: '30px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div>
-                <label style={labelStyle}>Đơn Mở Rộng Định Biên</label>
-                <select
-                  value={importRequestId}
-                  onChange={(e) => setImportRequestId(e.target.value)}
-                  disabled={isImporting}
-                  style={{
-                    width: '100%', padding: '9px 12px',
-                    background: c.bgRaised, border: `1px solid ${c.border}`,
-                    borderRadius: '6px', color: c.fg, fontSize: '13px', outline: 'none',
-                  }}
-                >
-                  <option value="">-- Không dùng đơn mở rộng --</option>
-                  {availableImportRequests.map((req) => (
-                    <option key={req.id} value={String(req.id)}>
-                      #{req.id} — {req.branchName} — Còn {req.additionalQuantity} slot
-                      {req.expiresAt ? ` (HSD: ${new Date(req.expiresAt).toLocaleDateString('vi-VN')})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {importRequestId && (
-                <div>
-                  <label style={labelStyle}>Lý Do Sử Dụng Chỉ Tiêu Mở Rộng</label>
-                  <textarea
-                    value={expansionReason}
-                    onChange={(e) => setExpansionReason(e.target.value)}
-                    disabled={isImporting}
-                    placeholder="Giải trình lý do sử dụng quota mở rộng..."
-                    rows={2}
-                    style={{
-                      width: '100%', padding: '9px 12px',
-                      background: c.bgRaised, border: `1px solid ${c.border}`,
-                      borderRadius: '6px', color: c.fg, fontSize: '13px',
-                      fontFamily: fonts.body, resize: 'vertical', outline: 'none',
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* ── BƯỚC 4: Kết quả Import ── */}
         {hasResult && importStatus !== 'idle' && (
@@ -499,7 +445,7 @@ export default function BulkImportEmployeeModal({
                 </div>
                 {(importStatus === 'partial' || importStatus === 'error') && (
                   <p style={{ fontSize: '11.5px', color: c.fgSubtle, marginTop: '8px', lineHeight: '1.5' }}>
-                    💡 Hãy chỉnh sửa file và xóa các dòng đã import thành công, sau đó import lại file đã sửa.
+                     Hãy chỉnh sửa file và xóa các dòng đã import thành công, sau đó import lại file đã sửa.
                   </p>
                 )}
               </div>

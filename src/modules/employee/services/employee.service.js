@@ -1,5 +1,4 @@
 import axiosInstance from '@/config/axios.config';
-import headcountService from './headcount.service';
 
 /**
  * ==============================================================================
@@ -347,10 +346,7 @@ export const employeeService = {
     list.unshift(newEmployee);
     saveLocalEmployees(list);
 
-    // Trừ lùi hạn mức mở rộng nếu có
-    if (payload.importRequestId) {
-      headcountService.consumeQuotaLocally(payload.importRequestId);
-    }
+    // Effective Quota: BE tự kiểm soát định biên, FE không cần trừ lùi local
 
     return {
       success: true,

@@ -276,52 +276,6 @@ export const fileService = {
     return { success: false, message: err.message || 'Lỗi không xác định khi thao tác file.' };
   },
 
-  /**
-   * Download headcount request file
-   */
-  async downloadHeadcountFile(reqId, suggestedFileName = 'De_Xuat_Dinh_Bien.xlsx') {
-    return await this._downloadBlob(`v1/headcount-requests/${reqId}/download`, suggestedFileName);
-  },
-
-  /**
-   * Xem headcount request file (PDF inline / Excel download)
-   */
-  async viewHeadcountFile(req = {}) {
-    const { id, viewUrl, s3Key, fileName } = req;
-    const ext = ('.' + (fileName || '').split('.').pop()).toLowerCase();
-
-    // Presigned view URL
-    if (viewUrl && viewUrl.includes('X-Amz-')) {
-      window.open(viewUrl, '_blank', 'noopener,noreferrer');
-      return { success: true };
-    }
-
-    if (s3Key) {
-      const presigned = await this.getPresignedViewUrl(s3Key, 15);
-      if (presigned && presigned.startsWith('http')) {
-        window.open(presigned, '_blank', 'noopener,noreferrer');
-        return { success: true };
-      }
-    }
-
-    const mimeType = ext === '.pdf'
-      ? 'application/pdf'
-      : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-
-    if (ext === '.pdf') {
-      return await this._openBlobInNewTab(
-        `v1/headcount-requests/${id}/view`,
-        fileName || `headcount-${id}.pdf`,
-        mimeType
-      );
-    } else {
-      // Excel/CSV không preview được inline → download
-      return await this._downloadBlob(
-        `v1/headcount-requests/${id}/download`,
-        fileName || `headcount-${id}${ext || '.xlsx'}`
-      );
-    }
-  },
 };
 
 export default fileService;
