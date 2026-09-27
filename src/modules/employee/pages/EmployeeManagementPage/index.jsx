@@ -24,7 +24,6 @@ import EmployeeDetailModal from '@/modules/employee/components/EmployeeDetailMod
 import ResetPasswordModal from '@/modules/employee/components/ResetPasswordModal/ResetPasswordModal';
 import ToggleStatusModal from '@/modules/employee/components/ToggleStatusModal/ToggleStatusModal';
 import HeadcountQuotaCard from '@/modules/employee/components/HeadcountQuotaCard/HeadcountQuotaCard';
-import BulkImportEmployeeModal from '@/modules/employee/components/BulkImportEmployeeModal/BulkImportEmployeeModal';
 
 export default function EmployeeManagementPage() {
   const { c, fonts } = useAdminTheme();
@@ -55,6 +54,20 @@ export default function EmployeeManagementPage() {
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Dữ liệu thống kê nhân sự độc lập (không bị nhảy về 0 khi tìm kiếm nhân viên)
+  const [statsData, setStatsData] = useState({
+    totalEmployees: 0,
+    activeCount: 0,
+    inactiveCount: 0,
+    roleStats: {
+      shiftLeader: 0,
+      cashier: 0,
+      sales: 0,
+      security: 0,
+      manager: 0,
+    },
+  });
+
   // Bộ lọc
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -79,8 +92,6 @@ export default function EmployeeManagementPage() {
 
   const [toggleModalOpen, setToggleModalOpen] = useState(false);
   const [toggleEmployee, setToggleEmployee] = useState(null);
-
-  const [bulkImportModalOpen, setBulkImportModalOpen] = useState(false);
 
   // 3. Tải Danh mục Roles và Branches (GET /api/Users/roles & GET /api/Users/branches)
   useEffect(() => {
@@ -137,6 +148,28 @@ export default function EmployeeManagementPage() {
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
+
+  // 4b. Tải thống kê nhân sự toàn hệ thống (GET /api/Users/employees/stats)
+  // Luôn lấy dữ liệu TỔNG TẤT CẢ CHI NHÁNH trong chuỗi (hoặc chi nhánh nếu là Store Manager).
+  // Độc lập hoàn toàn với thanh tìm kiếm và bộ lọc bên dưới, không phụ thuộc search hay branchFilter.
+  const fetchStats = useCallback(async () => {
+    try {
+      const params = {};
+      if (isStoreManager) {
+        params.branchId = currentBranchId;
+      }
+      const res = await employeeService.getEmployeeStats(params);
+      if (res.success && res.data) {
+        setStatsData(res.data);
+      }
+    } catch (err) {
+      console.warn('Lỗi khi tải thống kê nhân sự toàn hệ thống:', err);
+    }
+  }, [isStoreManager, currentBranchId]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   // 5. Tải dữ liệu Effective Quota (định biên hiệu dụng)
   const fetchHeadcountData = useCallback(async () => {
@@ -208,6 +241,7 @@ export default function EmployeeManagementPage() {
       if (res.success) {
         toast.success(res.message || 'Cập nhật nhân sự thành công!');
         fetchEmployees();
+        fetchStats();
         fetchHeadcountData();
       } else {
         toast.error(res.message || 'Cập nhật thất bại.');
@@ -218,6 +252,7 @@ export default function EmployeeManagementPage() {
         if (res.success) {
           toast.success(res.message || 'Cấp tài khoản Cửa hàng trưởng thành công!');
           fetchEmployees();
+          fetchStats();
           fetchHeadcountData();
         } else {
           toast.error(res.message || 'Khai báo thất bại.');
@@ -227,6 +262,7 @@ export default function EmployeeManagementPage() {
         if (res.success) {
           toast.success(res.message || 'Khai báo thành công! Welcome Email đã được gửi.');
           fetchEmployees();
+          fetchStats();
           fetchHeadcountData();
         } else {
           toast.error(res.message || 'Khai báo thất bại.');
@@ -251,6 +287,7 @@ export default function EmployeeManagementPage() {
     if (res.success) {
       toast.success(res.message || 'Cập nhật trạng thái thành công!');
       fetchEmployees();
+      fetchStats();
       // Quota tự động cập nhật ngay lập tức vì trạng thái INACTIVE làm dôi dư vị trí (Attrition Compensation)
       fetchHeadcountData();
     } else {
@@ -266,18 +303,11 @@ export default function EmployeeManagementPage() {
     setContractTypeFilter('');
   };
 
-  // 7. Tính toán các chỉ số thống kê (Stats)
-  const totalEmployees = employees.length;
-  const activeCount = employees.filter((e) => e.status !== 'INACTIVE').length;
-  const inactiveCount = employees.filter((e) => e.status === 'INACTIVE').length;
-
-  const roleStats = {
-    shiftLeader: employees.filter((e) => e.roleCode === 'SHIFT_LEADER').length,
-    cashier: employees.filter((e) => e.roleCode === 'CASHIER').length,
-    sales: employees.filter((e) => e.roleCode === 'SALES_STAFF').length,
-    security: employees.filter((e) => e.roleCode === 'SECURITY_GUARD' || e.roleCode === 'SECURITY').length,
-    manager: employees.filter((e) => e.roleCode === 'STORE_MANAGER').length,
-  };
+  // 7. Số liệu thống kê độc lập lấy từ thống kê chuẩn (không bị ảnh hưởng bởi thanh tìm kiếm search)
+  const totalEmployees = statsData.totalEmployees;
+  const activeCount = statsData.activeCount;
+  const inactiveCount = statsData.inactiveCount;
+  const roleStats = statsData.roleStats;
 
   const handleUpgradeBranchTier = async (branchId) => {
     try {
@@ -288,7 +318,7 @@ export default function EmployeeManagementPage() {
         if (updatedBranches && updatedBranches.length > 0) {
           setBranches(updatedBranches);
         }
-        await fetchHeadcountData();
+        await Promise.all([fetchHeadcountData(), fetchStats()]);
       } else {
         toast.error(res.message || 'Nâng cấp Tier thất bại');
       }
@@ -362,21 +392,12 @@ export default function EmployeeManagementPage() {
         actions={
           !isStoreManager && (
             <div style={{ display: 'flex', gap: '10px' }}>
-              {/* Operations Admin & Owner: Quyền tạo nhân viên + Import Hàng Loạt */}
-              <Button
-                variant="ghost"
-                onClick={() => setBulkImportModalOpen(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                id="btn-bulk-import-employees"
-                title="Import nhân sự hàng loạt từ file Excel/CSV"
-              >
-                <Icon name="table-import" size={16} />
-                <span>Import Hàng Loạt</span>
-              </Button>
+              {/* Operations Admin & Owner: Quyền tạo nhân viên (kèm tính năng Import Hàng Loạt bên trong modal) */}
               <Button
                 variant="primary"
                 onClick={handleOpenCreateModal}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                id="btn-create-employee"
               >
                 <Icon name="plus" size={16} />
                 <span>Khai Báo Nhân Sự Mới</span>
@@ -397,7 +418,7 @@ export default function EmployeeManagementPage() {
       >
         <StatCard
           icon="users"
-          title={isStoreManager ? 'Tổng Nhân Sự Chi Nhánh' : 'Tổng Nhân Sự Cửa Hàng'}
+          title={isStoreManager ? 'Tổng Nhân Sự Chi Nhánh' : 'Tổng Nhân Sự Toàn Chuỗi'}
           value={totalEmployees}
           color="var(--color-primary, #0D9488)"
           subtitle={`${roleStats.cashier} Thu ngân • ${roleStats.sales} Bán hàng`}
@@ -469,11 +490,17 @@ export default function EmployeeManagementPage() {
         </div>
       </Panel>
 
-      {/* Modal: Khai báo / Chỉnh sửa hồ sơ nhân sự (Operations Admin & Owner only) */}
+      {/* Modal: Khai báo / Chỉnh sửa hồ sơ nhân sự (kèm Import Hàng Loạt Excel/CSV bên trong) */}
       <EmployeeFormModal
         isOpen={formModalOpen}
         onClose={() => setFormModalOpen(false)}
         onSubmit={handleFormSubmit}
+        onImportSuccess={() => {
+          fetchEmployees();
+          fetchStats();
+          fetchHeadcountData();
+          toast?.success?.('Import nhân sự hoàn tất! Đã cập nhật danh sách.');
+        }}
         initialData={editingEmployee}
         roles={roles}
         branches={branches}
@@ -515,22 +542,6 @@ export default function EmployeeManagementPage() {
         employee={toggleEmployee}
         onConfirmToggle={handleConfirmToggleStatus}
       />
-
-      {/* Modal: Import Nhân Sự Hàng Loạt (Operations Admin & Admin only) */}
-      {canManageSystem && (
-        <BulkImportEmployeeModal
-          isOpen={bulkImportModalOpen}
-          onClose={() => setBulkImportModalOpen(false)}
-          onSuccess={() => {
-            fetchEmployees();
-            fetchHeadcountData();
-            toast?.success?.('Import nhân sự hoàn tất! Đã cập nhật danh sách.');
-          }}
-          branches={branches}
-          availableImportRequests={[]}
-          currentBranchId={isStoreManager ? currentBranchId : null}
-        />
-      )}
     </DashboardShell>
   );
 }

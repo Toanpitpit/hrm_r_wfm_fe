@@ -225,7 +225,7 @@ export default function EmployeeTable({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Icon name="pin" size={14} color={c.fgSubtle} />
                     <span style={{ color: c.fg }}>
-                      {emp.branchName || `Chi nhánh #${emp.homeBranchId || emp.branchId}`}
+                      {emp.branchName || (emp.homeBranchId || emp.branchId ? `Chi nhánh #${emp.homeBranchId || emp.branchId}` : 'Trụ sở chính (HQ)')}
                     </span>
                   </div>
                 </td>
