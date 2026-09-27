@@ -1,4 +1,5 @@
 import axiosInstance from '@/config/axios.config';
+import fileService, { getFileIconName } from '@/shared/services/file.service';
 
 /**
  * ==============================================================================
@@ -188,6 +189,35 @@ export const headcountService = {
       const msg = err.response?.data?.message || err.message || 'Không thể nâng Tier chi nhánh';
       return { success: false, message: msg };
     }
+  },
+
+  /**
+   * 4. Lấy icon tương ứng với file đính kèm đề xuất
+   */
+  getFileIcon(req) {
+    return getFileIconName(req?.fileName || req?.fileAttachment || req?.attachmentFileName);
+  },
+
+  /**
+   * 5. Mở xem trực tiếp tài liệu đề xuất (PDF inline tab mới hoặc Presigned URL)
+   */
+  async viewRequestFile(req) {
+    return await fileService.openPdfPreview({
+      s3Key: req?.s3Key || req?.fileAttachment || req?.attachmentKey,
+      viewUrl: req?.viewUrl || req?.presignedUrl,
+      fileName: req?.fileName || req?.attachmentFileName,
+    });
+  },
+
+  /**
+   * 6. Tải file đính kèm đề xuất về máy
+   */
+  async downloadRequestFile(req) {
+    return await fileService.downloadFile({
+      s3Key: req?.s3Key || req?.fileAttachment || req?.attachmentKey,
+      downloadUrl: req?.downloadUrl,
+      fileName: req?.fileName || req?.attachmentFileName,
+    });
   },
 };
 

@@ -33,7 +33,6 @@ export default function BulkImportEmployeeModal({
 
   // State
   const [selectedFile, setSelectedFile] = useState(null);
-  const [defaultBranchId, setDefaultBranchId] = useState(currentBranchId ? String(currentBranchId) : '');
   const [importRequestId, setImportRequestId] = useState('');
   const [expansionReason, setExpansionReason] = useState('');
   const [fileError, setFileError] = useState('');
@@ -56,9 +55,8 @@ export default function BulkImportEmployeeModal({
       setImportStatus('idle');
       setImportRequestId('');
       setExpansionReason('');
-      setDefaultBranchId(currentBranchId ? String(currentBranchId) : '');
     }
-  }, [isOpen, currentBranchId]);
+  }, [isOpen]);
 
   // ─── Tải file mẫu ─────────────────────────────────────────────────────────
 
@@ -132,7 +130,7 @@ export default function BulkImportEmployeeModal({
     try {
       const result = await employeeService.importEmployees({
         file: selectedFile,
-        defaultBranchId: defaultBranchId || null,
+        defaultBranchId: currentBranchId ? String(currentBranchId) : null,
         importRequestId: importRequestId || null,
         expansionReason: expansionReason.trim() || null,
       });
@@ -207,9 +205,9 @@ export default function BulkImportEmployeeModal({
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', width: '100%', gap: '10px' }}>
           <Button variant="ghost" onClick={onClose} disabled={isImporting}>
-            {hasResult && importStatus !== 'idle' ? 'Đóng' : 'Hủy Bỏ'}
+            {importStatus !== 'idle' ? 'Đóng' : 'Hủy Bỏ'}
           </Button>
-          {(!hasResult || importStatus === 'error' || importStatus === 'partial') && (
+          {importStatus !== 'success' && (
             <Button
               variant="primary"
               onClick={handleImport}
@@ -322,38 +320,10 @@ export default function BulkImportEmployeeModal({
               )}
             </div>
           </Field>
-
-          {/* Chọn chi nhánh mặc định */}
-          {branches.length > 0 && (
-            <div style={{ marginTop: '12px' }}>
-              <label style={labelStyle}>Chi Nhánh Mặc Định</label>
-              <select
-                value={defaultBranchId}
-                onChange={(e) => setDefaultBranchId(e.target.value)}
-                disabled={isImporting}
-                style={{
-                  width: '100%', padding: '9px 12px',
-                  background: c.bgRaised, border: `1px solid ${c.border}`,
-                  borderRadius: '6px', color: c.fg, fontSize: '13px', outline: 'none',
-                  cursor: isImporting ? 'default' : 'pointer',
-                }}
-              >
-                <option value="">-- Lấy từ cột Mã Chi Nhánh trong file --</option>
-                {branches.map((b) => (
-                  <option key={b.id || b.storeId} value={String(b.id || b.storeId)}>
-                    {b.name || `Chi nhánh #${b.id || b.storeId}`}
-                  </option>
-                ))}
-              </select>
-              <span style={{ fontSize: '11px', color: c.fgSubtle, marginTop: '4px', display: 'block' }}>
-                Chỉ áp dụng cho nhân sự trong file không có Mã Chi Nhánh.
-              </span>
-            </div>
-          )}
         </div>
 
         {/* ── BƯỚC 4: Kết quả Import ── */}
-        {hasResult && importStatus !== 'idle' && (
+        {importStatus !== 'idle' && (
           <div style={{
             padding: '16px',
             background: currentStatus.bg,
@@ -361,31 +331,33 @@ export default function BulkImportEmployeeModal({
             borderRadius: '8px',
           }}>
             <div style={sectionHeaderStyle}>
-              <span style={stepNumStyle(importStatus !== 'idle')}>4</span>
+              <span style={stepNumStyle(true)}>4</span>
               <span>Kết Quả Import</span>
             </div>
 
-            {/* Tổng kết */}
-            <div style={{ display: 'flex', gap: '16px', marginLeft: '30px', marginBottom: '12px', flexWrap: 'wrap' }}>
-              <div style={{ textAlign: 'center', minWidth: '70px' }}>
-                <div style={{ fontSize: '22px', fontWeight: 700, color: c.fg }}>{importResult.totalRows}</div>
-                <div style={{ fontSize: '11px', color: c.fgSubtle }}>Tổng dòng</div>
-              </div>
-              <div style={{ textAlign: 'center', minWidth: '70px' }}>
-                <div style={{ fontSize: '22px', fontWeight: 700, color: '#0D9488' }}>{importResult.successCount}</div>
-                <div style={{ fontSize: '11px', color: c.fgSubtle }}>Thành công</div>
-              </div>
-              <div style={{ textAlign: 'center', minWidth: '70px' }}>
-                <div style={{ fontSize: '22px', fontWeight: 700, color: importResult.failureCount > 0 ? '#EF4444' : c.fgSubtle }}>
-                  {importResult.failureCount}
+            {/* Tổng kết số liệu (nếu có DTO trả về) */}
+            {importResult && (
+              <div style={{ display: 'flex', gap: '16px', marginLeft: '30px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                <div style={{ textAlign: 'center', minWidth: '70px' }}>
+                  <div style={{ fontSize: '22px', fontWeight: 700, color: c.fg }}>{importResult.totalRows ?? 0}</div>
+                  <div style={{ fontSize: '11px', color: c.fgSubtle }}>Tổng dòng</div>
                 </div>
-                <div style={{ fontSize: '11px', color: c.fgSubtle }}>Thất bại</div>
+                <div style={{ textAlign: 'center', minWidth: '70px' }}>
+                  <div style={{ fontSize: '22px', fontWeight: 700, color: '#0D9488' }}>{importResult.successCount ?? 0}</div>
+                  <div style={{ fontSize: '11px', color: c.fgSubtle }}>Thành công</div>
+                </div>
+                <div style={{ textAlign: 'center', minWidth: '70px' }}>
+                  <div style={{ fontSize: '22px', fontWeight: 700, color: (importResult.failureCount ?? 0) > 0 ? '#EF4444' : c.fgSubtle }}>
+                    {importResult.failureCount ?? 0}
+                  </div>
+                  <div style={{ fontSize: '11px', color: c.fgSubtle }}>Thất bại</div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Thông báo tổng kết */}
             <div style={{
-              marginLeft: '30px', marginBottom: importResult.errors?.length > 0 ? '12px' : 0,
+              marginLeft: '30px', marginBottom: importResult?.errors?.length > 0 ? '12px' : 0,
               padding: '10px 12px',
               background: `${currentStatus.color}12`,
               border: `1px solid ${currentStatus.border}`,
@@ -395,11 +367,11 @@ export default function BulkImportEmployeeModal({
               display: 'flex', alignItems: 'center', gap: '8px',
             }}>
               <Icon name={currentStatus.icon} size={15} color={currentStatus.color} />
-              <span>{importMessage}</span>
+              <span>{importMessage || 'Có lỗi xảy ra trong quá trình import.'}</span>
             </div>
 
             {/* Danh sách lỗi chi tiết */}
-            {importResult.errors?.length > 0 && (
+            {importResult?.errors?.length > 0 && (
               <div style={{ marginLeft: '30px' }}>
                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#EF4444', marginBottom: '8px' }}>
                   Chi tiết lỗi ({importResult.errors.length} dòng vi phạm):
@@ -419,33 +391,47 @@ export default function BulkImportEmployeeModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {importResult.errors.map((errRow, idx) => (
-                        <tr
-                          key={idx}
-                          style={{ borderBottom: `1px solid ${c.borderSub}`, background: idx % 2 === 0 ? 'transparent' : c.bgElev }}
-                        >
-                          <td style={{ padding: '7px 10px', fontWeight: 600, color: '#EF4444', whiteSpace: 'nowrap' }}>
-                            Dòng {errRow.rowIndex ?? errRow.RowIndex ?? (idx + 2)}
-                          </td>
-                          <td style={{ padding: '7px 10px', color: c.fgMuted }}>
-                            {errRow.rowData?.employeeCode || errRow.RowData?.EmployeeCode || '—'}
-                            {(errRow.rowData?.email || errRow.RowData?.Email) && (
-                              <span style={{ color: c.fgSubtle, marginLeft: '4px', fontSize: '11px' }}>
-                                ({errRow.rowData?.email || errRow.RowData?.Email})
-                              </span>
-                            )}
-                          </td>
-                          <td style={{ padding: '7px 10px', color: '#DC2626' }}>
-                            {(errRow.errorMessages ?? errRow.ErrorMessages ?? []).join('; ') || 'Dữ liệu không hợp lệ'}
-                          </td>
-                        </tr>
-                      ))}
+                      {importResult.errors.map((errRow, idx) => {
+                        const rowNum = errRow.rowNumber ?? errRow.RowNumber ?? errRow.rowIndex ?? errRow.RowIndex ?? (idx + 2);
+                        const code = errRow.employeeCode ?? errRow.EmployeeCode ?? errRow.rowData?.employeeCode ?? errRow.RowData?.EmployeeCode ?? '—';
+                        const name = errRow.fullName ?? errRow.FullName ?? errRow.rowData?.fullName ?? errRow.RowData?.FullName ?? '';
+                        const email = errRow.email ?? errRow.Email ?? errRow.rowData?.email ?? errRow.RowData?.Email ?? '';
+                        const rawMsg = errRow.errorMessage ?? errRow.ErrorMessage ?? errRow.errorMessages ?? errRow.ErrorMessages;
+                        const errMsg = Array.isArray(rawMsg) ? rawMsg.join('; ') : (rawMsg || 'Dữ liệu không hợp lệ');
+
+                        return (
+                          <tr
+                            key={idx}
+                            style={{ borderBottom: `1px solid ${c.borderSub}`, background: idx % 2 === 0 ? 'transparent' : c.bgElev }}
+                          >
+                            <td style={{ padding: '7px 10px', fontWeight: 600, color: '#EF4444', whiteSpace: 'nowrap' }}>
+                              Dòng {rowNum}
+                            </td>
+                            <td style={{ padding: '7px 10px', color: c.fgMuted }}>
+                              <span style={{ fontWeight: 600, color: c.fg }}>{code}</span>
+                              {name && (
+                                <span style={{ marginLeft: '4px', color: c.fgSubtle, fontSize: '11px' }}>
+                                  ({name})
+                                </span>
+                              )}
+                              {!name && email && (
+                                <span style={{ marginLeft: '4px', color: c.fgSubtle, fontSize: '11px' }}>
+                                  ({email})
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: '7px 10px', color: '#DC2626' }}>
+                              {errMsg}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
                 {(importStatus === 'partial' || importStatus === 'error') && (
                   <p style={{ fontSize: '11.5px', color: c.fgSubtle, marginTop: '8px', lineHeight: '1.5' }}>
-                     Hãy chỉnh sửa file và xóa các dòng đã import thành công, sau đó import lại file đã sửa.
+                    Hãy chỉnh sửa file và xóa các dòng đã import thành công, sau đó import lại file đã sửa.
                   </p>
                 )}
               </div>

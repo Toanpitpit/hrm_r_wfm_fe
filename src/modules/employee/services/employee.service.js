@@ -31,8 +31,6 @@ export const STORE_ROLES = [
 export const CONTRACT_TYPES = [
   { value: 'FULL_TIME', label: 'Toàn thời gian (Full-time)' },
   { value: 'PART_TIME', label: 'Bán thời gian (Part-time)' },
-  { value: 'SEASONAL', label: 'Thời vụ (Seasonal)' },
-  { value: 'PROBATION', label: 'Thử việc (Probation)' },
 ];
 
 // Local storage fallback data khi backend chưa khởi động
@@ -668,12 +666,26 @@ export const employeeService = {
       const status = err.response?.status;
       const errData = err.response?.data;
       let msg = errData?.message || errData?.title;
-      if (!msg && errData?.errors) {
+      if (!msg && errData?.errors && typeof errData.errors === 'object' && !Array.isArray(errData.errors)) {
         msg = Object.values(errData.errors).flat().join(', ');
       }
       if (status === 401) return { success: false, message: 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.' };
       if (status === 403) return { success: false, message: 'Bạn không có quyền thực hiện import nhân sự hàng loạt (403 Forbidden).' };
-      return { success: false, message: msg || err.message || 'Lỗi không xác định khi import nhân sự.' };
+
+      const innerData = errData?.data || (errData?.totalRows !== undefined || errData?.TotalRows !== undefined ? errData : null);
+      const result = innerData ? {
+        totalRows: innerData?.totalRows ?? innerData?.TotalRows ?? 0,
+        successCount: innerData?.successCount ?? innerData?.SuccessCount ?? 0,
+        failureCount: innerData?.failureCount ?? innerData?.FailureCount ?? 0,
+        errors: innerData?.errors ?? innerData?.Errors ?? [],
+      } : null;
+
+      return {
+        success: false,
+        data: result,
+        message: msg || err.message || 'Lỗi không xác định khi import nhân sự.',
+        isPartialSuccess: false,
+      };
     }
   },
 };

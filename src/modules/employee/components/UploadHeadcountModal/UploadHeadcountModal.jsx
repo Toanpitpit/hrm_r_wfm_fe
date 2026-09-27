@@ -59,20 +59,6 @@ export default function UploadHeadcountModal({
       // Fallback CSV local
     }
 
-    const csvContent =
-      'STT,Mã Vị Trí,Chức Danh Đề Xuất,Số Lượng,Hình Thức Hợp Đồng,Ca Làm Việc Dự Kiến,Lý Do Chi Tiết\n' +
-      '1,TN-01,Nhân Viên Thu Ngân,2,PART_TIME,Ca Tối (18:00 - 22:30),Tăng cường giờ cao điểm mua sắm\n' +
-      '2,BH-01,Nhân Viên Bán Hàng,1,FULL_TIME,Xoay ca,Mở rộng quầy đồ uống tươi\n';
-
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Mau_De_Xuat_Mo_Rong_Dinh_Bien_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 100);
   };
 
   const handleFileChange = (e) => {
