@@ -376,18 +376,23 @@ export default function BulkImportEmployeeModal({
                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#EF4444', marginBottom: '8px' }}>
                   Chi tiết lỗi ({importResult.errors.length} dòng vi phạm):
                 </div>
-                <div style={{
-                  maxHeight: '220px', overflowY: 'auto',
-                  border: `1px solid ${c.border}`,
-                  borderRadius: '6px',
-                  background: c.bgRaised,
-                }}>
+                <div
+                  className="import-error-scrollbar"
+                  style={{
+                    maxHeight: '140px',
+                    overflowY: 'scroll',
+                    border: `1px solid rgba(239, 68, 68, 0.35)`,
+                    borderRadius: '6px',
+                    background: c.bgRaised,
+                    boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.05)',
+                  }}
+                >
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <thead>
-                      <tr style={{ background: c.bgElev, borderBottom: `1px solid ${c.border}` }}>
-                        <th style={{ padding: '8px 10px', textAlign: 'left', color: c.fgMuted, fontWeight: 600, whiteSpace: 'nowrap' }}>Dòng</th>
-                        <th style={{ padding: '8px 10px', textAlign: 'left', color: c.fgMuted, fontWeight: 600 }}>Mã NV / Email</th>
-                        <th style={{ padding: '8px 10px', textAlign: 'left', color: c.fgMuted, fontWeight: 600 }}>Lý Do Lỗi</th>
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 2, background: c.bgElev }}>
+                      <tr style={{ borderBottom: `1px solid ${c.border}` }}>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', color: c.fgMuted, fontWeight: 600, whiteSpace: 'nowrap', position: 'sticky', top: 0, background: c.bgElev, borderBottom: `1px solid ${c.border}` }}>Dòng</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', color: c.fgMuted, fontWeight: 600, position: 'sticky', top: 0, background: c.bgElev, borderBottom: `1px solid ${c.border}` }}>Mã NV / Email</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', color: c.fgMuted, fontWeight: 600, position: 'sticky', top: 0, background: c.bgElev, borderBottom: `1px solid ${c.border}` }}>Lý Do Lỗi</th>
                       </tr>
                     </thead>
                     <tbody>
