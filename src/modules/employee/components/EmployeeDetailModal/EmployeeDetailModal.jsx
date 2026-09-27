@@ -217,7 +217,7 @@ export default function EmployeeDetailModal({
             borderLeft: `3px solid ${c.accent}`,
           }}
         >
-          <strong>Lưu ý Phân Quyền RBAC:</strong> Hồ sơ nhân sự này thuộc phạm vi quản lý của {employee.branchName || 'Chi nhánh'}. Mọi thao tác khai báo, chỉnh sửa hợp đồng hoặc đổi trạng thái đều được ghi nhận vào `SystemAuditLog`.
+          <strong>Lưu ý Phân Quyền</strong> Hồ sơ nhân sự này thuộc phạm vi quản lý của {employee.branchName || 'Chi nhánh'}. Mọi thao tác khai báo, chỉnh sửa hợp đồng hoặc đổi trạng thái đều được ghi nhận vào `SystemAuditLog`.
         </div>
       </div>
     </Modal>

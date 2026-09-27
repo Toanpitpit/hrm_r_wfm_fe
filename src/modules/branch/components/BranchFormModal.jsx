@@ -31,6 +31,7 @@ export default function BranchFormModal({
     name: '',
     address: '',
     branchTier: 2,
+    staffCount: 0,
     latitude: 21.033333,
     longitude: 105.795000,
     radiusMeters: 100,
@@ -48,6 +49,7 @@ export default function BranchFormModal({
         name: initialData.name || initialData.storeName || '',
         address: initialData.address || '',
         branchTier: [1, 2, 3].includes(tierVal) ? tierVal : 2,
+        staffCount: Number(initialData.staffCount ?? 0),
         latitude: Number(initialData.latitude || initialData.lat || (initialData.location?.coordinates ? initialData.location.coordinates[1] : 21.033333)),
         longitude: Number(initialData.longitude || initialData.lng || (initialData.location?.coordinates ? initialData.location.coordinates[0] : 105.795000)),
         radiusMeters: Number(initialData.geofenceRadiusMeters ?? initialData.radiusMeters ?? initialData.radius ?? 100),
@@ -58,6 +60,7 @@ export default function BranchFormModal({
         name: '',
         address: '',
         branchTier: 2,
+        staffCount: 0,
         latitude: 21.028511,
         longitude: 105.854167,
         radiusMeters: 100,
@@ -204,9 +207,9 @@ export default function BranchFormModal({
             </FormField>
 
             <FormField
-              label="Cấp Chi Nhánh"
+              label="Phân Cấp Chi Nhánh (Tier)"
               required
-              hint="Quy mô chi nhánh"
+              hint="Định biên chuẩn cố định: Tier 1 = 30, Tier 2 = 15, Tier 3 = 8"
             >
               <select
                 value={formData.branchTier}
@@ -227,11 +230,32 @@ export default function BranchFormModal({
                   fontWeight: 600,
                 }}
               >
-                <option value={1} style={{ backgroundColor: c.bgCard, color: c.fg }}>Cấp 1 - Lớn</option>
-                <option value={2} style={{ backgroundColor: c.bgCard, color: c.fg }}>Cấp 2 - Tiêu chuẩn</option>
-                <option value={3} style={{ backgroundColor: c.bgCard, color: c.fg }}>Cấp 3 - Nhỏ</option>
+                <option value={1} style={{ backgroundColor: c.bgCard, color: c.fg }}>Tier 1 - Đại siêu thị (Tối đa 30 nhân sự)</option>
+                <option value={2} style={{ backgroundColor: c.bgCard, color: c.fg }}>Tier 2 - Tiêu chuẩn (Tối đa 15 nhân sự)</option>
+                <option value={3} style={{ backgroundColor: c.bgCard, color: c.fg }}>Tier 3 - Cửa hàng tiện lợi mini (Tối đa 8 nhân sự)</option>
               </select>
             </FormField>
+          </div>
+
+          {/* Quy định định biên cố định theo Tier */}
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: '8px',
+              background: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '12.5px',
+              color: c.fg,
+            }}
+          >
+            <span style={{ fontSize: '15px' }}>ℹ️</span>
+            <div>
+              <strong>Định biên chuẩn cơ sở theo Tier (cố định):</strong> Tier 1 = 30 người, Tier 2 = 15 người, Tier 3 = 8 người.
+              Khi chi nhánh đã đầy định biên và muốn tuyển thêm nhân viên, Admin thực hiện <strong>nâng Tier chi nhánh</strong> lên.
+            </div>
           </div>
 
           {/* 2. Tên Chi Nhánh */}
