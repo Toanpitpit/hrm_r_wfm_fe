@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import { useToast } from '@/components/ui/toast/ToastProvider';
 import Modal from '@/shared/components/ui/Modal';
@@ -6,7 +6,7 @@ import Button from '@/shared/components/ui/Button';
 import FormField from '@/shared/components/ui/FormField';
 import Select from '@/shared/components/ui/Select';
 import Icon from '@/shared/components/ui/Icon';
-import { DAY_NAMES_VN, formatVNDate } from '../hooks/useWeeklySchedule';
+import { DAY_NAMES_VN, formatVNDate, formatShiftTemplateName } from '../hooks/useWeeklySchedule';
 
 export default function AssignFullTimeModal({
   isOpen,
@@ -19,11 +19,22 @@ export default function AssignFullTimeModal({
   const { c, fonts } = useAdminTheme();
   const toast = useToast();
 
+  // Lọc danh sách mẫu ca chuẩn ĐANG HOẠT ĐỘNG
+  const activeTemplates = useMemo(() => {
+    return (templates || []).filter((t) => t.isActive !== false && t.status !== 'INACTIVE');
+  }, [templates]);
+
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState(
-    templates.length > 0 ? (templates[0].shiftId || templates[0].id) : ''
+    activeTemplates.length > 0 ? (activeTemplates[0].shiftId || activeTemplates[0].id) : ''
   );
   const [selectedDays, setSelectedDays] = useState([1, 2, 3, 4, 5, 6]); // Mặc định Thứ 2 -> Thứ 7
+
+  useEffect(() => {
+    if (activeTemplates.length > 0 && !selectedTemplateId) {
+      setSelectedTemplateId(activeTemplates[0].shiftId || activeTemplates[0].id);
+    }
+  }, [activeTemplates, selectedTemplateId]);
 
   const toggleUserId = (userId) => {
     setSelectedUserIds((prev) =>
@@ -142,7 +153,7 @@ export default function AssignFullTimeModal({
               }}
               required
             >
-              {templates.map((t) => (
+              {activeTemplates.map((t) => (
                 <option key={t.shiftId || t.id} value={t.shiftId || t.id}>
                   {t.shiftName || t.name} ({t.startTime?.substring(0, 5)} - {t.endTime?.substring(0, 5)})
                 </option>
