@@ -40,14 +40,9 @@ export default function EmployeeFormModal({
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Phân quyền chọn Vai trò:
-  // Store Manager chỉ được tạo 4 vai trò vận hành (không được tạo Admin hoặc Store Manager khác)
-  // Admin & Business Owner được tạo cả 5 vai trò cửa hàng
+  // 4 vai trò nhân sự cửa hàng: SHIFT_LEADER, CASHIER, SALES_STAFF, SECURITY_GUARD
   const availableRoles = (roles.length > 0 ? roles : STORE_ROLES).filter((r) => {
-    if (isStoreManager) {
-      return !['OPERATIONS_ADMIN', 'STORE_MANAGER', 'BUSINESS_OWNER'].includes(r.roleCode);
-    }
-    return true;
+    return !['OPERATIONS_ADMIN', 'STORE_MANAGER', 'BUSINESS_OWNER'].includes(r.roleCode);
   });
 
   useEffect(() => {

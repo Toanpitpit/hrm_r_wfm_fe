@@ -19,9 +19,8 @@ import axiosInstance from '@/config/axios.config';
  * ==============================================================================
  */
 
-// 5 vai trò nhân sự cửa hàng chuẩn hóa
+// 4 vai trò nhân sự cửa hàng chuẩn hóa
 export const STORE_ROLES = [
-  { id: 2, roleCode: 'STORE_MANAGER', roleName: 'Cửa Hàng Trưởng', description: 'Quản lý vận hành toàn diện tại cửa hàng' },
   { id: 4, roleCode: 'SHIFT_LEADER', roleName: 'Trưởng Ca Trực', description: 'Điều hành ca trực, giám sát điểm danh tại chỗ' },
   { id: 5, roleCode: 'CASHIER', roleName: 'Nhân Viên Thu Ngân', description: 'Trực thu ngân, điểm danh và bán hàng' },
   { id: 6, roleCode: 'SALES_STAFF', roleName: 'Nhân Viên Bán Hàng', description: 'Tư vấn bán hàng và sắp xếp quầy kệ' },
@@ -163,7 +162,12 @@ export const employeeService = {
     try {
       const res = await axiosInstance.get('Users/roles');
       const data = res.data?.data || res.data;
-      if (Array.isArray(data) && data.length > 0) return data;
+      if (Array.isArray(data) && data.length > 0) {
+        const filtered = data.filter(
+          (r) => !['BUSINESS_OWNER', 'OPERATIONS_ADMIN', 'STORE_MANAGER'].includes(r.roleCode)
+        );
+        if (filtered.length > 0) return filtered;
+      }
     } catch (err) {
       console.warn('[EmployeeService] Backend getRoles fallback:', err.message);
     }
@@ -201,9 +205,9 @@ export const employeeService = {
   /**
    * 3. Lấy danh sách nhân sự (GET /api/Users/employees)
    */
-  async getEmployees(params = {}) {
+  async getEmployees(params = {}, options = {}) {
     try {
-      const res = await axiosInstance.get('Users/employees', { params });
+      const res = await axiosInstance.get('Users/employees', { params, ...options });
       const data = res.data?.data || res.data;
       if (Array.isArray(data)) {
         return { success: true, data };
@@ -212,6 +216,9 @@ export const employeeService = {
         return { success: true, data: data.items, total: data.total };
       }
     } catch (err) {
+      if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') {
+        return { canceled: true };
+      }
       console.warn('[EmployeeService] Backend getEmployees error, using local fallback:', err.message);
     }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import { useToast } from '@/components/ui/toast/ToastProvider';
@@ -11,6 +11,7 @@ import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
 import StatCard from '@/shared/components/ui/StatCard';
 import { getNavItemsForRole } from '@/shared/constants/navigation.config';
+import useDebounce from '@/shared/hooks/useDebounce';
 
 // Services
 import employeeService, { STORE_ROLES } from '@/modules/employee/services/employee.service';
@@ -50,14 +51,32 @@ export default function EmployeeManagementPage() {
   const [employees, setEmployees] = useState([]);
   const [roles, setRoles] = useState(STORE_ROLES);
   const [branches, setBranches] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Bộ lọc
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 400);
   const [roleFilter, setRoleFilter] = useState('');
   const [branchFilter, setBranchFilter] = useState(isStoreManager ? String(currentBranchId) : '');
   const [statusFilter, setStatusFilter] = useState('');
   const [contractTypeFilter, setContractTypeFilter] = useState('');
+
+  // Thống kê tổng quan nhân sự (Overview Stat Cards)
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    shiftLeader: 0,
+    cashier: 0,
+    sales: 0,
+    security: 0,
+    manager: 0,
+  });
+
+  // Refs điều phối Abort và initial load
+  const isFirstMountRef = useRef(true);
+  const abortControllerRef = useRef(null);
 
   // Modals state
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -93,12 +112,23 @@ export default function EmployeeManagementPage() {
     loadMasterData();
   }, []);
 
-  // 4. Tải danh sách nhân sự (GET /api/Users/employees)
-  const fetchEmployees = useCallback(async () => {
-    setLoading(true);
+  // 4. Tải danh sách nhân sự (GET /api/Users/employees) - Hỗ trợ hủy request cũ và không nháy bảng
+  const fetchEmployees = useCallback(async (isInitial = false) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    if (isInitial) {
+      setInitialLoading(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const params = {};
-      if (search.trim()) params.search = search.trim();
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
       if (roleFilter) params.roleCode = roleFilter;
       if (isStoreManager) {
         params.branchId = currentBranchId;
@@ -110,22 +140,49 @@ export default function EmployeeManagementPage() {
       if (statusFilter) params.status = statusFilter;
       if (contractTypeFilter) params.contractType = contractTypeFilter;
 
-      const res = await employeeService.getEmployees(params);
-      if (res.success && res.data) {
-        setEmployees(res.data);
+      const res = await employeeService.getEmployees(params, { signal: controller.signal });
+
+      if (res?.canceled) return;
+
+      if (res?.success && res.data) {
+        const data = res.data;
+        setEmployees(data);
+
+        // Cập nhật thống kê 4 thẻ KPI nếu đây là lần tải ban đầu hoặc thay đổi chi nhánh (không có từ khóa tìm kiếm/bộ lọc vai trò)
+        const isUnfiltered = !debouncedSearch.trim() && !roleFilter && !statusFilter && !contractTypeFilter;
+        if (isUnfiltered || isInitial) {
+          setStats({
+            total: data.length,
+            active: data.filter((e) => e.status !== 'INACTIVE').length,
+            inactive: data.filter((e) => e.status === 'INACTIVE').length,
+            shiftLeader: data.filter((e) => e.roleCode === 'SHIFT_LEADER').length,
+            cashier: data.filter((e) => e.roleCode === 'CASHIER').length,
+            sales: data.filter((e) => e.roleCode === 'SALES_STAFF').length,
+            security: data.filter((e) => e.roleCode === 'SECURITY_GUARD' || e.roleCode === 'SECURITY').length,
+            manager: data.filter((e) => e.roleCode === 'STORE_MANAGER').length,
+          });
+        }
       } else {
         setEmployees([]);
       }
     } catch (err) {
-      console.error('Lỗi khi tải danh sách nhân sự:', err);
-      toast.error('Không thể tải danh sách nhân sự.');
+      if (err?.name !== 'CanceledError' && err?.code !== 'ERR_CANCELED') {
+        console.error('Lỗi khi tải danh sách nhân sự:', err);
+        toast.error('Không thể tải danh sách nhân sự.');
+      }
     } finally {
+      if (isInitial) setInitialLoading(false);
       setLoading(false);
     }
-  }, [search, roleFilter, branchFilter, statusFilter, contractTypeFilter, isStoreManager, currentBranchId, toast]);
+  }, [debouncedSearch, roleFilter, branchFilter, statusFilter, contractTypeFilter, isStoreManager, currentBranchId, toast]);
 
   useEffect(() => {
-    fetchEmployees();
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      fetchEmployees(true);
+    } else {
+      fetchEmployees(false);
+    }
   }, [fetchEmployees]);
 
   // 5. Thao tác Modals & CRUD
@@ -159,7 +216,7 @@ export default function EmployeeManagementPage() {
       const res = await employeeService.updateEmployee(editingEmployee.id, formData);
       if (res.success) {
         toast.success(res.message || 'Cập nhật nhân sự thành công!');
-        fetchEmployees();
+        fetchEmployees(true);
       } else {
         toast.error(res.message || 'Cập nhật thất bại.');
       }
@@ -168,7 +225,7 @@ export default function EmployeeManagementPage() {
         const res = await employeeService.createStoreManager(formData);
         if (res.success) {
           toast.success(res.message || 'Cấp tài khoản Cửa hàng trưởng thành công!');
-          fetchEmployees();
+          fetchEmployees(true);
         } else {
           toast.error(res.message || 'Khai báo thất bại.');
         }
@@ -176,7 +233,7 @@ export default function EmployeeManagementPage() {
         const res = await employeeService.createEmployee(formData);
         if (res.success) {
           toast.success(res.message || 'Khai báo thành công! Welcome Email đã được gửi.');
-          fetchEmployees();
+          fetchEmployees(true);
         } else {
           toast.error(res.message || 'Khai báo thất bại.');
         }
@@ -199,7 +256,7 @@ export default function EmployeeManagementPage() {
     const res = await employeeService.toggleUserStatus(id, newStatus);
     if (res.success) {
       toast.success(res.message || 'Cập nhật trạng thái thành công!');
-      fetchEmployees();
+      fetchEmployees(true);
     } else {
       toast.error(res.message || 'Cập nhật trạng thái thất bại.');
     }
@@ -211,19 +268,6 @@ export default function EmployeeManagementPage() {
     if (!isStoreManager) setBranchFilter('');
     setStatusFilter('');
     setContractTypeFilter('');
-  };
-
-  // 6. Tính toán các chỉ số thống kê (Stats)
-  const totalEmployees = employees.length;
-  const activeCount = employees.filter((e) => e.status !== 'INACTIVE').length;
-  const inactiveCount = employees.filter((e) => e.status === 'INACTIVE').length;
-
-  const roleStats = {
-    shiftLeader: employees.filter((e) => e.roleCode === 'SHIFT_LEADER').length,
-    cashier: employees.filter((e) => e.roleCode === 'CASHIER').length,
-    sales: employees.filter((e) => e.roleCode === 'SALES_STAFF').length,
-    security: employees.filter((e) => e.roleCode === 'SECURITY_GUARD' || e.roleCode === 'SECURITY').length,
-    manager: employees.filter((e) => e.roleCode === 'STORE_MANAGER').length,
   };
 
   // Điều hướng
@@ -273,7 +317,7 @@ export default function EmployeeManagementPage() {
         subtitle={
           isStoreManager
             ? 'Khai báo nhân sự mới tại chi nhánh của bạn.'
-            : 'Quản trị 5 vai trò nhân sự cửa hàng chuỗi RWFM'
+            : 'Quản trị 4 vai trò nhân sự cửa hàng chuỗi RWFM'
         }
         actions={
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -301,30 +345,34 @@ export default function EmployeeManagementPage() {
         <StatCard
           icon="users"
           title={isStoreManager ? 'Tổng Nhân Sự Chi Nhánh' : 'Tổng Nhân Sự Cửa Hàng'}
-          value={totalEmployees}
+          value={stats.total}
           color="#f2ca50"
-          subtitle={`${roleStats.cashier} Thu ngân • ${roleStats.sales} Bán hàng`}
+          subtitle={`${stats.cashier} Thu ngân • ${stats.sales} Bán hàng`}
         />
         <StatCard
           icon="check"
           title="Đang Hoạt Động"
-          value={activeCount}
+          value={stats.active}
           color="#22c55e"
           subtitle="Sẵn sàng phân ca làm việc"
         />
         <StatCard
           icon="lock"
           title="Tạm Khóa / Vô Hiệu"
-          value={inactiveCount}
+          value={stats.inactive}
           color="#ef4444"
           subtitle="Tài khoản tạm ngưng truy cập"
         />
         <StatCard
           icon="calendar"
           title="Điều Hành & An Ninh"
-          value={`${roleStats.manager + roleStats.shiftLeader + roleStats.security}`}
+          value={`${stats.manager + stats.shiftLeader + stats.security}`}
           color="#3b82f6"
-          subtitle={`${roleStats.manager} Cửa hàng trưởng • ${roleStats.shiftLeader} Trưởng ca • ${roleStats.security} Bảo vệ`}
+          subtitle={
+            stats.manager > 0
+              ? `${stats.manager} Cửa hàng trưởng • ${stats.shiftLeader} Trưởng ca • ${stats.security} Bảo vệ`
+              : `${stats.shiftLeader} Trưởng ca • ${stats.security} Bảo vệ`
+          }
         />
       </div>
 
@@ -353,6 +401,7 @@ export default function EmployeeManagementPage() {
           <EmployeeTable
             employees={employees}
             loading={loading}
+            initialLoading={initialLoading}
             onViewDetail={handleOpenDetailModal}
             onEdit={handleOpenEditModal}
             onResetPassword={handleOpenResetModal}

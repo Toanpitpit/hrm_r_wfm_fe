@@ -26,6 +26,7 @@ const CONTRACT_TYPE_MAP = {
 export default function EmployeeTable({
   employees = [],
   loading = false,
+  initialLoading = false,
   onViewDetail,
   onEdit,
   onResetPassword,
@@ -43,7 +44,8 @@ export default function EmployeeTable({
 
   const displayEmployees = employees.slice((page - 1) * pageSize, page * pageSize);
 
-  if (loading) {
+  // Chỉ hiển thị khung loading toàn màn hình ở lần tải đầu tiên khi chưa có dữ liệu
+  if (initialLoading && employees.length === 0) {
     return (
       <div
         style={{
@@ -63,7 +65,8 @@ export default function EmployeeTable({
     );
   }
 
-  if (employees.length === 0) {
+  // Khi không có kết quả tìm kiếm và không đang tải
+  if (employees.length === 0 && !loading) {
     return (
       <div
         style={{
@@ -102,12 +105,49 @@ export default function EmployeeTable({
   return (
     <div
       style={{
+        position: 'relative',
         overflowX: 'auto',
         borderRadius: '10px',
         border: `1px solid ${c.border}`,
         background: c.bgRaised,
+        transition: 'opacity 0.2s ease',
+        opacity: loading ? 0.65 : 1,
+        pointerEvents: loading ? 'none' : 'auto',
       }}
     >
+      <style>{`
+        @keyframes tableGlowBar {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
+
+      {/* Thanh loading thanh mảnh chạy mượt trên đỉnh bảng khi đang search/filter */}
+      {loading && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '3px',
+            overflow: 'hidden',
+            zIndex: 10,
+            background: 'rgba(242, 202, 80, 0.15)',
+            borderTopLeftRadius: '10px',
+            borderTopRightRadius: '10px',
+          }}
+        >
+          <div
+            style={{
+              width: '50%',
+              height: '100%',
+              background: 'linear-gradient(90deg, transparent, #f2ca50, #22c55e, transparent)',
+              animation: 'tableGlowBar 1s infinite ease-in-out',
+            }}
+          />
+        </div>
+      )}
       <table
         style={{
           width: '100%',

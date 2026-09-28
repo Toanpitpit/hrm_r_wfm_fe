@@ -23,9 +23,14 @@ export default function EmployeeFilter({
 }) {
   const { c } = useAdminTheme();
 
+  const excludedRoleCodes = ['BUSINESS_OWNER', 'OPERATIONS_ADMIN', 'STORE_MANAGER'];
+  const filteredRoles = (roles || []).filter(
+    (r) => !excludedRoleCodes.includes(r.roleCode)
+  );
+
   const roleOptions = [
     { value: '', label: 'Tất cả vai trò' },
-    ...roles.map((r) => ({
+    ...filteredRoles.map((r) => ({
       value: r.roleCode || String(r.id),
       label: `${r.roleName} (${r.roleCode})`,
     })),
