@@ -152,7 +152,7 @@ export default function EmployeeDetailModal({
               Hình Thức Hợp Đồng
             </div>
             <div style={{ fontSize: '14px', color: '#f2ca50', marginTop: '4px', fontWeight: 500 }}>
-              {CONTRACT_TYPE_MAP[employee.contractType] || employee.contractType || 'Toàn thời gian'}
+              {CONTRACT_TYPE_MAP[employee.contractType || employee.employmentType] || employee.contractType || employee.employmentType || 'Toàn thời gian'}
             </div>
           </div>
 

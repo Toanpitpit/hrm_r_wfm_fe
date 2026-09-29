@@ -113,7 +113,7 @@ export default function EmployeeFormModal({
           homeBranchId: initialData.homeBranchId || initialData.branchId ? String(initialData.homeBranchId || initialData.branchId) : '',
           branchId: initialData.homeBranchId || initialData.branchId ? String(initialData.homeBranchId || initialData.branchId) : '',
           branchName: initialData.branchName || currentStoreBranchName || '',
-          contractType: initialData.contractType || 'FULL_TIME',
+          contractType: initialData.contractType || initialData.employmentType || 'FULL_TIME',
           password: '',
         });
       } else {

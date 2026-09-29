@@ -129,7 +129,10 @@ export default function EmployeeManagementPage() {
         params.homeBranchId = branchFilter;
       }
       if (statusFilter) params.status = statusFilter;
-      if (contractTypeFilter) params.contractType = contractTypeFilter;
+      if (contractTypeFilter) {
+        params.contractType = contractTypeFilter;
+        params.employmentType = contractTypeFilter;
+      }
 
       const res = await employeeService.getEmployees(params);
       if (res.success && res.data) {
@@ -216,6 +219,10 @@ export default function EmployeeManagementPage() {
   };
 
   const handleOpenEditModal = (emp) => {
+    if (!canManageSystem) {
+      toast?.warning?.('Cửa hàng trưởng chỉ có quyền xem hồ sơ nhân sự, không có quyền chỉnh sửa.');
+      return;
+    }
     setEditingEmployee(emp);
     setFormModalOpen(true);
   };

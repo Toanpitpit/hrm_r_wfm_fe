@@ -283,8 +283,9 @@ export const employeeService = {
     if (params.status) {
       list = list.filter((e) => e.status === params.status);
     }
-    if (params.contractType) {
-      list = list.filter((e) => e.contractType === params.contractType);
+    if (params.contractType || params.employmentType) {
+      const targetType = params.contractType || params.employmentType;
+      list = list.filter((e) => (e.contractType || e.employmentType) === targetType);
     }
     if (params.search) {
       const s = params.search.toLowerCase();
@@ -332,7 +333,8 @@ export const employeeService = {
       homeBranchId: Number(payload.branchId || payload.homeBranchId),
       branchId: Number(payload.branchId || payload.homeBranchId),
       password: payload.password,
-      contractType: payload.contractType || 'FULL_TIME',
+      contractType: payload.contractType || payload.employmentType || 'FULL_TIME',
+      employmentType: payload.contractType || payload.employmentType || 'FULL_TIME',
       ...(payload.importRequestId ? { importRequestId: Number(payload.importRequestId) } : {}),
       ...(payload.expansionReason ? { expansionReason: payload.expansionReason } : {}),
     };
@@ -419,7 +421,8 @@ export const employeeService = {
       roleId: Number(payload.roleId),
       homeBranchId: Number(payload.branchId || payload.homeBranchId),
       branchId: Number(payload.branchId || payload.homeBranchId),
-      contractType: payload.contractType || 'FULL_TIME',
+      contractType: payload.contractType || payload.employmentType || 'FULL_TIME',
+      employmentType: payload.contractType || payload.employmentType || 'FULL_TIME',
     };
 
     try {
