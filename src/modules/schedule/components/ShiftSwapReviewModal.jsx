@@ -96,6 +96,12 @@ export default function ShiftSwapReviewModal({
         return <Badge tone="ok" dot>Đã Duyệt</Badge>;
       case 'REJECTED':
         return <Badge tone="bad" dot>Đã Từ Chối</Badge>;
+      case 'PENDING_PEER':
+        return <Badge tone="warn">Chờ Đồng Nghiệp</Badge>;
+      case 'EXPIRED':
+        return <Badge tone="bad" dot>Đã Hết Hạn</Badge>;
+      case 'CANCELLED':
+        return <Badge tone="neutral">Đã Hủy</Badge>;
       case 'PENDING':
       default:
         return <Badge tone="warn" dot>Chờ Duyệt</Badge>;
@@ -249,6 +255,11 @@ export default function ShiftSwapReviewModal({
                       <span style={{ fontSize: 11, color: c.fgFaint }}>
                         #{req.swapRequestId} · {new Date(req.createdAt).toLocaleString('vi-VN')}
                       </span>
+                      {req.isDispatchedEmployee && (
+                        <span style={{ background: `${c.tones.info}20`, color: c.tones.info, padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                          Biệt phái từ {req.sourceBranchName || 'Chi nhánh khác'}
+                        </span>
+                      )}
                     </div>
                     <div>{renderStatusBadge(req.status)}</div>
                   </div>

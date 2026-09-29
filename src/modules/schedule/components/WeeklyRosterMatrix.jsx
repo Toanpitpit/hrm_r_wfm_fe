@@ -74,25 +74,6 @@ export default function WeeklyRosterMatrix({
     setConfirmDeleteState({ assignmentId, message });
   };
 
-  if (loading) {
-    return (
-      <div style={{ padding: '60px 0', textAlign: 'center', color: c.fgFaint }}>
-        <div
-          style={{
-            display: 'inline-block',
-            width: 32,
-            height: 32,
-            border: `3px solid ${c.border}`,
-            borderTopColor: c.accent,
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-          }}
-        />
-        <div style={{ marginTop: 12, fontSize: 13 }}>Đang tải ma trận sắp xếp lịch ca tuần...</div>
-      </div>
-    );
-  }
-
   // Lọc danh sách mẫu ca chuẩn ĐANG HOẠT ĐỘNG (ACTIVE) do Admin quản lý
   const activeTemplates = useMemo(() => {
     if (!templates || templates.length === 0) return [];
@@ -183,6 +164,26 @@ export default function WeeklyRosterMatrix({
     return STANDARD_SHIFTS_CONFIG;
   }, [activeTemplates]);
 
+  // Early return SAU tất cả hooks - tránh vi phạm Rules of Hooks
+  if (loading) {
+    return (
+      <div style={{ padding: '60px 0', textAlign: 'center', color: c.fgFaint }}>
+        <div
+          style={{
+            display: 'inline-block',
+            width: 32,
+            height: 32,
+            border: `3px solid ${c.border}`,
+            borderTopColor: c.accent,
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+          }}
+        />
+        <div style={{ marginTop: 12, fontSize: 13 }}>Đang tải ma trận sắp xếp lịch ca tuần...</div>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -244,8 +245,7 @@ export default function WeeklyRosterMatrix({
               boxShadow: viewMode === 'BY_SHIFT' ? '0 2px 4px rgba(0,0,0,0.08)' : 'none',
               transition: 'all 0.15s ease',
             }}
-          >
-            <span>🏢</span>
+          > 
             <span>{displayShifts.length} Hàng Ca Chuẩn (Khuyên Dùng)</span>
           </button>
 

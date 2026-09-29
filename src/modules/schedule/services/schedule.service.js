@@ -113,6 +113,25 @@ export const reviewSwapRequest = async (payload) => {
 };
 
 /**
+ * Đồng nghiệp phản hồi (Đồng ý / Từ chối) đơn xin đổi ca / cho ca.
+ */
+export const respondToSwapRequest = async (swapRequestId, isAccepted) => {
+  const response = await axiosInstance.post(API_ENDPOINTS.SHIFTS.SWAP_PEER_REVIEW, {
+    swapRequestId: Number(swapRequestId),
+    isAccepted: Boolean(isAccepted),
+  });
+  return response.data;
+};
+
+/**
+ * Nhân viên hủy đơn xin chuyển/đổi ca của chính mình.
+ */
+export const cancelSwapRequest = async (swapRequestId) => {
+  const response = await axiosInstance.post(API_ENDPOINTS.SHIFTS.SWAP_CANCEL(swapRequestId));
+  return response.data;
+};
+
+/**
  * Lấy danh sách các đơn đổi/chuyển ca của cửa hàng cho Quản lý duyệt.
  */
 export const getStoreSwapRequests = async (storeId) => {
@@ -179,6 +198,8 @@ export default {
   autoScheduleWeekly,
   createSwapRequest,
   reviewSwapRequest,
+  respondToSwapRequest,
+  cancelSwapRequest,
   getStoreSwapRequests,
   getMySwapRequests,
   getColleaguesForSwap,
