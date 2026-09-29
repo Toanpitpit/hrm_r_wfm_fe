@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Icon from '@/shared/components/ui/Icon';
 import Badge from '@/shared/components/ui/Badge';
 import ConfirmModal from '@/shared/components/ui/ConfirmModal';
-import { DAY_NAMES_VN, formatVNDate } from '../hooks/useWeeklySchedule';
+import { DAY_NAMES_VN, formatVNDate, formatShiftTemplateName } from '../hooks/useWeeklySchedule';
 
 // Cấu hình hiển thị chuẩn cho 4 ca 6 tiếng bao phủ 24/7 của chuỗi cửa hàng tiện lợi
 const STANDARD_SHIFTS_CONFIG = [
@@ -74,22 +74,95 @@ export default function WeeklyRosterMatrix({
     setConfirmDeleteState({ assignmentId, message });
   };
 
-  // Kết hợp danh sách 4 ca chuẩn từ cấu hình hoặc templates từ backend
-  const displayShifts = STANDARD_SHIFTS_CONFIG.map((cfg) => {
-    const matchedTmpl = templates.find(
-      (t) =>
-        (t.templateCode && t.templateCode.toUpperCase() === cfg.code) ||
-        (t.id && Number(t.id) === cfg.id) ||
-        (t.shiftId && Number(t.shiftId) === cfg.id)
-    );
+  // Lọc danh sách mẫu ca chuẩn ĐANG HOẠT ĐỘNG (ACTIVE) do Admin quản lý
+  const activeTemplates = useMemo(() => {
+    if (!templates || templates.length === 0) return [];
+    return templates.filter((t) => t.isActive !== false && t.status !== 'INACTIVE');
+  }, [templates]);
+
+  // Sinh cấu hình hiển thị trực quan (màu sắc, icon, border) theo từng ca
+  const getShiftVisualConfig = (t, index) => {
+    const code = (t.templateCode || t.shiftCode || '').toUpperCase();
+    const name = (t.name || t.shiftName || '').toLowerCase();
+    const isNight = Boolean(t.isOvernight) || code.includes('DEM') || code.includes('NIGHT') || name.includes('đêm');
+    const isMorning = code.includes('SANG') || code.includes('01') || code.includes('MORNING') || name.includes('sáng');
+    const isAfternoon = code.includes('CHIEU') || code.includes('02') || code.includes('AFTERNOON') || name.includes('chiều');
+    const isEvening = code.includes('TOI') || code.includes('03') || code.includes('EVENING') || name.includes('tối');
+
+    let color = '#0284c7';
+    if (isNight) color = '#7c3aed';
+    else if (isMorning) color = '#0284c7';
+    else if (isAfternoon) color = '#d97706';
+    else if (isEvening) color = '#2563eb';
+    else {
+      const palette = ['#059669', '#d97706', '#dc2626', '#4f46e5', '#0891b2', '#e11d48'];
+      color = palette[index % palette.length];
+    }
+
     return {
-      ...cfg,
-      id: matchedTmpl ? matchedTmpl.id || matchedTmpl.shiftId : cfg.id,
-      name: matchedTmpl ? matchedTmpl.name : cfg.name,
-      startTime: matchedTmpl ? matchedTmpl.startTime : cfg.time.split(' - ')[0],
-      endTime: matchedTmpl ? matchedTmpl.endTime : cfg.time.split(' - ')[1],
+      color,
+      bg: `${color}14`,
+      border: `${color}40`,
     };
-  });
+  };
+
+  // Tạo danh sách ca hiển thị động 100% theo các ca Admin đã kích hoạt
+  const displayShifts = useMemo(() => {
+    if (activeTemplates.length > 0) {
+      const sorted = [...activeTemplates].sort((a, b) => {
+        const codeA = (a.templateCode || a.shiftCode || '').toUpperCase();
+        const codeB = (b.templateCode || b.shiftCode || '').toUpperCase();
+        const numA = (codeA.match(/\d+/) || [])[0];
+        const numB = (codeB.match(/\d+/) || [])[0];
+        if (numA && numB && Number(numA) !== Number(numB)) {
+          return Number(numA) - Number(numB);
+        }
+        const timeA = (a.startTime || '00:00').substring(0, 5);
+        const timeB = (b.startTime || '00:00').substring(0, 5);
+        const [hA, mA] = timeA.split(':').map(Number);
+        const [hB, mB] = timeB.split(':').map(Number);
+        const valA = (hA >= 6 ? hA - 6 : hA + 18) * 60 + (mA || 0);
+        const valB = (hB >= 6 ? hB - 6 : hB + 18) * 60 + (mB || 0);
+        return valA - valB;
+      });
+
+      return sorted.map((t, idx) => {
+        const id = t.id || t.shiftId;
+        const code = t.templateCode || t.shiftCode || `CA_${id}`;
+        const name = formatShiftTemplateName(t.name || t.shiftName || code);
+        const startTime = (t.startTime || '').substring(0, 5);
+        const endTime = (t.endTime || '').substring(0, 5);
+        const time = startTime && endTime ? `${startTime} - ${endTime}` : 'Chưa định giờ';
+
+        let duration = '6 tiếng';
+        if (t.workHours) {
+          duration = `${t.workHours} tiếng`;
+        } else if (startTime && endTime) {
+          const [sh, sm] = startTime.split(':').map(Number);
+          const [eh, em] = endTime.split(':').map(Number);
+          let diffMin = (eh * 60 + em) - (sh * 60 + sm);
+          if (diffMin <= 0 || t.isOvernight) diffMin += 24 * 60;
+          const hours = Math.round((diffMin / 60) * 10) / 10;
+          duration = `${hours} tiếng`;
+        }
+
+        const visual = getShiftVisualConfig(t, idx);
+        return {
+          id,
+          code,
+          name,
+          time,
+          startTime,
+          endTime,
+          duration,
+          isOvernight: Boolean(t.isOvernight),
+          ...visual,
+        };
+      });
+    }
+
+    return STANDARD_SHIFTS_CONFIG;
+  }, [activeTemplates]);
 
   if (loading) {
     return (
