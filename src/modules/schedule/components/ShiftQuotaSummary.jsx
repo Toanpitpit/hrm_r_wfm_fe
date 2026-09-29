@@ -98,7 +98,7 @@ export default function ShiftQuotaSummary({
                             {formatShiftTemplateName(s.shiftTemplateName)}
                           </span>
                           <span style={{ fontSize: 10, color: c.fgFaint }}>
-                            {s.startTime.substring(0, 5)}
+                            {s.startTime?.substring(0, 5)} - {s.endTime?.substring(0, 5)}
                           </span>
                         </div>
 

@@ -5,7 +5,7 @@ import ConfirmModal from '@/shared/components/ui/ConfirmModal';
 import Button from '@/shared/components/ui/Button';
 import FormField from '@/shared/components/ui/FormField';
 import Icon from '@/shared/components/ui/Icon';
-import { formatVNDate } from '../hooks/useWeeklySchedule';
+import { formatVNDate, formatShiftTemplateName } from '../hooks/useWeeklySchedule';
 
 export default function AssignShiftCellModal({
   isOpen,
@@ -19,6 +19,11 @@ export default function AssignShiftCellModal({
   const { c } = useAdminTheme();
 
   const isRoleMode = cellData?.mode === 'ASSIGN_ROLE_TO_SHIFT';
+
+  // Lọc danh sách mẫu ca chuẩn ĐANG HOẠT ĐỘNG
+  const activeTemplates = useMemo(() => {
+    return (templates || []).filter((t) => t.isActive !== false && t.status !== 'INACTIVE');
+  }, [templates]);
 
   // --- State cho Mode 1: ASSIGN_ROLE_TO_SHIFT ---
   const schedule = cellData?.schedule;
@@ -46,11 +51,11 @@ export default function AssignShiftCellModal({
     } else {
       if (currentAssignment) {
         setSelectedShiftId(currentAssignment.shiftTemplateId || '');
-      } else if (templates.length > 0) {
-        setSelectedShiftId(templates[0].shiftId || templates[0].id);
+      } else if (activeTemplates.length > 0) {
+        setSelectedShiftId(activeTemplates[0].shiftId || activeTemplates[0].id);
       }
     }
-  }, [isRoleMode, cellData, currentAssignment, templates]);
+  }, [isRoleMode, cellData, currentAssignment, activeTemplates]);
 
   // Lọc danh sách nhân sự phù hợp cho Mode 1
   const eligibleEmployees = useMemo(() => {
@@ -506,7 +511,7 @@ export default function AssignShiftCellModal({
         <div style={{ marginBottom: 20 }}>
           <FormField label="Chọn Ca Làm Việc Mới:">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {templates.map((t) => {
+              {activeTemplates.map((t) => {
                 const tId = t.shiftId || t.id;
                 const isSelected = String(selectedShiftId) === String(tId);
 
@@ -536,7 +541,7 @@ export default function AssignShiftCellModal({
                         onChange={() => setSelectedShiftId(tId)}
                       />
                       <span style={{ fontWeight: 750, color: isSelected ? c.accent : c.fg, fontSize: 13 }}>
-                        {t.shiftName || t.name}
+                        {formatShiftTemplateName(t.shiftName || t.name)}
                       </span>
                     </div>
                     <span style={{ fontSize: 12, color: c.fgFaint }}>

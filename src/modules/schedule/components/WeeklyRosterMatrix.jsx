@@ -213,7 +213,7 @@ export default function WeeklyRosterMatrix({
             Bảng Sắp Xếp Lịch Làm Việc Tuần
           </span>
           <span style={{ fontSize: 12, color: c.fgFaint }}>
-            (Chuỗi Cửa Hàng Tiện Lợi 24/7 • 4 Ca × 6 Tiếng)
+            (Chuỗi Cửa Hàng Tiện Lợi • {displayShifts.length} Ca Chuẩn Đang Hoạt Động)
           </span>
         </div>
 
@@ -246,7 +246,7 @@ export default function WeeklyRosterMatrix({
             }}
           >
             <span>🏢</span>
-            <span>4 Hàng Ca Chuẩn (Khuyên Dùng)</span>
+            <span>{displayShifts.length} Hàng Ca Chuẩn (Khuyên Dùng)</span>
           </button>
 
           <button
@@ -300,7 +300,7 @@ export default function WeeklyRosterMatrix({
                     borderRight: `2px solid ${c.border}`,
                   }}
                 >
-                  Ca Trực (4 Ca Chuẩn)
+                  Ca Trực ({displayShifts.length} Ca Chuẩn)
                 </th>
 
                 {/* 7 cột cho 7 ngày trong tuần */}

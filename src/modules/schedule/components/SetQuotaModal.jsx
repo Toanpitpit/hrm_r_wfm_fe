@@ -24,6 +24,9 @@ export default function SetQuotaModal({
   const [sales, setSales] = useState(2);
   const [security, setSecurity] = useState(1);
 
+  // Lọc danh sách mẫu ca chuẩn ĐANG HOẠT ĐỘNG
+  const activeTemplates = (templates || []).filter((t) => t.isActive !== false && t.status !== 'INACTIVE');
+
   // State cho Weekly Default Mode
   const [selectedTemplateIds, setSelectedTemplateIds] = useState([]);
   const [defaultCashier, setDefaultCashier] = useState(1);
@@ -36,7 +39,7 @@ export default function SetQuotaModal({
       setSales(selectedSchedule.requiredSales || 1);
       setSecurity(selectedSchedule.requiredSecurity || 1);
     } else {
-      setSelectedTemplateIds(templates.map((t) => t.shiftId || t.id));
+      setSelectedTemplateIds(activeTemplates.map((t) => t.shiftId || t.id));
     }
   }, [selectedSchedule, templates]);
 
@@ -172,7 +175,7 @@ export default function SetQuotaModal({
                 Chọn Khung Ca Chuẩn Áp Dụng:
               </label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {templates.map((t) => {
+                {activeTemplates.map((t) => {
                   const tId = t.shiftId || t.id;
                   const isChecked = selectedTemplateIds.includes(tId);
                   return (
@@ -197,7 +200,7 @@ export default function SetQuotaModal({
                         checked={isChecked}
                         onChange={() => toggleTemplateId(tId)}
                       />
-                      <span>{t.shiftName || t.name}</span>
+                      <span>{formatShiftTemplateName(t.shiftName || t.name)}</span>
                       <span style={{ fontSize: 11, color: c.fgFaint }}>
                         ({t.startTime?.substring(0, 5)} - {t.endTime?.substring(0, 5)})
                       </span>
