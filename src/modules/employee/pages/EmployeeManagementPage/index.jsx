@@ -278,10 +278,10 @@ export default function EmployeeManagementPage() {
     }
   };
 
-  const handleConfirmResetPassword = async (id, customPassword) => {
-    const res = await employeeService.resetPassword(id, customPassword);
+  const handleConfirmResetPassword = async (id, customPassword, reason) => {
+    const res = await employeeService.resetPassword(id, customPassword, reason);
     if (res.success) {
-      toast.success('Đã đặt lại mật khẩu tài khoản thành công!');
+      toast.success(res.message || 'Đã đặt lại mật khẩu tài khoản thành công!');
       return res;
     } else {
       toast.error(res.message || 'Đặt lại mật khẩu thất bại.');
@@ -289,8 +289,8 @@ export default function EmployeeManagementPage() {
     }
   };
 
-  const handleConfirmToggleStatus = async (id, newStatus) => {
-    const res = await employeeService.toggleUserStatus(id, newStatus);
+  const handleConfirmToggleStatus = async (id, newStatus, reason) => {
+    const res = await employeeService.toggleUserStatus(id, newStatus, reason);
     if (res.success) {
       toast.success(res.message || 'Cập nhật trạng thái thành công!');
       fetchEmployees();
@@ -299,6 +299,7 @@ export default function EmployeeManagementPage() {
       fetchHeadcountData();
     } else {
       toast.error(res.message || 'Cập nhật trạng thái thất bại.');
+      throw new Error(res.message);
     }
   };
 
@@ -522,11 +523,7 @@ export default function EmployeeManagementPage() {
           }
           await fetchHeadcountData();
         }}
-        onToggleStatus={() => {
-          fetchEmployees();
-          fetchStats();
-          fetchHeadcountData();
-        }}
+        onToggleStatus={(emp) => handleOpenToggleModal(emp)}
         onResetPassword={(emp) => handleOpenResetModal(emp)}
         onDeleteSuccess={() => {
           fetchEmployees();

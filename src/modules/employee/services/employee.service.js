@@ -510,50 +510,47 @@ export const employeeService = {
   /**
    * 8. Khóa / Kích hoạt lại tài khoản (PATCH /api/Users/{id}/status)
    */
-  async toggleUserStatus(id, newStatus) {
+  async toggleUserStatus(id, newStatus, reason = '') {
     try {
       const res = await axiosInstance.patch(`Users/${id}/status`, {
         status: newStatus,
+        reason: reason,
         isActive: newStatus === 'ACTIVE',
       });
       return {
         success: true,
         data: res.data?.data || res.data,
-        message: newStatus === 'ACTIVE' ? 'Đã kích hoạt lại tài khoản thành công!' : 'Đã khóa tài khoản thành công!',
+        message: res.data?.message || (newStatus === 'ACTIVE' ? 'Đã kích hoạt lại tài khoản thành công!' : 'Đã khóa tài khoản thành công!'),
       };
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
+      if (err.response?.status === 400 || err.response?.status === 403) {
+        return { success: false, message: msg };
+      }
       console.warn('[EmployeeService] Backend toggleUserStatus error:', msg);
+      return { success: false, message: msg };
     }
-
-    const list = getLocalEmployees();
-    const idx = list.findIndex((e) => String(e.id) === String(id));
-    if (idx !== -1) {
-      list[idx].status = newStatus;
-      saveLocalEmployees(list);
-      return {
-        success: true,
-        data: list[idx],
-        message: newStatus === 'ACTIVE' ? 'Đã kích hoạt lại tài khoản!' : 'Đã khóa tài khoản!',
-      };
-    }
-    return { success: false, message: 'Không tìm thấy tài khoản để thao tác.' };
   },
 
   /**
    * 9. Đặt lại mật khẩu tài khoản (POST /api/Users/{id}/reset-password)
    */
-  async resetPassword(id, customPassword = null) {
+  async resetPassword(id, customPassword = null, reason = '') {
     try {
-      const body = customPassword ? { newPassword: customPassword } : {};
+      const body = {
+        ...(customPassword ? { newPassword: customPassword } : {}),
+        reason: reason,
+      };
       const res = await axiosInstance.post(`Users/${id}/reset-password`, body);
       const resData = res.data?.data || res.data;
-      const returnedPassword = resData?.newPassword || resData?.temporaryPassword || customPassword;
+      const returnedPassword = resData?.newPassword || resData?.temporaryPassword || customPassword || 'Password@123';
+      const emailSent = resData?.emailSent !== false;
       return {
         success: true,
         data: resData,
         newPassword: returnedPassword,
-        message: 'Đặt lại mật khẩu tài khoản thành công!',
+        emailSent: emailSent,
+        message: res.data?.message || 'Đặt lại mật khẩu tài khoản thành công!',
       };
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
@@ -561,14 +558,8 @@ export const employeeService = {
         return { success: false, message: msg };
       }
       console.warn('[EmployeeService] Backend resetPassword error:', msg);
+      return { success: false, message: msg };
     }
-
-    const fallbackPass = customPassword || `Rwfm@${Math.floor(100000 + Math.random() * 900000)}`;
-    return {
-      success: true,
-      newPassword: fallbackPass,
-      message: 'Đặt lại mật khẩu tài khoản thành công!',
-    };
   },
 
   /**
