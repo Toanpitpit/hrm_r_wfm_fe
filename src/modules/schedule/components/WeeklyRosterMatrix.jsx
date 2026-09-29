@@ -74,26 +74,6 @@ export default function WeeklyRosterMatrix({
     setConfirmDeleteState({ assignmentId, message });
   };
 
-<<<<<<< HEAD
-  if (loading) {
-    return (
-      <div style={{ padding: '60px 0', textAlign: 'center', color: c.fgFaint }}>
-        <div
-          style={{
-            display: 'inline-block',
-            width: 32,
-            height: 32,
-            border: `3px solid ${c.border}`,
-            borderTopColor: c.accent,
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-          }}
-        />
-        <div style={{ marginTop: 12, fontSize: 13 }}>Đang tải ma trận sắp xếp lịch ca tuần...</div>
-      </div>
-    );
-  }
-
   // Kết hợp danh sách 4 ca chuẩn từ cấu hình hoặc templates từ backend
   const displayShifts = STANDARD_SHIFTS_CONFIG.map((cfg) => {
     const matchedTmpl = templates.find(
@@ -102,33 +82,6 @@ export default function WeeklyRosterMatrix({
         (t.id && Number(t.id) === cfg.id) ||
         (t.shiftId && Number(t.shiftId) === cfg.id)
     );
-=======
-  // Lọc danh sách mẫu ca chuẩn ĐANG HOẠT ĐỘNG (ACTIVE) do Admin quản lý
-  const activeTemplates = useMemo(() => {
-    if (!templates || templates.length === 0) return [];
-    return templates.filter((t) => t.isActive !== false && t.status !== 'INACTIVE');
-  }, [templates]);
-
-  // Sinh cấu hình hiển thị trực quan (màu sắc, icon, border) theo từng ca
-  const getShiftVisualConfig = (t, index) => {
-    const code = (t.templateCode || t.shiftCode || '').toUpperCase();
-    const name = (t.name || t.shiftName || '').toLowerCase();
-    const isNight = Boolean(t.isOvernight) || code.includes('DEM') || code.includes('NIGHT') || name.includes('đêm');
-    const isMorning = code.includes('SANG') || code.includes('01') || code.includes('MORNING') || name.includes('sáng');
-    const isAfternoon = code.includes('CHIEU') || code.includes('02') || code.includes('AFTERNOON') || name.includes('chiều');
-    const isEvening = code.includes('TOI') || code.includes('03') || code.includes('EVENING') || name.includes('tối');
-
-    let color = '#0284c7';
-    if (isNight) color = '#7c3aed';
-    else if (isMorning) color = '#0284c7';
-    else if (isAfternoon) color = '#d97706';
-    else if (isEvening) color = '#2563eb';
-    else {
-      const palette = ['#059669', '#d97706', '#dc2626', '#4f46e5', '#0891b2', '#e11d48'];
-      color = palette[index % palette.length];
-    }
-
->>>>>>> dd11017 (update v1 allows submitting requests for reinforcements involving multiple personnel simultaneously.)
     return {
       ...cfg,
       id: matchedTmpl ? matchedTmpl.id || matchedTmpl.shiftId : cfg.id,
