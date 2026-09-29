@@ -164,6 +164,7 @@ export default function WeeklyRosterMatrix({
     return STANDARD_SHIFTS_CONFIG;
   }, [activeTemplates]);
 
+  // Early return SAU tất cả hooks - tránh vi phạm Rules of Hooks
   if (loading) {
     return (
       <div style={{ padding: '60px 0', textAlign: 'center', color: c.fgFaint }}>
@@ -245,7 +246,6 @@ export default function WeeklyRosterMatrix({
               transition: 'all 0.15s ease',
             }}
           >
-            <span>🏢</span>
             <span>{displayShifts.length} Hàng Ca Chuẩn (Khuyên Dùng)</span>
           </button>
 
