@@ -93,6 +93,27 @@ const authService = {
     const response = await axiosInstance.get('/Auth/notifications');
     return response.data;
   },
+
+  /**
+   * Lấy thông tin user hiện tại đang lưu trong localStorage
+   * @returns {Object|null}
+   */
+  getUser: () => {
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+  getCurrentUser: () => {
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
 };
 
 export default authService;
