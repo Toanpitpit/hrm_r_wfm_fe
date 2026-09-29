@@ -35,39 +35,10 @@ export default function EmployeeDetailModal({
       sub={`Thông tin định danh và phân bổ chi nhánh của tài khoản #${employee.id}`}
       width={560}
       footer={
-        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {canManageSystem && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  onClose();
-                  onResetPassword(employee);
-                }}
-                style={{ color: '#f2ca50', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Icon name="lock" size={14} />
-                <span>Reset Mật Khẩu</span>
-              </Button>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <Button variant="ghost" onClick={onClose}>
-              Đóng
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                onClose();
-                onEdit(employee);
-              }}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Icon name="edit" size={14} />
-              <span>Chỉnh Sửa Hồ Sơ</span>
-            </Button>
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+          <Button variant="ghost" onClick={onClose}>
+            Đóng
+          </Button>
         </div>
       }
     >

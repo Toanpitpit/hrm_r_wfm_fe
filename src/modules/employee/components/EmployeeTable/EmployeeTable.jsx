@@ -228,6 +228,26 @@ export default function EmployeeTable({
                       {emp.branchName || (emp.homeBranchId || emp.branchId ? `Chi nhánh #${emp.homeBranchId || emp.branchId}` : 'Trụ sở chính (HQ)')}
                     </span>
                   </div>
+                  {emp.isDispatched && (
+                    <div style={{ marginTop: '4px' }}>
+                      <span
+                        style={{
+                          fontSize: '10.5px',
+                          padding: '1px 6px',
+                          background: 'rgba(59, 130, 246, 0.15)',
+                          color: '#60a5fa',
+                          borderRadius: '4px',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                        }}
+                        title={`Nhân sự điều chuyển từ: ${emp.originalBranchName || `Chi nhánh #${emp.originalHomeBranchId}`}`}
+                      >
+                        ⚡ Chi viện từ {emp.originalBranchName || `CN #${emp.originalHomeBranchId}`}
+                      </span>
+                    </div>
+                  )}
                 </td>
 
                 {/* Hình thức hợp đồng */}
@@ -267,41 +287,15 @@ export default function EmployeeTable({
                       <Icon name="eye" size={15} />
                     </Button>
 
-                    {/* Chỉnh sửa hồ sơ */}
+                    {/* Chỉnh sửa hồ sơ (bao gồm Khóa/Mở/Xóa tài khoản bên trong modal) */}
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => onEdit(emp)}
-                      title="Chỉnh sửa hồ sơ & hợp đồng"
+                      title="Chỉnh sửa hồ sơ & quản trị tài khoản"
                     >
                       <Icon name="edit" size={15} />
                     </Button>
-
-                    {/* Reset mật khẩu (Admin / Owner only) */}
-                    {canManageSystem && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onResetPassword(emp)}
-                        title="Đặt lại mật khẩu nhân viên"
-                        style={{ color: '#f2ca50' }}
-                      >
-                        <Icon name="lock" size={15} />
-                      </Button>
-                    )}
-
-                    {/* Khóa / Mở khóa tài khoản (Admin / Owner only) */}
-                    {canManageSystem && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onToggleStatus(emp)}
-                        title={isInactive ? 'Kích hoạt lại tài khoản' : 'Khóa tài khoản'}
-                        style={{ color: isInactive ? '#22c55e' : '#ef4444' }}
-                      >
-                        <Icon name={isInactive ? 'unlock' : 'lock'} size={15} />
-                      </Button>
-                    )}
                   </div>
                 </td>
               </tr>

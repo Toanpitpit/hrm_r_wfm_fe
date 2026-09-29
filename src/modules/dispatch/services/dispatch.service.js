@@ -21,18 +21,34 @@ const dispatchService = {
    * @returns {Promise<Object>} ApiResponse<DispatchRecordDto>
    */
   createDispatchRequest: async (data) => {
-    const response = await axiosInstance.post('/Dispatch/request', data);
+    const empIds = Array.isArray(data.employeeIds)
+      ? data.employeeIds.map(Number)
+      : data.employeeId ? [Number(data.employeeId)] : [];
+    const payload = {
+      ...data,
+      employeeIds: empIds,
+      employeeId: empIds.length > 0 ? empIds[0] : (data.employeeId ? Number(data.employeeId) : undefined),
+    };
+    const response = await axiosInstance.post('/Dispatch/request', payload);
     return response.data;
   },
 
   /**
    * Chỉnh sửa phiếu đề nghị chi viện nhân sự khi còn chờ duyệt (PENDING)
    * @param {number|string} id - DispatchId
-   * @param {Object} data - { employeeId, fromStoreId, toStoreId, startDate, endDate, reason }
+   * @param {Object} data - { employeeIds, employeeId, fromStoreId, toStoreId, startDate, endDate, reason }
    * @returns {Promise<Object>} ApiResponse<DispatchRecordDto>
    */
   updateDispatchRequest: async (id, data) => {
-    const response = await axiosInstance.put(`/Dispatch/request/${id}`, data);
+    const empIds = Array.isArray(data.employeeIds)
+      ? data.employeeIds.map(Number)
+      : data.employeeId ? [Number(data.employeeId)] : [];
+    const payload = {
+      ...data,
+      employeeIds: empIds,
+      employeeId: empIds.length > 0 ? empIds[0] : (data.employeeId ? Number(data.employeeId) : undefined),
+    };
+    const response = await axiosInstance.put(`/Dispatch/request/${id}`, payload);
     return response.data;
   },
 
