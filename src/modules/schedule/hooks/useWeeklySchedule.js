@@ -190,6 +190,9 @@ export function useWeeklySchedule(initialBranchId = null) {
       const res = await scheduleService.getWeeklyScheduleMatrix(branchId, weekStartDate);
       if (res.success && res.data) {
         setMatrix(res.data);
+        if (res.data.activeTemplates && res.data.activeTemplates.length > 0) {
+          setTemplates(res.data.activeTemplates);
+        }
         setPermissionError(null);
       } else {
         setMatrix(null);

@@ -197,6 +197,60 @@ export const employeeService = {
   },
 
   /**
+   * 2b. Lấy số liệu thống kê nhân sự độc lập (GET /api/Users/employees/stats)
+   * Giữ số liệu thống kê ổn định, không bị nhảy về 0 khi tìm kiếm nhân viên trong bảng
+   */
+  async getEmployeeStats(params = {}) {
+    try {
+      const res = await axiosInstance.get('Users/employees/stats', { params });
+      const data = res.data?.data || res.data;
+      if (data && typeof (data.totalEmployees ?? data.TotalEmployees) === 'number') {
+        const roleStats = data.roleStats || data.RoleStats || {};
+        return {
+          success: true,
+          data: {
+            totalEmployees: Number(data.totalEmployees ?? data.TotalEmployees ?? 0),
+            activeCount: Number(data.activeCount ?? data.ActiveCount ?? 0),
+            inactiveCount: Number(data.inactiveCount ?? data.InactiveCount ?? 0),
+            roleStats: {
+              shiftLeader: Number(roleStats.shiftLeader ?? roleStats.ShiftLeader ?? 0),
+              cashier: Number(roleStats.cashier ?? roleStats.Cashier ?? 0),
+              sales: Number(roleStats.sales ?? roleStats.Sales ?? 0),
+              security: Number(roleStats.security ?? roleStats.Security ?? 0),
+              manager: Number(roleStats.manager ?? roleStats.Manager ?? 0),
+            },
+          },
+        };
+      }
+    } catch (err) {
+      console.warn('[EmployeeService] Backend getEmployeeStats error, using fallback:', err.message);
+    }
+
+    // Fallback tính toán từ local storage (chỉ lọc theo branch nếu có, KHÔNG lọc theo search/role/status của bảng)
+    let list = getLocalEmployees();
+    if (params.branchId || params.homeBranchId) {
+      const targetB = String(params.branchId || params.homeBranchId);
+      list = list.filter((e) => String(e.homeBranchId || e.branchId) === targetB);
+    }
+
+    return {
+      success: true,
+      data: {
+        totalEmployees: list.length,
+        activeCount: list.filter((e) => e.status !== 'INACTIVE').length,
+        inactiveCount: list.filter((e) => e.status === 'INACTIVE').length,
+        roleStats: {
+          shiftLeader: list.filter((e) => e.roleCode === 'SHIFT_LEADER').length,
+          cashier: list.filter((e) => e.roleCode === 'CASHIER').length,
+          sales: list.filter((e) => e.roleCode === 'SALES_STAFF').length,
+          security: list.filter((e) => e.roleCode === 'SECURITY_GUARD' || e.roleCode === 'SECURITY').length,
+          manager: list.filter((e) => e.roleCode === 'STORE_MANAGER').length,
+        },
+      },
+    };
+  },
+
+  /**
    * 3. Lấy danh sách nhân sự (GET /api/Users/employees)
    */
   async getEmployees(params = {}) {
