@@ -569,6 +569,27 @@ export const employeeService = {
   },
 
   /**
+   * 9b. Xóa tài khoản nhân sự (DELETE /api/Users/employees/{id})
+   * Yêu cầu: Tài khoản phải ở trạng thái ĐÃ KHÓA (INACTIVE).
+   */
+  async deleteEmployee(id) {
+    try {
+      const res = await axiosInstance.delete(`Users/employees/${id}`);
+      return {
+        success: true,
+        data: res.data?.data || res.data,
+        message: res.data?.message || 'Đã xóa tài khoản nhân sự thành công!',
+      };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message;
+      return {
+        success: false,
+        message: msg || 'Lỗi khi xóa tài khoản nhân sự.',
+      };
+    }
+  },
+
+  /**
    * 10. Tải file mẫu import nhân sự (GET /api/v1/users/employees/import-template)
    * Backend dùng ClosedXML sinh file .xlsx 2 sheet: Danh_Sach_Nhan_Su + Huong_Dan_Va_Danh_Muc.
    * Dùng Blob URL để tải file, không redirect — tránh lỗi corrupt file.

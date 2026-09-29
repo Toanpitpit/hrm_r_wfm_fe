@@ -21,6 +21,9 @@ export default function EmployeeFormModal({
   currentStoreBranchId = null,
   currentStoreBranchName = '',
   onBranchTierUpgraded,
+  onToggleStatus,
+  onResetPassword,
+  onDeleteSuccess,
 }) {
   const { c, fonts } = useAdminTheme();
   const toast = useToast();
@@ -48,6 +51,12 @@ export default function EmployeeFormModal({
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Quản trị trạng thái tài khoản & Xóa tài khoản (khi Chỉnh sửa)
+  const [accountStatus, setAccountStatus] = useState(initialData?.status || 'ACTIVE');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
   // Quản lý Effective Quota của Chi nhánh đang chọn
   const [branchQuota, setBranchQuota] = useState(null);
@@ -87,6 +96,10 @@ export default function EmployeeFormModal({
       setImportResult(null);
       setImportMessage('');
       setImportStatus('idle');
+      setAccountStatus(initialData?.status || 'ACTIVE');
+      setShowDeleteConfirm(false);
+      setIsDeleting(false);
+      setIsTogglingStatus(false);
 
       if (initialData) {
         setFormData({
@@ -224,6 +237,56 @@ export default function EmployeeFormModal({
   };
 
   // Validate form
+  // Khóa / Mở khóa tài khoản ngay trong form chỉnh sửa
+  const handleToggleAccountStatus = async () => {
+    if (!initialData?.id) return;
+    const targetStatus = accountStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    setIsTogglingStatus(true);
+    try {
+      const res = await employeeService.toggleUserStatus(initialData.id, targetStatus);
+      if (res.success) {
+        setAccountStatus(targetStatus);
+        toast.success(res.message || (targetStatus === 'ACTIVE' ? 'Đã mở khóa tài khoản thành công!' : 'Đã khóa tài khoản thành công!'));
+        if (onToggleStatus) {
+          onToggleStatus(initialData.id, targetStatus);
+        }
+      } else {
+        toast.error(res.message || 'Không thể cập nhật trạng thái tài khoản.');
+      }
+    } catch (err) {
+      toast.error('Lỗi khi cập nhật trạng thái tài khoản.');
+    } finally {
+      setIsTogglingStatus(false);
+    }
+  };
+
+  // Xóa tài khoản nhân sự (Chỉ được xóa khi tài khoản đã bị khóa)
+  const handleDeleteAccount = async () => {
+    if (!initialData?.id) return;
+    if (accountStatus === 'ACTIVE') {
+      toast.error('Tài khoản đang hoạt động. Bạn phải khóa tài khoản trước khi thực hiện xóa!');
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const res = await employeeService.deleteEmployee(initialData.id);
+      if (res.success) {
+        toast.success(res.message || 'Đã xóa tài khoản nhân sự thành công!');
+        setShowDeleteConfirm(false);
+        onClose();
+        if (onDeleteSuccess) {
+          onDeleteSuccess(initialData.id);
+        }
+      } else {
+        toast.error(res.message || 'Không thể xóa tài khoản nhân sự.');
+      }
+    } catch (err) {
+      toast.error('Lỗi khi thực hiện xóa tài khoản.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const validate = () => {
     const newErrors = {};
     if (!formData.employeeCode.trim()) newErrors.employeeCode = 'Mã nhân viên là bắt buộc';
@@ -403,7 +466,8 @@ export default function EmployeeFormModal({
       : 'Hệ thống tự động băm mật khẩu bảo mật và kích hoạt gửi Welcome Email có thông tin tài khoản & link đăng nhập.';
 
   return (
-    <Modal
+    <>
+      <Modal
       open={isOpen}
       onClose={isImporting ? undefined : onClose}
       title={title}
@@ -779,6 +843,171 @@ export default function EmployeeFormModal({
             </Field>
           </div>
 
+          {/* ─── VÙNG QUẢN TRỊ TÀI KHOẢN (DÀNH CHO ADMIN / OWNER KHI CHỈNH SỬA) ─── */}
+          {isEdit && canManageSystem && (
+            <div
+              style={{
+                marginTop: '4px',
+                padding: '16px',
+                borderRadius: '8px',
+                background: c.bgCard,
+                border: `1px solid ${accountStatus === 'INACTIVE' ? 'rgba(239, 68, 68, 0.4)' : c.border}`,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Icon name="lock" size={16} color={accountStatus === 'INACTIVE' ? '#ef4444' : c.accent} />
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: c.fg }}>
+                    Quản Trị Trạng Thái & Bảo Mật Tài Khoản
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: c.fgSubtle }}>Trạng thái:</span>
+                  {accountStatus === 'INACTIVE' ? (
+                    <span
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(239, 68, 68, 0.12)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                      }}
+                    >
+                      🔒 Đã Khóa
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(34, 197, 94, 0.12)',
+                        color: '#22c55e',
+                        border: '1px solid rgba(34, 197, 94, 0.3)',
+                      }}
+                    >
+                      ✓ Đang Hoạt Động
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Các nút hành động: Khóa/Mở, Reset mật khẩu, Xóa tài khoản */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  flexWrap: 'wrap',
+                  paddingTop: '6px',
+                  borderTop: `1px solid ${c.border}`,
+                }}
+              >
+                {/* Nút Khóa / Mở Khóa */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleToggleAccountStatus}
+                  disabled={isTogglingStatus}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    border: `1px solid ${accountStatus === 'INACTIVE' ? '#22c55e' : '#f59e0b'}`,
+                    color: accountStatus === 'INACTIVE' ? '#22c55e' : '#f59e0b',
+                    background: accountStatus === 'INACTIVE' ? 'rgba(34, 197, 94, 0.05)' : 'rgba(245, 158, 11, 0.05)',
+                  }}
+                >
+                  <Icon name={accountStatus === 'INACTIVE' ? 'unlock' : 'lock'} size={14} />
+                  <span>
+                    {isTogglingStatus
+                      ? 'Đang xử lý...'
+                      : accountStatus === 'INACTIVE'
+                        ? 'Mở Khóa Tài Khoản'
+                        : 'Khóa Tài Khoản'}
+                  </span>
+                </Button>
+
+                {/* Nút Reset Mật Khẩu */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => onResetPassword?.(initialData)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    border: '1px solid #f2ca50',
+                    color: '#f2ca50',
+                    background: 'rgba(242, 202, 80, 0.05)',
+                  }}
+                >
+                  <Icon name="refresh" size={14} />
+                  <span>Reset Mật Khẩu</span>
+                </Button>
+
+                {/* Nút Xóa Tài Khoản */}
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={() => {
+                    if (accountStatus === 'ACTIVE') {
+                      toast.error('Tài khoản đang hoạt động. Bạn phải khóa tài khoản trước khi thực hiện xóa!');
+                      return;
+                    }
+                    setShowDeleteConfirm(true);
+                  }}
+                  disabled={accountStatus === 'ACTIVE'}
+                  title={
+                    accountStatus === 'ACTIVE'
+                      ? 'Tài khoản đang hoạt động. Vui lòng bấm Khóa tài khoản trước khi xóa.'
+                      : 'Xóa vĩnh viễn tài khoản nhân sự này khỏi hệ thống'
+                  }
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    opacity: accountStatus === 'ACTIVE' ? 0.45 : 1,
+                    cursor: accountStatus === 'ACTIVE' ? 'not-allowed' : 'pointer',
+                    background: accountStatus === 'ACTIVE' ? 'transparent' : '#ef4444',
+                    border: accountStatus === 'ACTIVE' ? '1px solid #ef4444' : 'none',
+                    color: accountStatus === 'ACTIVE' ? '#ef4444' : '#fff',
+                  }}
+                >
+                  <Icon name="trash" size={14} color={accountStatus === 'ACTIVE' ? '#ef4444' : '#fff'} />
+                  <span>Xóa Tài Khoản</span>
+                </Button>
+              </div>
+
+              {/* Dòng cảnh báo điều kiện xóa */}
+              <div style={{ fontSize: '11.5px', lineHeight: '1.4' }}>
+                {accountStatus === 'ACTIVE' ? (
+                  <span style={{ color: '#f87171', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Icon name="alert-triangle" size={13} color="#f87171" />
+                    <strong>Điều kiện xóa:</strong> Tài khoản đang hoạt động nên nút Xóa bị vô hiệu hóa. Bạn cần bấm <strong>"Khóa Tài Khoản"</strong> trước khi có thể xóa.
+                  </span>
+                ) : (
+                  <span style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Icon name="check" size={13} color="#4ade80" />
+                    Tài khoản đã ở trạng thái khóa. Bạn có thể thực hiện xóa tài khoản này nếu cần.
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Mật khẩu khởi tạo (Chỉ khi tạo mới) */}
           {!isEdit && (
             <div
@@ -1081,6 +1310,58 @@ export default function EmployeeFormModal({
           )}
         </div>
       )}
-    </Modal>
+      </Modal>
+
+      {/* ─── MODAL XÁC NHẬN XÓA TÀI KHOẢN (Chỉ khi tài khoản đã bị khóa) ─── */}
+      <Modal
+        open={showDeleteConfirm}
+        onClose={() => !isDeleting && setShowDeleteConfirm(false)}
+        title="Xác Nhận Xóa Vĩnh Viễn Tài Khoản"
+        sub={`Hành động này sẽ xóa hoàn toàn tài khoản #${initialData?.id} khỏi hệ thống.`}
+        width={480}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', width: '100%' }}>
+            <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+              Hủy Bỏ
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleDeleteAccount}
+              disabled={isDeleting}
+              style={{ background: '#ef4444', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Icon name="trash" size={14} color="#fff" />
+              <span>{isDeleting ? 'Đang Xóa...' : 'Xác Nhận Xóa'}</span>
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13.5px', color: c.fg }}>
+          <div
+            style={{
+              padding: '12px 14px',
+              borderRadius: '8px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              color: '#fca5a5',
+              display: 'flex',
+              gap: '10px',
+              alignItems: 'flex-start',
+            }}
+          >
+            <Icon name="alert-triangle" size={18} color="#ef4444" />
+            <div>
+              <strong>Cảnh Báo Quan Trọng:</strong> Bạn đang chuẩn bị xóa tài khoản nhân sự{' '}
+              <strong style={{ color: '#fff' }}>{initialData?.fullName}</strong> (Mã NV:{' '}
+              <span style={{ color: '#f2ca50', fontWeight: 600 }}>{initialData?.employeeCode || `NV-${initialData?.id}`}</span>).
+              <div style={{ marginTop: '4px', fontSize: '12.5px', color: '#fca5a5' }}>
+                Tài khoản sau khi xóa sẽ không thể đăng nhập hoặc phân ca nữa. Thao tác này không thể hoàn tác.
+              </div>
+            </div>
+          </div>
+          <div>Bạn có chắc chắn muốn tiếp tục thực hiện xóa tài khoản này không?</div>
+        </div>
+      </Modal>
+    </>
   );
 }

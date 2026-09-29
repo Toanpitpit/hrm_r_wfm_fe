@@ -515,15 +515,24 @@ export default function EmployeeManagementPage() {
           }
           await fetchHeadcountData();
         }}
+        onToggleStatus={() => {
+          fetchEmployees();
+          fetchStats();
+          fetchHeadcountData();
+        }}
+        onResetPassword={(emp) => handleOpenResetModal(emp)}
+        onDeleteSuccess={() => {
+          fetchEmployees();
+          fetchStats();
+          fetchHeadcountData();
+        }}
       />
 
-      {/* Modal: Xem chi tiết hồ sơ */}
+      {/* Modal: Xem chi tiết hồ sơ (Chỉ xem chi tiết, không còn nút chỉnh sửa hay reset mật khẩu) */}
       <EmployeeDetailModal
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
         employee={selectedEmployee}
-        onEdit={handleOpenEditModal}
-        onResetPassword={handleOpenResetModal}
         canManageSystem={canManageSystem}
       />
 
