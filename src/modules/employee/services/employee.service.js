@@ -589,10 +589,11 @@ export const employeeService = {
    * Dùng Blob URL để tải file, không redirect — tránh lỗi corrupt file.
    * @returns {{ success, message, fileName }}
    */
-  async downloadImportTemplate() {
+  async downloadImportTemplate(count = 5) {
     let blobUrl = null;
+    const safeCount = Math.max(1, Math.min(Number(count) || 5, 500));
     try {
-      const res = await axiosInstance.get('v1/users/employees/import-template', {
+      const res = await axiosInstance.get(`v1/users/employees/import-template?count=${safeCount}`, {
         responseType: 'blob',
         timeout: 30000,
       });
@@ -621,7 +622,7 @@ export const employeeService = {
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
 
-      return { success: true, fileName, message: `Đã tải file mẫu "${fileName}" thành công!` };
+      return { success: true, fileName, message: `Đã tải file mẫu "${fileName}" (${safeCount} nhân sự) thành công!` };
     } catch (err) {
       if (blobUrl) URL.revokeObjectURL(blobUrl);
       const status = err.response?.status;
@@ -629,7 +630,7 @@ export const employeeService = {
       if (status === 403) return { success: false, message: 'Bạn không có quyền tải file mẫu này.' };
       console.warn('[EmployeeService] downloadImportTemplate error:', err.message);
       // Fallback: sinh file CSV local
-      return this._downloadImportTemplateFallback();
+      return this._downloadImportTemplateFallback(safeCount);
     }
   },
 
@@ -637,11 +638,14 @@ export const employeeService = {
    * Fallback tạo CSV template local khi backend không khả dụng
    * @private
    */
-  _downloadImportTemplateFallback() {
+  _downloadImportTemplateFallback(count = 5) {
+    let rows = '';
+    for (let i = 1; i <= count; i++) {
+      const code = `NV${String(100 + i).padStart(4, '0')}`;
+      rows += `${i},${code},,,,,FULL_TIME,,Password@123\n`;
+    }
     const csvContent =
-      '\uFEFFSTT,Mã Nhân Viên,Họ Và Tên,Email,Số Điện Thoại,Mã Vai Trò,Hình Thức,Mã Chi Nhánh,Mật Khẩu Khởi Tạo\n' +
-      '1,NV101,Nguyễn Văn An,an.nguyen@rwfm.vn,0912345678,CASHIER,FULL_TIME,CN001,Rwfm@123456\n' +
-      '2,NV102,Trần Thị Bình,binh.tran@rwfm.vn,0923456789,SALES_STAFF,PART_TIME,CN001,Rwfm@123456\n';
+      '\uFEFFSTT,Mã Nhân Viên,Họ Và Tên,Email,Số Điện Thoại,Mã Vai Trò,Hình Thức,Mã Chi Nhánh,Mật Khẩu Khởi Tạo\n' + rows;
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -652,7 +656,7 @@ export const employeeService = {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 100);
-    return { success: true, fileName: 'Mau_Import_Nhan_Su.csv', message: 'Đã tải file mẫu CSV (fallback).' };
+    return { success: true, fileName: 'Mau_Import_Nhan_Su.csv', message: `Đã tải file mẫu CSV fallback (${count} nhân sự).` };
   },
 
   /**

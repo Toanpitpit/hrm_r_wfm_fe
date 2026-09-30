@@ -32,6 +32,7 @@ export default function BulkImportEmployeeModal({
   const fileInputRef = useRef(null);
 
   // State
+  const [employeeCount, setEmployeeCount] = useState(5);
   const [selectedFile, setSelectedFile] = useState(null);
   const [importRequestId, setImportRequestId] = useState('');
   const [expansionReason, setExpansionReason] = useState('');
@@ -64,7 +65,8 @@ export default function BulkImportEmployeeModal({
     if (isDownloadingTemplate) return;
     setIsDownloadingTemplate(true);
     try {
-      const result = await employeeService.downloadImportTemplate();
+      const count = Math.max(1, Math.min(Number(employeeCount) || 5, 500));
+      const result = await employeeService.downloadImportTemplate(count);
       if (!result.success) {
         alert(result.message || 'Không thể tải file mẫu. Vui lòng thử lại.');
       }
@@ -227,39 +229,97 @@ export default function BulkImportEmployeeModal({
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-        {/* ── BƯỚC 1: Tải file mẫu ── */}
-        <div style={{ padding: '14px 16px', background: 'rgba(13, 148, 136, 0.05)', borderRadius: '8px', border: `1px solid rgba(13, 148, 136, 0.15)` }}>
+        {/* ── BƯỚC 1: Chọn số lượng & Tải file mẫu ── */}
+        <div style={{ padding: '16px 18px', background: 'rgba(13, 148, 136, 0.05)', borderRadius: '8px', border: `1px solid rgba(13, 148, 136, 0.15)` }}>
           <div style={sectionHeaderStyle}>
             <span style={stepNumStyle(true)}>1</span>
-            <span>Tải File Mẫu Excel</span>
+            <span>Sinh File Mẫu Excel Tự Động</span>
           </div>
           <p style={{ fontSize: '12.5px', color: c.fgMuted, lineHeight: '1.6', margin: '0 0 12px 30px' }}>
-            File mẫu gồm 2 sheet: <strong style={{ color: c.accent }}>Danh_Sach_Nhan_Su</strong> (bảng điền) và{' '}
-            <strong style={{ color: c.accent }}>Huong_Dan_Va_Danh_Muc</strong> (hướng dẫn + danh sách chi nhánh, vai trò).
+            Hệ thống sẽ <strong>tự động sinh mã nhân viên (NVxxxx)</strong> liên tiếp và kiểm tra không trùng lặp trong CSDL, đồng thời cập nhật danh sách chi nhánh hoạt động mới nhất vào file.
           </p>
-          <div style={{ marginLeft: '30px' }}>
-            <button
-              type="button"
-              onClick={handleDownloadTemplate}
-              disabled={isDownloadingTemplate || isImporting}
-              style={{
-                padding: '8px 16px',
-                background: 'rgba(13, 148, 136, 0.10)',
-                border: `1px solid rgba(13, 148, 136, 0.30)`,
-                borderRadius: '6px',
-                color: c.accent,
-                fontWeight: 600,
-                fontSize: '12.5px',
-                cursor: isDownloadingTemplate ? 'default' : 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s',
-              }}
-            >
-              <Icon name="download" size={15} color={c.accent} />
-              {isDownloadingTemplate ? 'Đang tải xuống...' : 'Tải Mau_Import_Nhan_Su.xlsx'}
-            </button>
+
+          <div style={{ marginLeft: '30px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <label style={{ fontSize: '12.5px', fontWeight: 600, color: c.fg, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>Số nhân sự cần khai báo:</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={employeeCount}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    setEmployeeCount(isNaN(val) ? '' : Math.max(1, Math.min(val, 500)));
+                  }}
+                  disabled={isDownloadingTemplate || isImporting}
+                  style={{
+                    width: '80px',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    border: `1px solid ${c.border}`,
+                    background: c.bgElev,
+                    color: c.fg,
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    outline: 'none',
+                  }}
+                />
+              </label>
+
+              {/* Gợi ý số lượng nhanh */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {[5, 10, 20, 50].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setEmployeeCount(preset)}
+                    disabled={isDownloadingTemplate || isImporting}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '11.5px',
+                      borderRadius: '4px',
+                      border: employeeCount === preset ? `1px solid ${c.accent}` : `1px solid ${c.border}`,
+                      background: employeeCount === preset ? `${c.accent}20` : 'transparent',
+                      color: employeeCount === preset ? c.accent : c.fgSubtle,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    +{preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                disabled={isDownloadingTemplate || isImporting || !employeeCount}
+                style={{
+                  padding: '9px 18px',
+                  background: 'rgba(13, 148, 136, 0.12)',
+                  border: `1px solid rgba(13, 148, 136, 0.35)`,
+                  borderRadius: '6px',
+                  color: c.accent,
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  cursor: isDownloadingTemplate ? 'default' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <Icon name="download" size={16} color={c.accent} />
+                {isDownloadingTemplate
+                  ? 'Đang sinh file Excel...'
+                  : `Tạo & Tải File Mẫu (${employeeCount || 0} Nhân Sự)`}
+              </button>
+            </div>
           </div>
         </div>
 
