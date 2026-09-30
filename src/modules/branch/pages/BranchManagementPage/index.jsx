@@ -21,6 +21,7 @@ import BranchTable from '../../components/BranchTable';
 import BranchMapView from '../../components/BranchMapView';
 import BranchFormModal from '../../components/BranchFormModal';
 import BranchLockModal from '../../components/BranchLockModal';
+import UnlockModal from '../../components/UnlockModal';
 import BranchDeleteModal from '../../components/BranchDeleteModal';
 
 /**
@@ -30,7 +31,7 @@ import BranchDeleteModal from '../../components/BranchDeleteModal';
  * PAGE: BranchManagementPage (index.jsx)
  * ==============================================================================
  * Tính năng chính:
- * 1. Thêm / sửa / khóa / xóa chi nhánh toàn hệ thống kèm lý do lưu vết kiểm toán (Audit Log)
+ * 1. Thêm / sửa / khóa / mở khóa / xóa chi nhánh toàn hệ thống kèm lý do lưu vết kiểm toán (Audit Log)
  * 2. Thiết lập tọa độ Point (Latitude / Longitude) & Bán kính Geofence chấm công GPS
  * 3. Tích hợp Bản đồ Leaflet tương tác trực quan hiển thị vị trí toàn chuỗi cơ sở
  */
@@ -43,6 +44,7 @@ export default function BranchManagementPage() {
 
   const {
     branches,
+    allBranches,
     loading,
     stats,
     searchTerm,
@@ -60,14 +62,20 @@ export default function BranchManagementPage() {
     setLockModalOpen,
     lockingBranch,
     setLockingBranch,
+    unlockModalOpen,
+    setUnlockModalOpen,
+    unlockingBranch,
+    setUnlockingBranch,
     deleteModalOpen,
     setDeleteModalOpen,
     deletingBranch,
     setDeletingBranch,
+    isActionInProgress,
     // Handlers
     handleCreateBranch,
     handleUpdateBranch,
-    handleToggleBranchStatus,
+    handleLockSuccess,
+    handleUnlockSuccess,
     handleDeleteBranch,
   } = useBranch();
 
@@ -244,8 +252,14 @@ export default function BranchManagementPage() {
             setFormModalOpen(true);
           }}
           onToggleLock={(branch) => {
-            setLockingBranch(branch);
-            setLockModalOpen(true);
+            const isActive = (branch.status || '').toUpperCase() === 'ACTIVE';
+            if (isActive) {
+              setLockingBranch(branch);
+              setLockModalOpen(true);
+            } else {
+              setUnlockingBranch(branch);
+              setUnlockModalOpen(true);
+            }
           }}
         />
       ) : (
@@ -303,13 +317,28 @@ export default function BranchManagementPage() {
           <BranchTable
             branches={branches}
             loading={loading}
+            isActionInProgress={isActionInProgress}
             onEdit={(branch) => {
               setEditingBranch(branch);
               setFormModalOpen(true);
             }}
-            onToggleLock={(branch) => {
+            onLock={(branch) => {
               setLockingBranch(branch);
               setLockModalOpen(true);
+            }}
+            onUnlock={(branch) => {
+              setUnlockingBranch(branch);
+              setUnlockModalOpen(true);
+            }}
+            onToggleLock={(branch) => {
+              const isActive = (branch.status || '').toUpperCase() === 'ACTIVE';
+              if (isActive) {
+                setLockingBranch(branch);
+                setLockModalOpen(true);
+              } else {
+                setUnlockingBranch(branch);
+                setUnlockModalOpen(true);
+              }
             }}
             onDelete={(branch) => {
               setDeletingBranch(branch);
@@ -349,26 +378,32 @@ export default function BranchManagementPage() {
         }}
       />
 
-      {/* Modal Khóa / Mở khóa chi nhánh có lưu lý do */}
+      {/* Modal Khóa chi nhánh nhiều bước (Luồng Khóa) */}
       <BranchLockModal
         open={lockModalOpen}
         branch={lockingBranch}
+        activeBranches={allBranches || branches}
         onClose={() => {
           setLockModalOpen(false);
           setLockingBranch(null);
         }}
-        onConfirm={async (storeId, nextStatus, reason) => {
-          const res = await handleToggleBranchStatus(storeId, nextStatus, reason);
-          if (res?.success) {
-            toast.success(
-              nextStatus === 'LOCKED' || nextStatus === 'INACTIVE'
-                ? 'Đã khóa chi nhánh thành công!'
-                : 'Đã mở khóa chi nhánh hoạt động trở lại!'
-            );
-          } else {
-            toast.error(res?.error || 'Không thể thay đổi trạng thái chi nhánh');
-          }
-          return res;
+        onSuccess={(lockedBranch) => {
+          toast.success(`Đã khóa chi nhánh "${lockedBranch.name}" thành công!`);
+          handleLockSuccess();
+        }}
+      />
+
+      {/* Modal Mở khóa chi nhánh (Luồng Mở Khóa) */}
+      <UnlockModal
+        open={unlockModalOpen}
+        branch={unlockingBranch}
+        onClose={() => {
+          setUnlockModalOpen(false);
+          setUnlockingBranch(null);
+        }}
+        onSuccess={(unlockedBranch) => {
+          toast.success(`Đã mở khóa chi nhánh "${unlockedBranch.name}" hoạt động trở lại!`);
+          handleUnlockSuccess();
         }}
       />
 

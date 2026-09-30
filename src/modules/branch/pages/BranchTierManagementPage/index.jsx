@@ -49,8 +49,6 @@ export default function BranchTierManagementPage() {
     setSelectedBranch,
     updating,
     handleUpdateTierAndQuota,
-    handleQuickAdjust,
-    refreshData,
   } = useBranchTier();
 
   const totalBranches = tierSummary.totalCount || rawBranches.length || 1;
@@ -171,66 +169,24 @@ export default function BranchTierManagementPage() {
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {/* Inline stepper & quota badge */}
+            {/* Quota badge & staff count */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div
+              <span
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
+                  padding: '2px 8px',
+                  fontSize: '12.5px',
+                  fontWeight: 800,
+                  color: tDef.color,
                   backgroundColor: c.bgRaised,
                   border: `1px solid ${c.border}`,
                   borderRadius: '6px',
-                  overflow: 'hidden',
+                  fontFamily: 'monospace',
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => handleQuickAdjust(row.storeId || row.id, -1)}
-                  style={{
-                    padding: '2px 7px',
-                    border: 'none',
-                    background: 'transparent',
-                    color: c.fg,
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    lineHeight: '18px',
-                  }}
-                  title="Bớt 1 định biên nhân sự"
-                >
-                  −
-                </button>
-                <span
-                  style={{
-                    padding: '2px 8px',
-                    fontSize: '12.5px',
-                    fontWeight: 800,
-                    color: tDef.color,
-                    borderLeft: `1px solid ${c.border}`,
-                    borderRight: `1px solid ${c.border}`,
-                    fontFamily: 'monospace',
-                  }}
-                >
-                  {quota} nv
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleQuickAdjust(row.storeId || row.id, 1)}
-                  style={{
-                    padding: '2px 7px',
-                    border: 'none',
-                    background: 'transparent',
-                    color: c.fg,
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    lineHeight: '18px',
-                  }}
-                  title="Thêm 1 định biên nhân sự"
-                >
-                  +
-                </button>
-              </div>
+                {quota} nv
+              </span>
 
               <span style={{ fontSize: '12px', color: c.fgSubtle }}>
                 Thực tế: <strong style={{ color: isOver ? '#ef4444' : c.fg }}>{currentStaff}</strong>/{quota}
@@ -350,16 +306,10 @@ export default function BranchTierManagementPage() {
         title="Quản Lý Phân Cấp Chi Nhánh"
         subtitle="Chuẩn hóa mô hình quy mô cửa hàng (Tier 1 Flagship, Tier 2 Tiêu Chuẩn, Tier 3 Mini), định biên nhân sự và cấu hình thiết bị trạm Kiosk."
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Button variant="secondary" onClick={refreshData} disabled={loading}>
-              <Icon name="refresh" size={14} />
-              <span>Đồng Bộ Dữ Liệu BE</span>
-            </Button>
-            <Button variant="primary" onClick={() => navigate('/branches')}>
-              <Icon name="pin" size={14} />
-              <span>Quản Lý Chi Nhánh & Kiosk</span>
-            </Button>
-          </div>
+          <Button variant="primary" onClick={() => navigate('/branches')}>
+            <Icon name="pin" size={14} />
+            <span>Quản Lý Chi Nhánh & Kiosk</span>
+          </Button>
         }
       />
 
@@ -431,8 +381,8 @@ export default function BranchTierManagementPage() {
               td.tier === 1
                 ? tierSummary.tier1Count
                 : td.tier === 2
-                ? tierSummary.tier2Count
-                : tierSummary.tier3Count;
+                  ? tierSummary.tier2Count
+                  : tierSummary.tier3Count;
             const percent = totalBranches > 0 ? Math.round(((count || 0) / totalBranches) * 100) : 0;
             const isFilterActive = selectedTierFilter === td.tier;
 
