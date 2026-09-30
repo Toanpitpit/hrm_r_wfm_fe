@@ -17,6 +17,7 @@ export default function EmployeeFormModal({
   roles = [],
   branches = [],
   canManageSystem = false, // True for Admin & Business Owner
+  isBusinessOwner = false,
   isStoreManager = false,
   currentStoreBranchId = null,
   currentStoreBranchName = '',
@@ -57,6 +58,18 @@ export default function EmployeeFormModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+
+  // Xác định quyền Chủ Doanh Nghiệp (Business Owner)
+  const storedUser = (() => {
+    try {
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const currentRole = (storedUser?.role || storedUser?.Role || '').toUpperCase();
+  const effectiveIsBusinessOwner = isBusinessOwner || currentRole === 'BUSINESS_OWNER' || currentRole.includes('OWNER');
 
   // Quản lý Effective Quota của Chi nhánh đang chọn
   const [branchQuota, setBranchQuota] = useState(null);
@@ -972,19 +985,77 @@ export default function EmployeeFormModal({
                   >
                     <span>Reset Mật Khẩu</span>
                   </Button>
+
+                  {/* Nút Xóa Tài Khoản: Bắt buộc đã khóa và đủ thời gian chờ 14 ngày (áp dụng tuyệt đối cho mọi tài khoản) */}
+                  {(() => {
+                    const lockedDate = initialData?.lockedAt ? new Date(initialData.lockedAt) : (initialData?.updatedAt ? new Date(initialData.updatedAt) : null);
+                    const daysPassed = lockedDate ? Math.floor((new Date() - lockedDate) / (1000 * 60 * 60 * 24)) : 0;
+                    const daysRemaining = initialData?.daysUntilDeletable ?? Math.max(0, 14 - daysPassed);
+                    const isDeletable = accountStatus === 'INACTIVE' && daysRemaining === 0;
+
+                    return (
+                      <>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setShowDeleteConfirm(true)}
+                          disabled={!isDeletable}
+                          style={{
+                            fontSize: '12.5px',
+                            fontWeight: 600,
+                            border: `1px solid ${isDeletable ? '#ef4444' : c.border}`,
+                            color: isDeletable ? '#ef4444' : c.fgSubtle,
+                            background: isDeletable ? 'rgba(239, 68, 68, 0.08)' : 'transparent',
+                            cursor: isDeletable ? 'pointer' : 'not-allowed',
+                            opacity: isDeletable ? 1 : 0.5,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            transition: 'all 0.2s',
+                          }}
+                          title={
+                            accountStatus === 'ACTIVE'
+                              ? 'Bạn phải khóa tài khoản trước khi thực hiện xóa'
+                              : !isDeletable
+                                ? `Cần chờ đủ 14 ngày kể từ khi khóa (còn ${daysRemaining} ngày nữa)`
+                                : 'Xóa vĩnh viễn tài khoản khỏi hệ thống và CSDL'
+                          }
+                        >
+
+                          <span>Xóa Vĩnh Viễn</span>
+                        </Button>
+                      </>
+                    );
+                  })()}
                 </div>
 
-                {/* Dòng cảnh báo điều kiện xóa */}
+                {/* Dòng cảnh báo điều kiện xóa & quy định lưu trữ 14 ngày */}
                 <div style={{ fontSize: '11.5px', lineHeight: '1.4' }}>
-                  {accountStatus === 'ACTIVE' ? (
-                    <span style={{ color: '#f87171' }}>
-                      <strong>Điều kiện xóa:</strong> Tài khoản đang hoạt động nên nút Xóa bị vô hiệu hóa. Bạn cần bấm <strong>"Khóa Tài Khoản"</strong> trước khi có thể xóa.
-                    </span>
-                  ) : (
-                    <span style={{ color: '#4ade80' }}>
-                      Tài khoản đã ở trạng thái khóa. Bạn có thể thực hiện xóa tài khoản này nếu cần.
-                    </span>
-                  )}
+                  {(() => {
+                    const lockedDate = initialData?.lockedAt ? new Date(initialData.lockedAt) : (initialData?.updatedAt ? new Date(initialData.updatedAt) : null);
+                    const daysPassed = lockedDate ? Math.floor((new Date() - lockedDate) / (1000 * 60 * 60 * 24)) : 0;
+                    const daysRemaining = initialData?.daysUntilDeletable ?? Math.max(0, 14 - daysPassed);
+
+                    if (accountStatus === 'ACTIVE') {
+                      return (
+                        <span style={{ color: '#f87171' }}>
+                          <strong>Điều kiện xóa:</strong> Tài khoản đang hoạt động nên nút Xóa bị vô hiệu hóa. Bạn cần bấm <strong>"Khóa Tài Khoản"</strong> trước khi có thể xóa.
+                        </span>
+                      );
+                    }
+                    if (daysRemaining > 0) {
+                      return (
+                        <span style={{ color: '#f59e0b' }}>
+                          <strong>Quy định lưu trữ 14 ngày:</strong> Tài khoản đã khóa được {daysPassed} ngày. Theo chính sách đối soát bảng công và tiền lương (bắt buộc áp dụng cho mọi cấp quản lý), tài khoản chỉ có thể xóa vĩnh viễn sau <strong>{daysRemaining} ngày</strong> nữa.
+                        </span>
+                      );
+                    }
+                    return (
+                      <span style={{ color: '#4ade80' }}>
+                        ✅ <strong>Đã đủ điều kiện:</strong> Tài khoản đã khóa đủ 14 ngày theo quy định lưu trữ. Bạn có thể thực hiện xóa vĩnh viễn tài khoản này khỏi hệ thống và CSDL.
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -1398,6 +1469,7 @@ export default function EmployeeFormModal({
               </div>
             </div>
           </div>
+
           <div>Bạn có chắc chắn muốn tiếp tục thực hiện xóa tài khoản này không?</div>
         </div>
       </Modal>

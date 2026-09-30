@@ -9,6 +9,7 @@ import PageHeader from '@/shared/components/ui/PageHeader';
 import Panel from '@/shared/components/ui/Panel';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
+import Modal from '@/shared/components/ui/Modal';
 import StatCard from '@/shared/components/ui/StatCard';
 import { getNavItemsForRole } from '@/shared/constants/navigation.config';
 
@@ -46,6 +47,7 @@ export default function EmployeeManagementPage() {
   const currentBranchName = storedUser?.storeName || storedUser?.branchName || 'Chi nhánh Cầu Giấy';
 
   const canManageSystem = userRole === 'OPERATIONS_ADMIN' || userRole === 'BUSINESS_OWNER' || userRole.includes('ADMIN') || userRole.includes('OWNER');
+  const isBusinessOwner = userRole === 'BUSINESS_OWNER' || userRole.includes('OWNER');
   const isStoreManager = userRole === 'STORE_MANAGER' || userRole.includes('MANAGER') || roleName.toLowerCase().includes('quản lý');
 
   // 2. Dữ liệu trạng thái
@@ -92,6 +94,10 @@ export default function EmployeeManagementPage() {
 
   const [toggleModalOpen, setToggleModalOpen] = useState(false);
   const [toggleEmployee, setToggleEmployee] = useState(null);
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingEmployee, setDeletingEmployee] = useState(null);
+  const [isDeletingDirect, setIsDeletingDirect] = useState(false);
 
   // 3. Tải Danh mục Roles và Branches (GET /api/Users/roles & GET /api/Users/branches)
   useEffect(() => {
@@ -240,6 +246,45 @@ export default function EmployeeManagementPage() {
   const handleOpenToggleModal = (emp) => {
     setToggleEmployee(emp);
     setToggleModalOpen(true);
+  };
+
+  const handleOpenDeleteModal = (emp) => {
+    if (emp.status !== 'INACTIVE') {
+      toast.warning('Tài khoản đang hoạt động. Bạn cần khóa tài khoản trước khi thực hiện xóa.');
+      return;
+    }
+    const lockedDate = emp.lockedAt ? new Date(emp.lockedAt) : (emp.updatedAt ? new Date(emp.updatedAt) : null);
+    const daysPassed = lockedDate ? Math.floor((new Date() - lockedDate) / (1000 * 60 * 60 * 24)) : 0;
+    const daysRemaining = emp.daysUntilDeletable ?? Math.max(0, 14 - daysPassed);
+
+    if (daysRemaining > 0) {
+      toast.warning(`Tài khoản mới bị khóa được ${daysPassed} ngày. Theo chính sách đối soát bảng công và tiền lương (bắt buộc cho mọi cấp quản trị), chỉ được xóa vĩnh viễn sau đủ 14 ngày (còn ${daysRemaining} ngày nữa).`);
+      return;
+    }
+
+    setDeletingEmployee(emp);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDirectDelete = async () => {
+    if (!deletingEmployee?.id) return;
+    setIsDeletingDirect(true);
+    try {
+      const res = await employeeService.deleteEmployee(deletingEmployee.id);
+      if (res.success) {
+        toast.success(res.message || 'Đã xóa hoàn toàn tài khoản khỏi CSDL thành công!');
+        setDeleteModalOpen(false);
+        fetchEmployees();
+        fetchStats();
+        fetchHeadcountData();
+      } else {
+        toast.error(res.message || 'Không thể xóa tài khoản nhân sự.');
+      }
+    } catch (err) {
+      toast.error('Lỗi khi thực hiện xóa tài khoản.');
+    } finally {
+      setIsDeletingDirect(false);
+    }
   };
 
   const handleFormSubmit = async (formData, isEdit) => {
@@ -493,6 +538,7 @@ export default function EmployeeManagementPage() {
             onEdit={handleOpenEditModal}
             onResetPassword={handleOpenResetModal}
             onToggleStatus={handleOpenToggleModal}
+            onDelete={handleOpenDeleteModal}
             canManageSystem={canManageSystem}
           />
         </div>
@@ -513,6 +559,7 @@ export default function EmployeeManagementPage() {
         roles={roles}
         branches={branches}
         canManageSystem={canManageSystem}
+        isBusinessOwner={isBusinessOwner}
         isStoreManager={isStoreManager}
         currentStoreBranchId={currentBranchId}
         currentStoreBranchName={currentBranchName}
@@ -555,6 +602,60 @@ export default function EmployeeManagementPage() {
         employee={toggleEmployee}
         onConfirmToggle={handleConfirmToggleStatus}
       />
+
+      {/* Modal: Xác nhận xóa vĩnh viễn tài khoản (Trực tiếp từ bảng danh sách) */}
+      <Modal
+        open={deleteModalOpen}
+        onClose={() => !isDeletingDirect && setDeleteModalOpen(false)}
+        title="Xác Nhận Xóa Vĩnh Viễn Tài Khoản"
+        sub={`Hành động này sẽ xóa hoàn toàn tài khoản #${deletingEmployee?.id} khỏi hệ thống và CSDL.`}
+        width={480}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', width: '100%' }}>
+            <Button variant="ghost" onClick={() => setDeleteModalOpen(false)} disabled={isDeletingDirect}>
+              Hủy Bỏ
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleConfirmDirectDelete}
+              disabled={isDeletingDirect}
+              style={{ background: '#ef4444', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Icon name="trash" size={14} color="#fff" />
+              <span>{isDeletingDirect ? 'Đang Xóa...' : 'Xác Nhận Xóa'}</span>
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13.5px', color: c.fg }}>
+          <div
+            style={{
+              padding: '12px 14px',
+              borderRadius: '8px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              color: '#fca5a5',
+              display: 'flex',
+              gap: '10px',
+              alignItems: 'flex-start',
+            }}
+          >
+            <Icon name="alert-triangle" size={18} color="#ef4444" />
+            <div>
+              <strong>Cảnh Báo Quan Trọng:</strong> Bạn đang chuẩn bị xóa hoàn toàn nhân sự{' '}
+              <strong style={{ color: '#fff' }}>{deletingEmployee?.fullName}</strong> (Mã NV:{' '}
+              <span style={{ color: '#f2ca50', fontWeight: 600 }}>{deletingEmployee?.employeeCode || `NV-${deletingEmployee?.id}`}</span>).
+              <div style={{ marginTop: '4px', fontSize: '12.5px', color: '#fca5a5' }}>
+                Hệ thống sẽ xóa triệt để hồ sơ người dùng này khỏi cơ sở dữ liệu. Thao tác này không thể hoàn tác.
+              </div>
+            </div>
+          </div>
+
+          <div>Bạn có chắc chắn muốn tiếp tục thực hiện xóa vĩnh viễn tài khoản này không?</div>
+        </div>
+      </Modal>
+
+
     </DashboardShell>
   );
 }
