@@ -19,6 +19,8 @@ import {
   getStoreSwapRequests,
   createSwapRequest,
   reviewSwapRequest,
+  respondToSwapRequest,
+  cancelSwapRequest,
   getColleaguesForSwap,
   getColleagueShifts,
   getEmployeeShifts
@@ -42,7 +44,7 @@ export default function ShiftRequestsPage() {
   const userRole = (storedUser?.role || storedUser?.Role || '').toUpperCase();
   const roleName = (storedUser?.roleName || '').toLowerCase();
   const employeeId = storedUser?.employeeId || storedUser?.EmployeeId || storedUser?.id || storedUser?.Id;
-  const branchId = storedUser?.branchId || storedUser?.homeBranchId || 1;
+  const branchId = storedUser?.storeId || storedUser?.branchId || storedUser?.homeBranchId || 1;
 
   const isStoreManager = [
     'STORE_MANAGER',
@@ -101,6 +103,20 @@ export default function ShiftRequestsPage() {
 
   // My requests state & pagination
   const [myRequests, setMyRequests] = useState([]);
+  const [myTab, setMyTab] = useState('SENT'); // 'SENT' or 'RECEIVED'
+
+  const currentUserId = storedUser?.userId || storedUser?.id || storedUser?.employeeId;
+
+  const sentRequests = useMemo(() => {
+    return myRequests.filter(r => String(r.requesterEmployeeId) === String(currentUserId));
+  }, [myRequests, currentUserId]);
+
+  const receivedRequests = useMemo(() => {
+    return myRequests.filter(r => String(r.targetEmployeeId) === String(currentUserId));
+  }, [myRequests, currentUserId]);
+
+  const receivedPendingCount = receivedRequests.filter(r => r.status === 'PENDING_PEER').length;
+
   const [loadingMyRequests, setLoadingMyRequests] = useState(false);
   const [myPage, setMyPage] = useState(1);
   const [myPageSize, setMyPageSize] = useState(10);
@@ -114,20 +130,22 @@ export default function ShiftRequestsPage() {
   const [reviewPageSize, setReviewPageSize] = useState(10);
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
-  // 1. Fetch upcoming shifts of current user
+  // 1. Fetch upcoming shifts of current user (chỉ lấy ca từ ngày mai trở đi - tuân thủ báo trước ít nhất 1 ngày)
   const fetchMyUpcomingShifts = () => {
     if (!employeeId) return;
     setLoadingShifts(true);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const startDateStr = tomorrow.toISOString().split('T')[0];
     const nextWeek = new Date();
     nextWeek.setDate(nextWeek.getDate() + 14);
     const endDateStr = nextWeek.toISOString().split('T')[0];
 
-    getEmployeeShifts(employeeId, todayStr, endDateStr)
+    getEmployeeShifts(employeeId, startDateStr, endDateStr)
       .then((res) => {
         const list = res?.data || res;
         if (Array.isArray(list)) {
-          setMyUpcomingShifts(list);
+          setMyUpcomingShifts(list.filter((s) => s.workDate >= startDateStr));
         } else {
           setMyUpcomingShifts([]);
         }
@@ -144,7 +162,7 @@ export default function ShiftRequestsPage() {
         if (res?.success && Array.isArray(res.data)) {
           setColleagues(res.data);
         } else {
-          setColleagues([]);
+          setColleagueShifts([]);
         }
       })
       .catch(() => setColleagues([]))
@@ -154,7 +172,7 @@ export default function ShiftRequestsPage() {
   // 3. Fetch colleague shifts when colleague changes (SWAP mode)
   useEffect(() => {
     if (requestType === 'SWAP' && selectedColleagueId) {
-      getColleagueShifts(selectedColleagueId)
+      getColleagueShifts(selectedColleagueId, selectedMyAssignmentId)
         .then((res) => {
           if (res?.success && Array.isArray(res.data)) {
             setColleagueShifts(res.data);
@@ -167,7 +185,7 @@ export default function ShiftRequestsPage() {
       setColleagueShifts([]);
       setSelectedTargetAssignmentId('');
     }
-  }, [requestType, selectedColleagueId]);
+  }, [requestType, selectedColleagueId, selectedMyAssignmentId]);
 
   // Initial loads
   useEffect(() => {
@@ -194,6 +212,43 @@ export default function ShiftRequestsPage() {
       })
       .catch(() => setMyRequests([]))
       .finally(() => setLoadingMyRequests(false));
+  };
+
+  const handlePeerReview = async (swapId, isAccepted) => {
+    try {
+      setActionLoadingId(swapId);
+      const res = await respondToSwapRequest(swapId, isAccepted);
+      if (res?.success) {
+        toast.success(isAccepted ? 'Đã xác nhận đồng ý đổi/nhận ca!' : 'Đã từ chối đơn.');
+        fetchMyRequestsList();
+        if (isStoreManager) fetchStoreRequestsList();
+      } else {
+        toast.error(res?.message || 'Lỗi khi xử lý đơn.');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Đã xảy ra lỗi.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleCancelRequest = async (swapId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn hủy đơn này không?')) return;
+    try {
+      setActionLoadingId(swapId);
+      const res = await cancelSwapRequest(swapId);
+      if (res?.success) {
+        toast.success('Đã hủy đơn thành công!');
+        fetchMyRequestsList();
+        if (isStoreManager) fetchStoreRequestsList();
+      } else {
+        toast.error(res?.message || 'Lỗi khi hủy đơn.');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Đã xảy ra lỗi.');
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
   // 5. Fetch Store Requests
@@ -647,11 +702,15 @@ export default function ShiftRequestsPage() {
                           : '-- Chọn ca trực của đồng nghiệp --'}
                       </option>
                       {Array.isArray(colleagueShifts) &&
-                        colleagueShifts.map((cs) => (
-                          <option key={cs.assignmentId} value={cs.assignmentId} style={{ backgroundColor: c.bgElev, color: c.fg }}>
-                            {cs.workDate} ({cs.shiftName}: {cs.timeRange})
-                          </option>
-                        ))}
+                        colleagueShifts.map((cs) => {
+                          const selectedMyShift = myUpcomingShifts.find((sh) => String(sh.assignmentId) === String(selectedMyAssignmentId));
+                          const isSameDay = selectedMyShift && cs.workDate === selectedMyShift.workDate;
+                          return (
+                            <option key={cs.assignmentId} value={cs.assignmentId} style={{ backgroundColor: c.bgElev, color: c.fg }}>
+                              {cs.workDate} ({cs.shiftName}: {cs.timeRange}){isSameDay ? ' [Đổi cùng ngày]' : ''}
+                            </option>
+                          );
+                        })}
                     </select>
                   </FormField>
                 </div>
@@ -689,19 +748,73 @@ export default function ShiftRequestsPage() {
 
         {/* TAB 2: LỊCH SỬ ĐƠN CỦA TÔI (STAFF) */}
         {activeTab === 'MY_REQUESTS' && canCreateRequest && (
-          <Panel title="Danh Sách Đơn Xin Đổi & Điều Chỉnh Lịch Cá Nhân">
+          <Panel title="Lịch Sử Đơn Đổi / Chuyển Ca Của Tôi">
+            <div style={{ display: 'flex', gap: 8, borderBottom: `1px solid ${c.borderSub}`, paddingBottom: 10, marginBottom: 16 }}>
+              <button
+                type="button"
+                onClick={() => setMyTab('SENT')}
+                style={{
+                  background: myTab === 'SENT' ? c.accent : c.bgCard,
+                  color: myTab === 'SENT' ? c.ink : c.fgSubtle,
+                  border: `1px solid ${myTab === 'SENT' ? c.accent : c.border}`,
+                  padding: '6px 14px',
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Đơn Tôi Đã Gửi
+              </button>
+              <button
+                type="button"
+                onClick={() => setMyTab('RECEIVED')}
+                style={{
+                  background: myTab === 'RECEIVED' ? c.accent : c.bgCard,
+                  color: myTab === 'RECEIVED' ? c.ink : c.fgSubtle,
+                  border: `1px solid ${myTab === 'RECEIVED' ? c.accent : c.border}`,
+                  padding: '6px 14px',
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span>Đơn Cần Tôi Duyệt</span>
+                {receivedPendingCount > 0 && (
+                  <span
+                    style={{
+                      background: myTab === 'RECEIVED' ? c.ink : c.tones.bad,
+                      color: myTab === 'RECEIVED' ? c.accent : c.fg,
+                      fontSize: 10,
+                      padding: '1px 6px',
+                      borderRadius: 10,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {receivedPendingCount}
+                  </span>
+                )}
+              </button>
+            </div>
             {loadingMyRequests ? (
               <div style={{ padding: 40, textAlign: 'center', color: c.fgSubtle, fontSize: 13 }}>
                 Đang tải danh sách đơn...
               </div>
             ) : !Array.isArray(myRequests) || myRequests.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: c.fgSubtle, fontSize: 13 }}>
-                Bạn chưa gửi đơn xin điều chỉnh lịch ca nào.
+              <div style={{ padding: 40, textAlign: 'center', color: c.fgSubtle, fontSize: 13, fontStyle: 'italic' }}>
+                {myTab === 'SENT' ? 'Bạn chưa gửi đơn xin đổi / chuyển ca nào.' : 'Không có đơn nào chờ bạn duyệt.'}
               </div>
             ) : (
               <div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 10 }}>
-                  {myRequests.slice((myPage - 1) * myPageSize, myPage * myPageSize).map((req) => (
+                  {(myTab === 'SENT' ? sentRequests : receivedRequests).slice((myPage - 1) * myPageSize, myPage * myPageSize).map((req) => {
+                    const isMyRequest = String(req.requesterEmployeeId) === String(currentUserId);
+                    const requiresPeerReview = String(req.targetEmployeeId) === String(currentUserId) && req.status === 'PENDING_PEER';
+                    return (
                     <div
                       key={req.swapRequestId}
                       style={{
@@ -766,16 +879,54 @@ export default function ShiftRequestsPage() {
                           <div>{req.reviewedAt ? new Date(req.reviewedAt).toLocaleString('vi-VN') : ''}</div>
                         </div>
                       )}
-                    </div>
-                  ))}
+                        {/* Action buttons */}
+                        <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end', width: '100%' }}>
+                          {requiresPeerReview && (
+                            <>
+                              <Button
+                                variant="primary"
+                                kind="primary"
+                                size="sm"
+                                onClick={() => handlePeerReview(req.swapRequestId, true)}
+                                loading={actionLoadingId === req.swapRequestId}
+                                style={{ background: c.tones.ok, color: '#fff', border: 'none' }}
+                              >
+                                <Icon name="check" size={14} /> Đồng Ý Đổi Ca
+                              </Button>
+                              <Button
+                                variant="primary"
+                                kind="danger"
+                                size="sm"
+                                onClick={() => handlePeerReview(req.swapRequestId, false)}
+                                loading={actionLoadingId === req.swapRequestId}
+                              >
+                                Từ Chối
+                              </Button>
+                            </>
+                          )}
+                          {isMyRequest && (req.status === 'PENDING' || req.status === 'PENDING_PEER') && (
+                            <Button
+                              variant="ghost"
+                              kind="danger"
+                              size="sm"
+                              onClick={() => handleCancelRequest(req.swapRequestId)}
+                              loading={actionLoadingId === req.swapRequestId}
+                            >
+                              Hủy Đơn
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                  );
+                  })}
                 </div>
 
-                {myRequests.length > 0 && (
+                {(myTab === 'SENT' ? sentRequests : receivedRequests).length > 0 && (
                   <div style={{ marginTop: 16 }}>
                     <Pagination
                       page={myPage}
                       pageSize={myPageSize}
-                      totalItems={myRequests.length}
+                      totalItems={(myTab === 'SENT' ? sentRequests : receivedRequests).length}
                       onPageChange={setMyPage}
                       onPageSizeChange={(sz) => {
                         setMyPageSize(sz);

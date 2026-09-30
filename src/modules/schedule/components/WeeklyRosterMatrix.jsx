@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Icon from '@/shared/components/ui/Icon';
 import Badge from '@/shared/components/ui/Badge';
 import ConfirmModal from '@/shared/components/ui/ConfirmModal';
-import { DAY_NAMES_VN, formatVNDate } from '../hooks/useWeeklySchedule';
+import { DAY_NAMES_VN, formatVNDate, formatShiftTemplateName } from '../hooks/useWeeklySchedule';
 
 // Cấu hình hiển thị chuẩn cho 4 ca 6 tiếng bao phủ 24/7 của chuỗi cửa hàng tiện lợi
 const STANDARD_SHIFTS_CONFIG = [
@@ -74,6 +74,97 @@ export default function WeeklyRosterMatrix({
     setConfirmDeleteState({ assignmentId, message });
   };
 
+  // Lọc danh sách mẫu ca chuẩn ĐANG HOẠT ĐỘNG (ACTIVE) do Admin quản lý
+  const activeTemplates = useMemo(() => {
+    if (!templates || templates.length === 0) return [];
+    return templates.filter((t) => t.isActive !== false && t.status !== 'INACTIVE');
+  }, [templates]);
+
+  // Sinh cấu hình hiển thị trực quan (màu sắc, icon, border) theo từng ca
+  const getShiftVisualConfig = (t, index) => {
+    const code = (t.templateCode || t.shiftCode || '').toUpperCase();
+    const name = (t.name || t.shiftName || '').toLowerCase();
+    const isNight = Boolean(t.isOvernight) || code.includes('DEM') || code.includes('NIGHT') || name.includes('đêm');
+    const isMorning = code.includes('SANG') || code.includes('01') || code.includes('MORNING') || name.includes('sáng');
+    const isAfternoon = code.includes('CHIEU') || code.includes('02') || code.includes('AFTERNOON') || name.includes('chiều');
+    const isEvening = code.includes('TOI') || code.includes('03') || code.includes('EVENING') || name.includes('tối');
+
+    let color = '#0284c7';
+    if (isNight) color = '#7c3aed';
+    else if (isMorning) color = '#0284c7';
+    else if (isAfternoon) color = '#d97706';
+    else if (isEvening) color = '#2563eb';
+    else {
+      const palette = ['#059669', '#d97706', '#dc2626', '#4f46e5', '#0891b2', '#e11d48'];
+      color = palette[index % palette.length];
+    }
+
+    return {
+      color,
+      bg: `${color}14`,
+      border: `${color}40`,
+    };
+  };
+
+  // Tạo danh sách ca hiển thị động 100% theo các ca Admin đã kích hoạt
+  const displayShifts = useMemo(() => {
+    if (activeTemplates.length > 0) {
+      const sorted = [...activeTemplates].sort((a, b) => {
+        const codeA = (a.templateCode || a.shiftCode || '').toUpperCase();
+        const codeB = (b.templateCode || b.shiftCode || '').toUpperCase();
+        const numA = (codeA.match(/\d+/) || [])[0];
+        const numB = (codeB.match(/\d+/) || [])[0];
+        if (numA && numB && Number(numA) !== Number(numB)) {
+          return Number(numA) - Number(numB);
+        }
+        const timeA = (a.startTime || '00:00').substring(0, 5);
+        const timeB = (b.startTime || '00:00').substring(0, 5);
+        const [hA, mA] = timeA.split(':').map(Number);
+        const [hB, mB] = timeB.split(':').map(Number);
+        const valA = (hA >= 6 ? hA - 6 : hA + 18) * 60 + (mA || 0);
+        const valB = (hB >= 6 ? hB - 6 : hB + 18) * 60 + (mB || 0);
+        return valA - valB;
+      });
+
+      return sorted.map((t, idx) => {
+        const id = t.id || t.shiftId;
+        const code = t.templateCode || t.shiftCode || `CA_${id}`;
+        const name = formatShiftTemplateName(t.name || t.shiftName || code);
+        const startTime = (t.startTime || '').substring(0, 5);
+        const endTime = (t.endTime || '').substring(0, 5);
+        const time = startTime && endTime ? `${startTime} - ${endTime}` : 'Chưa định giờ';
+
+        let duration = '6 tiếng';
+        if (t.workHours) {
+          duration = `${t.workHours} tiếng`;
+        } else if (startTime && endTime) {
+          const [sh, sm] = startTime.split(':').map(Number);
+          const [eh, em] = endTime.split(':').map(Number);
+          let diffMin = (eh * 60 + em) - (sh * 60 + sm);
+          if (diffMin <= 0 || t.isOvernight) diffMin += 24 * 60;
+          const hours = Math.round((diffMin / 60) * 10) / 10;
+          duration = `${hours} tiếng`;
+        }
+
+        const visual = getShiftVisualConfig(t, idx);
+        return {
+          id,
+          code,
+          name,
+          time,
+          startTime,
+          endTime,
+          duration,
+          isOvernight: Boolean(t.isOvernight),
+          ...visual,
+        };
+      });
+    }
+
+    return STANDARD_SHIFTS_CONFIG;
+  }, [activeTemplates]);
+
+  // Early return SAU tất cả hooks - tránh vi phạm Rules of Hooks
   if (loading) {
     return (
       <div style={{ padding: '60px 0', textAlign: 'center', color: c.fgFaint }}>
@@ -92,23 +183,6 @@ export default function WeeklyRosterMatrix({
       </div>
     );
   }
-
-  // Kết hợp danh sách 4 ca chuẩn từ cấu hình hoặc templates từ backend
-  const displayShifts = STANDARD_SHIFTS_CONFIG.map((cfg) => {
-    const matchedTmpl = templates.find(
-      (t) =>
-        (t.templateCode && t.templateCode.toUpperCase() === cfg.code) ||
-        (t.id && Number(t.id) === cfg.id) ||
-        (t.shiftId && Number(t.shiftId) === cfg.id)
-    );
-    return {
-      ...cfg,
-      id: matchedTmpl ? matchedTmpl.id || matchedTmpl.shiftId : cfg.id,
-      name: matchedTmpl ? matchedTmpl.name : cfg.name,
-      startTime: matchedTmpl ? matchedTmpl.startTime : cfg.time.split(' - ')[0],
-      endTime: matchedTmpl ? matchedTmpl.endTime : cfg.time.split(' - ')[1],
-    };
-  });
 
   return (
     <div
@@ -140,7 +214,7 @@ export default function WeeklyRosterMatrix({
             Bảng Sắp Xếp Lịch Làm Việc Tuần
           </span>
           <span style={{ fontSize: 12, color: c.fgFaint }}>
-            (Chuỗi Cửa Hàng Tiện Lợi 24/7 • 4 Ca × 6 Tiếng)
+            (Chuỗi Cửa Hàng Tiện Lợi • {displayShifts.length} Ca Chuẩn Đang Hoạt Động)
           </span>
         </div>
 
@@ -172,8 +246,7 @@ export default function WeeklyRosterMatrix({
               transition: 'all 0.15s ease',
             }}
           >
-            <span>🏢</span>
-            <span>4 Hàng Ca Chuẩn (Khuyên Dùng)</span>
+            <span>{displayShifts.length} Hàng Ca Chuẩn (Khuyên Dùng)</span>
           </button>
 
           <button
@@ -227,7 +300,7 @@ export default function WeeklyRosterMatrix({
                     borderRight: `2px solid ${c.border}`,
                   }}
                 >
-                  Ca Trực (4 Ca Chuẩn)
+                  Ca Trực ({displayShifts.length} Ca Chuẩn)
                 </th>
 
                 {/* 7 cột cho 7 ngày trong tuần */}
@@ -683,7 +756,7 @@ export default function WeeklyRosterMatrix({
                             >
                               {emp.fullName}
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 3 }}>
                               <span style={{ fontSize: 11, color: c.fgFaint, fontFamily: 'monospace' }}>
                                 {emp.employeeCode}
                               </span>
@@ -699,6 +772,36 @@ export default function WeeklyRosterMatrix({
                               >
                                 {emp.roleName || emp.roleCode}
                               </span>
+                              {emp.isDispatched && (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    padding: '1px 6px',
+                                    borderRadius: 4,
+                                    background: 'rgba(2, 132, 199, 0.15)',
+                                    color: '#0284c7',
+                                    fontWeight: 700,
+                                  }}
+                                  title={`Điều chuyển từ ${emp.originBranchName || 'cơ sở gốc'} (${formatVNDate(emp.dispatchStartDate)} - ${formatVNDate(emp.dispatchEndDate)})`}
+                                >
+                                  ĐIỀU CHUYỂN {emp.dispatchStartDate ? `(từ ${formatVNDate(emp.dispatchStartDate)})` : ''}
+                                </span>
+                              )}
+                              {emp.isDispatchedAway && (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    padding: '1px 6px',
+                                    borderRadius: 4,
+                                    background: 'rgba(217, 119, 6, 0.15)',
+                                    color: '#d97706',
+                                    fontWeight: 700,
+                                  }}
+                                  title={`Điều chuyển sang ${emp.destinationBranchName || 'cơ sở khác'} (${formatVNDate(emp.dispatchAwayStartDate)} - ${formatVNDate(emp.dispatchAwayEndDate)})`}
+                                >
+                                  ĐIỀU CHUYỂN ĐI
+                                </span>
+                              )}
                               <span style={{ fontSize: 10, color: c.accent, fontWeight: 700 }}>
                                 ({totalShiftsInWeek} ca)
                               </span>

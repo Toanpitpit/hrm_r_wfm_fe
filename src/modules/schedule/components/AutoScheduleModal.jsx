@@ -30,7 +30,7 @@ export default function AutoScheduleModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Tự Động Xếp Ca Bằng Google OR-Tools (UC 2.1)"
+      title="Tự Động Xếp Ca Tuần"
     >
       <form onSubmit={handleSubmit}>
         {/* Banner giải thuật */}

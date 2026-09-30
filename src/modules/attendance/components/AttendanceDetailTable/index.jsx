@@ -9,7 +9,27 @@ const formatTime = (dateTimeStr) => {
   return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 };
 
-const renderStatusBadge = (status) => {
+const renderStatusBadge = (status, row) => {
+  if (row?.isLate || status === 'LATE' || row?.checkInStatus === 'LATE') {
+    return (
+      <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 3 }}>
+        <Badge tone="warn" dot>Đi Muộn</Badge>
+        {row?.checkOutStatus === 'EARLY_LEAVE' && (
+          <Badge tone="bad">Về Sớm</Badge>
+        )}
+      </div>
+    );
+  }
+
+  if (row?.checkOutStatus === 'EARLY_LEAVE') {
+    return (
+      <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 3 }}>
+        <Badge tone="ok" dot>Có Mặt</Badge>
+        <Badge tone="bad">Về Sớm</Badge>
+      </div>
+    );
+  }
+
   switch (status) {
     case 'PRESENT':
       return <Badge tone="ok" dot>Có Mặt</Badge>;
@@ -17,6 +37,8 @@ const renderStatusBadge = (status) => {
       return <Badge tone="warn" dot>Chưa Check-out</Badge>;
     case 'ABSENT':
       return <Badge tone="bad" dot>Vắng Mặt</Badge>;
+    case 'CANCELLED':
+      return <Badge tone="neutral" dot>Nghỉ Phép</Badge>;
     case 'NOT_YET':
     default:
       return <Badge tone="neutral" dot>Chưa Đến Giờ</Badge>;
@@ -92,7 +114,7 @@ export const AttendanceDetailTable = ({ details = [] }) => {
     {
       key: 'status',
       label: 'Trạng Thái',
-      render: (row) => renderStatusBadge(row.status),
+      render: (row) => renderStatusBadge(row.status, row),
     },
   ];
 

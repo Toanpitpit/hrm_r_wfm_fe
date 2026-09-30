@@ -5,7 +5,7 @@ import ConfirmModal from '@/shared/components/ui/ConfirmModal';
 import Button from '@/shared/components/ui/Button';
 import FormField from '@/shared/components/ui/FormField';
 import Icon from '@/shared/components/ui/Icon';
-import { formatVNDate } from '../hooks/useWeeklySchedule';
+import { formatVNDate, formatShiftTemplateName } from '../hooks/useWeeklySchedule';
 
 export default function AssignShiftCellModal({
   isOpen,
@@ -19,6 +19,11 @@ export default function AssignShiftCellModal({
   const { c } = useAdminTheme();
 
   const isRoleMode = cellData?.mode === 'ASSIGN_ROLE_TO_SHIFT';
+
+  // Lọc danh sách mẫu ca chuẩn ĐANG HOẠT ĐỘNG
+  const activeTemplates = useMemo(() => {
+    return (templates || []).filter((t) => t.isActive !== false && t.status !== 'INACTIVE');
+  }, [templates]);
 
   // --- State cho Mode 1: ASSIGN_ROLE_TO_SHIFT ---
   const schedule = cellData?.schedule;
@@ -46,11 +51,11 @@ export default function AssignShiftCellModal({
     } else {
       if (currentAssignment) {
         setSelectedShiftId(currentAssignment.shiftTemplateId || '');
-      } else if (templates.length > 0) {
-        setSelectedShiftId(templates[0].shiftId || templates[0].id);
+      } else if (activeTemplates.length > 0) {
+        setSelectedShiftId(activeTemplates[0].shiftId || activeTemplates[0].id);
       }
     }
-  }, [isRoleMode, cellData, currentAssignment, templates]);
+  }, [isRoleMode, cellData, currentAssignment, activeTemplates]);
 
   // Lọc danh sách nhân sự phù hợp cho Mode 1
   const eligibleEmployees = useMemo(() => {
@@ -258,6 +263,15 @@ export default function AssignShiftCellModal({
                     );
                     const isConflict = Boolean(assignedShiftOnDate);
 
+                    // Kiểm tra điều chuyển nhân sự
+                    const isNotYetDispatched = emp.isDispatched && emp.dispatchStartDate && workDate < emp.dispatchStartDate;
+                    const isDispatchExpired = emp.isDispatched && emp.dispatchEndDate && workDate > emp.dispatchEndDate;
+                    const isDispatchedValid = emp.isDispatched && (!emp.dispatchStartDate || workDate >= emp.dispatchStartDate) && (!emp.dispatchEndDate || workDate <= emp.dispatchEndDate);
+                    const isDispatchedAwayOnDate = emp.isDispatchedAway && emp.dispatchAwayStartDate && emp.dispatchAwayEndDate &&
+                      workDate >= emp.dispatchAwayStartDate && workDate <= emp.dispatchAwayEndDate;
+
+                    const isDisabled = isConflict || isPastDate || isNotYetDispatched || isDispatchExpired || isDispatchedAwayOnDate;
+
                     return (
                       <label
                         key={emp.userId}
@@ -269,12 +283,12 @@ export default function AssignShiftCellModal({
                           borderRadius: 8,
                           background: isSelected
                             ? `${c.accentDim}30`
-                            : isConflict
+                            : isDisabled
                             ? `${c.bgElev}40`
                             : c.bgElev,
-                          border: `1px solid ${isSelected ? c.accent : isConflict ? c.borderSub : c.border}`,
-                          cursor: isConflict || isPastDate ? 'not-allowed' : 'pointer',
-                          opacity: isConflict || isPastDate ? 0.65 : 1,
+                          border: `1px solid ${isSelected ? c.accent : isDisabled ? c.borderSub : c.border}`,
+                          cursor: isDisabled ? 'not-allowed' : 'pointer',
+                          opacity: isDisabled ? 0.65 : 1,
                           transition: 'all 0.15s ease',
                         }}
                       >
@@ -284,22 +298,77 @@ export default function AssignShiftCellModal({
                             name="userSelect"
                             value={emp.userId}
                             checked={isSelected}
-                            disabled={isConflict || isPastDate}
+                            disabled={isDisabled}
                             onChange={() => setSelectedUserId(emp.userId)}
                           />
                           <div>
-                            <div style={{ fontWeight: 750, color: isSelected ? c.accent : c.fg, fontSize: 13 }}>
-                              {emp.fullName}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 750, color: isSelected ? c.accent : c.fg, fontSize: 13 }}>
+                              <span>{emp.fullName}</span>
+                              {isDispatchedValid && (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    padding: '1px 6px',
+                                    borderRadius: 4,
+                                    background: 'rgba(2, 132, 199, 0.15)',
+                                    color: '#0284c7',
+                                    fontWeight: 700,
+                                  }}
+                                  title={`Điều chuyển từ ${emp.originBranchName || 'cơ sở gốc'} (${formatVNDate(emp.dispatchStartDate)} - ${formatVNDate(emp.dispatchEndDate)})`}
+                                >
+                                  ĐIỀU CHUYỂN
+                                </span>
+                              )}
                             </div>
                             <div style={{ fontSize: 11, color: c.fgFaint }}>
                               {emp.employeeCode} • {emp.roleName || emp.roleCode}
+                              {emp.originBranchName && ` • Từ ${emp.originBranchName}`}
                             </div>
                           </div>
                         </div>
 
                         {/* Trạng thái ngày của nhân viên */}
                         <div>
-                          {isConflict ? (
+                          {isNotYetDispatched ? (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                background: 'rgba(217, 119, 6, 0.15)',
+                                color: '#d97706',
+                                fontWeight: 700,
+                              }}
+                            >
+                              Chỉ xếp từ {formatVNDate(emp.dispatchStartDate)}
+                            </span>
+                          ) : isDispatchExpired ? (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                background: `${c.tones.bad}20`,
+                                color: c.tones.bad,
+                                fontWeight: 700,
+                              }}
+                            >
+                              Hết hạn ĐC ({formatVNDate(emp.dispatchEndDate)})
+                            </span>
+                          ) : isDispatchedAwayOnDate ? (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                background: `${c.tones.bad}20`,
+                                color: c.tones.bad,
+                                fontWeight: 700,
+                              }}
+                            >
+                              Đã điều chuyển sang {emp.destinationBranchName || 'CS khác'}
+                            </span>
+                          ) : isConflict ? (
                             <span
                               style={{
                                 fontSize: 10,
@@ -442,7 +511,7 @@ export default function AssignShiftCellModal({
         <div style={{ marginBottom: 20 }}>
           <FormField label="Chọn Ca Làm Việc Mới:">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {templates.map((t) => {
+              {activeTemplates.map((t) => {
                 const tId = t.shiftId || t.id;
                 const isSelected = String(selectedShiftId) === String(tId);
 
@@ -472,7 +541,7 @@ export default function AssignShiftCellModal({
                         onChange={() => setSelectedShiftId(tId)}
                       />
                       <span style={{ fontWeight: 750, color: isSelected ? c.accent : c.fg, fontSize: 13 }}>
-                        {t.shiftName || t.name}
+                        {formatShiftTemplateName(t.shiftName || t.name)}
                       </span>
                     </div>
                     <span style={{ fontSize: 12, color: c.fgFaint }}>

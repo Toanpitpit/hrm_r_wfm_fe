@@ -19,6 +19,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ==================== HEADINGS ==================== */
 h1 { font-size: var(--font-size-3xl); font-weight: 700; letter-spacing: -0.5px; }
 h2 { font-size: var(--font-size-2xl); font-weight: 700; letter-spacing: -0.4px; }
 h3 { font-size: var(--font-size-xl); font-weight: 600; letter-spacing: -0.2px; }
@@ -90,4 +91,25 @@ a:hover {
 }
 .custom-table-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.38);
+}
+
+/* ==================== IMPORT ERROR SCROLLBAR ==================== */
+.import-error-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(239, 68, 68, 0.5) rgba(0, 0, 0, 0.04);
+}
+.import-error-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.import-error-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+}
+.import-error-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(239, 68, 68, 0.5);
+  border-radius: 4px;
+}
+.import-error-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(239, 68, 68, 0.8);
 }

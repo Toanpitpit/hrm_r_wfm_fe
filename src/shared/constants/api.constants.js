@@ -22,8 +22,10 @@ export const API_ENDPOINTS = Object.freeze({
     DEACTIVATE: (kioskId) => `/kiosk/${kioskId}`,
   },
   SHIFTS: {
+    ACCESSIBLE_BRANCHES: '/shifts/accessible-branches',
     TEMPLATES: '/shifts/templates',
     WEEKLY_MATRIX: (branchId, weekStartDate) => `/shifts/schedules/weekly-matrix?branchId=${branchId}&weekStartDate=${weekStartDate}`,
+
     GENERATE_WEEKLY: '/shifts/schedules/generate-weekly',
     UPDATE_REQUIREMENT: (scheduleId) => `/shifts/schedules/${scheduleId}/requirements`,
     ASSIGN_FULLTIME_BATCH: '/shifts/assignments/assign-fulltime-batch',
@@ -35,6 +37,8 @@ export const API_ENDPOINTS = Object.freeze({
     AUTO_SCHEDULE: '/shifts/schedules/auto-schedule',
     SWAP_REQUEST: '/shifts/swap-request',
     SWAP_REVIEW: '/shifts/swap-review',
+    SWAP_PEER_REVIEW: '/shifts/swap-peer-review',
+    SWAP_CANCEL: (id) => `/shifts/swap-cancel/${id}`,
     GET_STORE_SWAPS: (storeId) => `/shifts/swap-requests/${storeId}`,
     GET_MY_SWAPS: '/shifts/my-swap-requests',
     GET_COLLEAGUES: (branchId) => `/shifts/colleagues/${branchId}`,

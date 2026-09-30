@@ -4,6 +4,54 @@ export type BranchStatus = 'ACTIVE' | 'LOCKED' | 'INACTIVE';
 export type BranchTier = 1 | 2 | 3;
 export type KioskStatus = 'ACTIVE' | 'LOCKED' | 'INACTIVE' | 'OFFLINE';
 
+export type StaffHandlingMode = 'HOLD' | 'TRANSFER';
+export type FutureShiftHandling = 'CANCEL' | 'TRANSFER' | 'SUSPEND';
+
+/**
+ * Item chi tiết trong blocker khóa chi nhánh
+ */
+export interface LockBlockerItem {
+  id: string | number;
+  name: string;
+}
+
+/**
+ * Điều kiện chặn khóa chi nhánh (Blocker)
+ */
+export interface LockBlocker {
+  code: string;
+  message: string;
+  count: number;
+  items?: LockBlockerItem[];
+}
+
+/**
+ * Phản hồi kiểm tra điều kiện khóa chi nhánh: GET /api/branches/{id}/lock-check
+ */
+export interface BranchLockCheckResponse {
+  canLock: boolean;
+  blockers: LockBlocker[];
+  affectedEmployeeCount: number;
+}
+
+/**
+ * Body yêu cầu khóa chi nhánh: POST /api/branches/{id}/lock
+ */
+export interface BranchLockDto {
+  reason: string;
+  confirmBranchCode: string;
+  staffHandlingMode: StaffHandlingMode;
+  transferToBranchId?: number | null;
+  futureShiftHandling: FutureShiftHandling;
+}
+
+/**
+ * Body yêu cầu mở khóa chi nhánh: POST /api/branches/{id}/unlock
+ */
+export interface BranchUnlockDto {
+  reason?: string;
+}
+
 /**
  * Branch Entity Model
  */
@@ -15,11 +63,15 @@ export interface Branch {
   phone?: string | null;
   status: BranchStatus;
   branchTier?: BranchTier;
+  /** Trần định biên tùy chỉnh. 0 = dùng TierQuota chuẩn (Tier1=30, Tier2=15, Tier3=8) */
+  staffCount?: number;
   kioskAllowedIp?: string | null;
   kioskAllowedBrowser?: string | null;
   kioskCount: number;
   activeKiosks: number;
   lockReason?: string | null;
+  lockedBy?: string | null;
+  lockedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -33,6 +85,8 @@ export interface CreateStoreDto {
   address: string;
   phone?: string | null;
   branchTier?: BranchTier;
+  /** Trần định biên tùy chỉnh. 0 = dùng TierQuota chuẩn */
+  staffCount?: number;
   kioskAllowedIp?: string | null;
   kioskAllowedBrowser?: string | null;
 }
@@ -45,6 +99,8 @@ export interface UpdateStoreDto {
   address: string;
   phone?: string | null;
   branchTier?: BranchTier;
+  /** Trần định biên tùy chỉnh. 0 = dùng TierQuota chuẩn */
+  staffCount?: number;
   kioskAllowedIp?: string | null;
   kioskAllowedBrowser?: string | null;
   status?: BranchStatus;
@@ -105,6 +161,32 @@ export interface BranchStats {
   lockedBranches: number;
   totalKiosks: number;
   onlineKiosks: number;
+}
+
+/**
+ * Effective Quota Status DTO
+ * Trả về từ GET /v1/headcount-requests/branch/{id}/status
+ * Công thức: EffectiveQuota = StaffCount > 0 ? StaffCount : TierQuota
+ */
+export interface BranchHeadcountStatusDto {
+  branchId: number;
+  branchTier: BranchTier;
+  /** Định biên chuẩn theo Tier (Tier1=30, Tier2=15, Tier3=8) */
+  standardQuota: number;
+  /** Định biên tùy chỉnh trên chi nhánh. 0 = chưa thiết lập */
+  staffCount: number;
+  /** Định biên hiệu dụng = StaffCount > 0 ? StaffCount : StandardQuota */
+  effectiveQuota: number;
+  /** Tổng nhân sự đang hoạt động */
+  currentHeadcount: number;
+  /** Nhân sự không hoạt động (tự động bù dôi dư quota) */
+  inactiveCount: number;
+  /** Slot khả dụng = EffectiveQuota - CurrentHeadcount */
+  availableQuotaSlots: number;
+  /** true khi currentHeadcount >= effectiveQuota */
+  isQuotaReached: boolean;
+  /** true khi còn slot để tạo trực tiếp */
+  canCreateDirectly: boolean;
 }
 
 export type BranchApiResponse<T> = ApiResponse<T>;

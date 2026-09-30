@@ -2,7 +2,17 @@ import { useState, useEffect } from 'react';
 import { attendanceService } from '../services/attendance.service';
 import { ATTENDANCE_MESSAGES } from '@/shared/constants/message.constants';
 
-export const useLiveRoster = (storeId = 1) => {
+export const useLiveRoster = (initialStoreId = null) => {
+  const storedUser = (() => {
+    try {
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const storeId = initialStoreId || storedUser?.storeId || storedUser?.homeBranchId || storedUser?.branchId || 1;
+
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -14,6 +24,7 @@ export const useLiveRoster = (storeId = 1) => {
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchRoster = async () => {
+    if (!storeId) return;
     setLoading(true);
     setErrorMsg('');
     try {

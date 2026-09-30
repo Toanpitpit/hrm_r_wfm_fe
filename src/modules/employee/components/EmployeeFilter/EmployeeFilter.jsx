@@ -28,12 +28,16 @@ export default function EmployeeFilter({
     (r) => !excludedRoleCodes.includes(r.roleCode)
   );
 
+  const excludedRoles = ['BUSINESS_OWNER', 'OPERATIONS_ADMIN', 'STORE_MANAGER'];
+
   const roleOptions = [
     { value: '', label: 'Tất cả vai trò' },
-    ...filteredRoles.map((r) => ({
-      value: r.roleCode || String(r.id),
-      label: `${r.roleName} (${r.roleCode})`,
-    })),
+    ...roles
+      .filter((r) => !excludedRoles.includes(r.roleCode)) // Lọc bỏ 3 vai trò này
+      .map((r) => ({
+        value: r.roleCode || String(r.id),
+        label: `${r.roleName} (${r.roleCode})`,
+      })),
   ];
 
   const branchOptions = [
@@ -128,8 +132,9 @@ export default function EmployeeFilter({
       </div>
 
       {/* Lọc theo Vai Trò */}
-      <div style={{ flex: '0 1 180px', minWidth: '150px' }}>
+      <div style={{ flex: '0 0 auto', minWidth: '180px' }}>
         <Select
+          width="100%"
           value={roleFilter}
           onChange={onRoleFilterChange}
           options={roleOptions}
@@ -139,8 +144,9 @@ export default function EmployeeFilter({
 
       {/* Lọc theo Chi Nhánh (Chỉ hiển thị cho Admin/Owner, Store Manager bị khóa cứng) */}
       {!isStoreManager && (
-        <div style={{ flex: '0 1 200px', minWidth: '160px' }}>
+        <div style={{ flex: '0 0 auto', minWidth: '200px' }}>
           <Select
+            width="100%"
             value={branchFilter}
             onChange={onBranchFilterChange}
             options={branchOptions}
@@ -150,8 +156,9 @@ export default function EmployeeFilter({
       )}
 
       {/* Lọc theo Hình thức HĐ */}
-      <div style={{ flex: '0 1 180px', minWidth: '150px' }}>
+      <div style={{ flex: '0 0 auto', minWidth: '240px' }}>
         <Select
+          width="100%"
           value={contractTypeFilter}
           onChange={onContractTypeFilterChange}
           options={contractOptions}
@@ -160,8 +167,9 @@ export default function EmployeeFilter({
       </div>
 
       {/* Lọc theo Trạng Thái */}
-      <div style={{ flex: '0 1 150px', minWidth: '130px' }}>
+      <div style={{ flex: '0 0 auto', minWidth: '175px' }}>
         <Select
+          width="100%"
           value={statusFilter}
           onChange={onStatusFilterChange}
           options={statusOptions}

@@ -24,7 +24,7 @@ export default function PublishScheduleModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Rà Soát Xung Đột & Công Bố Lịch Tuần (UC 2.3)"
+      title="Rà Soát Xung Đột & Công Bố Lịch Tuần"
     >
       <div>
         {/* Banner tóm tắt trạng thái */}

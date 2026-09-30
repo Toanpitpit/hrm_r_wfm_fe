@@ -35,39 +35,10 @@ export default function EmployeeDetailModal({
       sub={`Thông tin định danh và phân bổ chi nhánh của tài khoản #${employee.id}`}
       width={560}
       footer={
-        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {canManageSystem && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  onClose();
-                  onResetPassword(employee);
-                }}
-                style={{ color: '#f2ca50', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Icon name="lock" size={14} />
-                <span>Reset Mật Khẩu</span>
-              </Button>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <Button variant="ghost" onClick={onClose}>
-              Đóng
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                onClose();
-                onEdit(employee);
-              }}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Icon name="edit" size={14} />
-              <span>Chỉnh Sửa Hồ Sơ</span>
-            </Button>
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+          <Button variant="ghost" onClick={onClose}>
+            Đóng
+          </Button>
         </div>
       }
     >
@@ -159,7 +130,7 @@ export default function EmployeeDetailModal({
 
           <div>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: c.fgSubtle, fontWeight: 700 }}>
-              Hòm Thư Điện Tử (Email)
+              Email
             </div>
             <div style={{ fontSize: '14px', color: c.fg, marginTop: '4px', fontWeight: 500 }}>
               {employee.email || 'Chưa cập nhật'}
@@ -168,7 +139,7 @@ export default function EmployeeDetailModal({
 
           <div>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: c.fgSubtle, fontWeight: 700 }}>
-              Chi Nhánh Công Tác (Home Branch)
+              Chi Nhánh Công Tác
             </div>
             <div style={{ fontSize: '14px', color: c.fg, marginTop: '4px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Icon name="pin" size={14} color={c.accent} />
@@ -181,7 +152,7 @@ export default function EmployeeDetailModal({
               Hình Thức Hợp Đồng
             </div>
             <div style={{ fontSize: '14px', color: '#f2ca50', marginTop: '4px', fontWeight: 500 }}>
-              {CONTRACT_TYPE_MAP[employee.contractType] || employee.contractType || 'Toàn thời gian'}
+              {CONTRACT_TYPE_MAP[employee.contractType || employee.employmentType] || employee.contractType || employee.employmentType || 'Toàn thời gian'}
             </div>
           </div>
 
@@ -217,7 +188,7 @@ export default function EmployeeDetailModal({
             borderLeft: `3px solid ${c.accent}`,
           }}
         >
-          <strong>Lưu ý Phân Quyền RBAC:</strong> Hồ sơ nhân sự này thuộc phạm vi quản lý của {employee.branchName || 'Chi nhánh'}. Mọi thao tác khai báo, chỉnh sửa hợp đồng hoặc đổi trạng thái đều được ghi nhận vào `SystemAuditLog`.
+          <strong>Lưu ý Phân Quyền</strong> Hồ sơ nhân sự này thuộc phạm vi quản lý của {employee.branchName || 'Chi nhánh'}. Mọi thao tác khai báo, chỉnh sửa hợp đồng hoặc đổi trạng thái đều được ghi nhận vào `SystemAuditLog`.
         </div>
       </div>
     </Modal>

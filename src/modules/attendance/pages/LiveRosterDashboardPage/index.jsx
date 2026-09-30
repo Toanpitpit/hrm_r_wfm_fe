@@ -13,7 +13,7 @@ import DataTable from '@/shared/components/ui/DataTable';
 import { getNavItemsForRole } from '@/shared/constants/navigation.config';
 import { useLiveRoster } from '../../hooks/useLiveRoster';
 
-export const LiveRosterDashboardPage = ({ storeId = 1 }) => {
+export const LiveRosterDashboardPage = ({ storeId = null }) => {
   const { c, fonts } = useAdminTheme();
   const navigate = useNavigate();
 
@@ -26,6 +26,7 @@ export const LiveRosterDashboardPage = ({ storeId = 1 }) => {
     }
   })();
 
+  const effectiveStoreId = storeId || storedUser?.storeId || storedUser?.homeBranchId || storedUser?.branchId || 1;
   const userRole = (storedUser?.role || storedUser?.Role || 'STORE_MANAGER').toUpperCase();
   const roleName = storedUser?.roleName || 'Cửa Hàng Trưởng';
   const navItems = getNavItemsForRole(userRole);
@@ -55,7 +56,7 @@ export const LiveRosterDashboardPage = ({ storeId = 1 }) => {
     fetchRoster,
     handleFlagFraudSubmit,
     handleResolveFraud,
-  } = useLiveRoster(storeId);
+  } = useLiveRoster(effectiveStoreId);
 
   const renderStatusBadge = (status) => {
     switch (status) {

@@ -93,7 +93,7 @@ export default function KioskCodePage() {
     { id: 'kiosk-list', label: 'Danh Sách Trạm Kiosk', icon: 'screen', onClick: () => toast.info('Tính năng Danh sách trạm Kiosk đang được phát triển.') },
     { id: 'attendance', label: 'Điểm Danh Chi Nhánh', icon: 'pulse', onClick: () => toast.info('Tính năng Điểm danh chi nhánh đang được phát triển.') },
     { type: 'group', label: 'Nhân sự & Lịch Ca Chi Nhánh' },
-    { id: 'weekly-schedules', label: 'Quản lý Lịch Ca (UC 2.1 & 2.3)', icon: 'calendar', path: '/store-manager/schedules' },
+    { id: 'weekly-schedules', label: 'Quản lý Lịch Ca', icon: 'calendar', path: '/store-manager/schedules' },
     { id: 'store-employees', label: 'Nhân sự Chi Nhánh', icon: 'users', onClick: () => toast.info('Tính năng Quản lý nhân sự chi nhánh đang được phát triển.') },
   ];
 

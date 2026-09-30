@@ -21,18 +21,34 @@ const dispatchService = {
    * @returns {Promise<Object>} ApiResponse<DispatchRecordDto>
    */
   createDispatchRequest: async (data) => {
-    const response = await axiosInstance.post('/Dispatch/request', data);
+    const empIds = Array.isArray(data.employeeIds)
+      ? data.employeeIds.map(Number)
+      : data.employeeId ? [Number(data.employeeId)] : [];
+    const payload = {
+      ...data,
+      employeeIds: empIds,
+      employeeId: empIds.length > 0 ? empIds[0] : (data.employeeId ? Number(data.employeeId) : undefined),
+    };
+    const response = await axiosInstance.post('/Dispatch/request', payload);
     return response.data;
   },
 
   /**
    * Chỉnh sửa phiếu đề nghị chi viện nhân sự khi còn chờ duyệt (PENDING)
    * @param {number|string} id - DispatchId
-   * @param {Object} data - { employeeId, fromStoreId, toStoreId, startDate, endDate, reason }
+   * @param {Object} data - { employeeIds, employeeId, fromStoreId, toStoreId, startDate, endDate, reason }
    * @returns {Promise<Object>} ApiResponse<DispatchRecordDto>
    */
   updateDispatchRequest: async (id, data) => {
-    const response = await axiosInstance.put(`/Dispatch/request/${id}`, data);
+    const empIds = Array.isArray(data.employeeIds)
+      ? data.employeeIds.map(Number)
+      : data.employeeId ? [Number(data.employeeId)] : [];
+    const payload = {
+      ...data,
+      employeeIds: empIds,
+      employeeId: empIds.length > 0 ? empIds[0] : (data.employeeId ? Number(data.employeeId) : undefined),
+    };
+    const response = await axiosInstance.put(`/Dispatch/request/${id}`, payload);
     return response.data;
   },
 
@@ -109,11 +125,12 @@ const dispatchService = {
    * @returns {Promise<Array>} Danh sách nhân viên
    */
   getEmployeesByBranch: async (branchId) => {
+    if (!branchId) return [];
     // Tiêu chí kiểm tra để loại trừ Cửa hàng trưởng khỏi diện điều động
     const isStoreManager = (emp) => {
       const pos = String(emp.positionName || emp.roleName || '').toLowerCase();
       const code = String(emp.employeeCode || '').toUpperCase();
-      const role = String(emp.role || '').toUpperCase();
+      const role = String(emp.role || emp.roleCode || '').toUpperCase();
       return (
         code.startsWith('MGR') ||
         role === 'STORE_MANAGER' ||
@@ -123,36 +140,30 @@ const dispatchService = {
     };
 
     try {
-      // Sử dụng endpoint tra cứu nhân sự theo chi nhánh hỗ trợ cross-branch
-      const response = await axiosInstance.get('/kiosk/attendance/search-employees', {
+      // 1. Gọi endpoint chuyên biệt cho điều động nhân sự liên chi nhánh
+      const response = await axiosInstance.get(`/Dispatch/branch-employees/${branchId}`, {
         params: { storeId: Number(branchId) }
       });
-      if (response.data?.success && Array.isArray(response.data.data)) {
-        const mapped = response.data.data.map((emp) => ({
-          id: emp.employeeId,
-          userId: emp.employeeId,
-          employeeCode: emp.employeeCode,
-          fullName: emp.fullName,
-          roleName: emp.positionName || 'Nhân viên',
-          positionName: emp.positionName || 'Nhân viên',
-        }));
-        return mapped.filter((emp) => !isStoreManager(emp));
+      const data = response.data?.data || response.data;
+      if (Array.isArray(data)) {
+        return data.filter((emp) => !isStoreManager(emp));
       }
-      return [];
     } catch (err) {
-      console.error('Lỗi khi lấy danh sách nhân viên chi nhánh qua search-employees, thử fallback:', err);
+      console.warn('Endpoint /Dispatch/branch-employees fallback sang alias /kiosk/attendance/search-employees:', err.message);
       try {
-        const fbRes = await axiosInstance.get('/Users/employees', {
-          params: { branchId: Number(branchId), status: 'ACTIVE' }
+        // 2. Alias tương thích ngược
+        const altRes = await axiosInstance.get('/kiosk/attendance/search-employees', {
+          params: { storeId: Number(branchId) }
         });
-        if (fbRes.data?.success && Array.isArray(fbRes.data.data)) {
-          return fbRes.data.data.filter((emp) => !isStoreManager(emp));
+        const altData = altRes.data?.data || altRes.data;
+        if (Array.isArray(altData)) {
+          return altData.filter((emp) => !isStoreManager(emp));
         }
       } catch (e) {
-        console.error('Lỗi fallback lấy danh sách nhân viên:', e);
+        console.error('Lỗi khi tải danh sách nhân sự chi nhánh chi viện:', e.message);
       }
-      return [];
     }
+    return [];
   },
 };
 

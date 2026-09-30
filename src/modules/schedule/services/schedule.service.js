@@ -14,6 +14,15 @@ export const getShiftTemplates = async () => {
 };
 
 /**
+ * Lấy danh sách cơ sở chi nhánh mà tài khoản được quyền lập lịch ca tuần (Branch Isolation).
+ */
+export const getAccessibleBranches = async () => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.ACCESSIBLE_BRANCHES);
+  return response.data;
+};
+
+
+/**
  * Lấy ma trận phân bổ ca tuần (7 ngày).
  * @param {number|string} branchId 
  * @param {string} weekStartDate (YYYY-MM-DD)
@@ -104,6 +113,25 @@ export const reviewSwapRequest = async (payload) => {
 };
 
 /**
+ * Đồng nghiệp phản hồi (Đồng ý / Từ chối) đơn xin đổi ca / cho ca.
+ */
+export const respondToSwapRequest = async (swapRequestId, isAccepted) => {
+  const response = await axiosInstance.post(API_ENDPOINTS.SHIFTS.SWAP_PEER_REVIEW, {
+    swapRequestId: Number(swapRequestId),
+    isAccepted: Boolean(isAccepted),
+  });
+  return response.data;
+};
+
+/**
+ * Nhân viên hủy đơn xin chuyển/đổi ca của chính mình.
+ */
+export const cancelSwapRequest = async (swapRequestId) => {
+  const response = await axiosInstance.post(API_ENDPOINTS.SHIFTS.SWAP_CANCEL(swapRequestId));
+  return response.data;
+};
+
+/**
  * Lấy danh sách các đơn đổi/chuyển ca của cửa hàng cho Quản lý duyệt.
  */
 export const getStoreSwapRequests = async (storeId) => {
@@ -130,8 +158,12 @@ export const getColleaguesForSwap = async (branchId) => {
 /**
  * Lấy danh sách các ca làm việc tương lai của đồng nghiệp để chọn đổi.
  */
-export const getColleagueShifts = async (colleagueEmployeeId) => {
-  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_COLLEAGUE_SHIFTS(colleagueEmployeeId));
+export const getColleagueShifts = async (colleagueEmployeeId, requestingAssignmentId = null) => {
+  const params = {};
+  if (requestingAssignmentId) {
+    params.requestingAssignmentId = requestingAssignmentId;
+  }
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_COLLEAGUE_SHIFTS(colleagueEmployeeId), { params });
   return response.data;
 };
 
@@ -152,8 +184,10 @@ export const getEmployeeShifts = async (employeeId, startDate, endDate) => {
 };
 
 export default {
+  getAccessibleBranches,
   getShiftTemplates,
   getWeeklyScheduleMatrix,
+
   generateWeeklySchedule,
   updateScheduleRequirement,
   assignFullTimeBatch,
@@ -164,6 +198,8 @@ export default {
   autoScheduleWeekly,
   createSwapRequest,
   reviewSwapRequest,
+  respondToSwapRequest,
+  cancelSwapRequest,
   getStoreSwapRequests,
   getMySwapRequests,
   getColleaguesForSwap,

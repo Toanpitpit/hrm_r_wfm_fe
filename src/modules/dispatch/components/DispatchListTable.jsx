@@ -29,6 +29,8 @@ export default function DispatchListTable({
     switch (status) {
       case 'APPROVED':
         return <Badge tone="active" dot>Đã phê duyệt</Badge>;
+      case 'PARTIAL':
+        return <Badge tone="info" dot>Duyệt một phần</Badge>;
       case 'REJECTED':
         return <Badge tone="bad" dot>Đã từ chối</Badge>;
       case 'PENDING':
@@ -121,12 +123,62 @@ export default function DispatchListTable({
 
                 {/* Nhân sự */}
                 <td style={tdStyle(c)}>
-                  <div style={{ fontWeight: 600, color: c.fg, fontSize: 13.5 }}>
-                    {item.employeeName}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: c.fgFaint, marginTop: 2 }}>
-                    {item.employeeCode} {item.positionName ? `• ${item.positionName}` : ''}
-                  </div>
+                  {item.employees && item.employees.length > 1 ? (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontWeight: 700, color: c.fg, fontSize: 13.5 }}>
+                          {item.employees.length} nhân sự
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 10.5,
+                            padding: '1px 6px',
+                            background: 'rgba(212, 175, 55, 0.15)',
+                            color: c.accent,
+                            borderRadius: 4,
+                            fontWeight: 600,
+                          }}
+                        >
+                          Đoàn điều động
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4, maxWidth: 260 }}>
+                        {item.employees.map((emp) => {
+                          const isAppr = emp.status === 'APPROVED';
+                          const isRej = emp.status === 'REJECTED';
+                          const dotColor = isAppr ? '#10b981' : isRej ? '#ef4444' : '#f59e0b';
+                          return (
+                            <span
+                              key={emp.employeeId || emp.id}
+                              style={{
+                                fontSize: 11,
+                                background: c.bgElev,
+                                border: `1px solid ${c.borderSub}`,
+                                borderRadius: 4,
+                                padding: '1px 6px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                              title={`${emp.employeeName} (${emp.positionName || 'Nhân viên'}) - ${emp.status || 'Chờ duyệt'}`}
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor }} />
+                              {emp.employeeName}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontWeight: 600, color: c.fg, fontSize: 13.5 }}>
+                        {item.employeeName}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: c.fgFaint, marginTop: 2 }}>
+                        {item.employeeCode} {item.positionName ? `• ${item.positionName}` : ''}
+                      </div>
+                    </div>
+                  )}
                 </td>
 
                 {/* Tuyến chi viện */}
@@ -199,15 +251,6 @@ export default function DispatchListTable({
                 {/* Thao tác */}
                 <td style={{ ...tdStyle(c), textAlign: 'right' }}>
                   <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                    {canReview && onReview && (
-                      <Button
-                        size="sm"
-                        kind="primary"
-                        onClick={() => onReview(item)}
-                      >
-                        Xét Duyệt
-                      </Button>
-                    )}
                     {canModify && onEdit && (
                       <Button
                         size="sm"

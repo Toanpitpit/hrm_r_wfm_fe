@@ -25,8 +25,13 @@ export function useBranch() {
   const [lockModalOpen, setLockModalOpen] = useState(false);
   const [lockingBranch, setLockingBranch] = useState(null);
 
+  const [unlockModalOpen, setUnlockModalOpen] = useState(false);
+  const [unlockingBranch, setUnlockingBranch] = useState(null);
+
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingBranch, setDeletingBranch] = useState(null);
+
+  const [isActionInProgress, setIsActionInProgress] = useState(false);
 
   // Tải danh sách chi nhánh
   const fetchData = useCallback(async () => {
@@ -85,18 +90,22 @@ export function useBranch() {
   // Thao tác Tạo mới chi nhánh
   const handleCreateBranch = async (formData) => {
     try {
+      setIsActionInProgress(true);
       await branchService.createBranch(formData);
       await fetchData();
       setFormModalOpen(false);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
+    } finally {
+      setIsActionInProgress(false);
     }
   };
 
   // Thao tác Cập nhật chi nhánh
   const handleUpdateBranch = async (storeId, formData) => {
     try {
+      setIsActionInProgress(true);
       await branchService.updateBranch(storeId, formData);
       await fetchData();
       setFormModalOpen(false);
@@ -104,25 +113,57 @@ export function useBranch() {
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
+    } finally {
+      setIsActionInProgress(false);
     }
   };
 
-  // Thao tác Khóa / Mở khóa chi nhánh có lưu lý do
+  // Thao tác Khóa / Mở khóa chi nhánh có lưu lý do (tương thích ngược)
   const handleToggleBranchStatus = async (storeId, nextStatus, reason) => {
     try {
+      setIsActionInProgress(true);
       await branchService.updateBranchStatus(storeId, nextStatus, reason);
       await fetchData();
       setLockModalOpen(false);
       setLockingBranch(null);
+      setUnlockModalOpen(false);
+      setUnlockingBranch(null);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
+    } finally {
+      setIsActionInProgress(false);
+    }
+  };
+
+  // Callback sau khi hoàn thành khóa chi nhánh
+  const handleLockSuccess = async () => {
+    setIsActionInProgress(true);
+    try {
+      await fetchData();
+      setLockModalOpen(false);
+      setLockingBranch(null);
+    } finally {
+      setIsActionInProgress(false);
+    }
+  };
+
+  // Callback sau khi hoàn thành mở khóa chi nhánh
+  const handleUnlockSuccess = async () => {
+    setIsActionInProgress(true);
+    try {
+      await fetchData();
+      setUnlockModalOpen(false);
+      setUnlockingBranch(null);
+    } finally {
+      setIsActionInProgress(false);
     }
   };
 
   // Thao tác Xóa chi nhánh
   const handleDeleteBranch = async (storeId) => {
     try {
+      setIsActionInProgress(true);
       await branchService.deleteBranch(storeId);
       await fetchData();
       setDeleteModalOpen(false);
@@ -130,6 +171,8 @@ export function useBranch() {
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
+    } finally {
+      setIsActionInProgress(false);
     }
   };
 
@@ -154,15 +197,23 @@ export function useBranch() {
     setLockModalOpen,
     lockingBranch,
     setLockingBranch,
+    unlockModalOpen,
+    setUnlockModalOpen,
+    unlockingBranch,
+    setUnlockingBranch,
     deleteModalOpen,
     setDeleteModalOpen,
     deletingBranch,
     setDeletingBranch,
+    isActionInProgress,
+    setIsActionInProgress,
     // Handlers
     refresh: fetchData,
     handleCreateBranch,
     handleUpdateBranch,
     handleToggleBranchStatus,
+    handleLockSuccess,
+    handleUnlockSuccess,
     handleDeleteBranch,
   };
 }

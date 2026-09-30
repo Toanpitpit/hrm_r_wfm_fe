@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import DataTable from '@/shared/components/ui/DataTable';
 import Badge from '@/shared/components/ui/Badge';
@@ -6,19 +6,167 @@ import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
 
 /**
+ * Tooltip hiển thị chi tiết thông tin khóa của chi nhánh khi hover vào Badge "Tạm khóa"
+ */
+function LockedStatusBadge({ branch, c }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  const reason = branch.lockReason || 'Không có ghi chú lý do';
+  const lockedBy = branch.lockedBy || 'Quản trị viên hệ thống';
+  const lockedAt = branch.lockedAt || branch.updatedAt;
+
+  const formattedTime = lockedAt
+    ? `${new Date(lockedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ${new Date(lockedAt).toLocaleDateString('vi-VN')}`
+    : 'Chưa ghi nhận thời gian';
+
+  return (
+    <div
+      style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <Badge tone="bad">
+        <span
+          style={{
+            display: 'inline-block',
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: '#ef4444',
+            marginRight: '6px',
+          }}
+        />
+        <span>Tạm khóa</span>
+        <span style={{ marginLeft: '4px', opacity: 0.85, display: 'inline-flex', alignItems: 'center' }}>
+          <Icon name="info" size={11} color="#ef4444" />
+        </span>
+      </Badge>
+
+      {showTooltip && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 'calc(100% + 8px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100,
+            width: '270px',
+            padding: '10px 12px',
+            borderRadius: '8px',
+            backgroundColor: c.bgCard,
+            border: `1px solid ${c.border}`,
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+            fontSize: '12px',
+            color: c.fg,
+            pointerEvents: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+            lineHeight: 1.4,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: '#ef4444',
+              fontWeight: 700,
+              borderBottom: `1px solid ${c.border}`,
+              paddingBottom: '4px',
+            }}
+          >
+            <Icon name="lock" size={13} color="#ef4444" />
+            <span>Thông tin khóa chi nhánh</span>
+          </div>
+
+          <div>
+            <span style={{ color: c.fgSubtle, fontSize: '11px', display: 'block' }}>Lý do khóa:</span>
+            <span style={{ fontWeight: 500, color: c.fg }}>{reason}</span>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1.1fr 1fr',
+              gap: '6px',
+              marginTop: '2px',
+              borderTop: `1px solid ${c.border}`,
+              paddingTop: '6px',
+              fontSize: '11px',
+            }}
+          >
+            <div>
+              <span style={{ color: c.fgSubtle, display: 'block' }}>Người khóa:</span>
+              <span style={{ fontWeight: 600, color: c.accent }}>{lockedBy}</span>
+            </div>
+            <div>
+              <span style={{ color: c.fgSubtle, display: 'block' }}>Thời gian:</span>
+              <span style={{ fontWeight: 600, color: c.fg }}>{formattedTime}</span>
+            </div>
+          </div>
+
+          {/* Mũi tên tooltip */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 0,
+              height: 0,
+              borderLeft: '6px solid transparent',
+              borderRight: '6px solid transparent',
+              borderTop: `6px solid ${c.border}`,
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * ==============================================================================
  * COMPONENT: BranchTable.jsx
- * UC 1.2: Danh sách chi nhánh, phân trang & thanh cuộn dọc
+ * Danh sách chi nhánh & phân trang
  * ==============================================================================
  */
 export default function BranchTable({
   branches = [],
   loading = false,
+  isActionInProgress = false,
   onEdit,
+  onLock,
+  onUnlock,
   onToggleLock,
   onDelete,
 }) {
   const { c } = useAdminTheme();
+
+  // Kiểm tra quyền branch.lock của người dùng hiện tại
+  const hasLockPermission = (() => {
+    try {
+      const raw = localStorage.getItem('user');
+      if (!raw) return true;
+      const user = JSON.parse(raw);
+      const role = (user.role || user.Role || '').toUpperCase();
+      if (
+        role === 'OPERATIONS_ADMIN' ||
+        role === 'ADMIN' ||
+        role.includes('ADMIN') ||
+        role === 'SUPER_ADMIN'
+      ) {
+        return true;
+      }
+      if (Array.isArray(user.permissions)) {
+        return user.permissions.includes('branch.lock');
+      }
+      return true;
+    } catch {
+      return true;
+    }
+  })();
 
   const columns = [
     {
@@ -149,24 +297,29 @@ export default function BranchTable({
     {
       key: 'status',
       label: 'TRẠNG THÁI',
-      width: '120px',
+      width: '130px',
       render: (row) => {
         const isActive = (row.status || '').toUpperCase() === 'ACTIVE';
-        return (
-          <Badge tone={isActive ? 'good' : 'bad'}>
-            <span
-              style={{
-                display: 'inline-block',
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: isActive ? '#10b981' : '#ef4444',
-                marginRight: '6px',
-              }}
-            />
-            {isActive ? 'Hoạt động' : 'Tạm khóa'}
-          </Badge>
-        );
+        if (isActive) {
+          return (
+            <Badge tone="good">
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#10b981',
+                  marginRight: '6px',
+                }}
+              />
+              Hoạt động
+            </Badge>
+          );
+        }
+
+        // Dòng chi nhánh Tạm khóa: tooltip hiển thị lý do, người khóa, thời gian khóa
+        return <LockedStatusBadge branch={row} c={c} />;
       },
     },
     {
@@ -175,6 +328,8 @@ export default function BranchTable({
       width: '200px',
       render: (row) => {
         const isActive = (row.status || '').toUpperCase() === 'ACTIVE';
+        const lockDisabled = isActionInProgress || (isActive && !hasLockPermission);
+
         return (
           <div
             style={{
@@ -188,6 +343,7 @@ export default function BranchTable({
             <Button
               variant="ghost"
               size="sm"
+              disabled={isActionInProgress}
               onClick={() => onEdit && onEdit(row)}
               title="Chỉnh sửa thông tin chi nhánh"
             >
@@ -202,11 +358,28 @@ export default function BranchTable({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onToggleLock && onToggleLock(row)}
-              style={{
-                color: isActive ? '#f59e0b' : '#10b981',
+              disabled={lockDisabled}
+              onClick={() => {
+                if (isActive) {
+                  if (onLock) onLock(row);
+                  else if (onToggleLock) onToggleLock(row);
+                } else {
+                  if (onUnlock) onUnlock(row);
+                  else if (onToggleLock) onToggleLock(row);
+                }
               }}
-              title={isActive ? 'Khóa chi nhánh' : 'Mở khóa chi nhánh'}
+              style={{
+                color: isActive ? (hasLockPermission ? '#f59e0b' : c.fgFaint) : '#10b981',
+                opacity: lockDisabled ? 0.6 : 1,
+                cursor: lockDisabled ? 'not-allowed' : 'pointer',
+              }}
+              title={
+                isActive
+                  ? hasLockPermission
+                    ? 'Khóa chi nhánh'
+                    : 'Bạn không có quyền khóa chi nhánh (branch.lock)'
+                  : 'Mở khóa chi nhánh'
+              }
             >
               <Icon
                 name={isActive ? 'lock' : 'unlock'}
@@ -219,9 +392,12 @@ export default function BranchTable({
             <Button
               variant="ghost"
               size="sm"
+              disabled={isActionInProgress}
               onClick={() => onDelete && onDelete(row)}
               style={{
                 color: '#ef4444',
+                opacity: isActionInProgress ? 0.6 : 1,
+                cursor: isActionInProgress ? 'not-allowed' : 'pointer',
               }}
               title="Xóa chi nhánh khỏi hệ thống"
             >
@@ -242,8 +418,8 @@ export default function BranchTable({
       columns={columns}
       data={branches}
       loading={loading}
-      maxHeight="460px"
-      stickyHeader={true}
+      pageSize={10}
+      pageSizeOptions={[5, 10, 20, 50]}
       emptyMessage="Chưa có chi nhánh nào được cấu hình trong hệ thống."
     />
   );

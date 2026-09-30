@@ -7,6 +7,7 @@ const ForgotPasswordPage = lazy(() => import('@/modules/auth/pages/ForgotPasswor
 const DashboardPage = lazy(() => import('@/modules/dashboard/pages/DashboardPage'));
 const KioskCodePage = lazy(() => import('@/modules/kiosk/pages/KioskCodePage'));
 const BranchManagementPage = lazy(() => import('@/modules/branch/pages/BranchManagementPage'));
+const BranchTierManagementPage = lazy(() => import('@/modules/branch/pages/BranchTierManagementPage'));
 const ShiftMasterPage = lazy(() => import('@/modules/schedule/pages/ShiftMasterPage'));
 const WeeklySchedulePage = lazy(() => import('@/modules/schedule/pages/WeeklySchedulePage'));
 const LiveRosterDashboardPage = lazy(() => import('@/modules/attendance/pages/LiveRosterDashboardPage'));
@@ -193,6 +194,16 @@ const AppRouter = () => {
               </AdminProtectedRoute>
             }
           />
+          <Route
+            path="/branch-tiers"
+            element={
+              <AdminProtectedRoute>
+                <BranchTierManagementPage />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route path="/admin/branch-tiers" element={<Navigate to="/branch-tiers" replace />} />
+          <Route path="/tiers" element={<Navigate to="/branch-tiers" replace />} />
           <Route
             path="/shifts/templates"
             element={
