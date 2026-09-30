@@ -299,6 +299,8 @@ export const getAllBranches = async (params = {}) => {
             0,
           staffCount: Number(item.staffCount ?? item.StaffCount ?? 0),
           lockReason: item.lockReason || null,
+          lockedBy: item.lockedBy || null,
+          lockedAt: item.lockedAt || null,
           updatedAt: item.updatedAt || new Date().toISOString(),
         };
       });
@@ -710,6 +712,142 @@ export const toggleKioskLock = async (kioskId, currentStatus) => {
   return nextStatus;
 };
 
+/**
+ * 11. Kiểm tra điều kiện khóa chi nhánh (Lock-check)
+ * GET /api/branches/{id}/lock-check
+ */
+export const checkBranchLock = async (branchId) => {
+  await ensureAdminToken();
+  try {
+    const res = await apiClient.get(`/branches/${branchId}/lock-check`);
+    const data = res.data?.data || res.data;
+    if (data && typeof data.canLock === 'boolean') {
+      return data;
+    }
+  } catch (err) {
+    if (err.response?.status === 409 && err.response?.data) {
+      return err.response.data?.data || err.response.data;
+    }
+    console.warn('[BranchService] Backend lock-check error or unavailable, using simulation:', err.message);
+  }
+
+  // Giả lập thời gian phản hồi mạng để kiểm tra loading skeleton
+  await new Promise((resolve) => setTimeout(resolve, 600));
+
+  const list = getLocalBranches();
+  const branch = list.find((b) => String(b.storeId) === String(branchId));
+
+  // Giả lập điều kiện chặn (Blockers) cho chi nhánh CH02 nếu chưa được bấm "Đã xử lý xong"
+  const isSimulatedBlocker = branch?.branchCode === 'CH02' && !sessionStorage.getItem(`resolved_blocker_${branchId}`);
+  if (isSimulatedBlocker) {
+    return {
+      canLock: false,
+      blockers: [
+        {
+          code: 'ACTIVE_SHIFTS',
+          message: 'Có 3 ca làm việc đang diễn ra chưa được chốt giờ ra',
+          count: 3,
+          items: [
+            { id: 'SH-101', name: 'Ca sáng (06:00 - 14:00) - 2 nhân viên quầy' },
+            { id: 'SH-102', name: 'Ca gãy (10:00 - 15:00) - 1 nhân viên thu ngân' },
+            { id: 'SH-103', name: 'Ca chiều (13:00 - 21:00) - Đã check-in điểm danh' },
+          ],
+        },
+        {
+          code: 'PENDING_INVENTORY_AUDIT',
+          message: 'Tồn đọng 1 biên bản kiểm kê hàng hóa chưa hoàn tất duyệt',
+          count: 1,
+          items: [
+            { id: 'AUD-882', name: 'Biên bản kiểm kê kho định kỳ cuối tháng 9/2026' },
+          ],
+        },
+      ],
+      affectedEmployeeCount: 8,
+    };
+  }
+
+  // Trường hợp đủ điều kiện canLock = true
+  return {
+    canLock: true,
+    blockers: [],
+    affectedEmployeeCount: branch?.branchTier === 1 ? 18 : branch?.branchTier === 3 ? 6 : 12,
+  };
+};
+
+/**
+ * 12. Thuc hien khoa chi nhanh
+ * POST /api/branches/{id}/lock
+ */
+// Helper lay thong diep loi chi tiet tu backend (dac biet la ValidationProblemDetails RFC 7807)
+const extractErrorMessage = (err, defaultMsg = 'Lỗi không xác định') => {
+  const resData = err.response?.data?.data || err.response?.data;
+  let msg = resData?.message || resData?.detail;
+  if (!msg && resData?.errors && typeof resData.errors === 'object') {
+    const fieldErrors = Object.values(resData.errors).flat().filter(Boolean);
+    if (fieldErrors.length > 0) {
+      msg = fieldErrors.join('; ');
+    }
+  }
+  if (!msg) {
+    msg = resData?.title || err.message || defaultMsg;
+  }
+  return msg;
+};
+
+export const lockBranch = async (branchId, payload) => {
+  await ensureAdminToken();
+  try {
+    const res = await apiClient.post(`/branches/${branchId}/lock`, {
+      reason: payload.reason,
+      confirmBranchCode: payload.confirmBranchCode,
+      staffHandlingMode: payload.staffHandlingMode,
+      transferToBranchId: payload.transferToBranchId || null,
+      futureShiftHandling: payload.futureShiftHandling,
+    });
+    await getAllBranches();
+    return res.data?.data || res.data || true;
+  } catch (err) {
+    const status = err.response?.status;
+    const resData = err.response?.data?.data || err.response?.data;
+    const msg = extractErrorMessage(err, 'Lỗi khi khóa chi nhánh');
+
+    if (status === 409) {
+      // Co blocker moi xuat hien trong luc xu ly
+      const conflictError = new Error(msg || 'Xung đột: Xuất hiện điều kiện chặn mới (409 Conflict)');
+      conflictError.status = 409;
+      conflictError.blockers = resData?.blockers || [];
+      throw conflictError;
+    }
+
+    // 400, 403, 404 hoac loi khac - bao loi thuc su ra UI
+    const clientError = new Error(msg);
+    clientError.status = status || 0;
+    throw clientError;
+  }
+};
+
+/**
+ * 13. Mo khoa chi nhanh
+ * POST /api/branches/{id}/unlock
+ */
+export const unlockBranch = async (branchId, payload = {}) => {
+  await ensureAdminToken();
+  try {
+    const res = await apiClient.post(`/branches/${branchId}/unlock`, {
+      reason: payload.reason || '',
+    });
+    await getAllBranches();
+    return res.data?.data || res.data || true;
+  } catch (err) {
+    const status = err.response?.status;
+    const msg = extractErrorMessage(err, 'Lỗi khi mở khóa chi nhánh');
+    const clientError = new Error(msg);
+    clientError.status = status || 0;
+    throw clientError;
+  }
+};
+
+
 export default {
   ensureAdminToken,
   getAllBranches,
@@ -722,4 +860,7 @@ export default {
   createKiosk,
   updateKioskConfig,
   toggleKioskLock,
+  checkBranchLock,
+  lockBranch,
+  unlockBranch,
 };

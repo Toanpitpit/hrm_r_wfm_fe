@@ -4,6 +4,54 @@ export type BranchStatus = 'ACTIVE' | 'LOCKED' | 'INACTIVE';
 export type BranchTier = 1 | 2 | 3;
 export type KioskStatus = 'ACTIVE' | 'LOCKED' | 'INACTIVE' | 'OFFLINE';
 
+export type StaffHandlingMode = 'HOLD' | 'TRANSFER';
+export type FutureShiftHandling = 'CANCEL' | 'TRANSFER' | 'SUSPEND';
+
+/**
+ * Item chi tiết trong blocker khóa chi nhánh
+ */
+export interface LockBlockerItem {
+  id: string | number;
+  name: string;
+}
+
+/**
+ * Điều kiện chặn khóa chi nhánh (Blocker)
+ */
+export interface LockBlocker {
+  code: string;
+  message: string;
+  count: number;
+  items?: LockBlockerItem[];
+}
+
+/**
+ * Phản hồi kiểm tra điều kiện khóa chi nhánh: GET /api/branches/{id}/lock-check
+ */
+export interface BranchLockCheckResponse {
+  canLock: boolean;
+  blockers: LockBlocker[];
+  affectedEmployeeCount: number;
+}
+
+/**
+ * Body yêu cầu khóa chi nhánh: POST /api/branches/{id}/lock
+ */
+export interface BranchLockDto {
+  reason: string;
+  confirmBranchCode: string;
+  staffHandlingMode: StaffHandlingMode;
+  transferToBranchId?: number | null;
+  futureShiftHandling: FutureShiftHandling;
+}
+
+/**
+ * Body yêu cầu mở khóa chi nhánh: POST /api/branches/{id}/unlock
+ */
+export interface BranchUnlockDto {
+  reason?: string;
+}
+
 /**
  * Branch Entity Model
  */
@@ -22,6 +70,8 @@ export interface Branch {
   kioskCount: number;
   activeKiosks: number;
   lockReason?: string | null;
+  lockedBy?: string | null;
+  lockedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }

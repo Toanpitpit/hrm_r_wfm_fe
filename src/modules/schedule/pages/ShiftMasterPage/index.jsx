@@ -59,13 +59,11 @@ export default function ShiftMasterPage() {
     setDeleteModalOpen,
     deletingShift,
     setDeletingShift,
-    standardizing,
     // Handlers
     handleCreateShift,
     handleUpdateShift,
     handleToggleStatus,
     handleDeleteShift,
-    handleStandardize,
   } = useShiftTemplate();
 
   // Menu Sidebar phía Operations Admin
@@ -110,43 +108,19 @@ export default function ShiftMasterPage() {
         title="Bộ Khung Ca Mẫu Toàn Hệ Thống"
         subtitle="Thiết lập và chuẩn hóa các khung ca làm việc mặc định toàn chuỗi để ngăn chặn việc tạo ca sai lệch tại các chi nhánh."
         actions={
-          <div style={{ display: 'flex', gap: '10px' }}>
-            {/* Nút chuẩn hóa lại 3 ca mặc định */}
-            <Button
-              variant="outline"
-              onClick={async () => {
-                const res = await handleStandardize();
-                if (res?.success) {
-                  toast.success('Đã đồng bộ 3 khung ca chuẩn mặc định từ Backend!');
-                } else {
-                  toast.error(res?.error || 'Đồng bộ thất bại');
-                }
-              }}
-              loading={standardizing}
-              title="Đồng bộ 3 ca mặc định từ Backend"
-            >
-              <Icon
-                name="pulse"
-                size={16}
-              />
-              <span>Đồng Bộ Ca Mặc Định</span>
-            </Button>
-
-            {/* Nút thêm mới khung ca */}
-            <Button
-              variant="primary"
-              onClick={() => {
-                setEditingShift(null);
-                setFormModalOpen(true);
-              }}
-            >
-              <Icon
-                name="plus"
-                size={16}
-              />
-              <span>Thêm Khung Ca Mới</span>
-            </Button>
-          </div>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setEditingShift(null);
+              setFormModalOpen(true);
+            }}
+          >
+            <Icon
+              name="plus"
+              size={16}
+            />
+            <span>Thêm Khung Ca Mới</span>
+          </Button>
         }
       />
 
