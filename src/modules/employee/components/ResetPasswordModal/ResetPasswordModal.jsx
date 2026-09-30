@@ -15,17 +15,26 @@ export default function ResetPasswordModal({
 
   const [useCustomPassword, setUseCustomPassword] = useState(false);
   const [customPassword, setCustomPassword] = useState('');
+  const [reason, setReason] = useState('');
+  const [reasonError, setReasonError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [resultPassword, setResultPassword] = useState(null);
+  const [emailSent, setEmailSent] = useState(true);
   const [copied, setCopied] = useState(false);
 
   const handleReset = async () => {
+    if (!reason.trim()) {
+      setReasonError('Vui lòng nhập lý do cấp lại mật khẩu cho nhân sự.');
+      return;
+    }
+    setReasonError('');
     setSubmitting(true);
     try {
       const pass = useCustomPassword && customPassword.trim() ? customPassword.trim() : null;
-      const res = await onConfirmReset(employee.id, pass);
+      const res = await onConfirmReset(employee.id, pass, reason.trim());
       if (res && res.newPassword) {
         setResultPassword(res.newPassword);
+        setEmailSent(res.emailSent !== false);
       }
     } catch (err) {
       console.error('Reset password error:', err);
@@ -43,8 +52,11 @@ export default function ResetPasswordModal({
 
   const handleClose = () => {
     setResultPassword(null);
+    setEmailSent(true);
     setCopied(false);
     setCustomPassword('');
+    setReason('');
+    setReasonError('');
     setUseCustomPassword(false);
     onClose();
   };
@@ -106,7 +118,9 @@ export default function ResetPasswordModal({
               Đặt Lại Mật Khẩu Thành Công!
             </h4>
             <p style={{ fontSize: '13px', color: c.fgSubtle, marginTop: '4px' }}>
-              Mật khẩu mới đã được cập nhật và băm BCrypt an toàn vào cơ sở dữ liệu.
+              {emailSent
+                ? 'Mật khẩu mới đã được cập nhật và email thông báo kèm mật khẩu đã được gửi trực tiếp tới hòm thư của nhân sự.'
+                : 'Mật khẩu mới đã được cập nhật vào hệ thống. Vui lòng gửi trực tiếp thông tin mật khẩu dưới đây cho nhân sự.'}
             </p>
           </div>
 
@@ -146,14 +160,40 @@ export default function ResetPasswordModal({
               onClick={handleCopy}
               style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <Icon name={copied ? 'check' : 'screen'} size={14} />
               <span>{copied ? 'Đã Sao Chép!' : 'Sao Chép'}</span>
             </Button>
           </div>
 
-          <div style={{ fontSize: '12px', color: c.fgSubtle, lineHeight: '1.5' }}>
-            Vui lòng gửi mật khẩu mới này cho nhân viên để đăng nhập vào hệ thống tại màn hình Đăng nhập.
-          </div>
+          {emailSent ? (
+            <div
+              style={{
+                fontSize: '12.5px',
+                color: '#22c55e',
+                lineHeight: '1.5',
+                background: 'rgba(34, 197, 94, 0.08)',
+                padding: '10px 14px',
+                borderRadius: '6px',
+                border: '1px solid rgba(34, 197, 94, 0.25)',
+              }}
+            >
+              Email thông báo mật khẩu mới đã được gửi thành công tới: <strong style={{ color: c.fg }}>{employee.email}</strong>.
+            </div>
+          ) : (
+            <div
+              style={{
+                fontSize: '12px',
+                color: '#f59e0b',
+                lineHeight: '1.5',
+                background: 'rgba(245, 158, 11, 0.08)',
+                padding: '10px 14px',
+                borderRadius: '6px',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                textAlign: 'left',
+              }}
+            >
+              <strong>Lưu ý về gửi Email:</strong> Không thể gửi thư tới <strong>{employee.email}</strong> (do địa chỉ email không tồn tại hoặc tài khoản Gmail SMTP gửi thư của hệ thống đã đạt giới hạn trong ngày). Hãy sao chép mật khẩu ở trên để bàn giao cho nhân sự.
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -168,7 +208,37 @@ export default function ResetPasswordModal({
               lineHeight: '1.5',
             }}
           >
-            <strong>Cảnh báo quản trị:</strong> Thao tác này sẽ vô hiệu hóa mật khẩu hiện tại của nhân sự và đặt lại mật khẩu mới. Thao tác được lưu vết trong `SystemAuditLog`.
+            <strong>Cảnh báo quản trị:</strong> Thao tác này sẽ vô hiệu hóa mật khẩu hiện tại của nhân sự và đặt lại mật khẩu mới. Email thông báo sẽ được tự động gửi tới email của nhân sự.
+          </div>
+
+          {/* Ô nhập Lý Do Bắt Buộc */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 600, color: c.fg }}>
+              Lý do cấp lại mật khẩu <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <input
+              type="text"
+              value={reason}
+              onChange={(e) => {
+                setReason(e.target.value);
+                if (reasonError) setReasonError('');
+              }}
+              placeholder="Nhập lý do cấp lại mật khẩu (VD: Nhân viên quên mật khẩu, Yêu cầu bảo mật...)"
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                background: c.bgCard,
+                border: `1px solid ${reasonError ? '#ef4444' : c.border}`,
+                borderRadius: '6px',
+                color: c.fg,
+                fontSize: '13px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            {reasonError && (
+              <span style={{ fontSize: '12px', color: '#ef4444' }}>{reasonError}</span>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -208,7 +278,7 @@ export default function ResetPasswordModal({
                 color: c.fgSubtle,
               }}
             >
-              Hệ thống sẽ tự động sinh mật khẩu mạnh ngẫu nhiên và hiển thị ngay trên màn hình để bạn sao chép gửi cho nhân sự.
+              Hệ thống sẽ tự động sinh mật khẩu mạnh ngẫu nhiên và gửi thông tin tài khoản kèm lý do trực tiếp tới email: <strong style={{ color: '#fff' }}>{employee.email || 'Chưa có email'}</strong>.
             </div>
           )}
         </div>

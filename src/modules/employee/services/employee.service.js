@@ -283,8 +283,9 @@ export const employeeService = {
     if (params.status) {
       list = list.filter((e) => e.status === params.status);
     }
-    if (params.contractType) {
-      list = list.filter((e) => e.contractType === params.contractType);
+    if (params.contractType || params.employmentType) {
+      const targetType = params.contractType || params.employmentType;
+      list = list.filter((e) => (e.contractType || e.employmentType) === targetType);
     }
     if (params.search) {
       const s = params.search.toLowerCase();
@@ -332,7 +333,8 @@ export const employeeService = {
       homeBranchId: Number(payload.branchId || payload.homeBranchId),
       branchId: Number(payload.branchId || payload.homeBranchId),
       password: payload.password,
-      contractType: payload.contractType || 'FULL_TIME',
+      contractType: payload.contractType || payload.employmentType || 'FULL_TIME',
+      employmentType: payload.contractType || payload.employmentType || 'FULL_TIME',
       ...(payload.importRequestId ? { importRequestId: Number(payload.importRequestId) } : {}),
       ...(payload.expansionReason ? { expansionReason: payload.expansionReason } : {}),
     };
@@ -419,7 +421,8 @@ export const employeeService = {
       roleId: Number(payload.roleId),
       homeBranchId: Number(payload.branchId || payload.homeBranchId),
       branchId: Number(payload.branchId || payload.homeBranchId),
-      contractType: payload.contractType || 'FULL_TIME',
+      contractType: payload.contractType || payload.employmentType || 'FULL_TIME',
+      employmentType: payload.contractType || payload.employmentType || 'FULL_TIME',
     };
 
     try {
@@ -507,50 +510,47 @@ export const employeeService = {
   /**
    * 8. Khóa / Kích hoạt lại tài khoản (PATCH /api/Users/{id}/status)
    */
-  async toggleUserStatus(id, newStatus) {
+  async toggleUserStatus(id, newStatus, reason = '') {
     try {
       const res = await axiosInstance.patch(`Users/${id}/status`, {
         status: newStatus,
+        reason: reason,
         isActive: newStatus === 'ACTIVE',
       });
       return {
         success: true,
         data: res.data?.data || res.data,
-        message: newStatus === 'ACTIVE' ? 'Đã kích hoạt lại tài khoản thành công!' : 'Đã khóa tài khoản thành công!',
+        message: res.data?.message || (newStatus === 'ACTIVE' ? 'Đã kích hoạt lại tài khoản thành công!' : 'Đã khóa tài khoản thành công!'),
       };
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
+      if (err.response?.status === 400 || err.response?.status === 403) {
+        return { success: false, message: msg };
+      }
       console.warn('[EmployeeService] Backend toggleUserStatus error:', msg);
+      return { success: false, message: msg };
     }
-
-    const list = getLocalEmployees();
-    const idx = list.findIndex((e) => String(e.id) === String(id));
-    if (idx !== -1) {
-      list[idx].status = newStatus;
-      saveLocalEmployees(list);
-      return {
-        success: true,
-        data: list[idx],
-        message: newStatus === 'ACTIVE' ? 'Đã kích hoạt lại tài khoản!' : 'Đã khóa tài khoản!',
-      };
-    }
-    return { success: false, message: 'Không tìm thấy tài khoản để thao tác.' };
   },
 
   /**
    * 9. Đặt lại mật khẩu tài khoản (POST /api/Users/{id}/reset-password)
    */
-  async resetPassword(id, customPassword = null) {
+  async resetPassword(id, customPassword = null, reason = '') {
     try {
-      const body = customPassword ? { newPassword: customPassword } : {};
+      const body = {
+        ...(customPassword ? { newPassword: customPassword } : {}),
+        reason: reason,
+      };
       const res = await axiosInstance.post(`Users/${id}/reset-password`, body);
       const resData = res.data?.data || res.data;
-      const returnedPassword = resData?.newPassword || resData?.temporaryPassword || customPassword;
+      const returnedPassword = resData?.newPassword || resData?.temporaryPassword || customPassword || 'Password@123';
+      const emailSent = resData?.emailSent !== false;
       return {
         success: true,
         data: resData,
         newPassword: returnedPassword,
-        message: 'Đặt lại mật khẩu tài khoản thành công!',
+        emailSent: emailSent,
+        message: res.data?.message || 'Đặt lại mật khẩu tài khoản thành công!',
       };
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
@@ -558,14 +558,8 @@ export const employeeService = {
         return { success: false, message: msg };
       }
       console.warn('[EmployeeService] Backend resetPassword error:', msg);
+      return { success: false, message: msg };
     }
-
-    const fallbackPass = customPassword || `Rwfm@${Math.floor(100000 + Math.random() * 900000)}`;
-    return {
-      success: true,
-      newPassword: fallbackPass,
-      message: 'Đặt lại mật khẩu tài khoản thành công!',
-    };
   },
 
   /**
@@ -595,10 +589,11 @@ export const employeeService = {
    * Dùng Blob URL để tải file, không redirect — tránh lỗi corrupt file.
    * @returns {{ success, message, fileName }}
    */
-  async downloadImportTemplate() {
+  async downloadImportTemplate(count = 5) {
     let blobUrl = null;
+    const safeCount = Math.max(1, Math.min(Number(count) || 5, 500));
     try {
-      const res = await axiosInstance.get('v1/users/employees/import-template', {
+      const res = await axiosInstance.get(`v1/users/employees/import-template?count=${safeCount}`, {
         responseType: 'blob',
         timeout: 30000,
       });
@@ -627,7 +622,7 @@ export const employeeService = {
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
 
-      return { success: true, fileName, message: `Đã tải file mẫu "${fileName}" thành công!` };
+      return { success: true, fileName, message: `Đã tải file mẫu "${fileName}" (${safeCount} nhân sự) thành công!` };
     } catch (err) {
       if (blobUrl) URL.revokeObjectURL(blobUrl);
       const status = err.response?.status;
@@ -635,7 +630,7 @@ export const employeeService = {
       if (status === 403) return { success: false, message: 'Bạn không có quyền tải file mẫu này.' };
       console.warn('[EmployeeService] downloadImportTemplate error:', err.message);
       // Fallback: sinh file CSV local
-      return this._downloadImportTemplateFallback();
+      return this._downloadImportTemplateFallback(safeCount);
     }
   },
 
@@ -643,11 +638,14 @@ export const employeeService = {
    * Fallback tạo CSV template local khi backend không khả dụng
    * @private
    */
-  _downloadImportTemplateFallback() {
+  _downloadImportTemplateFallback(count = 5) {
+    let rows = '';
+    for (let i = 1; i <= count; i++) {
+      const code = `NV${String(100 + i).padStart(4, '0')}`;
+      rows += `${i},${code},,,,,FULL_TIME,,Password@123\n`;
+    }
     const csvContent =
-      '\uFEFFSTT,Mã Nhân Viên,Họ Và Tên,Email,Số Điện Thoại,Mã Vai Trò,Hình Thức,Mã Chi Nhánh,Mật Khẩu Khởi Tạo\n' +
-      '1,NV101,Nguyễn Văn An,an.nguyen@rwfm.vn,0912345678,CASHIER,FULL_TIME,CN001,Rwfm@123456\n' +
-      '2,NV102,Trần Thị Bình,binh.tran@rwfm.vn,0923456789,SALES_STAFF,PART_TIME,CN001,Rwfm@123456\n';
+      '\uFEFFSTT,Mã Nhân Viên,Họ Và Tên,Email,Số Điện Thoại,Mã Vai Trò,Hình Thức,Mã Chi Nhánh,Mật Khẩu Khởi Tạo\n' + rows;
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -658,7 +656,7 @@ export const employeeService = {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 100);
-    return { success: true, fileName: 'Mau_Import_Nhan_Su.csv', message: 'Đã tải file mẫu CSV (fallback).' };
+    return { success: true, fileName: 'Mau_Import_Nhan_Su.csv', message: `Đã tải file mẫu CSV fallback (${count} nhân sự).` };
   },
 
   /**

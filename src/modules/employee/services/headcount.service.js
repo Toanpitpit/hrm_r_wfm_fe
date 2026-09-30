@@ -44,21 +44,26 @@ export const headcountService = {
         // Định biên theo Tier là cố định: Tier 1 = 30, Tier 2 = 15, Tier 3 = 8
         const effectiveQuota = standardQuota;
         const currentHeadcount = Number(raw.currentHeadcount ?? raw.CurrentHeadcount ?? 0);
+        const officialHeadcount = Number(raw.officialHeadcount ?? raw.OfficialHeadcount ?? currentHeadcount);
+        const dispatchedInCount = Number(raw.dispatchedInCount ?? raw.DispatchedInCount ?? 0);
+        const dispatchedOutCount = Number(raw.dispatchedOutCount ?? raw.DispatchedOutCount ?? 0);
+        const actualWorkingCount = Number(raw.actualWorkingCount ?? raw.ActualWorkingCount ?? (currentHeadcount + dispatchedInCount));
+
         const availableQuotaSlots = Number(
           (raw.availableQuotaSlots != null && raw.availableQuotaSlots >= 0) ? raw.availableQuotaSlots :
           (raw.AvailableQuotaSlots != null && raw.AvailableQuotaSlots >= 0) ? raw.AvailableQuotaSlots :
-          Math.max(0, effectiveQuota - currentHeadcount)
+          Math.max(0, effectiveQuota - officialHeadcount)
         );
         const isQuotaReached = raw.isQuotaReached != null
           ? Boolean(raw.isQuotaReached)
           : raw.IsQuotaReached != null
           ? Boolean(raw.IsQuotaReached)
-          : (currentHeadcount >= effectiveQuota);
+          : (officialHeadcount >= effectiveQuota);
         const canCreateDirectly = raw.canCreateDirectly != null
           ? Boolean(raw.canCreateDirectly)
           : raw.CanCreateDirectly != null
           ? Boolean(raw.CanCreateDirectly)
-          : (currentHeadcount < effectiveQuota);
+          : (officialHeadcount < effectiveQuota);
         const inactiveCount = Number(raw.inactiveCount ?? raw.InactiveCount ?? 0);
 
         const canUpgradeTier = raw.canUpgradeTier != null
@@ -66,6 +71,11 @@ export const headcountService = {
           : (resolvedTier > 1);
         const nextTier = raw.nextTier ?? (resolvedTier > 1 ? resolvedTier - 1 : null);
         const nextTierQuota = raw.nextTierQuota ?? (resolvedTier === 3 ? 15 : resolvedTier === 2 ? 30 : null);
+
+        const hasActiveStoreManager = Boolean(raw.hasActiveStoreManager ?? raw.HasActiveStoreManager ?? false);
+        const activeStoreManagerId = raw.activeStoreManagerId ?? raw.ActiveStoreManagerId ?? null;
+        const activeStoreManagerName = raw.activeStoreManagerName ?? raw.ActiveStoreManagerName ?? null;
+        const activeStoreManagerCode = raw.activeStoreManagerCode ?? raw.ActiveStoreManagerCode ?? null;
 
         return {
           success: true,
@@ -75,7 +85,11 @@ export const headcountService = {
             standardQuota,
             staffCount: 0,
             effectiveQuota,
-            currentHeadcount,
+            currentHeadcount: officialHeadcount,
+            officialHeadcount,
+            dispatchedInCount,
+            dispatchedOutCount,
+            actualWorkingCount,
             inactiveCount,
             availableQuotaSlots,
             isQuotaReached,
@@ -87,6 +101,10 @@ export const headcountService = {
             additionalApprovedQuota: 0,
             totalAvailableSlots: availableQuotaSlots,
             availableRequests: [],
+            hasActiveStoreManager,
+            activeStoreManagerId,
+            activeStoreManagerName,
+            activeStoreManagerCode,
           },
         };
       }
@@ -99,24 +117,53 @@ export const headcountService = {
     const standardQuota = HEADCOUNT_TIER_QUOTAS[resolvedTier] || 15;
     const effectiveQuota = standardQuota;
 
-    let activeCount = 0;
+    let officialActiveCount = 0;
+    let dispatchedInCount = 0;
+    let dispatchedOutCount = 0;
     let inactiveCount = 0;
+    let hasActiveStoreManager = false;
+    let activeStoreManagerId = null;
+    let activeStoreManagerName = null;
+    let activeStoreManagerCode = null;
+
     try {
       const rawEmp = localStorage.getItem('wfm_employees_data_v2');
       if (rawEmp) {
         const employees = JSON.parse(rawEmp);
-        const branchEmployees = employees.filter(
-          (e) => String(e.homeBranchId || e.branchId) === String(branchId)
-        );
-        activeCount = branchEmployees.filter((e) => e.status !== 'INACTIVE').length;
-        inactiveCount = branchEmployees.filter((e) => e.status === 'INACTIVE').length;
+        const targetId = String(branchId);
+        employees.forEach((e) => {
+          const homeId = String(e.homeBranchId || e.branchId || '');
+          const origId = e.originalHomeBranchId ? String(e.originalHomeBranchId) : null;
+          const isOfficial = origId ? origId === targetId : homeId === targetId;
+
+          if (isOfficial) {
+            if (e.status === 'INACTIVE') {
+              inactiveCount++;
+            } else {
+              officialActiveCount++;
+              if (origId && origId === targetId && homeId !== targetId) {
+                dispatchedOutCount++;
+              }
+              const roleCode = String(e.roleCode || '').toUpperCase();
+              if (roleCode === 'STORE_MANAGER' || Number(e.roleId) === 2) {
+                hasActiveStoreManager = true;
+                activeStoreManagerId = e.id;
+                activeStoreManagerName = e.fullName;
+                activeStoreManagerCode = e.employeeCode;
+              }
+            }
+          } else if (homeId === targetId && origId && origId !== targetId && e.status !== 'INACTIVE') {
+            dispatchedInCount++;
+          }
+        });
       }
     } catch {
       // ignore
     }
 
-    const availableQuotaSlots = Math.max(0, effectiveQuota - activeCount);
-    const isQuotaReached = activeCount >= effectiveQuota;
+    const availableQuotaSlots = Math.max(0, effectiveQuota - officialActiveCount);
+    const isQuotaReached = officialActiveCount >= effectiveQuota;
+    const actualWorkingCount = officialActiveCount - dispatchedOutCount + dispatchedInCount;
 
     return {
       success: true,
@@ -126,7 +173,11 @@ export const headcountService = {
         standardQuota,
         staffCount: 0,
         effectiveQuota,
-        currentHeadcount: activeCount,
+        currentHeadcount: officialActiveCount,
+        officialHeadcount: officialActiveCount,
+        dispatchedInCount,
+        dispatchedOutCount,
+        actualWorkingCount,
         inactiveCount,
         availableQuotaSlots,
         isQuotaReached,
@@ -138,6 +189,10 @@ export const headcountService = {
         additionalApprovedQuota: 0,
         totalAvailableSlots: availableQuotaSlots,
         availableRequests: [],
+        hasActiveStoreManager,
+        activeStoreManagerId,
+        activeStoreManagerName,
+        activeStoreManagerCode,
       },
     };
   },

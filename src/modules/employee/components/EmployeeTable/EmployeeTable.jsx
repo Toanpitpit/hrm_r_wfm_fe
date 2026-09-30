@@ -30,6 +30,7 @@ export default function EmployeeTable({
   onEdit,
   onResetPassword,
   onToggleStatus,
+  onDelete,
   canManageSystem = false, // True for Admin & Business Owner
 }) {
   const { c, fonts } = useAdminTheme();
@@ -252,9 +253,36 @@ export default function EmployeeTable({
 
                 {/* Hình thức hợp đồng */}
                 <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                  <span style={{ color: c.fgSubtle, fontSize: '12.5px' }}>
-                    {CONTRACT_TYPE_MAP[emp.contractType] || emp.contractType || 'Full-time'}
-                  </span>
+                  {(() => {
+                    const rawType = emp.contractType || emp.employmentType;
+                    const isPartTime = rawType === 'PART_TIME';
+                    return (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          background: isPartTime ? 'rgba(245, 158, 11, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                          color: isPartTime ? '#f59e0b' : '#3b82f6',
+                          border: `1px solid ${isPartTime ? 'rgba(245, 158, 11, 0.28)' : 'rgba(59, 130, 246, 0.25)'}`,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: isPartTime ? '#f59e0b' : '#3b82f6',
+                          }}
+                        />
+                        {CONTRACT_TYPE_MAP[rawType] || rawType || 'Full-time'}
+                      </span>
+                    );
+                  })()}
                 </td>
 
                 {/* Liên hệ */}
@@ -287,15 +315,17 @@ export default function EmployeeTable({
                       <Icon name="eye" size={15} />
                     </Button>
 
-                    {/* Chỉnh sửa hồ sơ (bao gồm Khóa/Mở/Xóa tài khoản bên trong modal) */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onEdit(emp)}
-                      title="Chỉnh sửa hồ sơ & quản trị tài khoản"
-                    >
-                      <Icon name="edit" size={15} />
-                    </Button>
+                    {/* Chỉnh sửa hồ sơ: Chỉ dành cho Operations Admin & Business Owner, Store Manager chỉ được xem */}
+                    {canManageSystem && onEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit(emp)}
+                        title="Chỉnh sửa hồ sơ & quản trị tài khoản"
+                      >
+                        <Icon name="edit" size={15} />
+                      </Button>
+                    )}
                   </div>
                 </td>
               </tr>

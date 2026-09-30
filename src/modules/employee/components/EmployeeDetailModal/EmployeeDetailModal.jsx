@@ -130,7 +130,7 @@ export default function EmployeeDetailModal({
 
           <div>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: c.fgSubtle, fontWeight: 700 }}>
-              Hòm Thư Điện Tử (Email)
+              Email
             </div>
             <div style={{ fontSize: '14px', color: c.fg, marginTop: '4px', fontWeight: 500 }}>
               {employee.email || 'Chưa cập nhật'}
@@ -139,7 +139,7 @@ export default function EmployeeDetailModal({
 
           <div>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: c.fgSubtle, fontWeight: 700 }}>
-              Chi Nhánh Công Tác (Home Branch)
+              Chi Nhánh Công Tác
             </div>
             <div style={{ fontSize: '14px', color: c.fg, marginTop: '4px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Icon name="pin" size={14} color={c.accent} />
@@ -152,7 +152,7 @@ export default function EmployeeDetailModal({
               Hình Thức Hợp Đồng
             </div>
             <div style={{ fontSize: '14px', color: '#f2ca50', marginTop: '4px', fontWeight: 500 }}>
-              {CONTRACT_TYPE_MAP[employee.contractType] || employee.contractType || 'Toàn thời gian'}
+              {CONTRACT_TYPE_MAP[employee.contractType || employee.employmentType] || employee.contractType || employee.employmentType || 'Toàn thời gian'}
             </div>
           </div>
 
