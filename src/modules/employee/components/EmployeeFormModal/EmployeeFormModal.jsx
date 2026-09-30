@@ -501,7 +501,7 @@ export default function EmployeeFormModal({
                 <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
 
                   {branchQuota?.canUpgradeTier
-                    ? `Đã đầy định biên (${branchQuota?.currentHeadcount}/${branchQuota?.standardQuota}). Vui lòng nâng Tier ở trên để tuyển thêm.`
+                    ? `Đã đầy định biên (${branchQuota?.officialHeadcount ?? branchQuota?.currentHeadcount}/${branchQuota?.standardQuota}). Vui lòng nâng Tier ở trên để tuyển thêm.`
                     : `Chi nhánh đã đạt kịch trần tối đa Tier 1 (30/30). Không thể tuyển thêm.`}
                 </span>
               ) : (
@@ -748,7 +748,8 @@ export default function EmployeeFormModal({
                       color={isQuotaReached ? '#ef4444' : '#22c55e'}
                     />
                     <span style={{ color: isQuotaReached ? '#fca5a5' : '#86efac' }}>
-                      Định biên Phân Cấp Tier {branchQuota.branchTier}: {branchQuota.currentHeadcount} / {branchQuota.standardQuota} nhân sự
+                      Định biên Phân Cấp Tier {branchQuota.branchTier}: {branchQuota.officialHeadcount ?? branchQuota.currentHeadcount} / {branchQuota.standardQuota} nhân sự cơ hữu
+                      {branchQuota.dispatchedInCount > 0 && ` (+${branchQuota.dispatchedInCount} điều động hỗ trợ)`}
                       {loadingQuota && ' (đang tải...)'}
                     </span>
                   </div>
@@ -778,7 +779,7 @@ export default function EmployeeFormModal({
                 {!isQuotaReached ? (
                   <div style={{ fontSize: '12px', color: '#86efac' }}>
                     ✓ Chi nhánh còn trống{' '}
-                    <strong>{branchQuota.standardQuota - branchQuota.currentHeadcount}</strong> vị trí theo định biên chuẩn.
+                    <strong>{branchQuota.standardQuota - (branchQuota.officialHeadcount ?? branchQuota.currentHeadcount)}</strong> vị trí theo định biên chuẩn.
                   </div>
                 ) : (
                   <div
