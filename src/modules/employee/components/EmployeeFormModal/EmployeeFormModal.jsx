@@ -304,6 +304,11 @@ export default function EmployeeFormModal({
     if (!formData.roleId) newErrors.roleId = 'Vui lòng chọn vai trò';
     if (!formData.branchId && !formData.homeBranchId) newErrors.branchId = 'Vui lòng chọn chi nhánh';
 
+    // Ràng buộc duy nhất 1 Cửa hàng trưởng trên mỗi chi nhánh
+    if (formData.roleCode === 'STORE_MANAGER' && branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)) {
+      newErrors.roleId = `Chi nhánh này đã có Cửa hàng trưởng (${branchQuota.activeStoreManagerName || ''}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`;
+    }
+
     if (!isEdit && (!formData.password || formData.password.length < 6)) {
       newErrors.password = 'Mật khẩu khởi tạo cần tối thiểu 6 ký tự';
     }
@@ -662,7 +667,9 @@ export default function EmployeeFormModal({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               {/* Vai trò (Role) */}
-              <Field label="Vai Trò Cửa Hàng (Role)" required error={errors.roleId}>
+              <Field
+                label="Vai Trò Cửa Hàng"
+              >
                 <select
                   value={formData.roleId}
                   onChange={(e) => handleChange('roleId', e.target.value)}
@@ -682,11 +689,20 @@ export default function EmployeeFormModal({
                   <option value="">-- Chọn vai trò --</option>
                   {availableRoles
                     .filter((r) => !['BUSINESS_OWNER', 'OPERATIONS_ADMIN', 'ADMIN'].includes(r.roleCode))
-                    .map((r) => (
-                      <option key={r.id} value={String(r.id)}>
-                        {r.roleName} ({r.roleCode})
-                      </option>
-                    ))}
+                    .map((r) => {
+                      const isStoreManagerRole = r.roleCode === 'STORE_MANAGER';
+                      const isAlreadyTaken =
+                        isStoreManagerRole &&
+                        branchQuota?.hasActiveStoreManager &&
+                        (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId);
+
+                      return (
+                        <option key={r.id} value={String(r.id)} disabled={isAlreadyTaken}>
+                          {r.roleName} ({r.roleCode})
+                          {isAlreadyTaken ? ` — (Đã có: ${branchQuota?.activeStoreManagerName || 'CHT'})` : ''}
+                        </option>
+                      );
+                    })}
                 </select>
               </Field>
 

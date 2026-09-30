@@ -72,6 +72,11 @@ export const headcountService = {
         const nextTier = raw.nextTier ?? (resolvedTier > 1 ? resolvedTier - 1 : null);
         const nextTierQuota = raw.nextTierQuota ?? (resolvedTier === 3 ? 15 : resolvedTier === 2 ? 30 : null);
 
+        const hasActiveStoreManager = Boolean(raw.hasActiveStoreManager ?? raw.HasActiveStoreManager ?? false);
+        const activeStoreManagerId = raw.activeStoreManagerId ?? raw.ActiveStoreManagerId ?? null;
+        const activeStoreManagerName = raw.activeStoreManagerName ?? raw.ActiveStoreManagerName ?? null;
+        const activeStoreManagerCode = raw.activeStoreManagerCode ?? raw.ActiveStoreManagerCode ?? null;
+
         return {
           success: true,
           data: {
@@ -96,6 +101,10 @@ export const headcountService = {
             additionalApprovedQuota: 0,
             totalAvailableSlots: availableQuotaSlots,
             availableRequests: [],
+            hasActiveStoreManager,
+            activeStoreManagerId,
+            activeStoreManagerName,
+            activeStoreManagerCode,
           },
         };
       }
@@ -112,6 +121,11 @@ export const headcountService = {
     let dispatchedInCount = 0;
     let dispatchedOutCount = 0;
     let inactiveCount = 0;
+    let hasActiveStoreManager = false;
+    let activeStoreManagerId = null;
+    let activeStoreManagerName = null;
+    let activeStoreManagerCode = null;
+
     try {
       const rawEmp = localStorage.getItem('wfm_employees_data_v2');
       if (rawEmp) {
@@ -129,6 +143,13 @@ export const headcountService = {
               officialActiveCount++;
               if (origId && origId === targetId && homeId !== targetId) {
                 dispatchedOutCount++;
+              }
+              const roleCode = String(e.roleCode || '').toUpperCase();
+              if (roleCode === 'STORE_MANAGER' || Number(e.roleId) === 2) {
+                hasActiveStoreManager = true;
+                activeStoreManagerId = e.id;
+                activeStoreManagerName = e.fullName;
+                activeStoreManagerCode = e.employeeCode;
               }
             }
           } else if (homeId === targetId && origId && origId !== targetId && e.status !== 'INACTIVE') {
@@ -168,6 +189,10 @@ export const headcountService = {
         additionalApprovedQuota: 0,
         totalAvailableSlots: availableQuotaSlots,
         availableRequests: [],
+        hasActiveStoreManager,
+        activeStoreManagerId,
+        activeStoreManagerName,
+        activeStoreManagerCode,
       },
     };
   },
