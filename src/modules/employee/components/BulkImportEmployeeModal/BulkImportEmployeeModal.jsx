@@ -117,6 +117,73 @@ export default function BulkImportEmployeeModal({
 
   // ─── Import ───────────────────────────────────────────────────────────────
 
+  // ─── Tải file báo cáo lỗi chi tiết khi lỗi quá 5 dòng ───
+  // ─── Tải file báo cáo lỗi chi tiết khi lỗi quá 5 dòng ───
+  const handleDownloadErrorReport = async (errors, sourceFileName = 'Danh_Sach_Nhan_Su.xlsx') => {
+    if (!errors || errors.length === 0) return;
+
+    try {
+      const res = await employeeService.exportImportErrors({ errors, sourceFileName });
+      if (res?.success) return;
+    } catch (e) {
+      console.warn('Backend export failed, fallback to client CSV export', e);
+    }
+
+    // Fallback: xuất CSV nếu offline
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    const cleanBaseName = sourceFileName ? sourceFileName.replace(/\.[^/.]+$/, '').replace(/[\s\W]+/g, '_') : 'Import_Nhan_Su';
+    const outFileName = `Bao_Cao_Loi_${cleanBaseName}_${timestamp}.csv`;
+
+    const headers = [
+      'STT',
+      'Dòng Excel',
+      'Mã Nhân Viên',
+      'Họ Và Tên',
+      'Email',
+      'Chi Tiết Lý Do Lỗi',
+      'Thời Gian Ghi Nhận',
+    ];
+
+    const escapeCsv = (val) => {
+      const str = String(val ?? '').trim();
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const formattedTime = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+
+    const rows = errors.map((errRow, idx) => {
+      const rowNum = errRow.rowNumber ?? errRow.RowNumber ?? errRow.rowIndex ?? errRow.RowIndex ?? (idx + 2);
+      const code = errRow.employeeCode ?? errRow.EmployeeCode ?? errRow.rowData?.employeeCode ?? errRow.RowData?.EmployeeCode ?? '—';
+      const name = errRow.fullName ?? errRow.FullName ?? errRow.rowData?.fullName ?? errRow.RowData?.FullName ?? '';
+      const email = errRow.email ?? errRow.Email ?? errRow.rowData?.email ?? errRow.RowData?.Email ?? '';
+      const rawMsg = errRow.errorMessage ?? errRow.ErrorMessage ?? errRow.errorMessages ?? errRow.ErrorMessages;
+      const errMsg = Array.isArray(rawMsg) ? rawMsg.join('; ') : (rawMsg || 'Dữ liệu không hợp lệ');
+
+      return [
+        idx + 1,
+        `Dòng ${rowNum}`,
+        escapeCsv(code),
+        escapeCsv(name),
+        escapeCsv(email),
+        escapeCsv(errMsg),
+        escapeCsv(formattedTime),
+      ].join(';');
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = outFileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 200);
+  };
+
   const handleImport = async () => {
     if (isImporting) return; // Chặn double click
     if (!selectedFile) {
@@ -434,13 +501,15 @@ export default function BulkImportEmployeeModal({
             {importResult?.errors?.length > 0 && (
               <div style={{ marginLeft: '30px' }}>
                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#EF4444', marginBottom: '8px' }}>
-                  Chi tiết lỗi ({importResult.errors.length} dòng vi phạm):
+                  {importResult.errors.length > 5
+                    ? `Chi tiết lỗi (Hiển thị 5 / ${importResult.errors.length} dòng vi phạm):`
+                    : `Chi tiết lỗi (${importResult.errors.length} dòng vi phạm):`}
                 </div>
                 <div
                   className="import-error-scrollbar"
                   style={{
-                    maxHeight: '140px',
-                    overflowY: 'scroll',
+                    maxHeight: '160px',
+                    overflowY: 'auto',
                     border: `1px solid rgba(239, 68, 68, 0.35)`,
                     borderRadius: '6px',
                     background: c.bgRaised,
@@ -451,12 +520,12 @@ export default function BulkImportEmployeeModal({
                     <thead style={{ position: 'sticky', top: 0, zIndex: 2, background: c.bgElev }}>
                       <tr style={{ borderBottom: `1px solid ${c.border}` }}>
                         <th style={{ padding: '8px 10px', textAlign: 'left', color: c.fgMuted, fontWeight: 600, whiteSpace: 'nowrap', position: 'sticky', top: 0, background: c.bgElev, borderBottom: `1px solid ${c.border}` }}>Dòng</th>
-                        <th style={{ padding: '8px 10px', textAlign: 'left', color: c.fgMuted, fontWeight: 600, position: 'sticky', top: 0, background: c.bgElev, borderBottom: `1px solid ${c.border}` }}>Mã NV / Email</th>
-                        <th style={{ padding: '8px 10px', textAlign: 'left', color: c.fgMuted, fontWeight: 600, position: 'sticky', top: 0, background: c.bgElev, borderBottom: `1px solid ${c.border}` }}>Lý Do Lỗi</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', color: c.fgMuted, fontWeight: 600, position: 'sticky', top: 0, background: c.bgElev, borderBottom: `1px solid ${c.border}` }}>Mã NV / Họ Tên</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', color: c.fgMuted, fontWeight: 600, position: 'sticky', top: 0, background: c.bgElev, borderBottom: `1px solid ${c.border}` }}>Chi Tiết Lý Do Lỗi</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {importResult.errors.map((errRow, idx) => {
+                      {(importResult.errors.length > 5 ? importResult.errors.slice(0, 5) : importResult.errors).map((errRow, idx) => {
                         const rowNum = errRow.rowNumber ?? errRow.RowNumber ?? errRow.rowIndex ?? errRow.RowIndex ?? (idx + 2);
                         const code = errRow.employeeCode ?? errRow.EmployeeCode ?? errRow.rowData?.employeeCode ?? errRow.RowData?.EmployeeCode ?? '—';
                         const name = errRow.fullName ?? errRow.FullName ?? errRow.rowData?.fullName ?? errRow.RowData?.FullName ?? '';
@@ -498,6 +567,50 @@ export default function BulkImportEmployeeModal({
                   <p style={{ fontSize: '11.5px', color: c.fgSubtle, marginTop: '8px', lineHeight: '1.5' }}>
                     Hãy chỉnh sửa file và xóa các dòng đã import thành công, sau đó import lại file đã sửa.
                   </p>
+                )}
+
+                {/* Hiển thị một dòng tải file báo lỗi ở cuối khi lỗi > 5 dòng */}
+                {importResult.errors.length > 5 && (
+                  <div style={{
+                    marginTop: '10px',
+                    padding: '8px 12px',
+                    background: 'rgba(239, 68, 68, 0.05)',
+                    border: '1px solid rgba(239, 68, 68, 0.22)',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                  }}>
+                    <span style={{ fontSize: '12px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Icon name="warning" size={14} color="#DC2626" />
+                      <span>Có <strong>{importResult.errors.length} dòng lỗi</strong> (đã ghi đầy đủ vào file).</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadErrorReport(importResult.errors, selectedFile?.name)}
+                      style={{
+                        padding: '5px 12px',
+                        background: '#DC2626',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap',
+                        transition: 'opacity 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+                      onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                    >
+                      <Icon name="download" size={13} color="#FFFFFF" />
+                      <span>Tải file báo lỗi ({importResult.errors.length} dòng)</span>
+                    </button>
+                  </div>
                 )}
               </div>
             )}

@@ -88,7 +88,6 @@ export default function EmployeeTable({
             marginBottom: '14px',
           }}
         >
-          <Icon name="users" size={24} />
         </div>
         <h4 style={{ fontSize: '16px', fontWeight: 600, color: c.fg, marginBottom: '6px' }}>
           Không tìm thấy hồ sơ nhân sự
@@ -245,7 +244,7 @@ export default function EmployeeTable({
                         }}
                         title={`Nhân sự điều chuyển từ: ${emp.originalBranchName || `Chi nhánh #${emp.originalHomeBranchId}`}`}
                       >
-                        ⚡ Chi viện từ {emp.originalBranchName || `CN #${emp.originalHomeBranchId}`}
+                        Chi viện từ {emp.originalBranchName || `CN #${emp.originalHomeBranchId}`}
                       </span>
                     </div>
                   )}
