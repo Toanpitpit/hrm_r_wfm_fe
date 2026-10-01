@@ -20,15 +20,22 @@ export default function EmployeeFilter({
   roles = [],
   branches = [],
   isStoreManager = false,
+  userRole = '',
 }) {
   const { c } = useAdminTheme();
 
-  const excludedRoles = ['BUSINESS_OWNER', 'OPERATIONS_ADMIN', 'STORE_MANAGER'];
+  // Kiểm tra phân quyền:
+  // - Nếu là Cửa Hàng Trưởng (Store Manager): Loại trừ cả 3 vai trò ['BUSINESS_OWNER', 'OPERATIONS_ADMIN', 'STORE_MANAGER']
+  // - Nếu là Admin / Chủ doanh nghiệp: Cho phép lọc STORE_MANAGER (chỉ loại trừ ['BUSINESS_OWNER', 'OPERATIONS_ADMIN'])
+  const isManagerRole = Boolean(isStoreManager || userRole?.toUpperCase() === 'STORE_MANAGER');
+  const excludedRoles = isManagerRole
+    ? ['BUSINESS_OWNER', 'OPERATIONS_ADMIN', 'STORE_MANAGER']
+    : ['BUSINESS_OWNER', 'OPERATIONS_ADMIN'];
 
   const roleOptions = [
     { value: '', label: 'Tất cả vai trò' },
     ...roles
-      .filter((r) => !excludedRoles.includes(r.roleCode)) // Lọc bỏ 3 vai trò này
+      .filter((r) => !excludedRoles.includes(r.roleCode))
       .map((r) => ({
         value: r.roleCode || String(r.id),
         label: `${r.roleName} (${r.roleCode})`,

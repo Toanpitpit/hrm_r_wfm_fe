@@ -528,6 +528,7 @@ export default function EmployeeManagementPage() {
             roles={roles}
             branches={branches}
             isStoreManager={isStoreManager}
+            userRole={userRole}
           />
 
           {/* Bảng danh sách nhân sự */}
