@@ -9,6 +9,7 @@
 import AppRouter from './routers/AppRouter';
 import { ToastProvider } from './components/ui/toast/ToastProvider';
 import { AdminThemeProvider } from './shared/context/ThemeContext';
+import { AuthProvider } from './modules/auth/context/AuthContext';
 import ErrorBoundary from './shared/components/ErrorBoundary';
 
 const App = () => {
@@ -16,7 +17,9 @@ const App = () => {
     <ErrorBoundary>
       <AdminThemeProvider defaultTheme="light" defaultAccent="#10B981">
         <ToastProvider>
-          <AppRouter />
+          <AuthProvider>
+            <AppRouter />
+          </AuthProvider>
         </ToastProvider>
       </AdminThemeProvider>
     </ErrorBoundary>

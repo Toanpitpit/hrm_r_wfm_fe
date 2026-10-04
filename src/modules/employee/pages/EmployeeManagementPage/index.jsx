@@ -56,6 +56,9 @@ export default function EmployeeManagementPage() {
   const [roles, setRoles] = useState(STORE_ROLES);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const abortControllerRef = useRef(null);
+  const isFirstMountRef = useRef(true);
 
   // Dữ liệu thống kê nhân sự độc lập (không bị nhảy về 0 khi tìm kiếm nhân viên)
   const [statsData, setStatsData] = useState({
@@ -158,23 +161,7 @@ export default function EmployeeManagementPage() {
       if (res?.canceled) return;
 
       if (res?.success && res.data) {
-        const data = res.data;
-        setEmployees(data);
-
-        // Cập nhật thống kê 4 thẻ KPI nếu đây là lần tải ban đầu hoặc thay đổi chi nhánh (không có từ khóa tìm kiếm/bộ lọc vai trò)
-        const isUnfiltered = !debouncedSearch.trim() && !roleFilter && !statusFilter && !contractTypeFilter;
-        if (isUnfiltered || isInitial) {
-          setStats({
-            total: data.length,
-            active: data.filter((e) => e.status !== 'INACTIVE').length,
-            inactive: data.filter((e) => e.status === 'INACTIVE').length,
-            shiftLeader: data.filter((e) => e.roleCode === 'SHIFT_LEADER').length,
-            cashier: data.filter((e) => e.roleCode === 'CASHIER').length,
-            sales: data.filter((e) => e.roleCode === 'SALES_STAFF').length,
-            security: data.filter((e) => e.roleCode === 'SECURITY_GUARD' || e.roleCode === 'SECURITY').length,
-            manager: data.filter((e) => e.roleCode === 'STORE_MANAGER').length,
-          });
-        }
+        setEmployees(res.data);
       } else {
         setEmployees([]);
       }
@@ -206,15 +193,17 @@ export default function EmployeeManagementPage() {
       const params = {};
       if (isStoreManager) {
         params.branchId = currentBranchId;
+      } else if (branchFilter) {
+        params.branchId = branchFilter;
       }
       const res = await employeeService.getEmployeeStats(params);
       if (res.success && res.data) {
         setStatsData(res.data);
       }
     } catch (err) {
-      console.warn('Lỗi khi tải thống kê nhân sự toàn hệ thống:', err);
+      console.warn('Lỗi khi tải thống kê nhân sự:', err);
     }
-  }, [isStoreManager, currentBranchId]);
+  }, [isStoreManager, currentBranchId, branchFilter]);
 
   useEffect(() => {
     fetchStats();
@@ -397,10 +386,16 @@ export default function EmployeeManagementPage() {
   };
 
   // 7. Số liệu thống kê độc lập lấy từ thống kê chuẩn (không bị ảnh hưởng bởi thanh tìm kiếm search)
-  const totalEmployees = statsData.totalEmployees;
-  const activeCount = statsData.activeCount;
-  const inactiveCount = statsData.inactiveCount;
-  const roleStats = statsData.roleStats;
+  const totalEmployees = statsData?.totalEmployees || 0;
+  const activeCount = statsData?.activeCount || 0;
+  const inactiveCount = statsData?.inactiveCount || 0;
+  const roleStats = statsData?.roleStats || {
+    shiftLeader: 0,
+    cashier: 0,
+    sales: 0,
+    security: 0,
+    manager: 0,
+  };
 
   const handleUpgradeBranchTier = async (branchId) => {
     try {
@@ -514,7 +509,7 @@ export default function EmployeeManagementPage() {
           title={isStoreManager ? 'Tổng Nhân Sự Chi Nhánh' : 'Tổng Nhân Sự Toàn Chuỗi'}
           value={totalEmployees}
           color="var(--color-primary, #0D9488)"
-          subtitle={`${roleStats.cashier} Thu ngân • ${roleStats.sales} Bán hàng`}
+          subtitle={`${roleStats.cashier || 0} Thu ngân • ${roleStats.sales || 0} Bán hàng`}
         />
         <StatCard
           icon="check"
@@ -533,12 +528,12 @@ export default function EmployeeManagementPage() {
         <StatCard
           icon="calendar"
           title="Điều Hành & An Ninh"
-          value={`${stats.manager + stats.shiftLeader + stats.security}`}
+          value={`${(roleStats.manager || 0) + (roleStats.shiftLeader || 0) + (roleStats.security || 0)}`}
           color="#3b82f6"
           subtitle={
-            stats.manager > 0
-              ? `${stats.manager} Cửa hàng trưởng • ${stats.shiftLeader} Trưởng ca • ${stats.security} Bảo vệ`
-              : `${stats.shiftLeader} Trưởng ca • ${stats.security} Bảo vệ`
+            (roleStats.manager || 0) > 0
+              ? `${roleStats.manager} Cửa hàng trưởng • ${roleStats.shiftLeader || 0} Trưởng ca • ${roleStats.security || 0} Bảo vệ`
+              : `${roleStats.shiftLeader || 0} Trưởng ca • ${roleStats.security || 0} Bảo vệ`
           }
         />
       </div>

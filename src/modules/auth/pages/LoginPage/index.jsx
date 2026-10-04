@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import useAuth from '../../hooks/useAuth';
+import { useAuthContext } from '../../context/AuthContext';
 import { useToast } from '../../../../components/ui/toast/ToastProvider';
 import styles from './LoginPage.module.css';
 
@@ -106,6 +107,7 @@ function InputField({ id, name, type = 'text', value, onChange, placeholder, dis
 export default function LoginPage() {
   const navigate = useNavigate();
   const { handleLogin, handleGoogleLogin, isLoading } = useAuth();
+  const { user: authUser, isInitializing, loginSuccess } = useAuthContext();
   const toast = useToast();
 
   const [formData, setFormData] = useState({ username: '', password: '' });
@@ -168,6 +170,13 @@ export default function LoginPage() {
     }
   };
 
+  // Tự động chuyển hướng nếu người dùng đã đăng nhập hoặc silent refresh thành công
+  useEffect(() => {
+    if (!isInitializing && authUser) {
+      redirectUserByRole(authUser);
+    }
+  }, [authUser, isInitializing]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errors = validateForm();
@@ -178,6 +187,7 @@ export default function LoginPage() {
     }
     const result = await handleLogin(formData.username.trim(), formData.password);
     if (result.success) {
+      loginSuccess(result.token, result.user);
       toast.success('Đăng nhập thành công!');
       redirectUserByRole(result.user);
     } else {
@@ -195,6 +205,7 @@ export default function LoginPage() {
         }
         const result = await handleGoogleLogin(token);
         if (result?.success) {
+          loginSuccess(result.token, result.user);
           toast.success('Đăng nhập Google thành công!');
           redirectUserByRole(result.user);
         } else {
