@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import { useToast } from '@/components/ui/toast/ToastProvider';
@@ -12,6 +12,7 @@ import Icon from '@/shared/components/ui/Icon';
 import Modal from '@/shared/components/ui/Modal';
 import StatCard from '@/shared/components/ui/StatCard';
 import { getNavItemsForRole } from '@/shared/constants/navigation.config';
+import useDebounce from '@/shared/hooks/useDebounce';
 
 // Services
 import employeeService, { STORE_ROLES } from '@/modules/employee/services/employee.service';
@@ -55,6 +56,9 @@ export default function EmployeeManagementPage() {
   const [roles, setRoles] = useState(STORE_ROLES);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const abortControllerRef = useRef(null);
+  const isFirstMountRef = useRef(true);
 
   // Dữ liệu thống kê nhân sự độc lập (không bị nhảy về 0 khi tìm kiếm nhân viên)
   const [statsData, setStatsData] = useState({
@@ -72,6 +76,7 @@ export default function EmployeeManagementPage() {
 
   // Bộ lọc
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 400);
   const [roleFilter, setRoleFilter] = useState('');
   const [branchFilter, setBranchFilter] = useState(isStoreManager ? String(currentBranchId) : '');
   const [statusFilter, setStatusFilter] = useState('');
@@ -120,12 +125,23 @@ export default function EmployeeManagementPage() {
     loadMasterData();
   }, []);
 
-  // 4. Tải danh sách nhân sự (GET /api/Users/employees)
-  const fetchEmployees = useCallback(async () => {
-    setLoading(true);
+  // 4. Tải danh sách nhân sự (GET /api/Users/employees) - Hỗ trợ hủy request cũ và không nháy bảng
+  const fetchEmployees = useCallback(async (isInitial = false) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    if (isInitial) {
+      setInitialLoading(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const params = {};
-      if (search.trim()) params.search = search.trim();
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
       if (roleFilter) params.roleCode = roleFilter;
       if (isStoreManager) {
         params.branchId = currentBranchId;
@@ -140,22 +156,33 @@ export default function EmployeeManagementPage() {
         params.employmentType = contractTypeFilter;
       }
 
-      const res = await employeeService.getEmployees(params);
-      if (res.success && res.data) {
+      const res = await employeeService.getEmployees(params, { signal: controller.signal });
+
+      if (res?.canceled) return;
+
+      if (res?.success && res.data) {
         setEmployees(res.data);
       } else {
         setEmployees([]);
       }
     } catch (err) {
-      console.error('Lỗi khi tải danh sách nhân sự:', err);
-      toast.error('Không thể tải danh sách nhân sự.');
+      if (err?.name !== 'CanceledError' && err?.code !== 'ERR_CANCELED') {
+        console.error('Lỗi khi tải danh sách nhân sự:', err);
+        toast.error('Không thể tải danh sách nhân sự.');
+      }
     } finally {
+      if (isInitial) setInitialLoading(false);
       setLoading(false);
     }
-  }, [search, roleFilter, branchFilter, statusFilter, contractTypeFilter, isStoreManager, currentBranchId, toast]);
+  }, [debouncedSearch, roleFilter, branchFilter, statusFilter, contractTypeFilter, isStoreManager, currentBranchId, toast]);
 
   useEffect(() => {
-    fetchEmployees();
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      fetchEmployees(true);
+    } else {
+      fetchEmployees(false);
+    }
   }, [fetchEmployees]);
 
   // 4b. Tải thống kê nhân sự toàn hệ thống (GET /api/Users/employees/stats)
@@ -166,15 +193,17 @@ export default function EmployeeManagementPage() {
       const params = {};
       if (isStoreManager) {
         params.branchId = currentBranchId;
+      } else if (branchFilter) {
+        params.branchId = branchFilter;
       }
       const res = await employeeService.getEmployeeStats(params);
       if (res.success && res.data) {
         setStatsData(res.data);
       }
     } catch (err) {
-      console.warn('Lỗi khi tải thống kê nhân sự toàn hệ thống:', err);
+      console.warn('Lỗi khi tải thống kê nhân sự:', err);
     }
-  }, [isStoreManager, currentBranchId]);
+  }, [isStoreManager, currentBranchId, branchFilter]);
 
   useEffect(() => {
     fetchStats();
@@ -357,10 +386,16 @@ export default function EmployeeManagementPage() {
   };
 
   // 7. Số liệu thống kê độc lập lấy từ thống kê chuẩn (không bị ảnh hưởng bởi thanh tìm kiếm search)
-  const totalEmployees = statsData.totalEmployees;
-  const activeCount = statsData.activeCount;
-  const inactiveCount = statsData.inactiveCount;
-  const roleStats = statsData.roleStats;
+  const totalEmployees = statsData?.totalEmployees || 0;
+  const activeCount = statsData?.activeCount || 0;
+  const inactiveCount = statsData?.inactiveCount || 0;
+  const roleStats = statsData?.roleStats || {
+    shiftLeader: 0,
+    cashier: 0,
+    sales: 0,
+    security: 0,
+    manager: 0,
+  };
 
   const handleUpgradeBranchTier = async (branchId) => {
     try {
@@ -474,7 +509,7 @@ export default function EmployeeManagementPage() {
           title={isStoreManager ? 'Tổng Nhân Sự Chi Nhánh' : 'Tổng Nhân Sự Toàn Chuỗi'}
           value={totalEmployees}
           color="var(--color-primary, #0D9488)"
-          subtitle={`${roleStats.cashier} Thu ngân • ${roleStats.sales} Bán hàng`}
+          subtitle={`${roleStats.cashier || 0} Thu ngân • ${roleStats.sales || 0} Bán hàng`}
         />
         <StatCard
           icon="check"
@@ -493,9 +528,13 @@ export default function EmployeeManagementPage() {
         <StatCard
           icon="calendar"
           title="Điều Hành & An Ninh"
-          value={`${roleStats.manager + roleStats.shiftLeader + roleStats.security}`}
+          value={`${(roleStats.manager || 0) + (roleStats.shiftLeader || 0) + (roleStats.security || 0)}`}
           color="#3b82f6"
-          subtitle={`${roleStats.manager} Cửa hàng trưởng • ${roleStats.shiftLeader} Trưởng ca • ${roleStats.security} Bảo vệ`}
+          subtitle={
+            (roleStats.manager || 0) > 0
+              ? `${roleStats.manager} Cửa hàng trưởng • ${roleStats.shiftLeader || 0} Trưởng ca • ${roleStats.security || 0} Bảo vệ`
+              : `${roleStats.shiftLeader || 0} Trưởng ca • ${roleStats.security || 0} Bảo vệ`
+          }
         />
       </div>
 
@@ -535,6 +574,7 @@ export default function EmployeeManagementPage() {
           <EmployeeTable
             employees={employees}
             loading={loading}
+            initialLoading={initialLoading}
             onViewDetail={handleOpenDetailModal}
             onEdit={handleOpenEditModal}
             onResetPassword={handleOpenResetModal}

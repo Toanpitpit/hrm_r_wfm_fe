@@ -25,6 +25,28 @@ const authService = {
   },
 
   /**
+   * Gọi làm mới Access Token từ HttpOnly Cookie Refresh Token
+   * @returns {Promise<Object>} ApiResponse chứa new token và user
+   */
+  refreshToken: async () => {
+    const response = await axiosInstance.post('/Auth/refresh', {});
+    return response.data;
+  },
+
+  /**
+   * Đăng xuất hệ thống (xóa cookie và thu hồi token)
+   * @returns {Promise<Object>} ApiResponse<bool>
+   */
+  logout: async () => {
+    try {
+      const response = await axiosInstance.post('/Auth/logout', {});
+      return response.data;
+    } catch {
+      return { success: true };
+    }
+  },
+
+  /**
    * Yêu cầu gửi mã OTP đặt lại mật khẩu qua email
    * @param {string} email
    * @returns {Promise<Object>} ApiResponse<bool>
