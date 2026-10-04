@@ -768,6 +768,50 @@ export const employeeService = {
       };
     }
   },
+
+  /**
+   * 12. Xuất báo cáo lỗi import chi tiết định dạng Excel (.xlsx) chuẩn hóa
+   */
+  async exportImportErrors({ errors = [], sourceFileName = 'Danh_Sach_Nhan_Su.xlsx' } = {}) {
+    try {
+      const payload = {
+        errors: errors.map((err, idx) => ({
+          rowNumber: err.rowNumber ?? err.RowNumber ?? err.rowIndex ?? err.RowIndex ?? (idx + 2),
+          employeeCode: err.employeeCode ?? err.EmployeeCode ?? err.rowData?.employeeCode ?? err.RowData?.EmployeeCode ?? '',
+          fullName: err.fullName ?? err.FullName ?? err.rowData?.fullName ?? err.RowData?.FullName ?? '',
+          email: err.email ?? err.Email ?? err.rowData?.email ?? err.RowData?.Email ?? '',
+          errorMessage: Array.isArray(err.errorMessage ?? err.ErrorMessage ?? err.errorMessages ?? err.ErrorMessages)
+            ? (err.errorMessage ?? err.ErrorMessage ?? err.errorMessages ?? err.ErrorMessages).join('; ')
+            : (err.errorMessage ?? err.ErrorMessage ?? err.errorMessages ?? err.ErrorMessages ?? 'Dữ liệu không hợp lệ'),
+        })),
+        sourceFileName,
+      };
+
+      const res = await axiosInstance.post('v1/users/employees/export-errors', payload, {
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const cleanBaseName = sourceFileName ? sourceFileName.replace(/\.[^/.]+$/, '').replace(/[\s\W]+/g, '_') : 'Import_Nhan_Su';
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      link.download = `Bao_Cao_Loi_${cleanBaseName}_${timestamp}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return { success: true };
+    } catch (err) {
+      console.error('Failed to export error report from server, falling back to client-side generation', err);
+      return { success: false, error: err };
+    }
+  },
 };
 
 export default employeeService;
