@@ -95,10 +95,7 @@ export default function EmployeeFormModal({
 
   // Phân quyền chọn Vai trò:
   const availableRoles = (roles.length > 0 ? roles : STORE_ROLES).filter((r) => {
-    if (isStoreManager) {
-      return !['OPERATIONS_ADMIN', 'STORE_MANAGER', 'BUSINESS_OWNER'].includes(r.roleCode);
-    }
-    return true;
+    return !['OPERATIONS_ADMIN', 'STORE_MANAGER', 'BUSINESS_OWNER'].includes(r.roleCode);
   });
 
   // Reset form & import khi mở modal
