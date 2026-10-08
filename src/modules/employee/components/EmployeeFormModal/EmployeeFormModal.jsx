@@ -94,8 +94,15 @@ export default function EmployeeFormModal({
   const [importStatus, setImportStatus] = useState('idle'); // 'idle' | 'success' | 'partial' | 'error'
 
   // Phân quyền chọn Vai trò:
+  // - Nếu là Cửa Hàng Trưởng (Store Manager): Không được cấp quyền tạo Cửa hàng trưởng hoặc tài khoản hệ thống
+  // - Nếu là Operations Admin / Business Owner: Được phép cấp quyền chọn Cửa hàng trưởng (STORE_MANAGER)
+  const isManagerUser = Boolean(isStoreManager || (!canManageSystem && !effectiveIsBusinessOwner));
+  const excludedRoles = isManagerUser
+    ? ['OPERATIONS_ADMIN', 'STORE_MANAGER', 'BUSINESS_OWNER', 'ADMIN']
+    : ['OPERATIONS_ADMIN', 'BUSINESS_OWNER', 'ADMIN'];
+
   const availableRoles = (roles.length > 0 ? roles : STORE_ROLES).filter((r) => {
-    return !['OPERATIONS_ADMIN', 'STORE_MANAGER', 'BUSINESS_OWNER'].includes(r.roleCode);
+    return !excludedRoles.includes(r.roleCode);
   });
 
   // Reset form & import khi mở modal
@@ -175,6 +182,16 @@ export default function EmployeeFormModal({
         const quotaRes = await headcountService.getBranchHeadcountStatus(targetBranchId, tier);
         if (mounted && quotaRes.success) {
           setBranchQuota(quotaRes.data);
+          if (
+            formData.roleCode === 'STORE_MANAGER' &&
+            quotaRes.data?.hasActiveStoreManager &&
+            (!isEdit || initialData?.id !== quotaRes.data?.activeStoreManagerId)
+          ) {
+            setErrors((prevErr) => ({
+              ...prevErr,
+              roleId: `Chi nhánh "${quotaRes.data?.branchName || foundBranch?.name || ''}" hiện đã có Cửa hàng trưởng (${quotaRes.data?.activeStoreManagerName || 'CHT'}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`,
+            }));
+          }
         }
       } catch (err) {
         console.warn('Lỗi khi tải quota chi nhánh:', err);
@@ -230,6 +247,13 @@ export default function EmployeeFormModal({
   };
 
   const handleChange = (field, value) => {
+    let nextRoleCode = formData.roleCode;
+
+    if (field === 'roleId') {
+      const found = availableRoles.find((r) => String(r.id) === String(value));
+      nextRoleCode = found?.roleCode || '';
+    }
+
     setFormData((prev) => {
       const next = { ...prev, [field]: value };
       if (field === 'roleId') {
@@ -244,8 +268,21 @@ export default function EmployeeFormModal({
       }
       return next;
     });
+
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: null }));
+    }
+
+    if (
+      field === 'roleId' &&
+      nextRoleCode === 'STORE_MANAGER' &&
+      branchQuota?.hasActiveStoreManager &&
+      (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
+    ) {
+      setErrors((prev) => ({
+        ...prev,
+        roleId: `Chi nhánh "${branchQuota.branchName || ''}" hiện đã có Cửa hàng trưởng (${branchQuota.activeStoreManagerName || 'CHT'}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`,
+      }));
     }
   };
 
@@ -318,8 +355,12 @@ export default function EmployeeFormModal({
     if (!formData.branchId && !formData.homeBranchId) newErrors.branchId = 'Vui lòng chọn chi nhánh';
 
     // Ràng buộc duy nhất 1 Cửa hàng trưởng trên mỗi chi nhánh
-    if (formData.roleCode === 'STORE_MANAGER' && branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)) {
-      newErrors.roleId = `Chi nhánh này đã có Cửa hàng trưởng (${branchQuota.activeStoreManagerName || ''}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`;
+    if (
+      formData.roleCode === 'STORE_MANAGER' &&
+      branchQuota?.hasActiveStoreManager &&
+      (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
+    ) {
+      newErrors.roleId = `Chi nhánh "${branchQuota.branchName || ''}" hiện đã có Cửa hàng trưởng (${branchQuota.activeStoreManagerName || 'CHT'}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`;
     }
 
     if (!isEdit && (!formData.password || formData.password.length < 6)) {
@@ -336,8 +377,10 @@ export default function EmployeeFormModal({
 
     setSubmitting(true);
     try {
-      await onSubmit(formData, isEdit);
-      onClose();
+      const success = await onSubmit(formData, isEdit);
+      if (success !== false) {
+        onClose();
+      }
     } catch (err) {
       console.error('Submit employee error:', err);
     } finally {
@@ -749,6 +792,8 @@ export default function EmployeeFormModal({
               {/* Vai trò (Role) */}
               <Field
                 label="Vai Trò Cửa Hàng"
+                required
+                error={errors.roleId}
               >
                 <select
                   value={formData.roleId}
@@ -779,12 +824,66 @@ export default function EmployeeFormModal({
                       return (
                         <option key={r.id} value={String(r.id)} disabled={isAlreadyTaken}>
                           {r.roleName} ({r.roleCode})
-                          {isAlreadyTaken ? ` — (Đã có: ${branchQuota?.activeStoreManagerName || 'CHT'})` : ''}
+                          {isAlreadyTaken ? ` — (Đã có CHT: ${branchQuota?.activeStoreManagerName || 'Đã có'})` : ''}
                         </option>
                       );
                     })}
                 </select>
               </Field>
+
+              {/* Thông báo nghiệp vụ Cửa Hàng Trưởng */}
+              {formData.roleCode === 'STORE_MANAGER' && (
+                <div
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12.5px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '8px',
+                    background:
+                      branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
+                        ? 'rgba(239, 68, 68, 0.12)'
+                        : 'rgba(59, 130, 246, 0.12)',
+                    border: `1px solid ${branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
+                        ? 'rgba(239, 68, 68, 0.35)'
+                        : 'rgba(59, 130, 246, 0.3)'
+                      }`,
+                    color:
+                      branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
+                        ? '#fca5a5'
+                        : '#93c5fd',
+                  }}
+                >
+                  <Icon
+                    name={
+                      branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
+                        ? 'alert-triangle'
+                        : 'info'
+                    }
+                    size={16}
+                    color={
+                      branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
+                        ? '#ef4444'
+                        : '#3b82f6'
+                    }
+                  />
+                  <div>
+                    {branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId) ? (
+                      <span>
+                        <strong>Không thể chỉ định:</strong> Chi nhánh{' '}
+                        <strong>{branchQuota.branchName || ''}</strong> hiện đã có Cửa hàng trưởng đang hoạt động là{' '}
+                        <strong style={{ color: '#fff' }}>{branchQuota.activeStoreManagerName}</strong> ({branchQuota.activeStoreManagerCode}).{' '}
+                        <em>Quy định bắt buộc: Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.</em>
+                      </span>
+                    ) : (
+                      <span>
+                        <strong>Ràng buộc quản lý:</strong> Mỗi chi nhánh chỉ có tối đa 1 Cửa hàng trưởng. Tài khoản này sẽ có quyền điều hành và lập lịch ca cho toàn bộ nhân sự tại chi nhánh đã chọn.
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Chi nhánh công tác */}
               <Field
@@ -864,6 +963,35 @@ export default function EmployeeFormModal({
                     >
                       Tier {branchQuota.branchTier} (Chuẩn {branchQuota.standardQuota})
                     </span>
+                    {branchQuota.hasActiveStoreManager ? (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: '#f59e0b',
+                          background: 'rgba(245, 158, 11, 0.12)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                        }}
+                      >
+                        CHT: {branchQuota.activeStoreManagerName}
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: '#38bdf8',
+                          background: 'rgba(56, 189, 248, 0.12)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                        }}
+                      >
+                        Trống CHT
+                      </span>
+                    )}
                     {branchQuota.inactiveCount > 0 && (
                       <span style={{ fontSize: '11.5px', color: c.fgSubtle }}>
                         Đã nghỉ: {branchQuota.inactiveCount}
@@ -913,7 +1041,7 @@ export default function EmployeeFormModal({
                           fontWeight: 700,
                         }}
                       >
-                        {upgradingTier ? 'Đang Nâng Tier...' : `⚡ Nâng Lên Tier ${branchQuota.branchTier - 1}`}
+                        {upgradingTier ? 'Đang Nâng Tier...' : ` Nâng Lên Tier ${branchQuota.branchTier - 1}`}
                       </Button>
                     )}
                   </div>

@@ -107,7 +107,7 @@ function InputField({ id, name, type = 'text', value, onChange, placeholder, dis
 export default function LoginPage() {
   const navigate = useNavigate();
   const { handleLogin, handleGoogleLogin, isLoading } = useAuth();
-  const { user: authUser, isInitializing, loginSuccess } = useAuthContext();
+  const { user: authUser, isAuthenticated, isInitializing, loginSuccess } = useAuthContext();
   const toast = useToast();
 
   const [formData, setFormData] = useState({ username: '', password: '' });
@@ -172,10 +172,11 @@ export default function LoginPage() {
 
   // Tự động chuyển hướng nếu người dùng đã đăng nhập hoặc silent refresh thành công
   useEffect(() => {
-    if (!isInitializing && authUser) {
+    const hasStoredUser = !!localStorage.getItem('user');
+    if (!isInitializing && authUser && isAuthenticated && hasStoredUser) {
       redirectUserByRole(authUser);
     }
-  }, [authUser, isInitializing]);
+  }, [authUser, isAuthenticated, isInitializing]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

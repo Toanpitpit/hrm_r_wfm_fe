@@ -66,6 +66,8 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(async () => {
     try {
       await authService.logout();
+    } catch (err) {
+      console.warn('Backend logout warning:', err);
     } finally {
       clearAccessToken();
       setUser(null);
@@ -73,6 +75,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('user');
       localStorage.removeItem('accessToken');
       localStorage.removeItem('token');
+      sessionStorage.clear();
       window.location.href = '/login';
     }
   }, []);
