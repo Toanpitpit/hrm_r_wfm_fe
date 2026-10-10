@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../ui/Icon';
 import { useAdminTheme } from '../../context/ThemeContext';
 import { getNavItemsForRole } from '../../constants/navigation.config';
+import authService from '@/modules/auth/services/auth.service';
+import { clearAccessToken } from '@/config/axios.config';
 
 export default function DashboardSidebar({
   page,
@@ -41,14 +43,19 @@ export default function DashboardSidebar({
 
   const currentPath = activePath || location.pathname;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (onLogout) {
       onLogout();
     } else {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      navigate('/login');
+      try {
+        await authService.logout();
+      } finally {
+        clearAccessToken();
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+      }
     }
   };
 

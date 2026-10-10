@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
-import { Modal, Button, Select } from '@/shared/components/ui';
+import { Modal, Button, Badge } from '@/shared/components/ui';
 import dispatchService from '../services/dispatch.service';
 
 /**
  * Modal: Xét duyệt và chỉ định nhân sự điều động
- * Dành cho Cửa hàng trưởng của cơ sở hỗ trợ (Source Branch) phê duyệt hoặc từ chối phiếu yêu cầu.
+ * Hỗ trợ duyệt hoặc từ chối từng nhân sự riêng biệt trong phiếu điều động nhiều người.
  */
 export default function ReviewDispatchModal({
   open,
@@ -16,53 +16,86 @@ export default function ReviewDispatchModal({
 }) {
   const { c, fonts } = useAdminTheme();
 
-  const [assignedEmployeeId, setAssignedEmployeeId] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
-  const [employees, setEmployees] = useState([]);
-  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [itemsToReview, setItemsToReview] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Tải danh sách nhân sự của chi nhánh mình để cho phép chọn/đổi người chỉ định
   useEffect(() => {
     if (open && dispatchItem) {
       setApprovalNotes('');
       setErrorMessage('');
-      setAssignedEmployeeId(String(dispatchItem.employeeId || dispatchItem.userId || ''));
 
-      const loadEmployees = async () => {
-        setLoadingEmployees(true);
-        try {
-          const storeIdToQuery = dispatchItem.fromStoreId || currentStoreId;
-          const list = await dispatchService.getEmployeesByBranch(storeIdToQuery);
-          setEmployees(list);
-        } catch (err) {
-          console.error('Lỗi khi tải danh sách nhân sự xét duyệt:', err);
-        } finally {
-          setLoadingEmployees(false);
-        }
-      };
-      loadEmployees();
+      // Khởi tạo danh sách nhân sự cần xét duyệt
+      if (dispatchItem.employees && Array.isArray(dispatchItem.employees) && dispatchItem.employees.length > 0) {
+        setItemsToReview(
+          dispatchItem.employees.map((emp) => ({
+            employeeId: emp.employeeId,
+            employeeName: emp.employeeName,
+            employeeCode: emp.employeeCode,
+            positionName: emp.positionName || 'Nhân viên',
+            isApproved: true, // Mặc định duyệt
+            note: '',
+          }))
+        );
+      } else {
+        // Fallback phiếu cũ
+        setItemsToReview([
+          {
+            employeeId: dispatchItem.employeeId || dispatchItem.userId,
+            employeeName: dispatchItem.employeeName,
+            employeeCode: dispatchItem.employeeCode,
+            positionName: dispatchItem.positionName || 'Nhân viên',
+            isApproved: true,
+            note: '',
+          },
+        ]);
+      }
     }
-  }, [open, dispatchItem, currentStoreId]);
+  }, [open, dispatchItem]);
 
   if (!dispatchItem) return null;
 
-  const handleAction = async (isApproved) => {
+  const toggleEmployeeApproval = (empId, approved) => {
+    setItemsToReview((prev) =>
+      prev.map((item) =>
+        item.employeeId === empId ? { ...item, isApproved: approved } : item
+      )
+    );
+  };
+
+  const updateEmployeeNote = (empId, note) => {
+    setItemsToReview((prev) =>
+      prev.map((item) =>
+        item.employeeId === empId ? { ...item, note } : item
+      )
+    );
+  };
+
+  const setAllApproval = (approved) => {
+    setItemsToReview((prev) =>
+      prev.map((item) => ({ ...item, isApproved: approved }))
+    );
+  };
+
+  const handleAction = async () => {
     setErrorMessage('');
     setSubmitting(true);
 
     try {
       const payload = {
         dispatchId: dispatchItem.dispatchId || dispatchItem.id,
-        isApproved,
-        assignedEmployeeId: isApproved && assignedEmployeeId ? Number(assignedEmployeeId) : null,
+        employeeReviews: itemsToReview.map((item) => ({
+          employeeId: item.employeeId,
+          isApproved: item.isApproved,
+          note: item.note ? item.note.trim() : undefined,
+        })),
         approvalNotes: approvalNotes.trim() || undefined,
       };
 
       const result = await dispatchService.reviewDispatchRequest(payload);
       if (result.success) {
-        if (onSuccess) onSuccess(isApproved);
+        if (onSuccess) onSuccess();
         onClose();
       } else {
         setErrorMessage(result.message || 'Không thể xử lý yêu cầu điều động.');
@@ -75,41 +108,31 @@ export default function ReviewDispatchModal({
     }
   };
 
-  const employeeOptions = [
-    { value: '', label: loadingEmployees ? 'Đang tải nhân sự...' : '-- Chọn nhân sự thay thế nếu cần --' },
-    ...employees.map((emp) => ({
-      value: String(emp.id || emp.userId),
-      label: `${emp.fullName} - ${emp.employeeCode || ''} (${emp.roleName || 'Nhân viên'})`,
-    })),
-  ];
+  const approvedCount = itemsToReview.filter((item) => item.isApproved).length;
+  const rejectedCount = itemsToReview.length - approvedCount;
 
   return (
     <Modal
       open={open}
       onClose={onClose}
       title="Xét Duyệt Yêu Cầu Điều Động Nhân Sự"
-      sub={`Cơ sở đề nghị hỗ trợ: ${dispatchItem.toStoreName || 'Chi nhánh đối tác'}`}
-      width={600}
+      sub={`Cơ sở đề nghị mượn: ${dispatchItem.toStoreName || 'Chi nhánh đối tác'}`}
+      width={680}
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <Button
-            kind="danger"
-            onClick={() => handleAction(false)}
-            disabled={submitting}
-          >
-            {submitting ? 'Đang Xử Lý...' : 'Từ Chối Yêu Cầu'}
-          </Button>
-
+          <div style={{ fontSize: 13, color: c.fgMuted }}>
+            Sẽ duyệt <strong style={{ color: '#34d399' }}>{approvedCount}</strong> người, từ chối <strong style={{ color: '#f87171' }}>{rejectedCount}</strong> người
+          </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <Button kind="ghost" onClick={onClose} disabled={submitting}>
               Đóng
             </Button>
             <Button
               kind="primary"
-              onClick={() => handleAction(true)}
-              disabled={submitting || loadingEmployees}
+              onClick={handleAction}
+              disabled={submitting || itemsToReview.length === 0}
             >
-              {submitting ? 'Đang Phê Duyệt...' : 'Phê Duyệt Điều Động'}
+              {submitting ? 'Đang Lưu Kết Quả...' : 'Xác Nhận & Lưu Kết Quả Duyệt'}
             </Button>
           </div>
         </div>
@@ -184,41 +207,187 @@ export default function ReviewDispatchModal({
 
           <div>
             <div style={{ fontSize: 11, color: c.fgFaint, textTransform: 'uppercase', fontWeight: 700 }}>
-              Nhân sự đề xuất ban đầu
+              Tổng số nhân sự đề xuất
             </div>
-            <div style={{ color: c.fg, marginTop: 2, fontWeight: 500 }}>
-              {dispatchItem.employeeName} ({dispatchItem.positionName || 'Nhân viên'})
+            <div style={{ color: c.accent, marginTop: 2, fontWeight: 700 }}>
+              {itemsToReview.length} nhân sự
             </div>
           </div>
         </div>
 
-        {/* Chỉ định hoặc thay đổi nhân sự cử đi chi viện */}
+        {/* Danh sách nhân sự cần xét duyệt kèm nút duyệt/từ chối từng người */}
         <div>
-          <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', color: c.fgSubtle, marginBottom: 6 }}>
-            Nhân sự chỉ định cử đi chi viện
-          </label>
-          <Select
-            value={assignedEmployeeId}
-            onChange={(val) => setAssignedEmployeeId(val)}
-            options={employeeOptions}
-            width="100%"
-            disabled={loadingEmployees || submitting}
-          />
-          <p style={{ fontSize: 12, color: c.fgFaint, marginTop: 4 }}>
-            Bạn có thể giữ nguyên nhân sự đối tác đã đề xuất hoặc chỉ định một nhân sự khác thuộc cơ sở mình.
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <label style={{ fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', color: c.fgSubtle }}>
+              Danh sách nhân sự & Trạng thái duyệt
+            </label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setAllApproval(true)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#34d399',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                ✓ Duyệt tất cả
+              </button>
+              <span style={{ color: c.fgFaint }}>|</span>
+              <button
+                type="button"
+                onClick={() => setAllApproval(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#f87171',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                ✕ Từ chối tất cả
+              </button>
+            </div>
+          </div>
+
+          <div
+            style={{
+              maxHeight: 240,
+              overflowY: 'auto',
+              border: `1px solid ${c.border}`,
+              borderRadius: 8,
+              background: c.bgRaised,
+              padding: '6px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            {itemsToReview.map((item) => {
+              const avatar = (item.employeeName || 'N').trim().charAt(0).toUpperCase();
+
+              return (
+                <div
+                  key={item.employeeId}
+                  style={{
+                    background: item.isApproved ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                    border: `1px solid ${item.isApproved ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                    borderRadius: 6,
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          background: item.isApproved ? '#34d399' : '#f87171',
+                          color: '#000',
+                          fontWeight: 700,
+                          fontSize: 13,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {avatar}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13.5, color: c.fg }}>
+                          {item.employeeName}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: c.fgFaint }}>
+                          {item.employeeCode} • {item.positionName}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bộ nút toggle Phê Duyệt / Từ Chối */}
+                    <div style={{ display: 'inline-flex', borderRadius: 6, overflow: 'hidden', border: `1px solid ${c.border}` }}>
+                      <button
+                        type="button"
+                        onClick={() => toggleEmployeeApproval(item.employeeId, true)}
+                        style={{
+                          padding: '5px 12px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          border: 'none',
+                          cursor: 'pointer',
+                          background: item.isApproved ? '#10b981' : c.bgCard,
+                          color: item.isApproved ? '#fff' : c.fgMuted,
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        ✓ Duyệt
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleEmployeeApproval(item.employeeId, false)}
+                        style={{
+                          padding: '5px 12px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          border: 'none',
+                          cursor: 'pointer',
+                          background: !item.isApproved ? '#ef4444' : c.bgCard,
+                          color: !item.isApproved ? '#fff' : c.fgMuted,
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        ✕ Từ chối
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Nhập lý do nếu từ chối người này */}
+                  {!item.isApproved && (
+                    <div style={{ marginTop: 2 }}>
+                      <input
+                        type="text"
+                        value={item.note || ''}
+                        onChange={(e) => updateEmployeeNote(item.employeeId, e.target.value)}
+                        placeholder="Lý do từ chối nhân sự này (ví dụ: bận việc đột xuất, đang có lịch ca...)"
+                        style={{
+                          width: '100%',
+                          background: c.bgRaised,
+                          border: '1px solid rgba(239, 68, 68, 0.4)',
+                          borderRadius: 4,
+                          color: c.fg,
+                          fontSize: 12,
+                          fontFamily: fonts.body,
+                          padding: '6px 10px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Ghi chú phản hồi / lý do duyệt hoặc từ chối */}
+        {/* Ghi chú chung của người duyệt */}
         <div>
           <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', color: c.fgSubtle, marginBottom: 6 }}>
-            Ý kiến phản hồi / Ghi chú phê duyệt
+            Ý kiến phản hồi chung / Ghi chú phê duyệt
           </label>
           <textarea
-            rows={3}
+            rows={2}
             value={approvalNotes}
             onChange={(e) => setApprovalNotes(e.target.value)}
-            placeholder="Nhập ghi chú phê duyệt hoặc lý do từ chối nếu không thể bố trí nhân sự..."
+            placeholder="Nhập phản hồi chung cho toàn bộ đợt điều động (tùy chọn)..."
             disabled={submitting}
             style={{
               width: '100%',
@@ -228,7 +397,7 @@ export default function ReviewDispatchModal({
               color: c.fg,
               fontSize: 13,
               fontFamily: fonts.body,
-              padding: '10px 12px',
+              padding: '8px 12px',
               outline: 'none',
               resize: 'vertical',
             }}

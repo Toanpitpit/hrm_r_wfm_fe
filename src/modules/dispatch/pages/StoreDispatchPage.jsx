@@ -14,7 +14,7 @@ import Modal from '@/shared/components/ui/Modal';
 import dispatchService from '../services/dispatch.service';
 import DispatchListTable from '../components/DispatchListTable';
 import CreateDispatchRequestModal from '../components/CreateDispatchRequestModal';
-import ReviewDispatchModal from '../components/ReviewDispatchModal';
+import DispatchDetailModal from '../components/DispatchDetailModal';
 
 /**
  * Màn hình Quản Lý Điều Động Nhân Sự Liên Chi Nhánh dành cho Cửa Hàng Trưởng (Store Manager).
@@ -316,7 +316,7 @@ export default function StoreDispatchPage() {
               dispatches={filteredDispatches}
               loading={loading}
               currentStoreId={currentStoreId}
-              onReview={(item) => setReviewItem(item)}
+              onReview={(item) => setDetailItem(item)}
               onEdit={(item) => {
                 setEditItem(item);
                 setIsCreateModalOpen(true);
@@ -354,11 +354,11 @@ export default function StoreDispatchPage() {
         }}
       />
 
-      {/* Modal Xét Duyệt Yêu Cầu */}
-      <ReviewDispatchModal
-        open={Boolean(reviewItem)}
-        onClose={() => setReviewItem(null)}
-        dispatchItem={reviewItem}
+      {/* Modal Xem Chi Tiết & Phê Duyệt / Từ Chối */}
+      <DispatchDetailModal
+        open={Boolean(detailItem)}
+        onClose={() => setDetailItem(null)}
+        dispatchItem={detailItem}
         currentStoreId={currentStoreId}
         onSuccess={(isApproved) => {
           showToast(
@@ -366,72 +366,10 @@ export default function StoreDispatchPage() {
               ? 'Đã phê duyệt lệnh điều động nhân sự thành công!'
               : 'Đã từ chối lệnh điều động nhân sự.'
           );
+          setDetailItem(null);
           loadDispatches();
         }}
       />
-
-      {/* Modal Xem Chi Tiết */}
-      {detailItem && (
-        <Modal
-          open={Boolean(detailItem)}
-          onClose={() => setDetailItem(null)}
-          title={`Chi Tiết Lệnh Điều Động #${detailItem.dispatchId}`}
-          sub="Thông tin chi tiết quyết định điều động nhân sự"
-          width={520}
-          footer={
-            <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-              <Button kind="ghost" onClick={() => setDetailItem(null)}>
-                Đóng
-              </Button>
-            </div>
-          }
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontSize: 13 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${c.borderSub}`, paddingBottom: 8 }}>
-              <span style={{ color: c.fgFaint }}>Mã nhân viên:</span>
-              <span style={{ fontWeight: 600, color: c.fg }}>{detailItem.employeeCode}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${c.borderSub}`, paddingBottom: 8 }}>
-              <span style={{ color: c.fgFaint }}>Họ và tên:</span>
-              <span style={{ fontWeight: 600, color: c.accent }}>{detailItem.employeeName}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${c.borderSub}`, paddingBottom: 8 }}>
-              <span style={{ color: c.fgFaint }}>Vị trí / Chức danh:</span>
-              <span style={{ color: c.fg }}>{detailItem.positionName || 'Nhân viên'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${c.borderSub}`, paddingBottom: 8 }}>
-              <span style={{ color: c.fgFaint }}>Cơ sở xuất phát (Hỗ trợ):</span>
-              <span style={{ fontWeight: 600, color: c.fg }}>{detailItem.fromStoreName}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${c.borderSub}`, paddingBottom: 8 }}>
-              <span style={{ color: c.fgFaint }}>Cơ sở đến (Tiếp nhận):</span>
-              <span style={{ fontWeight: 600, color: c.fg }}>{detailItem.toStoreName}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${c.borderSub}`, paddingBottom: 8 }}>
-              <span style={{ color: c.fgFaint }}>Khoảng thời gian:</span>
-              <span style={{ fontWeight: 600, color: '#34d399' }}>
-                {detailItem.startDate} &rarr; {detailItem.endDate}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${c.borderSub}`, paddingBottom: 8 }}>
-              <span style={{ color: c.fgFaint }}>Người gửi đề nghị:</span>
-              <span style={{ color: c.fg }}>{detailItem.requestedByName || '--'}</span>
-            </div>
-            {detailItem.approvedByName && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${c.borderSub}`, paddingBottom: 8 }}>
-                <span style={{ color: c.fgFaint }}>Người duyệt phiếu:</span>
-                <span style={{ color: c.fg }}>{detailItem.approvedByName}</span>
-              </div>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ color: c.fgFaint }}>Lý do / Ghi chú:</span>
-              <span style={{ color: c.fgMuted, background: c.bgElev, padding: '8px 12px', borderRadius: 6 }}>
-                {detailItem.reason || 'Không có ghi chú thêm.'}
-              </span>
-            </div>
-          </div>
-        </Modal>
-      )}
       </div>
     </DashboardShell>
   );

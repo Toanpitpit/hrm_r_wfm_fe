@@ -185,7 +185,7 @@ export default function HeadcountRequestList({
               width: '40px',
               height: '40px',
               borderRadius: '50%',
-              background: 'rgba(212, 175, 55, 0.1)',
+              background: 'rgba(13, 148, 136, 0.08)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -257,35 +257,78 @@ export default function HeadcountRequestList({
 
                     {/* File Kèm & Lý Do */}
                     <td style={{ padding: '12px 14px', maxWidth: '240px' }}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          headcountService.downloadRequestFile(req);
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          padding: 0,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          color: c.accent,
-                          textAlign: 'left',
-                        }}
-                        title="Bấm để tải về và mở file đính kèm từ Cửa Hàng Trưởng"
-                      >
-                        <Icon name="download" size={13} color={c.accent} />
-                        <span style={{ fontSize: '12px', fontWeight: 600, textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {req.fileName || 'Danh_sach.xlsx'}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                        <Icon
+                          name={headcountService.getFileIcon(req)}
+                          size={14}
+                          color={c.accent}
+                        />
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: c.fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {req.fileName || 'De_Xuat_Dinh_Bien.xlsx'}
                         </span>
-                      </button>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '4px' }}>
+                        {/* Nút Xem trực tiếp (PDF inline / Excel download) */}
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const result = await headcountService.viewRequestFile(req);
+                            if (result && !result.success && result.message) {
+                              alert(result.message);
+                            }
+                          }}
+                          style={{
+                            background: 'rgba(13, 148, 136, 0.08)',
+                            border: `1px solid rgba(13, 148, 136, 0.25)`,
+                            borderRadius: '4px',
+                            padding: '3px 8px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            color: c.accent,
+                            fontSize: '11px',
+                            fontWeight: 600,
+                          }}
+                          title="Xem trực tiếp tài liệu (tab mới)"
+                        >
+                          <Icon name="eye" size={12} color={c.accent} />
+                          <span>Xem</span>
+                        </button>
+                        {/* Nút Tải về (Blob URL — không bị corrupt) */}
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const result = await headcountService.downloadRequestFile(req);
+                            if (result && !result.success && result.message) {
+                              alert(result.message);
+                            }
+                          }}
+                          style={{
+                            background: 'rgba(13, 148, 136, 0.06)',
+                            border: `1px solid ${c.border}`,
+                            borderRadius: '4px',
+                            padding: '3px 8px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            color: c.fgSubtle,
+                            fontSize: '11px',
+                            fontWeight: 600,
+                          }}
+                          title="Tải file về máy"
+                        >
+                          <Icon name="download" size={12} color={c.fgSubtle} />
+                          <span>Tải</span>
+                        </button>
+                      </div>
                       <div
                         style={{
                           fontSize: '11.5px',
                           color: c.fgSubtle,
-                          marginTop: '2px',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -298,23 +341,30 @@ export default function HeadcountRequestList({
 
                     {/* Chỉ tiêu (Xin / Duyệt / Còn) */}
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                        <span style={{ color: '#f59e0b' }} title="Số lượng đề xuất">{req.totalRequested}</span>
-                        <span style={{ color: c.fgSubtle }}>/</span>
-                        <span style={{ color: '#22c55e' }} title="Số lượng đã phê duyệt">{req.approvedQuantity || 0}</span>
-                        <span style={{ color: c.fgSubtle }}>/</span>
-                        <span
-                          style={{
-                            color: req.additionalQuantity > 0 ? '#38bdf8' : c.fgSubtle,
-                            background: req.additionalQuantity > 0 ? 'rgba(56, 189, 248, 0.1)' : 'transparent',
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                          }}
-                          title="Chỉ tiêu còn lại để tạo nhân sự"
-                        >
-                          {req.additionalQuantity || 0} còn
-                        </span>
-                      </div>
+                      {(() => {
+                        const requested = Number(req.totalRequested || 0);
+                        const approved = Number(req.approvedQuantity || 0);
+                        const remaining = Math.max(0, requested - approved);
+                        return (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                            <span style={{ color: '#f59e0b' }} title="Số lượng đề xuất">{requested}</span>
+                            <span style={{ color: c.fgSubtle }}>/</span>
+                            <span style={{ color: '#22c55e' }} title="Số lượng đã phê duyệt">{approved}</span>
+                            <span style={{ color: c.fgSubtle }}>/</span>
+                            <span
+                              style={{
+                                color: remaining > 0 ? '#38bdf8' : c.fgSubtle,
+                                background: remaining > 0 ? 'rgba(56, 189, 248, 0.1)' : 'rgba(148, 163, 184, 0.08)',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                              }}
+                              title={`Số lượng còn lại chưa duyệt (Xin - Duyệt): ${remaining}`}
+                            >
+                              {remaining} còn
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Thời hạn hiệu lực */}

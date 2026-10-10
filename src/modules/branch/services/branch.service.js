@@ -90,6 +90,7 @@ const STORE_ENDPOINTS = {
   CREATE: '/Stores',
   UPDATE: (id) => `/Stores/${id}`,
   UPDATE_STATUS: (id) => `/Stores/${id}/status`,
+  UPGRADE_TIER: (id) => `/v1/branches/${id}/upgrade-tier`,
   DELETE: (id) => `/Stores/${id}`,
 };
 
@@ -355,6 +356,7 @@ export const getBranchDetail = async (storeId) => {
           item.kioskAllowedBrowser || item.allowedBrowser || '',
         kioskCount: item.totalKiosks ?? item.kiosks?.length ?? 0,
         activeKiosks: item.activeKiosks ?? 0,
+        staffCount: Number(item.staffCount ?? item.StaffCount ?? 0),
         kiosks: item.kiosks || [],
       };
     }
@@ -393,6 +395,7 @@ export const createBranch = async (payload) => {
       geofenceRadiusMeters: radius,
       branchTier: tier,
       tier,
+      staffCount: Number(payload.staffCount ?? 0),
       location: {
         type: 'Point',
         coordinates: [lng, lat],
@@ -553,6 +556,21 @@ export const updateBranch = async (storeId, payload) => {
     return list[index];
   }
   return true;
+};
+
+/**
+ * 4b. Nâng cấp phân cấp Tier chi nhánh khi đạt kịch biên (Tier 3 -> Tier 2 -> Tier 1)
+ */
+export const upgradeBranchTier = async (storeId) => {
+  await ensureAdminToken();
+  try {
+    const res = await apiClient.post(STORE_ENDPOINTS.UPGRADE_TIER(storeId));
+    await getAllBranches();
+    return res.data?.data || res.data;
+  } catch (err) {
+    console.warn('[BranchService] Upgrade tier error:', err.response?.data || err.message);
+    throw new Error(err.response?.data?.message || err.message || 'Lỗi nâng cấp Tier chi nhánh');
+  }
 };
 
 /**

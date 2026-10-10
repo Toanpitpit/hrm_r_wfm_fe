@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import { useToast } from '@/components/ui/toast/ToastProvider';
@@ -9,8 +9,10 @@ import PageHeader from '@/shared/components/ui/PageHeader';
 import Panel from '@/shared/components/ui/Panel';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
+import Modal from '@/shared/components/ui/Modal';
 import StatCard from '@/shared/components/ui/StatCard';
 import { getNavItemsForRole } from '@/shared/constants/navigation.config';
+import useDebounce from '@/shared/hooks/useDebounce';
 
 // Services
 import employeeService, { STORE_ROLES } from '@/modules/employee/services/employee.service';
@@ -24,9 +26,6 @@ import EmployeeDetailModal from '@/modules/employee/components/EmployeeDetailMod
 import ResetPasswordModal from '@/modules/employee/components/ResetPasswordModal/ResetPasswordModal';
 import ToggleStatusModal from '@/modules/employee/components/ToggleStatusModal/ToggleStatusModal';
 import HeadcountQuotaCard from '@/modules/employee/components/HeadcountQuotaCard/HeadcountQuotaCard';
-import UploadHeadcountModal from '@/modules/employee/components/UploadHeadcountModal/UploadHeadcountModal';
-import ReviewHeadcountModal from '@/modules/employee/components/ReviewHeadcountModal/ReviewHeadcountModal';
-import HeadcountRequestList from '@/modules/employee/components/HeadcountRequestList/HeadcountRequestList';
 
 export default function EmployeeManagementPage() {
   const { c, fonts } = useAdminTheme();
@@ -49,27 +48,44 @@ export default function EmployeeManagementPage() {
   const currentBranchName = storedUser?.storeName || storedUser?.branchName || 'Chi nhánh Cầu Giấy';
 
   const canManageSystem = userRole === 'OPERATIONS_ADMIN' || userRole === 'BUSINESS_OWNER' || userRole.includes('ADMIN') || userRole.includes('OWNER');
+  const isBusinessOwner = userRole === 'BUSINESS_OWNER' || userRole.includes('OWNER');
   const isStoreManager = userRole === 'STORE_MANAGER' || userRole.includes('MANAGER') || roleName.toLowerCase().includes('quản lý');
 
   // 2. Dữ liệu trạng thái
-  const [activeTab, setActiveTab] = useState('EMPLOYEES'); // 'EMPLOYEES' | 'HEADCOUNT_REQUESTS'
   const [employees, setEmployees] = useState([]);
   const [roles, setRoles] = useState(STORE_ROLES);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const abortControllerRef = useRef(null);
+  const isFirstMountRef = useRef(true);
+
+  // Dữ liệu thống kê nhân sự độc lập (không bị nhảy về 0 khi tìm kiếm nhân viên)
+  const [statsData, setStatsData] = useState({
+    totalEmployees: 0,
+    activeCount: 0,
+    inactiveCount: 0,
+    roleStats: {
+      shiftLeader: 0,
+      cashier: 0,
+      sales: 0,
+      security: 0,
+      manager: 0,
+    },
+  });
 
   // Bộ lọc
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 400);
   const [roleFilter, setRoleFilter] = useState('');
   const [branchFilter, setBranchFilter] = useState(isStoreManager ? String(currentBranchId) : '');
   const [statusFilter, setStatusFilter] = useState('');
   const [contractTypeFilter, setContractTypeFilter] = useState('');
 
-  // Định biên & Đơn đề xuất
+  // Định biên Effective Quota
   const [quotaStatus, setQuotaStatus] = useState(null);
   const [allBranchesQuota, setAllBranchesQuota] = useState([]);
-  const [headcountRequests, setHeadcountRequests] = useState([]);
-  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [loadingQuota, setLoadingQuota] = useState(false);
 
   // Modals state
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -84,9 +100,9 @@ export default function EmployeeManagementPage() {
   const [toggleModalOpen, setToggleModalOpen] = useState(false);
   const [toggleEmployee, setToggleEmployee] = useState(null);
 
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [selectedReviewRequest, setSelectedReviewRequest] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingEmployee, setDeletingEmployee] = useState(null);
+  const [isDeletingDirect, setIsDeletingDirect] = useState(false);
 
   // 3. Tải Danh mục Roles và Branches (GET /api/Users/roles & GET /api/Users/branches)
   useEffect(() => {
@@ -109,12 +125,23 @@ export default function EmployeeManagementPage() {
     loadMasterData();
   }, []);
 
-  // 4. Tải danh sách nhân sự (GET /api/Users/employees)
-  const fetchEmployees = useCallback(async () => {
-    setLoading(true);
+  // 4. Tải danh sách nhân sự (GET /api/Users/employees) - Hỗ trợ hủy request cũ và không nháy bảng
+  const fetchEmployees = useCallback(async (isInitial = false) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    if (isInitial) {
+      setInitialLoading(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const params = {};
-      if (search.trim()) params.search = search.trim();
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
       if (roleFilter) params.roleCode = roleFilter;
       if (isStoreManager) {
         params.branchId = currentBranchId;
@@ -124,27 +151,65 @@ export default function EmployeeManagementPage() {
         params.homeBranchId = branchFilter;
       }
       if (statusFilter) params.status = statusFilter;
-      if (contractTypeFilter) params.contractType = contractTypeFilter;
+      if (contractTypeFilter) {
+        params.contractType = contractTypeFilter;
+        params.employmentType = contractTypeFilter;
+      }
 
-      const res = await employeeService.getEmployees(params);
-      if (res.success && res.data) {
+      const res = await employeeService.getEmployees(params, { signal: controller.signal });
+
+      if (res?.canceled) return;
+
+      if (res?.success && res.data) {
         setEmployees(res.data);
       } else {
         setEmployees([]);
       }
     } catch (err) {
-      console.error('Lỗi khi tải danh sách nhân sự:', err);
-      toast.error('Không thể tải danh sách nhân sự.');
+      if (err?.name !== 'CanceledError' && err?.code !== 'ERR_CANCELED') {
+        console.error('Lỗi khi tải danh sách nhân sự:', err);
+        toast.error('Không thể tải danh sách nhân sự.');
+      }
     } finally {
+      if (isInitial) setInitialLoading(false);
       setLoading(false);
     }
-  }, [search, roleFilter, branchFilter, statusFilter, contractTypeFilter, isStoreManager, currentBranchId, toast]);
+  }, [debouncedSearch, roleFilter, branchFilter, statusFilter, contractTypeFilter, isStoreManager, currentBranchId, toast]);
 
   useEffect(() => {
-    fetchEmployees();
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      fetchEmployees(true);
+    } else {
+      fetchEmployees(false);
+    }
   }, [fetchEmployees]);
 
-  // 5. Tải dữ liệu Quota Định biên & Danh sách Đơn đề xuất (toàn bộ 3 chi nhánh cho Admin)
+  // 4b. Tải thống kê nhân sự toàn hệ thống (GET /api/Users/employees/stats)
+  // Luôn lấy dữ liệu TỔNG TẤT CẢ CHI NHÁNH trong chuỗi (hoặc chi nhánh nếu là Store Manager).
+  // Độc lập hoàn toàn với thanh tìm kiếm và bộ lọc bên dưới, không phụ thuộc search hay branchFilter.
+  const fetchStats = useCallback(async () => {
+    try {
+      const params = {};
+      if (isStoreManager) {
+        params.branchId = currentBranchId;
+      } else if (branchFilter) {
+        params.branchId = branchFilter;
+      }
+      const res = await employeeService.getEmployeeStats(params);
+      if (res.success && res.data) {
+        setStatsData(res.data);
+      }
+    } catch (err) {
+      console.warn('Lỗi khi tải thống kê nhân sự:', err);
+    }
+  }, [isStoreManager, currentBranchId, branchFilter]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // 5. Tải dữ liệu Effective Quota (định biên hiệu dụng)
   const fetchHeadcountData = useCallback(async () => {
     const targetBranchId = isStoreManager
       ? currentBranchId
@@ -153,24 +218,20 @@ export default function EmployeeManagementPage() {
     const currentBranch = branches.find((b) => String(b.id || b.storeId) === String(targetBranchId));
     const tier = currentBranch?.branchTier || currentBranch?.tier || (Number(targetBranchId) === 1 ? 1 : 2);
 
-    setLoadingRequests(true);
+    setLoadingQuota(true);
     try {
       const promises = [
         headcountService.getBranchHeadcountStatus(targetBranchId, tier),
-        headcountService.getRequests(isStoreManager ? { branchId: currentBranchId } : (branchFilter ? { branchId: branchFilter } : {})),
       ];
 
       if (!isStoreManager) {
         promises.push(headcountService.getAllBranchesHeadcountStatus(branches));
       }
 
-      const [quotaRes, reqsRes, allBranchesRes] = await Promise.all(promises);
+      const [quotaRes, allBranchesRes] = await Promise.all(promises);
 
       if (quotaRes.success) {
         setQuotaStatus(quotaRes.data);
-      }
-      if (reqsRes.success) {
-        setHeadcountRequests(reqsRes.data);
       }
       if (allBranchesRes?.success) {
         setAllBranchesQuota(allBranchesRes.data);
@@ -178,7 +239,7 @@ export default function EmployeeManagementPage() {
     } catch (err) {
       console.warn('Lỗi khi tải dữ liệu định biên:', err);
     } finally {
-      setLoadingRequests(false);
+      setLoadingQuota(false);
     }
   }, [isStoreManager, currentBranchId, branchFilter, branches]);
 
@@ -193,6 +254,10 @@ export default function EmployeeManagementPage() {
   };
 
   const handleOpenEditModal = (emp) => {
+    if (!canManageSystem) {
+      toast?.warning?.('Cửa hàng trưởng chỉ có quyền xem hồ sơ nhân sự, không có quyền chỉnh sửa.');
+      return;
+    }
     setEditingEmployee(emp);
     setFormModalOpen(true);
   };
@@ -212,12 +277,52 @@ export default function EmployeeManagementPage() {
     setToggleModalOpen(true);
   };
 
+  const handleOpenDeleteModal = (emp) => {
+    if (emp.status !== 'INACTIVE') {
+      toast.warning('Tài khoản đang hoạt động. Bạn cần khóa tài khoản trước khi thực hiện xóa.');
+      return;
+    }
+    const lockedDate = emp.lockedAt ? new Date(emp.lockedAt) : (emp.updatedAt ? new Date(emp.updatedAt) : null);
+    const daysPassed = lockedDate ? Math.floor((new Date() - lockedDate) / (1000 * 60 * 60 * 24)) : 0;
+    const daysRemaining = emp.daysUntilDeletable ?? Math.max(0, 14 - daysPassed);
+
+    if (daysRemaining > 0) {
+      toast.warning(`Tài khoản mới bị khóa được ${daysPassed} ngày. Theo chính sách đối soát bảng công và tiền lương (bắt buộc cho mọi cấp quản trị), chỉ được xóa vĩnh viễn sau đủ 14 ngày (còn ${daysRemaining} ngày nữa).`);
+      return;
+    }
+
+    setDeletingEmployee(emp);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDirectDelete = async () => {
+    if (!deletingEmployee?.id) return;
+    setIsDeletingDirect(true);
+    try {
+      const res = await employeeService.deleteEmployee(deletingEmployee.id);
+      if (res.success) {
+        toast.success(res.message || 'Đã xóa hoàn toàn tài khoản khỏi CSDL thành công!');
+        setDeleteModalOpen(false);
+        fetchEmployees();
+        fetchStats();
+        fetchHeadcountData();
+      } else {
+        toast.error(res.message || 'Không thể xóa tài khoản nhân sự.');
+      }
+    } catch (err) {
+      toast.error('Lỗi khi thực hiện xóa tài khoản.');
+    } finally {
+      setIsDeletingDirect(false);
+    }
+  };
+
   const handleFormSubmit = async (formData, isEdit) => {
     if (isEdit) {
       const res = await employeeService.updateEmployee(editingEmployee.id, formData);
       if (res.success) {
         toast.success(res.message || 'Cập nhật nhân sự thành công!');
         fetchEmployees();
+        fetchStats();
         fetchHeadcountData();
       } else {
         toast.error(res.message || 'Cập nhật thất bại.');
@@ -228,6 +333,7 @@ export default function EmployeeManagementPage() {
         if (res.success) {
           toast.success(res.message || 'Cấp tài khoản Cửa hàng trưởng thành công!');
           fetchEmployees();
+          fetchStats();
           fetchHeadcountData();
         } else {
           toast.error(res.message || 'Khai báo thất bại.');
@@ -237,6 +343,7 @@ export default function EmployeeManagementPage() {
         if (res.success) {
           toast.success(res.message || 'Khai báo thành công! Welcome Email đã được gửi.');
           fetchEmployees();
+          fetchStats();
           fetchHeadcountData();
         } else {
           toast.error(res.message || 'Khai báo thất bại.');
@@ -245,10 +352,10 @@ export default function EmployeeManagementPage() {
     }
   };
 
-  const handleConfirmResetPassword = async (id, customPassword) => {
-    const res = await employeeService.resetPassword(id, customPassword);
+  const handleConfirmResetPassword = async (id, customPassword, reason) => {
+    const res = await employeeService.resetPassword(id, customPassword, reason);
     if (res.success) {
-      toast.success('Đã đặt lại mật khẩu tài khoản thành công!');
+      toast.success(res.message || 'Đã đặt lại mật khẩu tài khoản thành công!');
       return res;
     } else {
       toast.error(res.message || 'Đặt lại mật khẩu thất bại.');
@@ -256,52 +363,17 @@ export default function EmployeeManagementPage() {
     }
   };
 
-  const handleConfirmToggleStatus = async (id, newStatus) => {
-    const res = await employeeService.toggleUserStatus(id, newStatus);
+  const handleConfirmToggleStatus = async (id, newStatus, reason) => {
+    const res = await employeeService.toggleUserStatus(id, newStatus, reason);
     if (res.success) {
       toast.success(res.message || 'Cập nhật trạng thái thành công!');
       fetchEmployees();
+      fetchStats();
       // Quota tự động cập nhật ngay lập tức vì trạng thái INACTIVE làm dôi dư vị trí (Attrition Compensation)
       fetchHeadcountData();
     } else {
       toast.error(res.message || 'Cập nhật trạng thái thất bại.');
-    }
-  };
-
-  // 7. Thao tác Đề xuất Mở rộng Định biên
-  const handleUploadHeadcount = async (payload) => {
-    const res = await headcountService.uploadRequest(payload);
-    if (res.success) {
-      toast.success(res.message || 'Gửi đề xuất mở rộng định biên thành công!');
-      fetchHeadcountData();
-    } else {
-      toast.error(res.message || 'Gửi đề xuất thất bại.');
-    }
-  };
-
-  const handleOpenReviewModal = (req) => {
-    setSelectedReviewRequest(req);
-    setReviewModalOpen(true);
-  };
-
-  const handleReviewHeadcount = async (id, reviewData) => {
-    const res = await headcountService.reviewRequest(id, reviewData);
-    if (res.success) {
-      toast.success(res.message || 'Đã xử lý thẩm định đơn thành công!');
-      fetchHeadcountData();
-    } else {
-      toast.error(res.message || 'Xử lý thẩm định thất bại.');
-    }
-  };
-
-  const handleCloseHeadcount = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn hủy đơn đề xuất này?')) return;
-    const res = await headcountService.closeRequest(id);
-    if (res.success) {
-      toast.success(res.message || 'Đã hủy đơn đề xuất.');
-      fetchHeadcountData();
-    } else {
-      toast.error(res.message || 'Hủy đơn thất bại.');
+      throw new Error(res.message);
     }
   };
 
@@ -313,20 +385,35 @@ export default function EmployeeManagementPage() {
     setContractTypeFilter('');
   };
 
-  // 8. Tính toán các chỉ số thống kê (Stats)
-  const totalEmployees = employees.length;
-  const activeCount = employees.filter((e) => e.status !== 'INACTIVE').length;
-  const inactiveCount = employees.filter((e) => e.status === 'INACTIVE').length;
-
-  const roleStats = {
-    shiftLeader: employees.filter((e) => e.roleCode === 'SHIFT_LEADER').length,
-    cashier: employees.filter((e) => e.roleCode === 'CASHIER').length,
-    sales: employees.filter((e) => e.roleCode === 'SALES_STAFF').length,
-    security: employees.filter((e) => e.roleCode === 'SECURITY_GUARD' || e.roleCode === 'SECURITY').length,
-    manager: employees.filter((e) => e.roleCode === 'STORE_MANAGER').length,
+  // 7. Số liệu thống kê độc lập lấy từ thống kê chuẩn (không bị ảnh hưởng bởi thanh tìm kiếm search)
+  const totalEmployees = statsData?.totalEmployees || 0;
+  const activeCount = statsData?.activeCount || 0;
+  const inactiveCount = statsData?.inactiveCount || 0;
+  const roleStats = statsData?.roleStats || {
+    shiftLeader: 0,
+    cashier: 0,
+    sales: 0,
+    security: 0,
+    manager: 0,
   };
 
-  const pendingRequestsCount = headcountRequests.filter((r) => r.status === 'PENDING').length;
+  const handleUpgradeBranchTier = async (branchId) => {
+    try {
+      const res = await headcountService.upgradeBranchTier(branchId);
+      if (res.success) {
+        toast.success(res.message || 'Nâng cấp phân cấp chi nhánh thành công!');
+        const updatedBranches = await employeeService.getBranches();
+        if (updatedBranches && updatedBranches.length > 0) {
+          setBranches(updatedBranches);
+        }
+        await Promise.all([fetchHeadcountData(), fetchStats()]);
+      } else {
+        toast.error(res.message || 'Nâng cấp Tier thất bại');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Lỗi khi nâng cấp Tier chi nhánh');
+    }
+  };
 
   // Điều hướng
   const navItems = getNavItemsForRole(userRole);
@@ -347,14 +434,14 @@ export default function EmployeeManagementPage() {
   const displayBranch = isStoreManager
     ? currentBranchName
     : branchFilter
-    ? branches.find((b) => String(b.id || b.storeId) === String(branchFilter))?.name || `Chi nhánh #${branchFilter}`
-    : branches[0]?.name || 'Chi nhánh Flagship Cầu Giấy';
+      ? branches.find((b) => String(b.id || b.storeId) === String(branchFilter))?.name || `Chi nhánh #${branchFilter}`
+      : branches[0]?.name || 'Chi nhánh Flagship Cầu Giấy';
 
   const displayTier = isStoreManager
     ? (quotaStatus?.branchTier || 2)
     : branchFilter
-    ? (branches.find((b) => String(b.id || b.storeId) === String(branchFilter))?.branchTier || 2)
-    : (branches[0]?.branchTier || 1);
+      ? (branches.find((b) => String(b.id || b.storeId) === String(branchFilter))?.branchTier || 2)
+      : (branches[0]?.branchTier || 1);
 
   return (
     <DashboardShell
@@ -387,33 +474,24 @@ export default function EmployeeManagementPage() {
         }
         subtitle={
           isStoreManager
-            ? 'Theo dõi danh sách nhân sự tại chi nhánh và gửi đề xuất mở rộng định biên (Excel) tới Operations Admin.'
-            : 'Khai báo nhân sự mới, kiểm soát định biên chi nhánh (Tier 1/2/3) và thẩm định phê duyệt đề xuất mở rộng.'
+            ? 'Theo dõi danh sách nhân sự và tình trạng định biên chuẩn theo Tier tại chi nhánh.'
+            : ''
         }
         actions={
-          <div style={{ display: 'flex', gap: '10px' }}>
-            {/* Store Manager: Chỉ được gửi đề xuất mở rộng, bị tước quyền tạo nhân viên trực tiếp (Strict RBAC) */}
-            {isStoreManager ? (
-              <Button
-                variant="primary"
-                onClick={() => setUploadModalOpen(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-              >
-                <Icon name="upload" size={16} />
-                <span>Đề Xuất Mở Rộng Định Biên (.xlsx)</span>
-              </Button>
-            ) : (
-              /* Operations Admin & Owner: Quyền tạo nhân viên duy nhất */
+          !isStoreManager && (
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {/* Operations Admin & Owner: Quyền tạo nhân viên (kèm tính năng Import Hàng Loạt bên trong modal) */}
               <Button
                 variant="primary"
                 onClick={handleOpenCreateModal}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                id="btn-create-employee"
               >
                 <Icon name="plus" size={16} />
                 <span>Khai Báo Nhân Sự Mới</span>
               </Button>
-            )}
-          </div>
+            </div>
+          )
         }
       />
 
@@ -428,10 +506,10 @@ export default function EmployeeManagementPage() {
       >
         <StatCard
           icon="users"
-          title={isStoreManager ? 'Tổng Nhân Sự Chi Nhánh' : 'Tổng Nhân Sự Cửa Hàng'}
+          title={isStoreManager ? 'Tổng Nhân Sự Chi Nhánh' : 'Tổng Nhân Sự Toàn Chuỗi'}
           value={totalEmployees}
-          color="#f2ca50"
-          subtitle={`${roleStats.cashier} Thu ngân • ${roleStats.sales} Bán hàng`}
+          color="var(--color-primary, #0D9488)"
+          subtitle={`${roleStats.cashier || 0} Thu ngân • ${roleStats.sales || 0} Bán hàng`}
         />
         <StatCard
           icon="check"
@@ -450,167 +528,103 @@ export default function EmployeeManagementPage() {
         <StatCard
           icon="calendar"
           title="Điều Hành & An Ninh"
-          value={`${roleStats.manager + roleStats.shiftLeader + roleStats.security}`}
+          value={`${(roleStats.manager || 0) + (roleStats.shiftLeader || 0) + (roleStats.security || 0)}`}
           color="#3b82f6"
-          subtitle={`${roleStats.manager} Cửa hàng trưởng • ${roleStats.shiftLeader} Trưởng ca • ${roleStats.security} Bảo vệ`}
+          subtitle={
+            (roleStats.manager || 0) > 0
+              ? `${roleStats.manager} Cửa hàng trưởng • ${roleStats.shiftLeader || 0} Trưởng ca • ${roleStats.security || 0} Bảo vệ`
+              : `${roleStats.shiftLeader || 0} Trưởng ca • ${roleStats.security || 0} Bảo vệ`
+          }
         />
       </div>
 
-      {/* Widget Giám Sát Định Biên Chi Nhánh (Tier 1/2/3 Quota & Attrition Compensation) */}
+      {/* Widget Giám Sát Định Biên Chi Nhánh Chuẩn Theo Tier */}
       <HeadcountQuotaCard
         allBranchesQuota={allBranchesQuota}
         selectedBranchId={branchFilter}
         onSelectBranch={(bId) => setBranchFilter(bId ? String(bId) : '')}
         isStoreManager={isStoreManager}
+        canManageSystem={canManageSystem}
+        onUpgradeTier={handleUpgradeBranchTier}
       />
-
-      {/* Navigation Tabs: Hồ Sơ Nhân Sự & Đề Xuất Định Biên */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '8px',
-          marginBottom: '16px',
-          borderBottom: `1px solid ${c.border}`,
-          paddingBottom: '8px',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setActiveTab('EMPLOYEES')}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '6px',
-            border: 'none',
-            background: activeTab === 'EMPLOYEES' ? c.accent : 'transparent',
-            color: activeTab === 'EMPLOYEES' ? '#000000' : c.fgMuted,
-            fontWeight: 600,
-            fontSize: '13px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <Icon name="users" size={15} />
-          <span>Danh Sách Nhân Sự</span>
-          <span
-            style={{
-              padding: '1px 6px',
-              borderRadius: '9999px',
-              fontSize: '11px',
-              background: activeTab === 'EMPLOYEES' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.1)',
-            }}
-          >
-            {employees.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('HEADCOUNT_REQUESTS')}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '6px',
-            border: 'none',
-            background: activeTab === 'HEADCOUNT_REQUESTS' ? c.accent : 'transparent',
-            color: activeTab === 'HEADCOUNT_REQUESTS' ? '#000000' : c.fgMuted,
-            fontWeight: 600,
-            fontSize: '13px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <Icon name="document" size={15} />
-          <span>Đề Xuất Mở Rộng Định Biên</span>
-          {pendingRequestsCount > 0 && (
-            <span
-              style={{
-                padding: '1px 6px',
-                borderRadius: '9999px',
-                fontSize: '11px',
-                background: '#ef4444',
-                color: '#ffffff',
-                fontWeight: 700,
-              }}
-            >
-              {pendingRequestsCount} chờ
-            </span>
-          )}
-        </button>
-      </div>
 
       {/* Main Content Panel */}
       <Panel>
-        {activeTab === 'EMPLOYEES' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Bộ lọc nhân sự */}
-            <EmployeeFilter
-              search={search}
-              onSearchChange={setSearch}
-              roleFilter={roleFilter}
-              onRoleFilterChange={setRoleFilter}
-              branchFilter={branchFilter}
-              onBranchFilterChange={setBranchFilter}
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-              contractTypeFilter={contractTypeFilter}
-              onContractTypeFilterChange={setContractTypeFilter}
-              onResetFilters={handleResetFilters}
-              roles={roles}
-              branches={branches}
-              isStoreManager={isStoreManager}
-            />
-
-            {/* Bảng danh sách nhân sự */}
-            <EmployeeTable
-              employees={employees}
-              loading={loading}
-              onViewDetail={handleOpenDetailModal}
-              onEdit={handleOpenEditModal}
-              onResetPassword={handleOpenResetModal}
-              onToggleStatus={handleOpenToggleModal}
-              canManageSystem={canManageSystem}
-            />
-          </div>
-        ) : (
-          /* Bảng Danh Sách Đề Xuất Định Biên */
-          <HeadcountRequestList
-            requests={headcountRequests}
-            loading={loadingRequests}
-            canManageSystem={canManageSystem}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Bộ lọc nhân sự */}
+          <EmployeeFilter
+            search={search}
+            onSearchChange={setSearch}
+            roleFilter={roleFilter}
+            onRoleFilterChange={setRoleFilter}
+            branchFilter={branchFilter}
+            onBranchFilterChange={setBranchFilter}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            contractTypeFilter={contractTypeFilter}
+            onContractTypeFilterChange={setContractTypeFilter}
+            onResetFilters={handleResetFilters}
+            roles={roles}
+            branches={branches}
             isStoreManager={isStoreManager}
-            onReviewRequest={handleOpenReviewModal}
-            onCloseRequest={handleCloseHeadcount}
-            onUploadNew={() => setUploadModalOpen(true)}
+            userRole={userRole}
           />
-        )}
+
+          {/* Bảng danh sách nhân sự */}
+          <EmployeeTable
+            employees={employees}
+            loading={loading}
+            initialLoading={initialLoading}
+            onViewDetail={handleOpenDetailModal}
+            onEdit={handleOpenEditModal}
+            onResetPassword={handleOpenResetModal}
+            onToggleStatus={handleOpenToggleModal}
+            onDelete={handleOpenDeleteModal}
+            canManageSystem={canManageSystem}
+          />
+        </div>
       </Panel>
 
-      {/* Modal: Khai báo / Chỉnh sửa hồ sơ nhân sự (Operations Admin & Owner only) */}
+      {/* Modal: Khai báo / Chỉnh sửa hồ sơ nhân sự (kèm Import Hàng Loạt Excel/CSV bên trong) */}
       <EmployeeFormModal
         isOpen={formModalOpen}
         onClose={() => setFormModalOpen(false)}
         onSubmit={handleFormSubmit}
+        onImportSuccess={() => {
+          fetchEmployees();
+          fetchStats();
+          fetchHeadcountData();
+          toast?.success?.('Import nhân sự hoàn tất! Đã cập nhật danh sách.');
+        }}
         initialData={editingEmployee}
         roles={roles}
         branches={branches}
         canManageSystem={canManageSystem}
+        isBusinessOwner={isBusinessOwner}
         isStoreManager={isStoreManager}
         currentStoreBranchId={currentBranchId}
         currentStoreBranchName={currentBranchName}
+        onBranchTierUpgraded={async () => {
+          const updatedBranches = await employeeService.getBranches();
+          if (updatedBranches && updatedBranches.length > 0) {
+            setBranches(updatedBranches);
+          }
+          await fetchHeadcountData();
+        }}
+        onToggleStatus={(emp) => handleOpenToggleModal(emp)}
+        onResetPassword={(emp) => handleOpenResetModal(emp)}
+        onDeleteSuccess={() => {
+          fetchEmployees();
+          fetchStats();
+          fetchHeadcountData();
+        }}
       />
 
-      {/* Modal: Xem chi tiết hồ sơ */}
+      {/* Modal: Xem chi tiết hồ sơ (Chỉ xem chi tiết, không còn nút chỉnh sửa hay reset mật khẩu) */}
       <EmployeeDetailModal
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
         employee={selectedEmployee}
-        onEdit={handleOpenEditModal}
-        onResetPassword={handleOpenResetModal}
         canManageSystem={canManageSystem}
       />
 
@@ -630,27 +644,59 @@ export default function EmployeeManagementPage() {
         onConfirmToggle={handleConfirmToggleStatus}
       />
 
-      {/* Modal: Upload Đề Xuất Mở Rộng Định Biên (Store Manager / Admin) */}
-      <UploadHeadcountModal
-        isOpen={uploadModalOpen}
-        onClose={() => setUploadModalOpen(false)}
-        onSubmit={handleUploadHeadcount}
-        branchId={currentBranchId}
-        branchName={currentBranchName}
-        isStoreManager={isStoreManager}
-        branches={branches}
-      />
+      {/* Modal: Xác nhận xóa vĩnh viễn tài khoản (Trực tiếp từ bảng danh sách) */}
+      <Modal
+        open={deleteModalOpen}
+        onClose={() => !isDeletingDirect && setDeleteModalOpen(false)}
+        title="Xác Nhận Xóa Vĩnh Viễn Tài Khoản"
+        sub={`Hành động này sẽ xóa hoàn toàn tài khoản #${deletingEmployee?.id} khỏi hệ thống và CSDL.`}
+        width={480}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', width: '100%' }}>
+            <Button variant="ghost" onClick={() => setDeleteModalOpen(false)} disabled={isDeletingDirect}>
+              Hủy Bỏ
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleConfirmDirectDelete}
+              disabled={isDeletingDirect}
+              style={{ background: '#ef4444', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Icon name="trash" size={14} color="#fff" />
+              <span>{isDeletingDirect ? 'Đang Xóa...' : 'Xác Nhận Xóa'}</span>
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13.5px', color: c.fg }}>
+          <div
+            style={{
+              padding: '12px 14px',
+              borderRadius: '8px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              color: '#fca5a5',
+              display: 'flex',
+              gap: '10px',
+              alignItems: 'flex-start',
+            }}
+          >
+            <Icon name="alert-triangle" size={18} color="#ef4444" />
+            <div>
+              <strong>Cảnh Báo Quan Trọng:</strong> Bạn đang chuẩn bị xóa hoàn toàn nhân sự{' '}
+              <strong style={{ color: '#fff' }}>{deletingEmployee?.fullName}</strong> (Mã NV:{' '}
+              <span style={{ color: '#f2ca50', fontWeight: 600 }}>{deletingEmployee?.employeeCode || `NV-${deletingEmployee?.id}`}</span>).
+              <div style={{ marginTop: '4px', fontSize: '12.5px', color: '#fca5a5' }}>
+                Hệ thống sẽ xóa triệt để hồ sơ người dùng này khỏi cơ sở dữ liệu. Thao tác này không thể hoàn tác.
+              </div>
+            </div>
+          </div>
 
-      {/* Modal: Thẩm Định & Phê Duyệt Đề Xuất Định Biên (Operations Admin only) */}
-      <ReviewHeadcountModal
-        isOpen={reviewModalOpen}
-        onClose={() => {
-          setReviewModalOpen(false);
-          setSelectedReviewRequest(null);
-        }}
-        onSubmit={handleReviewHeadcount}
-        request={selectedReviewRequest}
-      />
+          <div>Bạn có chắc chắn muốn tiếp tục thực hiện xóa vĩnh viễn tài khoản này không?</div>
+        </div>
+      </Modal>
+
+
     </DashboardShell>
   );
 }

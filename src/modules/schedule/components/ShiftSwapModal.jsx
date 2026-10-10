@@ -370,6 +370,31 @@ export default function ShiftSwapModal({
             }}
           />
         </FormField>
+
+        {/* Disclaimer cho luồng duyệt đơn */}
+        <div
+          style={{
+            padding: '10px 14px',
+            borderRadius: 6,
+            background: requestType === 'LEAVE' ? `${c.tones.info}15` : `${c.tones.warn}15`,
+            border: `1px solid ${requestType === 'LEAVE' ? c.tones.info : c.tones.warn}`,
+            color: requestType === 'LEAVE' ? c.tones.info : c.tones.warn,
+            fontSize: 12,
+            lineHeight: 1.4,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 8,
+            marginTop: 4,
+          }}
+        >
+          <Icon name="info" size={16} color={requestType === 'LEAVE' ? c.tones.info : c.tones.warn} style={{ flexShrink: 0, marginTop: 2 }} />
+          <span>
+            <strong>Lưu ý quy trình duyệt: </strong>
+            {requestType === 'LEAVE'
+              ? 'Đơn sẽ được gửi trực tiếp đến Quản lý chi nhánh (Cửa hàng trưởng) xét duyệt.'
+              : 'Đơn sẽ được gửi đến đồng nghiệp để xác nhận trước khi được tự động chuyển lên Quản lý chi nhánh xét duyệt.'}
+          </span>
+        </div>
       </div>
     </Modal>
   );

@@ -12,7 +12,6 @@ import { getNavItemsForRole } from '@/shared/constants/navigation.config';
 import { useMyCalendar } from '../../hooks/useMyCalendar';
 import WeekCalendar from '../../components/WeekCalendar';
 import ShiftSwapModal from '@/modules/schedule/components/ShiftSwapModal';
-import MySwapRequestsModal from '@/modules/schedule/components/MySwapRequestsModal';
 
 export default function MyCalendarPage() {
   const { c, fonts } = useAdminTheme();
@@ -77,7 +76,6 @@ export default function MyCalendarPage() {
   } = useMyCalendar();
 
   const [selectedShiftForSwap, setSelectedShiftForSwap] = useState(null);
-  const [isMyRequestsOpen, setIsMyRequestsOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
 
   const showToast = (msg) => {
@@ -158,7 +156,7 @@ export default function MyCalendarPage() {
               variant="outline"
               kind="outline"
               size="sm"
-              onClick={() => setIsMyRequestsOpen(true)}
+              onClick={() => navigate('/employee/shift-requests')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
               <span>📋</span> Đơn Đổi / Chuyển Ca Của Tôi
@@ -228,11 +226,6 @@ export default function MyCalendarPage() {
           }}
         />
 
-        {/* Modal xem lịch sử đơn đổi / chuyển ca */}
-        <MySwapRequestsModal
-          isOpen={isMyRequestsOpen}
-          onClose={() => setIsMyRequestsOpen(false)}
-        />
       </div>
     </DashboardShell>
   );

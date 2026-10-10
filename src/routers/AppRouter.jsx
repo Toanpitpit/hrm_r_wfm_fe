@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthContext } from '@/modules/auth/context/AuthContext';
 
 // ─── Lazy Load Pages ──────────────────────────────────────────────────────────
 const LoginPage = lazy(() => import('@/modules/auth/pages/LoginPage'));
@@ -20,7 +21,6 @@ const StoreDispatchPage = lazy(() => import('@/modules/dispatch/pages/StoreDispa
 const DispatchNetworkMetricsPage = lazy(() => import('@/modules/dispatch/pages/DispatchNetworkMetricsPage'));
 
 // Placeholder cho Kiosk login
-
 const KioskLoginPage = () => (
   <div className="p-8 text-white">Kiosk Login Page (Mock)</div>
 );
@@ -31,13 +31,44 @@ const Loading = () => (
   </div>
 );
 
+const RootRedirect = () => {
+  const { user, isInitializing } = useAuthContext();
+
+  if (isInitializing) {
+    return <Loading />;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = (user?.role || user?.Role || '').toUpperCase();
+  const roleName = (user?.roleName || '').toUpperCase();
+
+  if (role === 'STORE_MANAGER' || role.includes('MANAGER') || roleName.includes('QUẢN LÝ')) {
+    return <Navigate to="/store-manager/kiosk-codes" replace />;
+  }
+
+  const isStaff = [
+    'SHIFT_LEADER', 'CASHIER', 'SALES_STAFF', 'SECURITY_GUARD', 'SECURITY', 'EMPLOYEE', 'STAFF'
+  ].includes(role) ||
+    role.includes('LEADER') || role.includes('CASHIER') || role.includes('SALES') ||
+    role.includes('STAFF') || role.includes('EMPLOYEE') || role.includes('SECURITY') ||
+    roleName.includes('TRƯỞNG CA') || roleName.includes('THU NGÂN') ||
+    roleName.includes('BÁN HÀNG') || roleName.includes('BẢO VỆ') || roleName.includes('NHÂN VIÊN');
+
+  if (isStaff) {
+    return <Navigate to="/employee/my-calendar" replace />;
+  }
+
+  return <Navigate to="/dashboard" replace />;
+};
+
 const AdminProtectedRoute = ({ children }) => {
-  let user = null;
-  try {
-    const raw = localStorage.getItem('user');
-    if (raw) user = JSON.parse(raw);
-  } catch (e) {
-    console.error('Failed to parse user from localStorage', e);
+  const { user, isInitializing } = useAuthContext();
+
+  if (isInitializing) {
+    return <Loading />;
   }
 
   if (!user) {
@@ -80,12 +111,10 @@ const AdminProtectedRoute = ({ children }) => {
 };
 
 const ManagerOrAdminProtectedRoute = ({ children }) => {
-  let user = null;
-  try {
-    const raw = localStorage.getItem('user');
-    if (raw) user = JSON.parse(raw);
-  } catch (e) {
-    console.error('Failed to parse user from localStorage', e);
+  const { user, isInitializing } = useAuthContext();
+
+  if (isInitializing) {
+    return <Loading />;
   }
 
   if (!user) {
@@ -123,13 +152,27 @@ const ManagerOrAdminProtectedRoute = ({ children }) => {
   return children;
 };
 
+const AuthenticatedRoute = ({ children }) => {
+  const { user, isInitializing } = useAuthContext();
+
+  if (isInitializing) {
+    return <Loading />;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
 const AppRouter = () => {
   return (
     <BrowserRouter>
       <Suspense fallback={<Loading />}>
         <Routes>
-          {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          {/* Default redirect: kiểm tra phiên đăng nhập và định tuyến theo vai trò */}
+          <Route path="/" element={<RootRedirect />} />
 
           {/* ═══════════════ AUTHENTICATION ROUTES ═══════════════ */}
           <Route path="/login" element={<LoginPage />} />
@@ -149,24 +192,24 @@ const AppRouter = () => {
           <Route path="/store-manager/employees" element={<Navigate to="/employees" replace />} />
 
           {/* ═══════════════ STORE MANAGER & SCHEDULES ═══════════════ */}
-          <Route path="/store-manager/schedules" element={<WeeklySchedulePage />} />
-          <Route path="/store-manager/live-roster" element={<LiveRosterDashboardPage />} />
+          <Route path="/store-manager/schedules" element={<AuthenticatedRoute><WeeklySchedulePage /></AuthenticatedRoute>} />
+          <Route path="/store-manager/live-roster" element={<AuthenticatedRoute><LiveRosterDashboardPage /></AuthenticatedRoute>} />
           <Route path="/live-roster" element={<Navigate to="/store-manager/live-roster" replace />} />
           <Route path="/schedule" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/shifts" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/weekly-schedules" element={<Navigate to="/store-manager/schedules" replace />} />
-          <Route path="/store-manager/kiosk-codes" element={<KioskCodePage />} />
+          <Route path="/store-manager/kiosk-codes" element={<AuthenticatedRoute><KioskCodePage /></AuthenticatedRoute>} />
           <Route path="/kiosk-codes" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
           <Route path="/kiosk-management" element={<Navigate to="/store-manager/kiosk-codes" replace />} />
-          <Route path="/store-manager/dispatches" element={<StoreDispatchPage />} />
+          <Route path="/store-manager/dispatches" element={<AuthenticatedRoute><StoreDispatchPage /></AuthenticatedRoute>} />
           <Route path="/dispatches" element={<Navigate to="/store-manager/dispatches" replace />} />
 
           {/* ═══════════════ EMPLOYEE ROUTES ═══════════════ */}
           <Route path="/employee/schedule" element={<Navigate to="/employee/my-calendar" replace />} />
-          <Route path="/employee/my-calendar" element={<MyCalendarPage />} />
-          <Route path="/employee/shift-requests" element={<ShiftRequestsPage />} />
-          <Route path="/employee/attendance-history" element={<AttendanceHistoryPage />} />
-          <Route path="/employee/attendance-otp" element={<AttendanceOtpPage />} />
+          <Route path="/employee/my-calendar" element={<AuthenticatedRoute><MyCalendarPage /></AuthenticatedRoute>} />
+          <Route path="/employee/shift-requests" element={<AuthenticatedRoute><ShiftRequestsPage /></AuthenticatedRoute>} />
+          <Route path="/employee/attendance-history" element={<AuthenticatedRoute><AttendanceHistoryPage /></AuthenticatedRoute>} />
+          <Route path="/employee/attendance-otp" element={<AuthenticatedRoute><AttendanceOtpPage /></AuthenticatedRoute>} />
           <Route path="/attendance-otp" element={<Navigate to="/employee/attendance-otp" replace />} />
 
           {/* ═══════════════ ADMIN & GENERAL ROUTES ═══════════════ */}

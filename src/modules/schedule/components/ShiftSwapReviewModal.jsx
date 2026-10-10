@@ -11,20 +11,25 @@ import { getStoreSwapRequests, reviewSwapRequest } from '../services/schedule.se
 export default function ShiftSwapReviewModal({
   isOpen,
   onClose,
-  storeId = 1,
+  storeId = null,
   onReviewed,
 }) {
   const { c } = useAdminTheme();
   const toast = useToast();
+  const storedUser = (() => {
+    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
+  })();
+  const effectiveStoreId = storeId || storedUser?.storeId || storedUser?.homeBranchId || storedUser?.branchId || 1;
+
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [filterTab, setFilterTab] = useState('PENDING'); // 'PENDING', 'APPROVED', 'REJECTED', 'ALL'
 
   const fetchStoreRequests = () => {
-    if (!storeId) return;
+    if (!effectiveStoreId) return;
     setLoading(true);
-    getStoreSwapRequests(storeId)
+    getStoreSwapRequests(effectiveStoreId)
       .then((res) => {
         if (res?.success && res.data) {
           setRequests(res.data);
@@ -43,7 +48,7 @@ export default function ShiftSwapReviewModal({
     if (isOpen) {
       fetchStoreRequests();
     }
-  }, [isOpen, storeId]);
+  }, [isOpen, effectiveStoreId]);
 
   const handleReview = async (swapRequestId, isApproved) => {
     try {
@@ -91,6 +96,12 @@ export default function ShiftSwapReviewModal({
         return <Badge tone="ok" dot>Đã Duyệt</Badge>;
       case 'REJECTED':
         return <Badge tone="bad" dot>Đã Từ Chối</Badge>;
+      case 'PENDING_PEER':
+        return <Badge tone="warn">Chờ Đồng Nghiệp</Badge>;
+      case 'EXPIRED':
+        return <Badge tone="bad" dot>Đã Hết Hạn</Badge>;
+      case 'CANCELLED':
+        return <Badge tone="neutral">Đã Hủy</Badge>;
       case 'PENDING':
       default:
         return <Badge tone="warn" dot>Chờ Duyệt</Badge>;
@@ -244,6 +255,11 @@ export default function ShiftSwapReviewModal({
                       <span style={{ fontSize: 11, color: c.fgFaint }}>
                         #{req.swapRequestId} · {new Date(req.createdAt).toLocaleString('vi-VN')}
                       </span>
+                      {req.isDispatchedEmployee && (
+                        <span style={{ background: `${c.tones.info}20`, color: c.tones.info, padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                          Biệt phái từ {req.sourceBranchName || 'Chi nhánh khác'}
+                        </span>
+                      )}
                     </div>
                     <div>{renderStatusBadge(req.status)}</div>
                   </div>

@@ -20,15 +20,26 @@ export default function EmployeeFilter({
   roles = [],
   branches = [],
   isStoreManager = false,
+  userRole = '',
 }) {
   const { c } = useAdminTheme();
 
+  // Kiểm tra phân quyền:
+  // - Nếu là Cửa Hàng Trưởng (Store Manager): Loại trừ cả 3 vai trò ['BUSINESS_OWNER', 'OPERATIONS_ADMIN', 'STORE_MANAGER']
+  // - Nếu là Admin / Chủ doanh nghiệp: Cho phép lọc STORE_MANAGER (chỉ loại trừ ['BUSINESS_OWNER', 'OPERATIONS_ADMIN'])
+  const isManagerRole = Boolean(isStoreManager || userRole?.toUpperCase() === 'STORE_MANAGER');
+  const excludedRoles = isManagerRole
+    ? ['BUSINESS_OWNER', 'OPERATIONS_ADMIN', 'STORE_MANAGER']
+    : ['BUSINESS_OWNER', 'OPERATIONS_ADMIN'];
+
   const roleOptions = [
     { value: '', label: 'Tất cả vai trò' },
-    ...roles.map((r) => ({
-      value: r.roleCode || String(r.id),
-      label: `${r.roleName} (${r.roleCode})`,
-    })),
+    ...roles
+      .filter((r) => !excludedRoles.includes(r.roleCode))
+      .map((r) => ({
+        value: r.roleCode || String(r.id),
+        label: `${r.roleName} (${r.roleCode})`,
+      })),
   ];
 
   const branchOptions = [
@@ -123,8 +134,9 @@ export default function EmployeeFilter({
       </div>
 
       {/* Lọc theo Vai Trò */}
-      <div style={{ flex: '0 1 180px', minWidth: '150px' }}>
+      <div style={{ flex: '0 0 auto', minWidth: '180px' }}>
         <Select
+          width="100%"
           value={roleFilter}
           onChange={onRoleFilterChange}
           options={roleOptions}
@@ -134,8 +146,9 @@ export default function EmployeeFilter({
 
       {/* Lọc theo Chi Nhánh (Chỉ hiển thị cho Admin/Owner, Store Manager bị khóa cứng) */}
       {!isStoreManager && (
-        <div style={{ flex: '0 1 200px', minWidth: '160px' }}>
+        <div style={{ flex: '0 0 auto', minWidth: '200px' }}>
           <Select
+            width="100%"
             value={branchFilter}
             onChange={onBranchFilterChange}
             options={branchOptions}
@@ -145,8 +158,9 @@ export default function EmployeeFilter({
       )}
 
       {/* Lọc theo Hình thức HĐ */}
-      <div style={{ flex: '0 1 180px', minWidth: '150px' }}>
+      <div style={{ flex: '0 0 auto', minWidth: '240px' }}>
         <Select
+          width="100%"
           value={contractTypeFilter}
           onChange={onContractTypeFilterChange}
           options={contractOptions}
@@ -155,8 +169,9 @@ export default function EmployeeFilter({
       </div>
 
       {/* Lọc theo Trạng Thái */}
-      <div style={{ flex: '0 1 150px', minWidth: '130px' }}>
+      <div style={{ flex: '0 0 auto', minWidth: '175px' }}>
         <Select
+          width="100%"
           value={statusFilter}
           onChange={onStatusFilterChange}
           options={statusOptions}
