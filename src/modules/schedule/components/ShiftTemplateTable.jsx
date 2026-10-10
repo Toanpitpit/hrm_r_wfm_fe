@@ -4,34 +4,32 @@ import DataTable from '@/shared/components/ui/DataTable';
 import Badge from '@/shared/components/ui/Badge';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
-import { formatShiftTemplateName } from '../hooks/useWeeklySchedule';
+import { getShiftTypeColor, SHIFT_TYPE_COLORS } from '../constants/shift.constants';
 
 /**
  * ==============================================================================
  * COMPONENT: ShiftTemplateTable.jsx
- * UC 1.3: Bảng danh sách Khung ca Mẫu toàn hệ thống
+ * Bảng danh sách Khung Ca Mẫu (Chung toàn chuỗi hoặc Riêng chi nhánh)
  * ==============================================================================
- * Bảng hiển thị:
- * - Mã ca (VD: SHIFT_MORNING, CA_SANG)
- * - Tên ca (Ca sáng, Ca chiều...)
- * - Giờ bắt đầu, Giờ kết thúc
- * - Thời gian nghỉ (phút) & Số giờ công thực tế
- * - Ca qua đêm (Tag Yes / No)
- * - Trạng thái (Đang áp dụng / Tạm dừng)
- * - Thao tác (Sửa, Bật/Tắt, Xóa)
  */
 export default function ShiftTemplateTable({
   shifts = [],
   loading = false,
+  isOperationsAdmin = true,
+  isBranchMuted = false,
+  emptyMessage = 'Chưa có khung ca mẫu nào.',
   onEdit,
   onToggleStatus,
-  onDelete,
 }) {
   const { c } = useAdminTheme();
 
+  const getShiftTypeLabel = (type) => {
+    return SHIFT_TYPE_COLORS[type]?.label || type || 'Khác';
+  };
+
   const columns = [
     {
-      key: 'shiftCode',
+      key: 'templateCode',
       label: 'MÃ KHUNG CA',
       width: '130px',
       render: (row) => (
@@ -39,38 +37,63 @@ export default function ShiftTemplateTable({
           style={{
             fontFamily: 'monospace',
             fontWeight: 700,
-            fontSize: '13px',
+            fontSize: '12.5px',
             color: c.accent,
             backgroundColor: `${c.accent}15`,
-            padding: '4px 8px',
+            padding: '3px 8px',
             borderRadius: '6px',
-            letterSpacing: '0.5px',
+            letterSpacing: '0.4px',
           }}
         >
-          {row.shiftCode || row.templateCode}
+          {row.templateCode || row.shiftCode}
         </span>
       ),
     },
     {
-      key: 'shiftName',
+      key: 'name',
       label: 'TÊN KHUNG CA & MÔ TẢ',
       render: (row) => (
         <div>
           <div
             style={{
               fontWeight: 600,
-              fontSize: '14px',
+              fontSize: '13.5px',
               color: c.fg,
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
+              flexWrap: 'wrap',
             }}
           >
-            <span>{formatShiftTemplateName(row.shiftName || row.name)}</span>
-            {row.isSystemDefault && (
-              <Badge tone="neutral">
-                <span style={{ fontSize: '10px' }}>MẶC ĐỊNH CHUỖI</span>
-              </Badge>
+            <span>{row.name || row.shiftName}</span>
+            {row.scope === 'GLOBAL' && row.usedByBranchCount > 0 && (
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#38bdf8',
+                  backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                }}
+              >
+                {row.usedByBranchCount} chi nhánh áp dụng
+              </span>
+            )}
+            {row.isOvernight && (
+              <span
+                style={{
+                  fontSize: '10.5px',
+                  fontWeight: 600,
+                  color: '#c084fc',
+                  backgroundColor: 'rgba(168, 85, 247, 0.12)',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                }}
+              >
+                Qua đêm
+              </span>
             )}
           </div>
           {row.description && (
@@ -78,7 +101,8 @@ export default function ShiftTemplateTable({
               style={{
                 fontSize: '12px',
                 color: c.fgSubtle,
-                marginTop: '2px',
+                marginTop: '3px',
+                lineHeight: '1.4',
               }}
             >
               {row.description}
@@ -88,15 +112,46 @@ export default function ShiftTemplateTable({
       ),
     },
     {
+      key: 'shiftType',
+      label: 'LOẠI CA',
+      width: '120px',
+      render: (row) => {
+        const typeColor = getShiftTypeColor(row.shiftType, row.isOvernight);
+        return (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: typeColor,
+              backgroundColor: `${typeColor}15`,
+              border: `1px solid ${typeColor}30`,
+              padding: '2px 8px',
+              borderRadius: '6px',
+            }}
+          >
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: typeColor,
+              }}
+            />
+            {getShiftTypeLabel(row.shiftType)}
+          </span>
+        );
+      },
+    },
+    {
       key: 'time',
-      label: 'KHUNG GIỜ',
-      width: '140px',
+      label: 'GIỜ LÀM VIỆC',
+      width: '135px',
       render: (row) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Icon
-            name="calendar"
-            size={13}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <Icon name="clock" size={13} color={c.fgSubtle} />
           <span
             style={{
               fontFamily: 'monospace',
@@ -111,37 +166,40 @@ export default function ShiftTemplateTable({
       ),
     },
     {
-      key: 'breakMinutes',
-      label: 'NGHỈ / CÔNG',
-      width: '130px',
+      key: 'breakDuration',
+      label: 'NGHỈ GIỮA CA',
+      width: '110px',
       render: (row) => (
-        <div style={{ fontSize: '12px', color: c.fgSubtle }}>
-          <div>Nghỉ: <strong>{row.breakMinutes ?? 0}p</strong></div>
-          <div style={{ color: c.accent, fontWeight: 600 }}>
-            {row.workHours || 0}h chuẩn
-          </div>
-        </div>
+        <span style={{ fontSize: '12.5px', color: c.fgSubtle }}>
+          {row.breakDuration ?? row.breakMinutes ?? 0} phút
+        </span>
       ),
     },
     {
-      key: 'isOvernight',
-      label: 'QUA ĐÊM',
-      width: '100px',
+      key: 'paidHours',
+      label: 'SỐ GIỜ CÔNG',
+      width: '135px',
       render: (row) => {
-        const isOvernight = Boolean(row.isOvernight);
+        const paid = row.paidHours ?? row.workHours ?? 0;
+        const night = row.nightHours ?? 0;
         return (
-          <Badge tone={isOvernight ? 'accent' : 'neutral'}>
-            <span style={{ fontWeight: 600 }}>
-              {isOvernight ? 'Yes (Đêm)' : 'No'}
-            </span>
-          </Badge>
+          <div>
+            <div style={{ color: c.accent, fontWeight: 700, fontSize: '13px' }}>
+              {paid}h công
+            </div>
+            {night > 0 && (
+              <div style={{ fontSize: '11px', color: '#c084fc', marginTop: '1px' }}>
+                {night}h đêm phụ cấp
+              </div>
+            )}
+          </div>
         );
       },
     },
     {
       key: 'status',
       label: 'TRẠNG THÁI',
-      width: '130px',
+      width: '125px',
       render: (row) => {
         const isActive = Boolean(row.isActive);
         return (
@@ -161,37 +219,28 @@ export default function ShiftTemplateTable({
         );
       },
     },
-    {
+  ];
+
+  // Thêm cột thao tác chỉ khi là Operations Admin
+  if (isOperationsAdmin) {
+    columns.push({
       key: 'actions',
       label: 'THAO TÁC',
-      width: '210px',
+      width: '170px',
       render: (row) => {
         const isActive = Boolean(row.isActive);
-        const isSystem = Boolean(row.isSystemDefault);
-
         return (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            {/* Nút Sửa */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => onEdit && onEdit(row)}
               title="Chỉnh sửa khung ca"
             >
-              <Icon
-                name="edit"
-                size={13}
-              />
+              <Icon name="edit" size={13} />
               <span>Sửa</span>
             </Button>
 
-            {/* Nút Bật/Tắt */}
             <Button
               variant="ghost"
               size="sm"
@@ -199,43 +248,62 @@ export default function ShiftTemplateTable({
               style={{
                 color: isActive ? '#f59e0b' : '#10b981',
               }}
-              title={isActive ? 'Tạm dừng áp dụng ca' : 'Kích hoạt lại ca'}
+              title={isActive ? 'Ngừng áp dụng ca' : 'Kích hoạt lại ca'}
             >
-              <Icon
-                name={isActive ? 'lock' : 'check'}
-                size={13}
-              />
-              <span>{isActive ? 'Tắt' : 'Bật'}</span>
+              <Icon name={isActive ? 'lock' : 'check'} size={13} />
+              <span>{isActive ? 'Ngừng' : 'Bật lại'}</span>
             </Button>
-
-            {/* Nút Xóa (chỉ xóa ca tùy chỉnh, bảo vệ 3 ca hệ thống) */}
-            {!isSystem && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onDelete && onDelete(row)}
-                style={{ color: '#ef4444' }}
-                title="Xóa khung ca này"
-              >
-                <Icon
-                  name="trash"
-                  size={13}
-                />
-                <span>Xóa</span>
-              </Button>
-            )}
           </div>
         );
       },
-    },
-  ];
+    });
+  }
 
   return (
-    <DataTable
-      columns={columns}
-      data={shifts}
-      loading={loading}
-      emptyMessage="Chưa có khung ca mẫu nào được thiết lập."
-    />
+    <div
+      style={{
+        position: 'relative',
+        opacity: isBranchMuted ? 0.6 : 1,
+        transition: 'opacity 0.2s ease',
+      }}
+    >
+      {isBranchMuted && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '8px',
+            right: '12px',
+            zIndex: 10,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            backgroundColor: 'rgba(30, 41, 59, 0.9)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            padding: '4px 10px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            color: '#94a3b8',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          }}
+        >
+          <span
+            style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              backgroundColor: '#94a3b8',
+            }}
+          />
+          <span>Chưa kích hoạt (Chi nhánh đang dùng ca chung)</span>
+        </div>
+      )}
+
+      <DataTable
+        columns={columns}
+        data={shifts}
+        loading={loading}
+        emptyMessage={emptyMessage}
+      />
+    </div>
   );
 }

@@ -185,10 +185,13 @@ export const updateBranchTierAndQuota = async (storeId, newTier, quota, note = '
 
   const payload = {
     ...(branch || {}),
+    name: branch?.name || branch?.storeName || `Chi nhánh CH0${id}`,
+    address: branch?.address || 'Hà Nội',
     storeId: id,
     id: id,
     branchTier: finalTier,
     tier: finalTier,
+    staffCount: finalQuota,
     targetStaffCount: finalQuota,
     headcountQuota: finalQuota,
     tierNote: note,

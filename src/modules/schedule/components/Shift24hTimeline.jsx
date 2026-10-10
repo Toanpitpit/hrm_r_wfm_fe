@@ -3,38 +3,35 @@ import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Panel from '@/shared/components/ui/Panel';
 import Badge from '@/shared/components/ui/Badge';
 import Icon from '@/shared/components/ui/Icon';
+import { getShiftTypeColor, SHIFT_TYPE_COLORS } from '../constants/shift.constants';
 
 /**
  * ==============================================================================
  * COMPONENT: Shift24hTimeline.jsx
- * UC 1.3: Trực quan hóa sơ đồ phân bổ các ca làm việc 24 giờ (Timeline Visualizer)
+ * Sơ đồ trực quan hóa phân bổ các ca làm việc 24 giờ
  * ==============================================================================
- * - Thiết kế tinh giản, sang trọng, tương thích hoàn hảo chế độ Dark Theme.
- * - Loại bỏ thanh cuộn ngang xấu xí bằng cơ chế chia ca qua đêm (overnight split).
- * - Loại bỏ lặp chữ thời gian trong tên ca.
- * - Lưới thước đo 24h sắc nét (00:00 -> 24:00).
+ * - Nhận danh sách ShiftTemplateDto và vẽ chính xác theo startTime / endTime
+ * - Tách ca qua đêm thành 2 đoạn (startTime -> 24:00 và 00:00 -> endTime)
+ * - Màu sắc định danh lấy từ SHIFT_TYPE_COLORS tập trung
+ * - Chú giải số ca đang hiển thị và nhãn nguồn ("Ca chung" / "Ca riêng")
  */
-export default function Shift24hTimeline({ shifts = [] }) {
-  const { c, fonts, isDark } = useAdminTheme();
+export default function Shift24hTimeline({
+  shifts = [],
+  sourceLabel = 'Ca chung',
+  title = 'Sơ Đồ Phân Bổ Ca Trực 24 Giờ',
+  subtitle = 'Dòng thời gian hoạt động liên tục trong 24 giờ',
+  emptyMessage = 'Chưa có khung ca nào đang áp dụng trong bộ ca này.',
+}) {
+  const { c, isDark } = useAdminTheme();
   const [hoveredShiftId, setHoveredShiftId] = useState(null);
 
   const activeShifts = (shifts || []).filter((s) => s.isActive);
   const hours = Array.from({ length: 25 }, (_, i) => i); // 0 đến 24
 
-  // Lọc tên ca sạch (loại bỏ chuỗi giờ trong ngoặc như "(06:00 - 14:00)" nếu bị lặp)
+  // Lọc tên ca sạch nếu vô tình có ngoặc giờ
   const getCleanShiftName = (rawName) => {
     if (!rawName) return '';
     return rawName.replace(/\s*\(\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\)/gi, '').trim();
-  };
-
-  // Màu sắc nhận diện từng nhóm ca
-  const getShiftColor = (shift) => {
-    if (shift.colorCode && shift.colorCode !== '#2563eb') return shift.colorCode;
-    const code = (shift.shiftCode || '').toUpperCase();
-    const name = (shift.shiftName || '').toLowerCase();
-    if (shift.isOvernight || code.includes('DEM') || name.includes('đêm')) return '#a855f7'; // Tím neon ca đêm
-    if (code.includes('CHIEU') || name.includes('chiều')) return '#f59e0b'; // Vàng cam ca chiều
-    return '#38bdf8'; // Xanh dương tươi ca sáng
   };
 
   // Tính toán tọa độ hiển thị trong phạm vi 0h - 24h
@@ -51,7 +48,7 @@ export default function Shift24hTimeline({ shifts = [] }) {
 
     const isNightCross = isOvernight || endMin <= startMin;
 
-    // Ca thông thường trong ngày (06:00 - 14:00, 14:00 - 22:00)
+    // Ca thông thường trong ngày
     if (!isNightCross) {
       const left = (startMin / totalMin) * 100;
       const width = ((endMin - startMin) / totalMin) * 100;
@@ -61,36 +58,37 @@ export default function Shift24hTimeline({ shifts = [] }) {
           left: `${left.toFixed(2)}%`,
           width: `${width.toFixed(2)}%`,
           displayTime: `${startTime.slice(0, 5)} - ${endTime.slice(0, 5)}`,
-          isPrimary: true,
+          tag: '',
+          isOvernightPart: false,
         },
       ];
     }
 
-    // Ca đêm qua ngày (22:00 - 06:00): Chia thành 2 đoạn không bao giờ tràn 100%
-    // Đoạn 1: từ startTime đến 24:00 (VD: 22:00 -> 24:00)
+    // Ca qua đêm: Chia thành 2 đoạn không tràn thước đo
+    // Đoạn 1: từ startTime đến 24:00
     const left1 = (startMin / totalMin) * 100;
     const width1 = ((totalMin - startMin) / totalMin) * 100;
 
-    // Đoạn 2: từ 00:00 đến endTime (VD: 00:00 -> 06:00)
+    // Đoạn 2: từ 00:00 đến endTime
     const left2 = 0;
     const width2 = (endMin / totalMin) * 100;
 
     return [
       {
-        key: 'morning-seg',
+        key: 'part2-morning',
         left: `${left2.toFixed(2)}%`,
         width: `${width2.toFixed(2)}%`,
         displayTime: `00:00 - ${endTime.slice(0, 5)}`,
-        tag: '+1 ngày',
-        isPrimary: width2 >= 18,
+        tag: 'Hôm sau',
+        isOvernightPart: true,
       },
       {
-        key: 'night-seg',
+        key: 'part1-night',
         left: `${left1.toFixed(2)}%`,
         width: `${width1.toFixed(2)}%`,
-        displayTime: `${startTime.slice(0, 5)} → 24:00`,
-        tag: 'qua đêm',
-        isPrimary: width1 >= 18,
+        displayTime: `${startTime.slice(0, 5)} - 24:00`,
+        tag: 'Đêm nay',
+        isOvernightPart: true,
       },
     ];
   };
@@ -103,7 +101,7 @@ export default function Shift24hTimeline({ shifts = [] }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '18px',
+          marginBottom: '16px',
           flexWrap: 'wrap',
           gap: '12px',
         }}
@@ -125,34 +123,107 @@ export default function Shift24hTimeline({ shifts = [] }) {
             <Icon name="clock" size={16} />
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '14.5px', color: c.fg, letterSpacing: '-0.2px' }}>
-              Sơ Đồ Phân Bổ Ca Trực 24 Giờ
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: '14.5px',
+                color: c.fg,
+                letterSpacing: '-0.2px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <span>{title}</span>
+              {sourceLabel && (
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    backgroundColor: sourceLabel.includes('riêng') || sourceLabel.includes('CUSTOM')
+                      ? 'rgba(168, 85, 247, 0.15)'
+                      : `${c.accent}18`,
+                    color: sourceLabel.includes('riêng') || sourceLabel.includes('CUSTOM')
+                      ? '#c084fc'
+                      : c.accent,
+                    border: `1px solid ${
+                      sourceLabel.includes('riêng') || sourceLabel.includes('CUSTOM')
+                        ? 'rgba(168, 85, 247, 0.3)'
+                        : `${c.accent}30`
+                    }`,
+                  }}
+                >
+                  Nguồn: {sourceLabel}
+                </span>
+              )}
             </div>
             <div style={{ fontSize: '11.5px', color: c.fgSubtle, marginTop: '2px' }}>
-              Dòng thời gian hoạt động liên tục toàn chuỗi trong 24 giờ
+              {subtitle}
             </div>
           </div>
         </div>
 
         {/* Chú thích nhóm ca & Badge tổng */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px', color: c.fgSubtle }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              fontSize: '12px',
+              color: c.fgSubtle,
+            }}
+          >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#38bdf8' }} />
-              Ca Sáng
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: SHIFT_TYPE_COLORS.Morning.primary,
+                }}
+              />
+              {SHIFT_TYPE_COLORS.Morning.label}
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-              Ca Chiều
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: SHIFT_TYPE_COLORS.Afternoon.primary,
+                }}
+              />
+              {SHIFT_TYPE_COLORS.Afternoon.label}
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#a855f7' }} />
-              Ca Đêm (Qua ngày)
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: SHIFT_TYPE_COLORS.Night.primary,
+                }}
+              />
+              {SHIFT_TYPE_COLORS.Night.label} (Qua đêm)
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: SHIFT_TYPE_COLORS.Other.primary,
+                }}
+              />
+              {SHIFT_TYPE_COLORS.Other.label}
             </span>
           </div>
 
           <Badge tone="accent">
-            <span>{activeShifts.length} Khung Ca Chuẩn</span>
+            <span>{activeShifts.length} Khung Ca Đang Bật</span>
           </Badge>
         </div>
       </div>
@@ -165,7 +236,7 @@ export default function Shift24hTimeline({ shifts = [] }) {
           borderRadius: '10px',
           backgroundColor: c.bgElev,
           border: `1px solid ${c.border}`,
-          overflow: 'hidden', // Triệt tiêu hoàn toàn thanh scrollbar ngang
+          overflow: 'hidden',
         }}
       >
         {/* Lưới đường kẻ dọc hỗ trợ gióng giờ (mỗi 3 tiếng một vạch) */}
@@ -189,7 +260,10 @@ export default function Shift24hTimeline({ shifts = [] }) {
                 style={{
                   width: '1px',
                   height: '100%',
-                  borderLeft: h === 12 ? `1px dashed ${c.accent}35` : '1px dashed rgba(255,255,255,0.06)',
+                  borderLeft:
+                    h === 12
+                      ? `1px dashed ${c.accent}35`
+                      : '1px dashed rgba(255,255,255,0.06)',
                 }}
               />
             ))}
@@ -225,210 +299,248 @@ export default function Shift24hTimeline({ shifts = [] }) {
         </div>
 
         {/* Danh sách các thanh ca trực */}
+        {activeShifts.length === 0 ? (
+          <div
+            style={{
+              padding: '24px 12px',
+              textAlign: 'center',
+              color: c.fgSubtle,
+              fontSize: '13px',
+              fontStyle: 'italic',
+            }}
+          >
+            {emptyMessage}
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              minHeight: '60px',
+            }}
+          >
+            {activeShifts.map((shift, idx) => {
+              const shiftKey = shift.id || shift.shiftId || idx;
+              const cleanName = getCleanShiftName(shift.name || shift.shiftName);
+              const color = getShiftTypeColor(shift.shiftType, shift.isOvernight);
+              const segments = getShiftSegments(shift);
+              const isHovered = hoveredShiftId === shiftKey;
+
+              return (
+                <div
+                  key={shiftKey}
+                  onMouseEnter={() => setHoveredShiftId(shiftKey)}
+                  onMouseLeave={() => setHoveredShiftId(null)}
+                  style={{
+                    position: 'relative',
+                    height: '38px',
+                    borderRadius: '8px',
+                    backgroundColor: isHovered
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(255,255,255,0.015)',
+                    transition: 'background-color 0.2s ease',
+                  }}
+                >
+                  {/* Đường nối biểu thị cùng 1 ca qua đêm */}
+                  {segments.length > 1 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: segments[0].width,
+                        right: `calc(100% - ${segments[1].left})`,
+                        height: '1px',
+                        borderTop: `1px dashed ${color}45`,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  )}
+
+                  {/* Các khối ca */}
+                  {segments.map((seg) => {
+                    const isNarrow = parseFloat(seg.width) < 14;
+
+                    const titleColor = isDark ? '#ffffff' : color;
+                    const badgeBg = isDark ? 'rgba(0,0,0,0.5)' : `${color}20`;
+
+                    return (
+                      <div
+                        key={seg.key}
+                        style={{
+                          position: 'absolute',
+                          left: seg.left,
+                          width: seg.width,
+                          height: '100%',
+                          background: isDark
+                            ? `linear-gradient(135deg, ${color}26, ${color}14)`
+                            : `linear-gradient(135deg, ${color}22, ${color}10)`,
+                          border: `1.5px solid ${isHovered ? color : `${color}60`}`,
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: isNarrow ? 'center' : 'space-between',
+                          padding: isNarrow ? '0 4px' : '0 10px',
+                          color: c.fg,
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap',
+                          boxShadow: isHovered
+                            ? `0 4px 14px ${color}35`
+                            : `0 2px 6px ${color}15`,
+                          transform: isHovered ? 'translateY(-1px)' : 'none',
+                          transition: 'all 0.18s ease',
+                          cursor: 'pointer',
+                        }}
+                        title={`${cleanName} (${shift.startTime?.slice(0, 5)} - ${shift.endTime?.slice(0, 5)}) • ${shift.paidHours || 7.5}h công ${seg.tag ? `[${seg.tag}]` : ''}`}
+                      >
+                        {/* Tên ca & Chấm màu */}
+                        {!isNarrow && (
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              minWidth: 0,
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: '7px',
+                                height: '7px',
+                                borderRadius: '50%',
+                                backgroundColor: color,
+                                flexShrink: 0,
+                                boxShadow: `0 0 6px ${color}`,
+                              }}
+                            />
+                            <span
+                              style={{
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                fontWeight: 700,
+                                fontSize: '12px',
+                                color: titleColor,
+                              }}
+                            >
+                              {cleanName}
+                              {seg.tag && (
+                                <span
+                                  style={{
+                                    fontSize: '10px',
+                                    fontWeight: 500,
+                                    color: color,
+                                    marginLeft: '4px',
+                                    opacity: 0.85,
+                                  }}
+                                >
+                                  ({seg.tag})
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Khung giờ hiển thị */}
+                        <span
+                          style={{
+                            fontSize: isNarrow ? '10px' : '11px',
+                            fontFamily: 'monospace',
+                            fontWeight: 700,
+                            color: color,
+                            backgroundColor: badgeBg,
+                            padding: isNarrow ? '2px 4px' : '2px 6px',
+                            borderRadius: '4px',
+                            border: `1px solid ${color}40`,
+                            marginLeft: isNarrow ? '0' : '6px',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {seg.displayTime}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 3. Dải tóm tắt thông số các ca ở chân sơ đồ */}
+      {activeShifts.length > 0 && (
         <div
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-            minHeight: '60px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '12px',
+            marginTop: '14px',
+            paddingTop: '12px',
+            borderTop: `1px solid ${c.border}`,
           }}
         >
-          {activeShifts.map((shift, idx) => {
-            const cleanName = getCleanShiftName(shift.shiftName);
-            const color = getShiftColor(shift);
-            const segments = getShiftSegments(shift);
-            const isHovered = hoveredShiftId === (shift.shiftId || idx);
+          {activeShifts.map((shift, i) => {
+            const shiftKey = shift.id || shift.shiftId || i;
+            const cleanName = getCleanShiftName(shift.name || shift.shiftName);
+            const color = getShiftTypeColor(shift.shiftType, shift.isOvernight);
 
             return (
               <div
-                key={shift.shiftId || idx}
-                onMouseEnter={() => setHoveredShiftId(shift.shiftId || idx)}
-                onMouseLeave={() => setHoveredShiftId(null)}
+                key={shiftKey}
                 style={{
-                  position: 'relative',
-                  height: '38px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
                   borderRadius: '8px',
-                  backgroundColor: isHovered ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.015)',
-                  transition: 'background-color 0.2s ease',
+                  backgroundColor: c.bgElev,
+                  border: `1px solid ${c.border}`,
+                  fontSize: '12px',
                 }}
               >
-                {/* Nếu là ca đêm có 2 đoạn, vẽ đường nối mờ giữa 2 đoạn */}
-                {segments.length > 1 && (
-                  <div
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
                     style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: segments[0].width,
-                      right: `calc(100% - ${segments[1].left})`,
-                      height: '1px',
-                      borderTop: `1px dashed ${color}40`,
-                      pointerEvents: 'none',
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: color,
                     }}
                   />
-                )}
-
-                {/* Các khối ca */}
-                {segments.map((seg) => {
-                  const isNarrow = parseFloat(seg.width) < 12;
-
-                  // Màu chữ tên ca theo độ tương phản
-                  const titleColor = isDark
-                    ? '#ffffff'
-                    : color === '#38bdf8'
-                    ? '#0369a1'
-                    : color === '#f59e0b'
-                    ? '#b45309'
-                    : '#6d28d9';
-
-                  // Màu chữ khung giờ
-                  const badgeColor = isDark
-                    ? color
-                    : color === '#38bdf8'
-                    ? '#0284c7'
-                    : color === '#f59e0b'
-                    ? '#b45309'
-                    : '#7c3aed';
-
-                  const badgeBg = isDark ? 'rgba(0,0,0,0.45)' : `${color}20`;
-
-                  return (
-                    <div
-                      key={seg.key}
-                      style={{
-                        position: 'absolute',
-                        left: seg.left,
-                        width: seg.width,
-                        height: '100%',
-                        background: isDark
-                          ? `linear-gradient(135deg, ${color}28, ${color}16)`
-                          : `linear-gradient(135deg, ${color}24, ${color}12)`,
-                        border: `1.5px solid ${isHovered ? color : `${color}60`}`,
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: isNarrow ? 'center' : 'space-between',
-                        padding: isNarrow ? '0 4px' : '0 10px',
-                        color: c.fg,
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        overflow: 'hidden',
-                        whiteSpace: 'nowrap',
-                        boxShadow: isHovered ? `0 4px 14px ${color}35` : `0 2px 6px ${color}15`,
-                        transform: isHovered ? 'translateY(-1px)' : 'none',
-                        transition: 'all 0.18s ease',
-                        cursor: 'pointer',
-                      }}
-                      title={`${cleanName} (${shift.startTime?.slice(0, 5)} - ${shift.endTime?.slice(0, 5)}) • ${shift.workHours || 7.5}h làm việc`}
-                    >
-                      {/* Tên ca & Điểm chấm màu */}
-                      {!isNarrow && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
-                          <span
-                            style={{
-                              width: '7px',
-                              height: '7px',
-                              borderRadius: '50%',
-                              backgroundColor: color,
-                              flexShrink: 0,
-                              boxShadow: `0 0 6px ${color}`,
-                            }}
-                          />
-                          <span
-                            style={{
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              fontWeight: 700,
-                              fontSize: '12px',
-                              color: titleColor,
-                            }}
-                          >
-                            {cleanName}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Khung giờ hiển thị tinh gọn */}
-                      <span
-                        style={{
-                          fontSize: isNarrow ? '10px' : '11px',
-                          fontFamily: 'monospace',
-                          fontWeight: 700,
-                          color: badgeColor,
-                          backgroundColor: badgeBg,
-                          padding: isNarrow ? '2px 4px' : '2px 6px',
-                          borderRadius: '4px',
-                          border: `1px solid ${color}40`,
-                          marginLeft: isNarrow ? '0' : '6px',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {seg.displayTime}
-                      </span>
-                    </div>
-                  );
-                })}
+                  <span style={{ fontWeight: 600, color: c.fg }}>{cleanName}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span
+                    style={{
+                      fontFamily: 'monospace',
+                      color: c.fgSubtle,
+                      fontSize: '11.5px',
+                    }}
+                  >
+                    {shift.startTime?.slice(0, 5)} - {shift.endTime?.slice(0, 5)}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '10.5px',
+                      fontWeight: 600,
+                      color,
+                      backgroundColor: `${color}18`,
+                      padding: '1px 5px',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    {shift.paidHours ?? 7.5}h công
+                  </span>
+                </div>
               </div>
             );
           })}
         </div>
-      </div>
-
-      {/* 3. Dải tóm tắt thông số các ca ở chân sơ đồ */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '12px',
-          marginTop: '14px',
-          paddingTop: '12px',
-          borderTop: `1px solid ${c.border}`,
-        }}
-      >
-        {activeShifts.map((shift, i) => {
-          const cleanName = getCleanShiftName(shift.shiftName);
-          const color = getShiftColor(shift);
-
-          return (
-            <div
-              key={shift.shiftId || i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                backgroundColor: c.bgElev,
-                border: `1px solid ${c.border}`,
-                fontSize: '12px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color }} />
-                <span style={{ fontWeight: 600, color: c.fg }}>{cleanName}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontFamily: 'monospace', color: c.fgSubtle, fontSize: '11.5px' }}>
-                  {shift.startTime?.slice(0, 5)} - {shift.endTime?.slice(0, 5)}
-                </span>
-                <span
-                  style={{
-                    fontSize: '10.5px',
-                    fontWeight: 600,
-                    color,
-                    backgroundColor: `${color}18`,
-                    padding: '1px 5px',
-                    borderRadius: '4px',
-                  }}
-                >
-                  {shift.workHours || 7.5}h
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      )}
     </Panel>
   );
 }
-

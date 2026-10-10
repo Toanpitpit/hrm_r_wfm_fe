@@ -5,208 +5,366 @@ import { Field as FormField } from '@/shared/components/ui/FormField';
 import Button from '@/shared/components/ui/Button';
 import Badge from '@/shared/components/ui/Badge';
 import Icon from '@/shared/components/ui/Icon';
+import Select from '@/shared/components/ui/Select';
 import {
-  calculateWorkHours,
+  calculatePaidHours,
+  calculateNightHours,
   checkIsOvernight,
 } from '../services/shiftTemplate.service';
 
 /**
+ * Tự động xác định loại ca theo giờ bắt đầu và tính chất qua đêm
+ */
+const getAutoShiftType = (startTime, isOvernight) => {
+  if (isOvernight) return 'Night';
+  if (!startTime) return 'Morning';
+  const [sh] = startTime.split(':').map(Number);
+  if (sh >= 21 || sh < 5) return 'Night';
+  if (sh >= 12) return 'Afternoon';
+  return 'Morning';
+};
+
+/**
  * ==============================================================================
  * COMPONENT: ShiftTemplateFormModal.jsx
- * UC 1.3: Modal Tạo / Chỉnh sửa Khung ca Mẫu
+ * Modal Thêm / Chỉnh sửa Khung ca mẫu (Chung toàn chuỗi hoặc Riêng chi nhánh)
  * ==============================================================================
- * Các tính năng & validation cốt lõi:
- * 1. TimePicker (định dạng HH:mm) cho Start Time và End Time
- * 2. Logic FE tự động phát hiện & đánh dấu checkbox "Ca qua đêm" (isOvernight) khi End Time < Start Time
- * 3. Number input cho Break Minutes (Thời gian nghỉ phút)
- * 4. Validation chặn không cho Start Time trùng End Time
- * 5. Tính toán số giờ công chuẩn và hiển thị thẻ Preview thời gian ca trực quan
  */
 export default function ShiftTemplateFormModal({
   open = false,
   initialData = null,
+  defaultScope = 'GLOBAL',
+  defaultBranchId = null,
+  branches = [],
   onClose,
   onSubmit,
 }) {
   const { c } = useAdminTheme();
 
+  const isEditing = Boolean(initialData);
+
   const [formData, setFormData] = useState({
-    shiftCode: '',
-    shiftName: '',
-    startTime: '08:00',
-    endTime: '16:30',
-    breakMinutes: 30,
-    isOvernight: false,
+    scope: 'GLOBAL',
+    branchId: '',
+    templateCode: '',
+    name: '',
+    shiftType: 'Morning',
+    startTime: '06:00',
+    endTime: '14:00',
+    breakDuration: 30,
+    isActive: true,
     description: '',
   });
 
-  const [errors, setErrors] = useState({});
+  const [clientErrors, setClientErrors] = useState({});
+  const [serverError, setServerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Khởi tạo hoặc nạp dữ liệu khi mở modal
+  // Nạp dữ liệu khi mở Modal
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        shiftCode: initialData.shiftCode || initialData.templateCode || '',
-        shiftName: initialData.shiftName || initialData.name || '',
-        startTime: initialData.startTime?.slice(0, 5) || '08:00',
-        endTime: initialData.endTime?.slice(0, 5) || '16:30',
-        breakMinutes: initialData.breakMinutes ?? 30,
-        isOvernight: Boolean(initialData.isOvernight),
-        description: initialData.description || '',
-      });
-    } else {
-      setFormData({
-        shiftCode: '',
-        shiftName: '',
-        startTime: '08:00',
-        endTime: '16:30',
-        breakMinutes: 30,
-        isOvernight: false,
-        description: '',
-      });
-    }
-    setErrors({});
-  }, [initialData, open]);
+    if (open) {
+      setServerError('');
+      setClientErrors({});
 
-  // Logic tự động đánh dấu checkbox "Ca qua đêm" khi End Time < Start Time
+      if (initialData) {
+        setFormData({
+          scope: initialData.scope || 'GLOBAL',
+          branchId: initialData.branchId ? String(initialData.branchId) : '',
+          templateCode: initialData.templateCode || initialData.shiftCode || '',
+          name: initialData.name || initialData.shiftName || '',
+          shiftType: initialData.shiftType || 'Morning',
+          startTime: initialData.startTime?.slice(0, 5) || '06:00',
+          endTime: initialData.endTime?.slice(0, 5) || '14:00',
+          breakDuration: initialData.breakDuration ?? initialData.breakMinutes ?? 30,
+          isActive: initialData.isActive !== undefined ? Boolean(initialData.isActive) : true,
+          description: initialData.description || '',
+        });
+      } else {
+        const initScope = defaultScope || 'GLOBAL';
+        const initBranchId =
+          defaultBranchId
+            ? String(defaultBranchId)
+            : branches.length > 0
+            ? String(branches[0].id ?? branches[0].storeId ?? '')
+            : '';
+
+        setFormData({
+          scope: initScope,
+          branchId: initScope === 'BRANCH' ? initBranchId : '',
+          templateCode: '',
+          name: '',
+          shiftType: 'Morning',
+          startTime: '06:00',
+          endTime: '14:00',
+          breakDuration: 30,
+          isActive: true,
+          description: '',
+        });
+      }
+    }
+  }, [open, initialData, defaultScope, defaultBranchId, branches]);
+
+  // Tính toán thời gian Live Preview
+  const previewIsOvernight = checkIsOvernight(formData.startTime, formData.endTime);
+  const previewPaidHours = calculatePaidHours(
+    formData.startTime,
+    formData.endTime,
+    formData.breakDuration
+  );
+  const previewNightHours = calculateNightHours(formData.startTime, formData.endTime);
+
   const handleTimeChange = (field, value) => {
-    const nextForm = { ...formData, [field]: value };
+    const next = { ...formData, [field]: value };
     const start = field === 'startTime' ? value : formData.startTime;
     const end = field === 'endTime' ? value : formData.endTime;
 
     if (start && end) {
-      const autoOvernight = checkIsOvernight(start, end);
-      nextForm.isOvernight = autoOvernight;
+      const isNight = checkIsOvernight(start, end);
+      next.shiftType = getAutoShiftType(start, isNight);
     }
 
-    setFormData(nextForm);
-    if (errors[field] || errors.time) {
-      setErrors((prev) => ({ ...prev, [field]: null, time: null }));
+    setFormData(next);
+    if (clientErrors[field] || clientErrors.time) {
+      setClientErrors((prev) => ({ ...prev, [field]: null, time: null }));
     }
   };
 
-  const workHours = calculateWorkHours(
-    formData.startTime,
-    formData.endTime,
-    formData.breakMinutes
-  );
-
+  // Client Validation
   const validate = () => {
-    const errs = {};
+    const errors = {};
 
-    if (!formData.shiftCode.trim()) {
-      errs.shiftCode = 'Vui lòng nhập mã khung ca (VD: CA_SANG, SHIFT_01).';
-    } else if (formData.shiftCode.trim().length < 3) {
-      errs.shiftCode = 'Mã ca tối thiểu 3 ký tự.';
+    if (!formData.name?.trim()) {
+      errors.name = 'Vui lòng nhập tên khung ca làm việc.';
     }
 
-    if (!formData.shiftName.trim()) {
-      errs.shiftName = 'Vui lòng nhập tên khung ca.';
+    if (formData.scope === 'BRANCH' && !formData.branchId) {
+      errors.branchId = 'Vui lòng chọn chi nhánh áp dụng khung ca riêng.';
     }
 
     if (!formData.startTime) {
-      errs.startTime = 'Vui lòng chọn giờ bắt đầu.';
+      errors.startTime = 'Vui lòng chọn giờ bắt đầu.';
     }
 
     if (!formData.endTime) {
-      errs.endTime = 'Vui lòng chọn giờ kết thúc.';
+      errors.endTime = 'Vui lòng chọn giờ kết thúc.';
     }
 
     if (formData.startTime && formData.endTime) {
       if (formData.startTime === formData.endTime) {
-        errs.time = 'Giờ kết thúc không được trùng với giờ bắt đầu (thời lượng ca phải >= 2h).';
+        errors.time = 'Giờ kết thúc không được trùng với giờ bắt đầu (ca phải >= 1 giờ).';
       }
     }
 
-    if (workHours < 2) {
-      errs.workHours = 'Thời lượng làm việc thực tế của ca tối thiểu phải là 2.0 giờ.';
-    } else if (workHours > 12) {
-      errs.workHours = 'Thời lượng ca làm việc không được vượt quá 12.0 giờ theo quy định lao động.';
+    const [startH, startM] = (formData.startTime || '00:00').split(':').map(Number);
+    const [endH, endM] = (formData.endTime || '00:00').split(':').map(Number);
+    let durationMin = endH * 60 + endM - (startH * 60 + startM);
+    if (durationMin <= 0) durationMin += 24 * 60;
+
+    const breakMin = Number(formData.breakDuration || 0);
+    if (breakMin < 0) {
+      errors.breakDuration = 'Thời gian nghỉ không được nhỏ hơn 0 phút.';
+    } else if (breakMin >= durationMin) {
+      errors.breakDuration = `Thời gian nghỉ (${breakMin}p) phải nhỏ hơn tổng thời lượng ca (${durationMin}p).`;
     }
 
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
+    if (previewPaidHours <= 0) {
+      errors.paidHours = 'Số giờ công sau khi trừ thời gian nghỉ phải lớn hơn 0.';
+    } else if (previewPaidHours > 16) {
+      errors.paidHours = 'Thời lượng ca làm việc không được vượt quá 16 giờ.';
+    }
+
+    setClientErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+    setServerError('');
+
     if (!validate()) return;
+
+    // Tự động suy ra loại ca và sinh mã ca nếu để trống
+    const autoShiftType =
+      formData.shiftType || getAutoShiftType(formData.startTime, previewIsOvernight);
+
+    const submissionData = {
+      ...formData,
+      shiftType: autoShiftType,
+      templateCode:
+        formData.templateCode?.trim() ||
+        (formData.scope === 'BRANCH'
+          ? `CR_${formData.branchId || '01'}_${formData.startTime?.replace(':', '') || Date.now().toString().slice(-4)}`
+          : `CA_${formData.startTime?.replace(':', '') || Date.now().toString().slice(-4)}`),
+    };
 
     try {
       setSubmitting(true);
-      const res = await onSubmit(formData);
-      if (res?.success !== false) {
+      const res = await onSubmit(submissionData);
+      if (res?.success === false) {
+        setServerError(res.error || 'Có lỗi xảy ra khi lưu khung ca.');
+      } else {
         onClose();
       }
+    } catch (err) {
+      setServerError(
+        err.response?.data?.message || err.message || 'Không thể lưu khung ca'
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  const isEditing = Boolean(initialData);
+  const branchOptions = branches.map((b) => {
+    const bId = b.id ?? b.storeId;
+    return {
+      value: String(bId),
+      label: `${b.name} (${b.shiftMode === 'CUSTOM' ? 'Dùng ca riêng' : 'Dùng ca chung'})`,
+    };
+  });
+
+  const modalTitle = isEditing
+    ? formData.scope === 'BRANCH'
+      ? 'Chỉnh Sửa Ca Riêng Chi Nhánh'
+      : 'Chỉnh Sửa Khung Ca Chung'
+    : formData.scope === 'BRANCH'
+    ? 'Thêm Ca Riêng Chi Nhánh'
+    : 'Tạo Khung Ca Chung Toàn Chuỗi';
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={isEditing ? 'Chỉnh Sửa Khung Ca Mẫu' : 'Tạo Khung Ca Mẫu Mới'}
-      width="540px"
+      title={modalTitle}
+      width="560px"
     >
       <form onSubmit={handleSubmit}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* 1. Mã khung ca */}
-          <FormField
-            label="Mã Khung Ca"
-            required
-            error={errors.shiftCode}
-            hint="Mã định danh quy chuẩn (VD: CA_SANG, CA_CHIEU, SHIFT_PARTTIME)"
-          >
-            <input
-              type="text"
-              value={formData.shiftCode}
-              disabled={isEditing}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  shiftCode: e.target.value.toUpperCase().replace(/\s+/g, '_'),
-                })
-              }
-              placeholder="VD: CA_SANG_01"
+          {/* Thông báo lỗi từ server nếu có */}
+          {serverError && (
+            <div
               style={{
-                width: '100%',
-                padding: '9px 12px',
+                backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
                 borderRadius: '8px',
-                border: `1px solid ${errors.shiftCode ? '#ef4444' : c.border}`,
-                backgroundColor: isEditing ? `${c.bgSubtle}` : c.bgCard,
-                color: c.fg,
-                fontSize: '14px',
-                fontFamily: 'monospace',
-                fontWeight: 600,
-                outline: 'none',
+                padding: '10px 14px',
+                color: '#f87171',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
               }}
-            />
-          </FormField>
+            >
+              <Icon name="alert" size={16} color="#f87171" />
+              <span>{serverError}</span>
+            </div>
+          )}
 
-          {/* 2. Tên khung ca */}
+          {/* 1. Phạm vi & Chi nhánh */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: formData.scope === 'BRANCH' ? '1fr 1.3fr' : '1fr',
+              gap: '12px',
+            }}
+          >
+            <FormField
+              label="Phạm Vi Áp Dụng"
+              required
+              hint={isEditing ? 'Không thể đổi phạm vi sau khi tạo' : 'Áp dụng toàn chuỗi hoặc một chi nhánh cụ thể'}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  borderRadius: '8px',
+                  backgroundColor: c.bgElev,
+                  padding: '3px',
+                  border: `1px solid ${c.border}`,
+                }}
+              >
+                <button
+                  type="button"
+                  disabled={isEditing}
+                  onClick={() => setFormData({ ...formData, scope: 'GLOBAL', branchId: '' })}
+                  style={{
+                    flex: 1,
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: isEditing ? 'not-allowed' : 'pointer',
+                    backgroundColor: formData.scope === 'GLOBAL' ? c.accent : 'transparent',
+                    color: formData.scope === 'GLOBAL' ? '#000000' : c.fgSubtle,
+                    border: 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Chung toàn chuỗi
+                </button>
+                <button
+                  type="button"
+                  disabled={isEditing}
+                  onClick={() => {
+                    const fallbackBranch =
+                      formData.branchId ||
+                      (defaultBranchId
+                        ? String(defaultBranchId)
+                        : branches.length > 0
+                        ? String(branches[0].id ?? branches[0].storeId ?? '')
+                        : '');
+                    setFormData({ ...formData, scope: 'BRANCH', branchId: fallbackBranch });
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: isEditing ? 'not-allowed' : 'pointer',
+                    backgroundColor: formData.scope === 'BRANCH' ? '#a855f7' : 'transparent',
+                    color: formData.scope === 'BRANCH' ? '#ffffff' : c.fgSubtle,
+                    border: 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Riêng chi nhánh
+                </button>
+              </div>
+            </FormField>
+
+            {formData.scope === 'BRANCH' && (
+              <FormField
+                label="Chi Nhánh Áp Dụng"
+                required
+                error={clientErrors.branchId}
+                hint={isEditing ? 'Cố định chi nhánh đã chọn' : 'Chi nhánh sở hữu bộ ca riêng này'}
+              >
+                <Select
+                  value={String(formData.branchId || '')}
+                  onChange={(val) => setFormData({ ...formData, branchId: val })}
+                  options={branchOptions}
+                  disabled={isEditing}
+                />
+              </FormField>
+            )}
+          </div>
+
+          {/* 2. Tên ca */}
           <FormField
             label="Tên Khung Ca"
             required
-            error={errors.shiftName}
-            hint="Tên hiển thị để quản lý cửa hàng nhận biết khi xếp lịch"
+            error={clientErrors.name}
+            hint="Tên hiển thị khi xếp lịch (VD: Ca Sáng Tiêu Chuẩn, Ca Tối Sân Bay...)"
           >
             <input
               type="text"
-              value={formData.shiftName}
-              onChange={(e) =>
-                setFormData({ ...formData, shiftName: e.target.value })
-              }
-              placeholder="VD: Ca Sáng Tiêu Chuẩn (08:00 - 16:30)"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder={formData.scope === 'BRANCH' ? 'VD: Ca Sáng Phú Mỹ Hưng (07:00 - 15:00)' : 'VD: Ca Sáng Tiêu Chuẩn (06:00 - 14:00)'}
               style={{
                 width: '100%',
                 padding: '9px 12px',
                 borderRadius: '8px',
-                border: `1px solid ${errors.shiftName ? '#ef4444' : c.border}`,
+                border: `1px solid ${clientErrors.name ? '#ef4444' : c.border}`,
                 backgroundColor: c.bgCard,
                 color: c.fg,
                 fontSize: '14px',
@@ -215,7 +373,7 @@ export default function ShiftTemplateFormModal({
             />
           </FormField>
 
-          {/* 3. TimePicker Start Time & End Time */}
+          {/* 3. Giờ bắt đầu & Giờ kết thúc */}
           <div
             style={{
               display: 'grid',
@@ -224,9 +382,9 @@ export default function ShiftTemplateFormModal({
             }}
           >
             <FormField
-              label="Giờ Bắt Đầu (Start Time)"
+              label="Giờ Bắt Đầu"
               required
-              error={errors.startTime}
+              error={clientErrors.startTime}
             >
               <input
                 type="time"
@@ -236,7 +394,7 @@ export default function ShiftTemplateFormModal({
                   width: '100%',
                   padding: '9px 12px',
                   borderRadius: '8px',
-                  border: `1px solid ${errors.startTime || errors.time ? '#ef4444' : c.border}`,
+                  border: `1px solid ${clientErrors.startTime || clientErrors.time ? '#ef4444' : c.border}`,
                   backgroundColor: c.bgCard,
                   color: c.fg,
                   fontSize: '14px',
@@ -248,9 +406,9 @@ export default function ShiftTemplateFormModal({
             </FormField>
 
             <FormField
-              label="Giờ Kết Thúc (End Time)"
+              label="Giờ Kết Thúc"
               required
-              error={errors.endTime}
+              error={clientErrors.endTime}
             >
               <input
                 type="time"
@@ -260,7 +418,7 @@ export default function ShiftTemplateFormModal({
                   width: '100%',
                   padding: '9px 12px',
                   borderRadius: '8px',
-                  border: `1px solid ${errors.endTime || errors.time ? '#ef4444' : c.border}`,
+                  border: `1px solid ${clientErrors.endTime || clientErrors.time ? '#ef4444' : c.border}`,
                   backgroundColor: c.bgCard,
                   color: c.fg,
                   fontSize: '14px',
@@ -272,8 +430,7 @@ export default function ShiftTemplateFormModal({
             </FormField>
           </div>
 
-          {/* Lỗi trùng giờ nếu có */}
-          {errors.time && (
+          {clientErrors.time && (
             <div
               style={{
                 fontSize: '12px',
@@ -284,37 +441,35 @@ export default function ShiftTemplateFormModal({
                 gap: '4px',
               }}
             >
-              <Icon
-                name="alert"
-                size={13}
-              />
-              <span>{errors.time}</span>
+              <Icon name="alert" size={13} color="#ef4444" />
+              <span>{clientErrors.time}</span>
             </div>
           )}
 
-          {/* 4. Thời gian nghỉ & Checkbox Ca qua đêm */}
+          {/* 4. Thời gian nghỉ & Trạng thái hoạt động */}
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
               gap: '12px',
-              alignItems: 'flex-start',
+              alignItems: 'center',
             }}
           >
             <FormField
               label="Thời Gian Nghỉ (Phút)"
-              hint="Số phút nghỉ giữa ca (trừ khỏi giờ công)"
+              error={clientErrors.breakDuration}
+              hint="Nghỉ giữa ca được trừ khỏi giờ công"
             >
               <input
                 type="number"
                 min="0"
                 max="180"
                 step="5"
-                value={formData.breakMinutes}
+                value={formData.breakDuration}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    breakMinutes: Math.max(0, parseInt(e.target.value) || 0),
+                    breakDuration: Math.max(0, parseInt(e.target.value) || 0),
                   })
                 }
                 style={{
@@ -330,7 +485,7 @@ export default function ShiftTemplateFormModal({
               />
             </FormField>
 
-            <div style={{ marginTop: '26px' }}>
+            <div style={{ marginTop: '16px' }}>
               <label
                 style={{
                   display: 'flex',
@@ -345,9 +500,9 @@ export default function ShiftTemplateFormModal({
               >
                 <input
                   type="checkbox"
-                  checked={formData.isOvernight}
+                  checked={formData.isActive}
                   onChange={(e) =>
-                    setFormData({ ...formData, isOvernight: e.target.checked })
+                    setFormData({ ...formData, isActive: e.target.checked })
                   }
                   style={{
                     width: '16px',
@@ -356,71 +511,102 @@ export default function ShiftTemplateFormModal({
                     cursor: 'pointer',
                   }}
                 />
-                <span>Ca làm việc qua đêm</span>
-                {formData.isOvernight && (
-                  <Badge tone="accent">
-                    <span style={{ fontSize: '10px' }}>Tự động nhận diện</span>
-                  </Badge>
-                )}
+                <span>Kích hoạt áp dụng khung ca</span>
               </label>
             </div>
           </div>
 
-          {/* 5. Thẻ Preview Giờ Công & Thông Tin Ca */}
+          {/* 5. Thẻ Live Preview Thông Số Ca (Tự động cập nhật, chỉ đọc) */}
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 14px',
+              padding: '12px 16px',
               borderRadius: '8px',
-              backgroundColor: `${c.bgSubtle}90`,
+              backgroundColor: 'rgba(255, 255, 255, 0.03)',
               border: `1px solid ${c.border}`,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '10px',
             }}
           >
             <div>
-              <div style={{ fontSize: '12px', color: c.fgSubtle }}>
-                Thời gian làm việc tính công:
-              </div>
-              <div
-                style={{
-                  fontSize: '16px',
-                  fontWeight: 700,
-                  color: errors.workHours ? '#ef4444' : c.accent,
-                  marginTop: '2px',
-                }}
-              >
-                {workHours} Giờ Công Chuẩn
+              <div style={{ fontSize: '11.5px', color: c.fgSubtle }}>Ca qua đêm:</div>
+              <div style={{ marginTop: '4px' }}>
+                <Badge tone={previewIsOvernight ? 'accent' : 'neutral'}>
+                  <span>{previewIsOvernight ? 'Có (Qua đêm)' : 'Không'}</span>
+                </Badge>
               </div>
             </div>
 
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '12px', color: c.fgSubtle }}>Khung giờ:</div>
+            <div>
+              <div style={{ fontSize: '11.5px', color: c.fgSubtle }}>Số giờ công chuẩn:</div>
               <div
                 style={{
-                  fontFamily: 'monospace',
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  color: c.fg,
+                  fontSize: '15px',
+                  fontWeight: 700,
+                  color: clientErrors.paidHours ? '#ef4444' : c.accent,
                   marginTop: '2px',
                 }}
               >
-                {formData.startTime} $\rightarrow$ {formData.endTime}{' '}
-                {formData.isOvernight ? '(Hôm sau)' : ''}
+                {previewPaidHours} giờ
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '11.5px', color: c.fgSubtle }}>Giờ đêm (22h - 06h):</div>
+              <div
+                style={{
+                  fontSize: '15px',
+                  fontWeight: 700,
+                  color: previewNightHours > 0 ? '#c084fc' : c.fgSubtle,
+                  marginTop: '2px',
+                }}
+              >
+                {previewNightHours} giờ
               </div>
             </div>
           </div>
 
-          {errors.workHours && (
+          {clientErrors.paidHours && (
             <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '-6px' }}>
-              {errors.workHours}
+              {clientErrors.paidHours}
             </div>
           )}
 
-          {/* 6. Mô tả khung ca */}
+          {/* 6. Mã khung ca (Tùy chọn) */}
           <FormField
-            label="Mô Tả Khung Ca"
-            hint="Ghi chú thêm về tính chất công việc hoặc yêu cầu nhân sự"
+            label="Mã Khung Ca (Tùy chọn)"
+            hint="Hệ thống tự động sinh mã nếu để trống"
+          >
+            <input
+              type="text"
+              disabled={isEditing}
+              value={formData.templateCode}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  templateCode: e.target.value.toUpperCase().replace(/\s+/g, '_'),
+                })
+              }
+              placeholder="VD: CA_SANG, PMH_01"
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                border: `1px solid ${c.border}`,
+                backgroundColor: isEditing ? c.bgSubtle : c.bgCard,
+                color: c.fg,
+                fontSize: '13.5px',
+                fontFamily: 'monospace',
+                fontWeight: 600,
+                outline: 'none',
+              }}
+            />
+          </FormField>
+
+          {/* 7. Mô tả / Ghi chú */}
+          <FormField
+            label="Ghi Chú / Mô Tả"
+            hint="Ghi chú thêm về yêu cầu công việc hoặc phân công nhân sự"
           >
             <textarea
               rows={2}
@@ -428,7 +614,7 @@ export default function ShiftTemplateFormModal({
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
               }
-              placeholder="VD: Khung ca sáng phục vụ khách mua hàng giờ cao điểm buổi sáng..."
+              placeholder="VD: Ca phục vụ chính tại cửa hàng..."
               style={{
                 width: '100%',
                 padding: '9px 12px',
@@ -449,7 +635,7 @@ export default function ShiftTemplateFormModal({
               display: 'flex',
               justifyContent: 'flex-end',
               gap: '10px',
-              marginTop: '10px',
+              marginTop: '6px',
             }}
           >
             <Button
@@ -465,7 +651,7 @@ export default function ShiftTemplateFormModal({
               onClick={handleSubmit}
               loading={submitting}
             >
-              {isEditing ? 'Lưu Thay Đổi' : 'Lưu Khung Ca'}
+              {isEditing ? 'Lưu Thay Đổi' : 'Tạo Khung Ca'}
             </Button>
           </div>
         </div>
