@@ -399,7 +399,7 @@ export default function BranchLockModal({
                       Chi nhánh đủ điều kiện để thực hiện khóa
                     </strong>
                     <span style={{ color: c.fg, marginTop: '4px', display: 'block' }}>
-                      Không có ca làm việc nào đang diễn ra và không còn nhân viên đang check-in.
+                      Không có ca làm việc nào (đang diễn ra hoặc đã lên lịch) và không còn nhân viên đang check-in.
                     </span>
                   </div>
                 </div>
