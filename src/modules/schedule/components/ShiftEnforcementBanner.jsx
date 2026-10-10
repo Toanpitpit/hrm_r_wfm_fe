@@ -1,11 +1,12 @@
 import React from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Icon from '@/shared/components/ui/Icon';
+import { SHIFT_POLICY_BANNER_TEXT } from '../constants/shift.constants';
 
 /**
  * ==============================================================================
  * COMPONENT: ShiftEnforcementBanner.jsx
- * UC 1.3: Banner chính sách khóa ca chuẩn của Operations Admin
+ * Banner chính sách quy định khung ca làm việc
  * ==============================================================================
  */
 export default function ShiftEnforcementBanner() {
@@ -15,19 +16,19 @@ export default function ShiftEnforcementBanner() {
     <div
       style={{
         display: 'flex',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         gap: '14px',
         backgroundColor: `${c.accent}12`,
         border: `1px solid ${c.accent}30`,
         borderRadius: '10px',
-        padding: '14px 18px',
+        padding: '12px 18px',
         marginBottom: '20px',
       }}
     >
       <div
         style={{
-          width: '34px',
-          height: '34px',
+          width: '32px',
+          height: '32px',
           borderRadius: '8px',
           backgroundColor: `${c.accent}20`,
           color: c.accent,
@@ -47,25 +48,21 @@ export default function ShiftEnforcementBanner() {
         <div
           style={{
             fontWeight: 700,
-            fontSize: '14px',
+            fontSize: '13.5px',
             color: c.fg,
-            marginBottom: '4px',
+            marginBottom: '2px',
           }}
         >
-          Chính Sách Khung Ca Chuẩn Hóa Toàn Hệ Thống (Strict Shift Policy)
+          Quy Định Khung Ca Chuỗi & Chi Nhánh
         </div>
         <div
           style={{
             fontSize: '13px',
             color: c.fgSubtle,
-            lineHeight: '1.5',
+            lineHeight: '1.4',
           }}
         >
-          Các khung ca tại đây được áp dụng đồng bộ cho toàn bộ chuỗi cửa hàng.
-          Quản lý cửa hàng (Store Manager) chỉ được phép xếp lịch làm việc cho
-          nhân viên dựa trên các khung ca đang có trạng thái{' '}
-          <strong style={{ color: '#10b981' }}>Áp dụng</strong> và không thể tự ý
-          tạo ca lệch giờ ngoài danh mục này.
+          {SHIFT_POLICY_BANNER_TEXT}
         </div>
       </div>
     </div>

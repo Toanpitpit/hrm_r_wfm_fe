@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
-import { TIER_DEFINITIONS, getBranchQuota } from '../services/tier.service';
+import { TIER_DEFINITIONS } from '../services/tier.service';
 
 export default function ChangeTierModal({
   isOpen,
@@ -15,7 +15,6 @@ export default function ChangeTierModal({
 
   const currentTierVal = Number(branch?.branchTier ?? branch?.tier ?? 2);
   const [selectedTier, setSelectedTier] = useState(currentTierVal);
-  const [quota, setQuota] = useState(15);
   const [note, setNote] = useState('');
   const [validationError, setValidationError] = useState('');
 
@@ -24,11 +23,7 @@ export default function ChangeTierModal({
   useEffect(() => {
     if (branch) {
       const t = Number(branch.branchTier ?? branch.tier ?? 2);
-      const bId = Number(branch.storeId || branch.id);
-      const currentQuota = branch.customQuota || branch.targetStaffCount || getBranchQuota(bId, t);
-
       setSelectedTier(t);
-      setQuota(currentQuota);
       setNote('');
       setValidationError('');
     }
@@ -39,34 +34,15 @@ export default function ChangeTierModal({
   const currentTierDef = TIER_DEFINITIONS.find((t) => t.tier === currentTierVal) || TIER_DEFINITIONS[1];
   const targetTierDef = TIER_DEFINITIONS.find((t) => t.tier === selectedTier) || TIER_DEFINITIONS[1];
 
-  // Khi người dùng chọn sang Tier khác: tự động gợi ý standardQuota của Tier đó
   const handleSelectTier = (newTier) => {
     setSelectedTier(newTier);
-    const def = TIER_DEFINITIONS.find((t) => t.tier === newTier);
-    if (def) {
-      setQuota(def.standardQuota);
-    }
-    setValidationError('');
-  };
-
-  const handleAdjustQuota = (delta) => {
-    setQuota((prev) => Math.max(1, prev + delta));
     setValidationError('');
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (quota <= 0) {
-      setValidationError('Chỉ tiêu định biên nhân sự phải lớn hơn 0.');
-      return;
-    }
-    onSubmit(branch.storeId || branch.id, selectedTier, quota, note);
+    onSubmit(branch.storeId || branch.id, selectedTier, targetTierDef.standardQuota, note);
   };
-
-  const availableSlots = Math.max(0, quota - currentStaffCount);
-  const isOverQuota = currentStaffCount > quota;
-  const isHigherThanTierMax = quota > targetTierDef.maxStaff;
-  const isLowerThanTierMin = quota < targetTierDef.minStaff;
 
   return (
     <div
@@ -135,10 +111,10 @@ export default function ChangeTierModal({
                   fontFamily: fonts?.heading || 'inherit',
                 }}
               >
-                Cập Nhật Phân Cấp & Định Biên Nhân Sự
+                Cập Nhật Phân Cấp Chi Nhánh
               </h3>
               <p style={{ margin: '2px 0 0', fontSize: '13px', color: c.fgSubtle }}>
-                Thiết lập cấp chi nhánh, tăng/giảm định biên quân số và quyền lợi trạm Kiosk
+                Thiết lập phân cấp chi nhánh theo tiêu chuẩn quy mô hệ thống
               </p>
             </div>
           </div>
@@ -274,254 +250,10 @@ export default function ChangeTierModal({
             </div>
           </div>
 
-          {/* 2. Custom Headcount Stepper (Tăng / Giảm nhân sự) */}
-          <div
-            style={{
-              padding: '18px',
-              borderRadius: '12px',
-              border: `1px solid ${c.border}`,
-              backgroundColor: c.bgRaised,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: c.fg }}>
-                  2. Điều Chỉnh Chỉ Tiêu Định Biên Nhân Sự (Thêm / Bớt):
-                </label>
-                <div style={{ fontSize: '12px', color: c.fgSubtle, marginTop: '2px' }}>
-                  Khoảng chuẩn của {targetTierDef.shortName}: <strong>{targetTierDef.minStaff} - {targetTierDef.maxStaff} nhân sự</strong>
-                </div>
-              </div>
-
-              {/* Status Badge */}
-              <span
-                style={{
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  fontSize: '11.5px',
-                  fontWeight: 700,
-                  backgroundColor: isHigherThanTierMax
-                    ? 'rgba(234, 179, 8, 0.2)'
-                    : isLowerThanTierMin
-                    ? 'rgba(59, 130, 246, 0.2)'
-                    : 'rgba(16, 185, 129, 0.2)',
-                  color: isHigherThanTierMax
-                    ? '#eab308'
-                    : isLowerThanTierMin
-                    ? '#60a5fa'
-                    : '#10b981',
-                }}
-              >
-                {isHigherThanTierMax
-                  ? `Vượt trần Tier (+${quota - targetTierDef.maxStaff} nv)`
-                  : isLowerThanTierMin
-                  ? `Dưới sàn Tier (-${targetTierDef.minStaff - quota} nv)`
-                  : 'Chuẩn quy mô Tier'}
-              </span>
-            </div>
-
-            {/* Stepper Input & Buttons */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-              {/* Decrease Button */}
-              <button
-                type="button"
-                onClick={() => handleAdjustQuota(-1)}
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '10px',
-                  border: `1px solid ${c.border}`,
-                  backgroundColor: c.bgElev,
-                  color: c.fg,
-                  fontSize: '20px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.15s ease',
-                }}
-                title="Bớt 1 nhân sự"
-              >
-                −
-              </button>
-
-              {/* Number Box */}
-              <div style={{ position: 'relative', flex: 1 }}>
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={quota}
-                  onChange={(e) => {
-                    setQuota(Number(e.target.value) || 1);
-                    setValidationError('');
-                  }}
-                  style={{
-                    width: '100%',
-                    height: '44px',
-                    textAlign: 'center',
-                    fontSize: '18px',
-                    fontWeight: 800,
-                    color: targetTierDef.color,
-                    backgroundColor: c.bgCard,
-                    border: `2px solid ${targetTierDef.color}60`,
-                    borderRadius: '10px',
-                    outline: 'none',
-                    fontFamily: 'monospace',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <span
-                  style={{
-                    position: 'absolute',
-                    right: '14px',
-                    top: '14px',
-                    fontSize: '12px',
-                    color: c.fgSubtle,
-                    pointerEvents: 'none',
-                  }}
-                >
-                  nhân sự
-                </span>
-              </div>
-
-              {/* Increase Button */}
-              <button
-                type="button"
-                onClick={() => handleAdjustQuota(1)}
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '10px',
-                  border: `1px solid ${c.border}`,
-                  backgroundColor: c.bgElev,
-                  color: c.fg,
-                  fontSize: '20px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.15s ease',
-                }}
-                title="Thêm 1 nhân sự"
-              >
-                +
-              </button>
-            </div>
-
-            {/* Quick Preset Buttons */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '11.5px', color: c.fgSubtle, marginRight: '4px' }}>Chỉnh nhanh:</span>
-              <button
-                type="button"
-                onClick={() => handleAdjustQuota(-5)}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  border: `1px solid ${c.border}`,
-                  backgroundColor: c.bgCard,
-                  color: c.fgSubtle,
-                  fontSize: '11.5px',
-                  cursor: 'pointer',
-                }}
-              >
-                -5
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAdjustQuota(-2)}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  border: `1px solid ${c.border}`,
-                  backgroundColor: c.bgCard,
-                  color: c.fgSubtle,
-                  fontSize: '11.5px',
-                  cursor: 'pointer',
-                }}
-              >
-                -2
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAdjustQuota(2)}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  border: `1px solid ${c.border}`,
-                  backgroundColor: c.bgCard,
-                  color: c.fg,
-                  fontSize: '11.5px',
-                  cursor: 'pointer',
-                }}
-              >
-                +2
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAdjustQuota(5)}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  border: `1px solid ${c.border}`,
-                  backgroundColor: c.bgCard,
-                  color: c.fg,
-                  fontSize: '11.5px',
-                  cursor: 'pointer',
-                }}
-              >
-                +5
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuota(targetTierDef.standardQuota)}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  border: `1px solid ${targetTierDef.color}60`,
-                  backgroundColor: `${targetTierDef.color}15`,
-                  color: targetTierDef.color,
-                  fontSize: '11.5px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  marginLeft: 'auto',
-                }}
-              >
-                Đặt chuẩn {targetTierDef.standardQuota} nv
-              </button>
-            </div>
-
-            {/* Comparison Summary Banner */}
-            <div
-              style={{
-                marginTop: '14px',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                backgroundColor: c.bgCard,
-                border: `1px solid ${c.border}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                fontSize: '12px',
-              }}
-            >
-              <div>
-                Quân số hiện tại: <strong>{currentStaffCount}</strong> / Định biên mới: <strong style={{ color: targetTierDef.color }}>{quota}</strong>
-              </div>
-              <div style={{ color: isOverQuota ? '#ef4444' : '#10b981', fontWeight: 700 }}>
-                {isOverQuota
-                  ? `⚠️ Vượt định biên ${currentStaffCount - quota} người`
-                  : `✅ Còn trống ${availableSlots} slot tuyển mới`}
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Audit Note */}
+          {/* 2. Audit Note */}
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: c.fg, marginBottom: '6px' }}>
-              3. Lý Do / Ghi Chú Điều Chỉnh (Audit Trail):
+              2. Lý Do / Ghi Chú Điều Chỉnh (Audit Trail):
             </label>
             <textarea
               value={note}
@@ -579,7 +311,7 @@ export default function ChangeTierModal({
             </Button>
             <Button variant="primary" type="submit" loading={loading} disabled={loading}>
               <Icon name="check" size={15} />
-              <span>Xác nhận Cập nhật ({quota} Nhân Sự)</span>
+              <span>Xác nhận Cập nhật ({targetTierDef.shortName})</span>
             </Button>
           </div>
         </form>

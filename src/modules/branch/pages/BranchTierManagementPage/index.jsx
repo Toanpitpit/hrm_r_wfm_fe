@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import DashboardShell from '@/shared/components/layout/DashboardShell';
@@ -270,10 +270,10 @@ export default function BranchTierManagementPage() {
             setSelectedBranch(row);
             setChangeTierModalOpen(true);
           }}
-          title="Chỉnh sửa cấp phân loại & chỉ tiêu định biên nhân sự"
+          title="Chỉnh sửa phân cấp chi nhánh"
         >
           <Icon name="settings" size={13} />
-          <span>Đổi Cấp / Định Biên</span>
+          <span>Đổi Phân Cấp</span>
         </Button>
       ),
     },

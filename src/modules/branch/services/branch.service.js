@@ -296,6 +296,11 @@ export const getAllBranches = async (params = {}) => {
             item.activeKiosks ??
             item.kiosks?.filter((k) => k.status === 'ACTIVE' || k.isOnline).length ??
             0,
+          staffCount: Number(item.staffCount ?? item.StaffCount ?? 0),
+          currentStaffCount: Number(item.currentStaffCount ?? item.CurrentStaffCount ?? item.officialHeadcount ?? item.headcount ?? 0),
+          officialHeadcount: Number(item.officialHeadcount ?? item.currentStaffCount ?? 0),
+          effectiveQuota: Number(item.effectiveQuota ?? item.EffectiveQuota ?? 0),
+          availableSlots: Number(item.availableSlots ?? item.AvailableSlots ?? 0),
           lockReason: item.lockReason || null,
           lockedBy: item.lockedBy || null,
           lockedAt: item.lockedAt || null,
@@ -456,12 +461,15 @@ export const updateBranch = async (storeId, payload) => {
   const rawTier = payload.branchTier ?? payload.tier;
   const tier = rawTier !== undefined && rawTier !== '' ? Number(rawTier) : undefined;
 
+  const staffCount = payload.staffCount !== undefined 
+    ? Number(payload.staffCount) 
+    : (payload.targetStaffCount !== undefined ? Number(payload.targetStaffCount) : undefined);
+
   // Đảm bảo có token xác thực quyền Admin trước khi gọi API
   await ensureAdminToken();
 
   try {
-    // Gửi yêu cầu PUT cập nhật chi nhánh tới Backend API
-    const res = await apiClient.put(STORE_ENDPOINTS.UPDATE(storeId), {
+    const updateBody = {
       name,
       address,
       phone: payload.phone || null,
@@ -471,10 +479,19 @@ export const updateBranch = async (storeId, payload) => {
       geofenceRadiusMeters: radius,
       branchTier: tier,
       tier,
+      staffCount,
       kioskAllowedIp: payload.kioskAllowedIp?.trim() || null,
       kioskAllowedBrowser: payload.kioskAllowedBrowser?.trim() || null,
       status: payload.status || 'ACTIVE',
-    });
+    };
+
+    // Gửi yêu cầu PUT cập nhật chi nhánh tới Backend API (hỗ trợ cả 2 route)
+    let res;
+    try {
+      res = await apiClient.put(STORE_ENDPOINTS.UPDATE(storeId), updateBody);
+    } catch (putErr) {
+      res = await apiClient.put(`/v1/branches/${storeId}`, updateBody);
+    }
 
     // Nếu Backend phản hồi thành công (200 OK hoặc 204 No Content), tải lại danh sách mới nhất từ server
     if (res.status === 200 || res.status === 204) {
@@ -779,10 +796,10 @@ export const lockBranch = async (branchId, payload) => {
   try {
     const res = await apiClient.post(`/branches/${branchId}/lock`, {
       reason: payload.reason,
-      confirmBranchCode: payload.confirmBranchCode,
-      staffHandlingMode: payload.staffHandlingMode,
+      confirmBranchCode: payload.confirmBranchCode || null,
+      staffHandlingMode: payload.staffHandlingMode || 'KeepAndBlock',
       transferToBranchId: payload.transferToBranchId || null,
-      futureShiftHandling: payload.futureShiftHandling,
+      futureShiftHandling: payload.futureShiftHandling || 'Cancel',
     });
     await getAllBranches();
     return res.data?.data || res.data || true;

@@ -39,10 +39,10 @@ export interface BranchLockCheckResponse {
  */
 export interface BranchLockDto {
   reason: string;
-  confirmBranchCode: string;
-  staffHandlingMode: StaffHandlingMode;
+  confirmBranchCode?: string;
+  staffHandlingMode?: StaffHandlingMode;
   transferToBranchId?: number | null;
-  futureShiftHandling: FutureShiftHandling;
+  futureShiftHandling?: FutureShiftHandling;
 }
 
 /**

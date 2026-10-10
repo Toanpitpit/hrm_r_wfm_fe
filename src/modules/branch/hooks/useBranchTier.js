@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import tierService, { TIER_DEFINITIONS } from '../services/tier.service';
+import employeeService from '@/modules/employee/services/employee.service';
 import { useToast } from '@/components/ui/toast/ToastProvider';
 
 export function useBranchTier() {
   const toast = useToast();
 
   const [branches, setBranches] = useState([]);
+  const [branchEmployeesMap, setBranchEmployeesMap] = useState({});
   const [tierSummary, setTierSummary] = useState({
     tier1Count: 0,
     tier2Count: 0,
@@ -31,9 +33,10 @@ export function useBranchTier() {
       setLoading(true);
       setError(null);
 
-      const [summaryRes, branchListRes] = await Promise.all([
+      const [summaryRes, branchListRes, employeesRes] = await Promise.all([
         tierService.getTierSummary(),
         tierService.getAllBranches(),
+        employeeService.getEmployees({ limit: 1000 }).catch(() => null),
       ]);
 
       setTierSummary(
@@ -45,6 +48,21 @@ export function useBranchTier() {
         }
       );
       setBranches(branchListRes || []);
+
+      // Đếm số lượng nhân viên thực tế từ bảng Users (database) cho từng chi nhánh
+      const empList = employeesRes?.data || [];
+      const empMap = {};
+      if (Array.isArray(empList) && empList.length > 0) {
+        empList.forEach((e) => {
+          if (e.status !== 'INACTIVE') {
+            const bId = Number(e.homeBranchId || e.branchId);
+            if (bId) {
+              empMap[bId] = (empMap[bId] || 0) + 1;
+            }
+          }
+        });
+      }
+      setBranchEmployeesMap(empMap);
     } catch (err) {
       console.error('[useBranchTier] Error loading tier data:', err);
       setError(err.message || 'Không thể tải dữ liệu phân cấp chi nhánh.');
@@ -58,36 +76,28 @@ export function useBranchTier() {
     fetchData();
   }, [fetchData]);
 
-  // Filtered branches with computed headcount & quota
+  // Filtered branches with computed headcount & quota directly from database
   const enhancedBranches = useMemo(() => {
-    // Read local employees to compute accurate live headcount per branch
-    let employees = [];
-    try {
-      const raw = localStorage.getItem('wfm_employees_data_v2');
-      if (raw) employees = JSON.parse(raw);
-    } catch {
-      // ignore
-    }
-
     return branches.map((b) => {
       const bId = Number(b.storeId || b.id);
       const tier = Number(b.branchTier ?? b.tier ?? 2);
-      const quota = tierService.getBranchQuota(bId, tier);
+      
+      // 1. Định biên nhân sự: Ưu tiên effectiveQuota hoặc StaffCount từ database, sau đó tới customQuota / chuẩn Tier
+      const quota = Number(
+        b.effectiveQuota ||
+        (b.staffCount > 0 ? b.staffCount : null) ||
+        b.targetStaffCount ||
+        tierService.getBranchQuota(bId, tier)
+      );
 
+      // 2. Quân số thực tế: Lấy trực tiếp từ database
       let staffCount = 0;
-      if (bId === 1) {
-        staffCount = 23;
-      } else if (bId === 2) {
-        staffCount = 15;
-      } else if (bId === 3) {
-        staffCount = 14;
-      } else if (bId === 4) {
-        staffCount = 22;
-      } else {
-        const branchEmployees = employees.filter(
-          (e) => Number(e.homeBranchId || e.branchId) === bId
-        );
-        staffCount = branchEmployees.filter((e) => e.status !== 'INACTIVE').length || 8;
+      if (branchEmployeesMap[bId] !== undefined) {
+        staffCount = Number(branchEmployeesMap[bId]);
+      } else if (b.currentStaffCount !== undefined && b.currentStaffCount !== null) {
+        staffCount = Number(b.currentStaffCount);
+      } else if (b.officialHeadcount !== undefined && b.officialHeadcount !== null) {
+        staffCount = Number(b.officialHeadcount);
       }
 
       return {
@@ -100,7 +110,7 @@ export function useBranchTier() {
         isOverQuota: staffCount > quota,
       };
     });
-  }, [branches]);
+  }, [branches, branchEmployeesMap]);
 
   const filteredBranches = useMemo(() => {
     return enhancedBranches.filter((b) => {

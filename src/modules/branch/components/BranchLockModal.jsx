@@ -10,9 +10,9 @@ import { useLockBranch } from '../hooks/useLockBranch';
 
 /**
  * COMPONENT: BranchLockModal.jsx
- * Luồng Khóa Chi Nhánh (Modal nhiều bước):
- * - Bước 1: Kiểm tra điều kiện (GET /api/branches/{id}/lock-check)
- * - Bước 2: Cấu hình khóa (Lý do, Xử lý nhân sự, Ca tương lai, Khớp mã chi nhánh)
+ * Luồng Khóa Chi Nhánh:
+ * - Bước 1: Kiểm tra điều kiện tiên quyết (Blockers: Ca làm việc đang diễn ra, check-in, đơn chờ...)
+ * - Bước 2: Nhập lý do khóa chi nhánh (10-500 ký tự) & Cảnh báo tác động khóa nhân sự
  * - Bước 3: Gửi yêu cầu khóa (POST /api/branches/{id}/lock)
  */
 export default function BranchLockModal({
@@ -24,16 +24,12 @@ export default function BranchLockModal({
 }) {
   const { c, fonts } = useAdminTheme();
 
-  // Quản lý bước hiện tại: 1 = Kiểm tra điều kiện, 2 = Cấu hình khóa
+  // Quản lý bước hiện tại: 1 = Kiểm tra điều kiện, 2 = Nhập lý do khóa
   const [step, setStep] = useState(1);
 
-  // Form data cho Bước 2
+  // Form data cho Bước 2: chỉ lưu lý do khóa
   const [formData, setFormData] = useState({
     reason: '',
-    confirmBranchCode: '',
-    staffHandlingMode: 'HOLD',
-    transferToBranchId: null,
-    futureShiftHandling: 'CANCEL',
   });
   const [formErrors, setFormErrors] = useState({});
   const [serverMessage, setServerMessage] = useState(null);
@@ -62,10 +58,6 @@ export default function BranchLockModal({
       setStep(1);
       setFormData({
         reason: '',
-        confirmBranchCode: '',
-        staffHandlingMode: 'HOLD',
-        transferToBranchId: null,
-        futureShiftHandling: 'CANCEL',
       });
       setFormErrors({});
       setServerMessage(null);
@@ -115,7 +107,7 @@ export default function BranchLockModal({
   const blockers = checkData?.blockers || [];
   const affectedEmployeeCount = checkData?.affectedEmployeeCount ?? 0;
 
-  // Cập nhật giá trị trong Form Bước 2
+  // Cập nhật giá trị lý do khóa
   const handleFormChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (formErrors[field]) {
@@ -124,12 +116,7 @@ export default function BranchLockModal({
     if (serverMessage) setServerMessage(null);
   };
 
-  const needsTarget =
-    formData.staffHandlingMode === 'TRANSFER' ||
-    formData.staffHandlingMode === 'TransferTemporarily' ||
-    (formData.futureShiftHandling || '').toUpperCase() === 'TRANSFER';
-
-  // Xác thực Form Bước 2
+  // Xác thực Form Bước 2: Chỉ kiểm tra lý do khóa
   const validateForm = () => {
     const errs = {};
     const reasonTrimmed = (formData.reason || '').trim();
@@ -142,43 +129,19 @@ export default function BranchLockModal({
       errs.reason = 'Lý do khóa không được vượt quá 500 ký tự.';
     }
 
-    if (needsTarget && !formData.transferToBranchId) {
-      errs.transferToBranchId = 'Vui lòng chọn chi nhánh đích để điều chuyển.';
-    }
-
-    if (formData.confirmBranchCode !== branchCode) {
-      errs.confirmBranchCode = `Vui lòng nhập chính xác mã "${branchCode}".`;
-    }
-
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  // Xử lý gửi API khóa chi nhánh (Bước 3)
+  // Xử lý gửi API khóa chi nhánh
   const handleSubmitLock = async () => {
     if (!validateForm()) return;
 
     setServerMessage(null);
     setLockError(null);
 
-    const staffMode =
-      formData.staffHandlingMode === 'TRANSFER' || formData.staffHandlingMode === 'TransferTemporarily'
-        ? 'TransferTemporarily'
-        : 'KeepAndBlock';
-
-    const futureShiftMode =
-      (formData.futureShiftHandling || '').toUpperCase() === 'TRANSFER'
-        ? 'Transfer'
-        : (formData.futureShiftHandling || '').toUpperCase() === 'SUSPEND'
-        ? 'Suspend'
-        : 'Cancel';
-
     const res = await lock(branch.storeId || branch.id, {
       reason: formData.reason.trim(),
-      confirmBranchCode: formData.confirmBranchCode,
-      staffHandlingMode: staffMode,
-      transferToBranchId: needsTarget && formData.transferToBranchId ? Number(formData.transferToBranchId) : null,
-      futureShiftHandling: futureShiftMode,
     });
 
     if (res.success) {
@@ -215,10 +178,8 @@ export default function BranchLockModal({
 
   // Kiểm tra điều kiện bật nút "Xác nhận khóa"
   const isConfirmDisabled =
-    formData.confirmBranchCode !== branchCode ||
     (formData.reason || '').trim().length < 10 ||
     (formData.reason || '').trim().length > 500 ||
-    (needsTarget && !formData.transferToBranchId) ||
     locking;
 
   return (
@@ -246,7 +207,7 @@ export default function BranchLockModal({
         </div>
       }
       sub={`Mã CN: ${branchCode} · Thao tác yêu cầu kiểm tra điều kiện hệ thống`}
-      width={step === 1 ? '560px' : '620px'}
+      width="560px"
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <div style={{ fontSize: '12px', color: c.fgSubtle, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -285,7 +246,7 @@ export default function BranchLockModal({
               2
             </span>
             <span style={{ fontWeight: step === 2 ? 600 : 400, color: step === 2 ? c.fg : c.fgSubtle }}>
-              Cấu hình khóa
+              Lý do khóa
             </span>
           </div>
 
@@ -318,7 +279,7 @@ export default function BranchLockModal({
                   borderColor: canLock ? '#dc2626' : undefined,
                 }}
               >
-                <span>Tiếp Tục Cấu Hình</span>
+                <span>Tiếp Tục</span>
                 <Icon name="arrow-right" size={14} />
               </Button>
             ) : (
@@ -438,7 +399,7 @@ export default function BranchLockModal({
                       Chi nhánh đủ điều kiện để thực hiện khóa
                     </strong>
                     <span style={{ color: c.fg, marginTop: '4px', display: 'block' }}>
-                      Không có ca làm việc nào đang chạy và không có kiểm kê dở dang.
+                      Không có ca làm việc nào đang diễn ra và không còn nhân viên đang check-in.
                     </span>
                   </div>
                 </div>
@@ -473,13 +434,13 @@ export default function BranchLockModal({
                       Nhân sự chi nhánh bị tác động
                     </div>
                     <div style={{ fontSize: '15px', fontWeight: 700, color: c.fg, marginTop: '2px' }}>
-                      Có <span style={{ color: c.accent }}>{affectedEmployeeCount}</span> nhân viên bị ảnh hưởng khi chi nhánh tạm dừng.
+                      Có <span style={{ color: c.accent }}>{affectedEmployeeCount}</span> tài khoản từ Store Manager trở xuống sẽ bị tạm khóa.
                     </div>
                   </div>
                 </div>
 
                 <div style={{ fontSize: '12.5px', color: c.fgSubtle, lineHeight: '1.5', padding: '0 4px' }}>
-                  Nhấn <strong>"Tiếp Tục Cấu Hình"</strong> để thiết lập phương án luân chuyển nhân sự và xử lý các ca đã phân lịch trong tương lai.
+                  Nhấn <strong>"Tiếp Tục"</strong> để nhập lý do và tiến hành xác nhận khóa chi nhánh.
                 </div>
               </div>
             ) : (
@@ -493,7 +454,7 @@ export default function BranchLockModal({
           </>
         )}
 
-        {/* ==================== BƯỚC 2: CẤU HÌNH KHÓA ==================== */}
+        {/* ==================== BƯỚC 2: NHẬP LÝ DO KHÓA ==================== */}
         {step === 2 && (
           <LockConfigForm
             branch={branch}
