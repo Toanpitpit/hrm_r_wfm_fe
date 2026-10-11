@@ -171,6 +171,7 @@ export function useWeeklySchedule(initialBranchId = null) {
    */
   const loadTemplates = useCallback(async (targetBranchId) => {
     const bId = targetBranchId || branchId;
+    if (!bId) return;
     try {
       const res = await scheduleService.getShiftTemplates(bId);
       if (res.success && res.data) {
@@ -213,7 +214,9 @@ export function useWeeklySchedule(initialBranchId = null) {
 
   useEffect(() => {
     loadAccessibleBranches();
-    loadTemplates(branchId);
+    if (branchId) {
+      loadTemplates(branchId);
+    }
   }, [loadAccessibleBranches, loadTemplates, branchId]);
 
   useEffect(() => {
