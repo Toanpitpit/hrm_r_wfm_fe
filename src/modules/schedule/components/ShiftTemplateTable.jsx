@@ -20,7 +20,6 @@ export default function ShiftTemplateTable({
   emptyMessage = 'Chưa có khung ca mẫu nào.',
   onEdit,
   onToggleStatus,
-  onDelete,
 }) {
   const { c } = useAdminTheme();
 
@@ -227,7 +226,7 @@ export default function ShiftTemplateTable({
     columns.push({
       key: 'actions',
       label: 'THAO TÁC',
-      width: '230px',
+      width: '170px',
       render: (row) => {
         const isActive = Boolean(row.isActive);
         return (
@@ -253,19 +252,6 @@ export default function ShiftTemplateTable({
             >
               <Icon name={isActive ? 'lock' : 'check'} size={13} />
               <span>{isActive ? 'Ngừng' : 'Bật lại'}</span>
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete && onDelete(row)}
-              style={{
-                color: '#ef4444',
-              }}
-              title="Xóa khung ca"
-            >
-              <Icon name="trash" size={13} />
-              <span>Xóa</span>
             </Button>
           </div>
         );

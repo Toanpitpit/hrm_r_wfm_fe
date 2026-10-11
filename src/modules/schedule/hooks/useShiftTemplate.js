@@ -278,33 +278,21 @@ export function useShiftTemplate() {
     setFormModalOpen(true);
   };
 
-  // Tạo khung ca mới (Hỗ trợ tạo đơn lẻ hoặc tạo hàng loạt nhiều ca cùng lúc)
+  // Tạo khung ca mới
   const handleCreateShift = async (formData) => {
     try {
-      const items = Array.isArray(formData) ? formData : [formData];
-      const createdList = [];
-      let targetBranchId = null;
+      const created = await shiftTemplateService.createShiftTemplate(formData);
+      toast.success('Thêm mới khung ca mẫu thành công!');
 
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        const created = await shiftTemplateService.createShiftTemplate(item);
-        createdList.push(created);
-        if (item.scope === 'BRANCH') {
-          targetBranchId = item.branchId || selectedBranchId;
-        }
-      }
-
-      if (items.length > 1) {
-        toast.success(`Đã tạo thành công ${items.length} khung ca mẫu!`);
-      } else {
-        toast.success('Thêm mới khung ca mẫu thành công!');
-      }
+      const targetBranchId =
+        formData.scope === 'BRANCH' ? formData.branchId || selectedBranchId : selectedBranchId;
 
       if (
-        targetBranchId &&
-        String(selectedBranchId) !== String(targetBranchId)
+        formData.scope === 'BRANCH' &&
+        formData.branchId &&
+        String(selectedBranchId) !== String(formData.branchId)
       ) {
-        setSelectedBranchId(String(targetBranchId));
+        setSelectedBranchId(String(formData.branchId));
       }
 
       await Promise.all([
@@ -315,7 +303,7 @@ export function useShiftTemplate() {
       ]);
 
       setFormModalOpen(false);
-      return { success: true, data: items.length > 1 ? createdList : createdList[0] };
+      return { success: true, data: created };
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Không thể tạo khung ca';
       toast.error(msg);
@@ -410,51 +398,6 @@ export function useShiftTemplate() {
     }
   };
 
-  // 8. Modal Xác nhận Xóa Khung ca mẫu
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deletingShift, setDeletingShift] = useState(null);
-
-  const handleOpenDeleteModal = (shift) => {
-    setDeletingShift(shift);
-    setDeleteModalOpen(true);
-  };
-
-  const handleDeleteShift = async (shiftId) => {
-    try {
-      await shiftTemplateService.deleteShiftTemplate(shiftId);
-      toast.success('Đã xóa khung ca mẫu thành công!');
-
-      // Cập nhật ngay lập tức UI trên client
-      setGlobalShifts((prev) =>
-        prev.filter((s) => {
-          const sId = s.id ?? s.shiftId ?? s.templateId ?? s.shiftTemplateId;
-          return String(sId) !== String(shiftId);
-        })
-      );
-      setCustomShifts((prev) =>
-        prev.filter((s) => {
-          const sId = s.id ?? s.shiftId ?? s.templateId ?? s.shiftTemplateId;
-          return String(sId) !== String(shiftId);
-        })
-      );
-
-      await Promise.all([
-        fetchGlobalShifts(),
-        fetchStats(),
-        fetchBranches(),
-        selectedBranchId ? fetchBranchShifts(selectedBranchId) : Promise.resolve(),
-      ]);
-
-      setDeleteModalOpen(false);
-      setDeletingShift(null);
-      return { success: true };
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Không thể xóa khung ca';
-      toast.error(msg);
-      return { success: false, error: msg };
-    }
-  };
-
   return {
     isOperationsAdmin,
     // Tab
@@ -499,12 +442,6 @@ export function useShiftTemplate() {
     handleCreateShift,
     handleUpdateShift,
     handleToggleStatus,
-    deleteModalOpen,
-    setDeleteModalOpen,
-    deletingShift,
-    setDeletingShift,
-    handleOpenDeleteModal,
-    handleDeleteShift,
     impactModal,
     setImpactModal,
   };

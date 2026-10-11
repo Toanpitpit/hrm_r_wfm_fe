@@ -263,11 +263,10 @@ export const getAllBranches = async (params = {}) => {
         const lat = Number(item.latitude || item.lat || (item.location?.coordinates ? item.location.coordinates[1] : (idx === 0 ? 21.033333 : 10.850000)));
         const lng = Number(item.longitude || item.lng || (item.location?.coordinates ? item.location.coordinates[0] : (idx === 0 ? 105.795000 : 106.772000)));
         const radius = Number(item.geofenceRadiusMeters ?? item.radiusMeters ?? item.radius ?? 100);
-        const tier = Number(item.branchTier ?? item.tier ?? 2);
+        const tier = Number(item.branchTier ?? item.tier ?? (idx === 0 ? 1 : idx === 2 ? 3 : 2));
 
         return {
           storeId: item.storeId || item.id,
-          id: item.id || item.storeId,
           branchCode:
             item.storeCode ||
             item.branchCode ||
@@ -280,11 +279,8 @@ export const getAllBranches = async (params = {}) => {
           address: item.address || '',
           phone: item.phone || '',
           status: item.status || (item.isActive ? 'ACTIVE' : 'LOCKED'),
-          tierId: item.tierId || item.tier_id || item.tier?.id || null,
-          tierObj: item.tier || null,
           branchTier: tier,
           tier: tier,
-          branchTierName: item.tier?.tierName || item.branchTierName || null,
           latitude: lat,
           longitude: lng,
           radiusMeters: radius,
@@ -464,19 +460,9 @@ export const updateBranch = async (storeId, payload) => {
   const rawRadius = payload.geofenceRadiusMeters ?? payload.radiusMeters;
   const radius = rawRadius !== undefined && rawRadius !== '' ? Number(rawRadius) : undefined;
   
-  // Đồng bộ phân cấp chi nhánh (ưu tiên branchTier, fallback tier - chỉ gửi 1, 2, 3 để tương thích enum backend)
+  // Đồng bộ phân cấp chi nhánh (ưu tiên branchTier, fallback tier)
   const rawTier = payload.branchTier ?? payload.tier;
-  let tier = undefined;
-  if (rawTier !== undefined && rawTier !== '') {
-    const numTier = Number(rawTier);
-    if (numTier === 1 || numTier === 2 || numTier === 3) {
-      tier = numTier;
-    }
-  }
-
-  const tierId = payload.tierId !== undefined && payload.tierId !== null && payload.tierId !== ''
-    ? Number(payload.tierId)
-    : undefined;
+  const tier = rawTier !== undefined && rawTier !== '' ? Number(rawTier) : undefined;
 
   const staffCount = payload.staffCount !== undefined 
     ? Number(payload.staffCount) 
@@ -494,8 +480,8 @@ export const updateBranch = async (storeId, payload) => {
       longitude: lng,
       radiusMeters: radius,
       geofenceRadiusMeters: radius,
-      ...(tier !== undefined ? { branchTier: tier, tier } : {}),
-      ...(tierId !== undefined ? { tierId } : {}),
+      branchTier: tier,
+      tier,
       staffCount,
       kioskAllowedIp: payload.kioskAllowedIp?.trim() || null,
       kioskAllowedBrowser: payload.kioskAllowedBrowser?.trim() || null,
@@ -587,7 +573,6 @@ export const upgradeBranchTier = async (storeId) => {
   }
 };
 
-
 /**
  * 5. Khóa / Mở khóa chi nhánh (kèm lý do Audit Log)
  */
@@ -631,30 +616,19 @@ export const updateBranchStatus = async (storeId, status, reason = '') => {
  */
 export const deleteBranch = async (storeId) => {
   await ensureAdminToken();
-  const idStr = String(storeId);
   try {
-    let res;
-    try {
-      res = await apiClient.delete(STORE_ENDPOINTS.DELETE(storeId));
-    } catch (e1) {
-      if (e1.response?.status === 404) {
-        res = await apiClient.delete(`/branches/${storeId}`);
-      } else {
-        throw e1;
-      }
-    }
-    if (res && (res.status === 200 || res.status === 204)) {
+    const res = await apiClient.delete(STORE_ENDPOINTS.DELETE(storeId));
+    if (res.status === 200 || res.status === 204) {
       await getAllBranches();
+      return true;
     }
   } catch (err) {
-    console.warn('[BranchService] Backend delete error:', err.response?.data || err.message);
-    if (err.response?.status === 400 || err.response?.status === 403) {
-      throw new Error(err.response?.data?.message || err.message || 'Không thể xóa chi nhánh trên máy chủ');
-    }
+    console.warn('[BranchService] Backend delete error, fallback local:', err.response?.data || err.message);
+    throw new Error(err.response?.data?.message || err.message || 'Không thể xóa chi nhánh trên máy chủ');
   }
 
   const list = getLocalBranches();
-  const filtered = list.filter((b) => String(b.storeId) !== idStr && String(b.id) !== idStr);
+  const filtered = list.filter((b) => String(b.storeId) !== String(storeId));
   setLocalBranches(filtered);
   return true;
 };
