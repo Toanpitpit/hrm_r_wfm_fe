@@ -89,30 +89,109 @@ export default function AssignShiftCellModal({
 
   if (!isOpen || !cellData) return null;
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const isPastDate = Boolean(workDate && workDate < todayStr);
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const isPastOrToday = Boolean(workDate && workDate <= todayStr);
+
+  /**
+   * Kiểm tra khoảng cách nghỉ giữa 2 ca của 2 ngày liên tiếp có đạt tối thiểu 12 giờ không.
+   * targetDateStr: YYYY-MM-DD
+   * targetShift: { startTime, endTime, isOvernight }
+   * existingShifts: danh sách ca đã có [{ date, startTime, endTime, isOvernight, shiftName }]
+   */
+  const checkRest12hViolation = (targetDateStr, targetShift, existingShifts) => {
+    if (!targetDateStr || !targetShift || !targetShift.startTime || !targetShift.endTime || !existingShifts || existingShifts.length === 0) {
+      return { violated: false, message: '' };
+    }
+
+    const parseMinutes = (tStr) => {
+      const [h, m] = String(tStr || '00:00').split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+
+    const targetDate = new Date(targetDateStr);
+    const prevDateObj = new Date(targetDate);
+    prevDateObj.setDate(prevDateObj.getDate() - 1);
+    const prevDateStr = `${prevDateObj.getFullYear()}-${pad(prevDateObj.getMonth() + 1)}-${pad(prevDateObj.getDate())}`;
+
+    const nextDateObj = new Date(targetDate);
+    nextDateObj.setDate(nextDateObj.getDate() + 1);
+    const nextDateStr = `${nextDateObj.getFullYear()}-${pad(nextDateObj.getMonth() + 1)}-${pad(nextDateObj.getDate())}`;
+
+    const newStartMin = parseMinutes(targetShift.startTime);
+    let newEndMin = parseMinutes(targetShift.endTime);
+    if (Boolean(targetShift.isOvernight) || newEndMin <= newStartMin) {
+      newEndMin += 24 * 60;
+    }
+
+    for (const ex of existingShifts) {
+      const exDate = String(ex.date || '').substring(0, 10);
+      const exStartMin = parseMinutes(ex.startTime);
+      let exEndMin = parseMinutes(ex.endTime);
+      if (Boolean(ex.isOvernight) || exEndMin <= exStartMin) {
+        exEndMin += 24 * 60;
+      }
+
+      // Trường hợp 1: ex là ca của ngày hôm trước (prevDateStr) -> khoảng cách từ exEnd đến newStart
+      if (exDate === prevDateStr) {
+        const gapHours = (24 * 60 + newStartMin - exEndMin) / 60.0;
+        if (gapHours < 12.0) {
+          return {
+            violated: true,
+            message: `Vi phạm nghỉ 12h: Sau ca '${ex.shiftName}' ngày hôm trước (${formatVNDate(prevDateStr)}) chỉ nghỉ ${gapHours.toFixed(1)}h trước ca này (< 12h)`,
+          };
+        }
+      }
+
+      // Trường hợp 2: ex là ca của ngày hôm sau (nextDateStr) -> khoảng cách từ newEnd đến exStart
+      if (exDate === nextDateStr) {
+        const gapHours = (24 * 60 + exStartMin - newEndMin) / 60.0;
+        if (gapHours < 12.0) {
+          return {
+            violated: true,
+            message: `Vi phạm nghỉ 12h: Ca này kết thúc chỉ nghỉ ${gapHours.toFixed(1)}h trước ca '${ex.shiftName}' ngày hôm sau (${formatVNDate(nextDateStr)}) (< 12h)`,
+          };
+        }
+      }
+    }
+
+    return { violated: false, message: '' };
+  };
 
   // Submit cho Mode 1 (Gán nhân viên vào ca theo vị trí)
   const handleRoleSubmit = (e) => {
     e.preventDefault();
-    if (isPastDate) return;
+    if (isPastOrToday) return;
     if (!selectedUserId || !shiftTemplate || !workDate) return;
 
     const shiftId = shiftTemplate.id || shiftTemplate.shiftId;
     onAssignSingle(selectedUserId, shiftId, workDate);
   };
 
+  // Helper kiểm tra ngày điều chuyển cho Mode 2
+  const targetDateStrMode2 = String(workDate || '').substring(0, 10);
+  const uDispStart = String(user?.dispatchStartDate || '').substring(0, 10);
+  const uDispEnd = String(user?.dispatchEndDate || '').substring(0, 10);
+  const uDispAwayStart = String(user?.dispatchAwayStartDate || '').substring(0, 10);
+  const uDispAwayEnd = String(user?.dispatchAwayEndDate || '').substring(0, 10);
+
+  const isUserNotYetDispatched = Boolean(user?.isDispatched && uDispStart && targetDateStrMode2 < uDispStart);
+  const isUserDispatchExpired = Boolean(user?.isDispatched && uDispEnd && targetDateStrMode2 > uDispEnd);
+  const isUserDispatchedAway = Boolean(user?.isDispatchedAway && uDispAwayStart && uDispAwayEnd && targetDateStrMode2 >= uDispAwayStart && targetDateStrMode2 <= uDispAwayEnd);
+  const isMode2Blocked = isPastOrToday || isUserNotYetDispatched || isUserDispatchExpired || isUserDispatchedAway;
+
   // Submit cho Mode 2 (Gán ca cho nhân viên cụ thể)
   const handleEmployeeSubmit = (e) => {
     e.preventDefault();
-    if (isPastDate) return;
+    if (isMode2Blocked) return;
     if (!selectedShiftId || !user || !workDate) return;
 
     onAssignSingle(user.userId, selectedShiftId, workDate);
   };
 
   const handleDelete = () => {
-    if (!currentAssignment || isPastDate) return;
+    if (!currentAssignment || isPastOrToday) return;
     setShowConfirmDelete(true);
   };
 
@@ -133,7 +212,7 @@ export default function AssignShiftCellModal({
         title={`Gán Nhân Sự Cho Vị Trí: ${targetRoleLabel}`}
       >
         <form onSubmit={handleRoleSubmit}>
-          {isPastDate && (
+          {isPastOrToday && (
             <div
               style={{
                 padding: '10px 14px',
@@ -149,7 +228,7 @@ export default function AssignShiftCellModal({
               }}
             >
               <Icon name="alertTriangle" size={16} color={c.tones.bad} />
-              <span>Ca làm việc thuộc ngày quá khứ ({formatVNDate(workDate)}). Hệ thống khóa phân công lịch ca đã qua.</span>
+              <span>Ngày {formatVNDate(workDate)} là ngày hôm nay hoặc ngày đã qua. Hệ thống khóa, không thể phân công ca trực.</span>
             </div>
           )}
 
@@ -224,7 +303,7 @@ export default function AssignShiftCellModal({
               placeholder="Tìm nhân viên theo tên hoặc mã NV..."
               value={roleSearchTerm}
               onChange={(e) => setRoleSearchTerm(e.target.value)}
-              disabled={isPastDate}
+              disabled={isPastOrToday}
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -264,13 +343,25 @@ export default function AssignShiftCellModal({
                     const isConflict = Boolean(assignedShiftOnDate);
 
                     // Kiểm tra điều chuyển nhân sự
-                    const isNotYetDispatched = emp.isDispatched && emp.dispatchStartDate && workDate < emp.dispatchStartDate;
-                    const isDispatchExpired = emp.isDispatched && emp.dispatchEndDate && workDate > emp.dispatchEndDate;
-                    const isDispatchedValid = emp.isDispatched && (!emp.dispatchStartDate || workDate >= emp.dispatchStartDate) && (!emp.dispatchEndDate || workDate <= emp.dispatchEndDate);
-                    const isDispatchedAwayOnDate = emp.isDispatchedAway && emp.dispatchAwayStartDate && emp.dispatchAwayEndDate &&
-                      workDate >= emp.dispatchAwayStartDate && workDate <= emp.dispatchAwayEndDate;
+                    const targetDateStr = String(workDate || '').substring(0, 10);
+                    const dStart = String(emp.dispatchStartDate || '').substring(0, 10);
+                    const dEnd = String(emp.dispatchEndDate || '').substring(0, 10);
+                    const dAwayStart = String(emp.dispatchAwayStartDate || '').substring(0, 10);
+                    const dAwayEnd = String(emp.dispatchAwayEndDate || '').substring(0, 10);
 
-                    const isDisabled = isConflict || isPastDate || isNotYetDispatched || isDispatchExpired || isDispatchedAwayOnDate;
+                    const isNotYetDispatched = Boolean(emp.isDispatched && dStart && targetDateStr < dStart);
+                    const isDispatchExpired = Boolean(emp.isDispatched && dEnd && targetDateStr > dEnd);
+                    const isDispatchedValid = Boolean(emp.isDispatched && (!dStart || targetDateStr >= dStart) && (!dEnd || targetDateStr <= dEnd));
+                    const isDispatchedAwayOnDate = Boolean(emp.isDispatchedAway && dAwayStart && dAwayEnd &&
+                      targetDateStr >= dAwayStart && targetDateStr <= dAwayEnd);
+
+                    const restViolation = checkRest12hViolation(
+                      workDate,
+                      shiftTemplate,
+                      emp.assignedShifts || []
+                    );
+
+                    const isDisabled = isConflict || isPastOrToday || isNotYetDispatched || isDispatchExpired || isDispatchedAwayOnDate || restViolation.violated;
 
                     return (
                       <label
@@ -291,6 +382,7 @@ export default function AssignShiftCellModal({
                           opacity: isDisabled ? 0.65 : 1,
                           transition: 'all 0.15s ease',
                         }}
+                        title={restViolation.violated ? restViolation.message : undefined}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <input
@@ -381,6 +473,20 @@ export default function AssignShiftCellModal({
                             >
                               Đã có ca: {assignedShiftOnDate.shiftName}
                             </span>
+                          ) : restViolation.violated ? (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                background: `${c.tones.bad}20`,
+                                color: c.tones.bad,
+                                fontWeight: 700,
+                              }}
+                              title={restViolation.message}
+                            >
+                              Nghỉ &lt; 12h
+                            </span>
                           ) : (
                             <span
                               style={{
@@ -412,7 +518,7 @@ export default function AssignShiftCellModal({
             <Button
               variant="primary"
               type="submit"
-              disabled={actionLoading || !selectedUserId || isPastDate}
+              disabled={actionLoading || !selectedUserId || isPastOrToday}
             >
               {actionLoading ? 'Đang phân bổ...' : 'Xác Nhận Phân Bổ'}
             </Button>
@@ -434,7 +540,7 @@ export default function AssignShiftCellModal({
       title={currentAssignment ? 'Điều Chỉnh / Hủy Phân Công Ca' : 'Phân Công Ca Làm Việc'}
     >
       <form onSubmit={handleEmployeeSubmit}>
-        {isPastDate && (
+        {isPastOrToday && (
           <div
             style={{
               padding: '10px 14px',
@@ -450,7 +556,67 @@ export default function AssignShiftCellModal({
             }}
           >
             <Icon name="alertTriangle" size={16} color={c.tones.bad} />
-            <span>Ca làm việc này thuộc ngày trong quá khứ ({formatVNDate(workDate)}). Hệ thống khóa không cho phép chỉnh sửa hoặc hủy ca đã trôi qua.</span>
+            <span>Ngày {formatVNDate(workDate)} là ngày hôm nay hoặc ngày đã qua. Hệ thống khóa không cho phép chỉnh sửa hoặc hủy ca.</span>
+          </div>
+        )}
+
+        {isUserNotYetDispatched && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 6,
+              background: 'rgba(217, 119, 6, 0.15)',
+              border: '1px solid #d97706',
+              color: '#d97706',
+              fontSize: 12.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            <Icon name="alertTriangle" size={16} color="#d97706" />
+            <span>Nhân sự '{user.fullName}' được điều chuyển từ ngày {formatVNDate(user.dispatchStartDate)} đến {formatVNDate(user.dispatchEndDate)}. Chỉ có thể xếp ca từ ngày {formatVNDate(user.dispatchStartDate)} trở đi!</span>
+          </div>
+        )}
+
+        {isUserDispatchExpired && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 6,
+              background: `${c.tones.bad}15`,
+              border: `1px solid ${c.tones.bad}`,
+              color: c.tones.bad,
+              fontSize: 12.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            <Icon name="alertTriangle" size={16} color={c.tones.bad} />
+            <span>Lệnh điều chuyển của nhân sự '{user.fullName}' tại chi nhánh này đã kết thúc vào ngày {formatVNDate(user.dispatchEndDate)}. Không thể xếp ca vào ngày {formatVNDate(workDate)} do đã quá hạn điều chuyển!</span>
+          </div>
+        )}
+
+        {isUserDispatchedAway && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 6,
+              background: `${c.tones.bad}15`,
+              border: `1px solid ${c.tones.bad}`,
+              color: c.tones.bad,
+              fontSize: 12.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            <Icon name="alertTriangle" size={16} color={c.tones.bad} />
+            <span>Nhân sự '{user.fullName}' đang được điều chuyển sang '{user.destinationBranchName || 'cơ sở khác'}' từ ngày {formatVNDate(user.dispatchAwayStartDate)} đến {formatVNDate(user.dispatchAwayEndDate)}. Không thể xếp ca tại cơ sở gốc trong thời gian này!</span>
           </div>
         )}
 
@@ -501,7 +667,7 @@ export default function AssignShiftCellModal({
                 {currentAssignment.shiftName} ({currentAssignment.startTime?.substring(0, 5)} - {currentAssignment.endTime?.substring(0, 5)})
               </div>
             </div>
-            <Button variant="danger" type="button" onClick={handleDelete} disabled={actionLoading || isPastDate}>
+            <Button variant="danger" type="button" onClick={handleDelete} disabled={actionLoading || isPastOrToday}>
               Hủy Ca Này
             </Button>
           </div>
@@ -515,6 +681,14 @@ export default function AssignShiftCellModal({
                 const tId = t.shiftId || t.id;
                 const isSelected = String(selectedShiftId) === String(tId);
 
+                // Kiểm tra nghỉ 12h với các ca khác của nhân viên này
+                const otherShifts = (user?.assignedShifts || []).filter(
+                  (s) => s.date !== workDate || (currentAssignment && s.assignmentId !== currentAssignment.assignmentId)
+                );
+                const restViolation = checkRest12hViolation(workDate, t, otherShifts);
+
+                const isShiftDisabled = isMode2Blocked || restViolation.violated;
+
                 return (
                   <label
                     key={tId}
@@ -524,12 +698,13 @@ export default function AssignShiftCellModal({
                       justifyContent: 'space-between',
                       padding: '10px 14px',
                       borderRadius: 8,
-                      background: isSelected ? `${c.accentDim}30` : c.bgElev,
-                      border: `1px solid ${isSelected ? c.accent : c.border}`,
-                      cursor: isPastDate ? 'not-allowed' : 'pointer',
-                      opacity: isPastDate ? 0.65 : 1,
+                      background: isSelected ? `${c.accentDim}30` : isShiftDisabled ? `${c.bgElev}40` : c.bgElev,
+                      border: `1px solid ${isSelected ? c.accent : isShiftDisabled ? c.borderSub : c.border}`,
+                      cursor: isShiftDisabled ? 'not-allowed' : 'pointer',
+                      opacity: isShiftDisabled ? 0.65 : 1,
                       transition: 'all 0.15s ease',
                     }}
+                    title={restViolation.violated ? restViolation.message : undefined}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <input
@@ -537,16 +712,32 @@ export default function AssignShiftCellModal({
                         name="shiftSelect"
                         value={tId}
                         checked={isSelected}
-                        disabled={isPastDate}
+                        disabled={isShiftDisabled}
                         onChange={() => setSelectedShiftId(tId)}
                       />
                       <span style={{ fontWeight: 750, color: isSelected ? c.accent : c.fg, fontSize: 13 }}>
                         {formatShiftTemplateName(t.shiftName || t.name)}
                       </span>
                     </div>
-                    <span style={{ fontSize: 12, color: c.fgFaint }}>
-                      {t.startTime?.substring(0, 5)} - {t.endTime?.substring(0, 5)}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {restViolation.violated && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background: `${c.tones.bad}20`,
+                            color: c.tones.bad,
+                            fontWeight: 700,
+                          }}
+                        >
+                          Nghỉ &lt; 12h
+                        </span>
+                      )}
+                      <span style={{ fontSize: 12, color: c.fgFaint }}>
+                        {t.startTime?.substring(0, 5)} - {t.endTime?.substring(0, 5)}
+                      </span>
+                    </div>
                   </label>
                 );
               })}
@@ -558,7 +749,7 @@ export default function AssignShiftCellModal({
           <Button variant="ghost" onClick={onClose} type="button" disabled={actionLoading}>
             Đóng
           </Button>
-          <Button variant="primary" type="submit" disabled={actionLoading || isPastDate}>
+          <Button variant="primary" type="submit" disabled={actionLoading || isMode2Blocked || !selectedShiftId}>
             {actionLoading ? 'Đang lưu...' : currentAssignment ? 'Cập Nhật Ca' : 'Xác Nhận Gán Ca'}
           </Button>
         </div>

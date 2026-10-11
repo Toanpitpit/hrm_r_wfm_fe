@@ -11,6 +11,7 @@ export default function SetQuotaModal({
   selectedSchedule,
   templates = [],
   onUpdateSingleQuota,
+  onDeleteSchedule,
   onGenerateWeekly,
   actionLoading = false,
 }) {
@@ -47,7 +48,10 @@ export default function SetQuotaModal({
     e.preventDefault();
     if (isSingleMode) {
       onUpdateSingleQuota({
-        scheduleId: selectedSchedule.scheduleId,
+        scheduleId: selectedSchedule.scheduleId || 0,
+        shiftTemplateId: selectedSchedule.shiftTemplateId,
+        workDate: selectedSchedule.workDate,
+        branchId: selectedSchedule.branchId,
         requiredCashier: cashier,
         requiredSales: sales,
         requiredSecurity: security,
@@ -291,13 +295,30 @@ export default function SetQuotaModal({
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-          <Button variant="ghost" onClick={onClose} type="button" disabled={actionLoading}>
-            Hủy
-          </Button>
-          <Button variant="primary" type="submit" disabled={actionLoading}>
-            {actionLoading ? 'Đang lưu...' : isSingleMode ? 'Cập Nhật Định Mức' : 'Áp Dụng Cho Cả Tuần'}
-          </Button>
+        <div style={{ display: 'flex', justifyContent: isSingleMode && selectedSchedule?.scheduleId ? 'space-between' : 'flex-end', alignItems: 'center', gap: 10, marginTop: 20 }}>
+          {isSingleMode && selectedSchedule?.scheduleId && onDeleteSchedule && (
+            <Button
+              variant="danger"
+              type="button"
+              onClick={() => {
+                if (window.confirm('Bạn có chắc chắn muốn xóa khung ca này khỏi lịch tuần?')) {
+                  onDeleteSchedule(selectedSchedule.scheduleId);
+                }
+              }}
+              disabled={actionLoading}
+            >
+              Xóa Khung Ca
+            </Button>
+          )}
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Button variant="ghost" onClick={onClose} type="button" disabled={actionLoading}>
+              Hủy
+            </Button>
+            <Button variant="primary" type="submit" disabled={actionLoading}>
+              {actionLoading ? 'Đang lưu...' : isSingleMode ? 'Cập Nhật Định Mức' : 'Áp Dụng Cho Cả Tuần'}
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>
