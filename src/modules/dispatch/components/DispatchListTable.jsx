@@ -147,31 +147,8 @@ export default function DispatchListTable({
                           Đoàn điều động
                         </span>
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4, maxWidth: 260 }}>
-                        {item.employees.map((emp) => {
-                          const isAppr = emp.status === 'APPROVED';
-                          const isRej = emp.status === 'REJECTED';
-                          const dotColor = isAppr ? '#10b981' : isRej ? '#ef4444' : '#f59e0b';
-                          return (
-                            <span
-                              key={emp.employeeId || emp.id}
-                              style={{
-                                fontSize: 11,
-                                background: c.bgElev,
-                                border: `1px solid ${c.borderSub}`,
-                                borderRadius: 4,
-                                padding: '1px 6px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                              }}
-                              title={`${emp.employeeName} (${emp.positionName || 'Nhân viên'}) - ${emp.status || 'Chờ duyệt'}`}
-                            >
-                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor }} />
-                              {emp.employeeName}
-                            </span>
-                          );
-                        })}
+                      <div style={{ fontSize: 11.5, color: c.fgFaint, marginTop: 3 }}>
+                        Bấm xem chi tiết để xem danh sách
                       </div>
                     </div>
                   ) : (
