@@ -622,8 +622,8 @@ export default function ShiftTemplateFormModal({
                     fontWeight: 600,
                     cursor: 'pointer',
                     border: 'none',
-                    backgroundColor: creationMode === 'SINGLE' ? c.accent : 'transparent',
-                    color: creationMode === 'SINGLE' ? '#000000' : c.fgSubtle,
+                    backgroundColor: creationMode === 'SINGLE' ? (c.primary || '#0D9488') : 'transparent',
+                    color: creationMode === 'SINGLE' ? '#ffffff' : c.fgSubtle,
                     transition: 'all 0.15s ease',
                   }}
                 >
@@ -639,7 +639,7 @@ export default function ShiftTemplateFormModal({
                     fontWeight: 600,
                     cursor: 'pointer',
                     border: 'none',
-                    backgroundColor: creationMode === 'BATCH' ? '#a855f7' : 'transparent',
+                    backgroundColor: creationMode === 'BATCH' ? (c.primary || '#0D9488') : 'transparent',
                     color: creationMode === 'BATCH' ? '#ffffff' : c.fgSubtle,
                     transition: 'all 0.15s ease',
                     display: 'flex',
@@ -657,8 +657,8 @@ export default function ShiftTemplateFormModal({
                       backgroundColor:
                         creationMode === 'BATCH'
                           ? 'rgba(255, 255, 255, 0.25)'
-                          : 'rgba(168, 85, 247, 0.15)',
-                      color: creationMode === 'BATCH' ? '#ffffff' : '#c084fc',
+                          : 'rgba(13, 148, 136, 0.18)',
+                      color: creationMode === 'BATCH' ? '#ffffff' : (c.primaryLight || '#2DD4BF'),
                     }}
                   >
                     Tiện lợi
@@ -707,8 +707,8 @@ export default function ShiftTemplateFormModal({
                     fontSize: '13px',
                     fontWeight: 600,
                     cursor: isEditing ? 'not-allowed' : 'pointer',
-                    backgroundColor: formData.scope === 'GLOBAL' ? c.accent : 'transparent',
-                    color: formData.scope === 'GLOBAL' ? '#000000' : c.fgSubtle,
+                    backgroundColor: formData.scope === 'GLOBAL' ? (c.primary || '#0D9488') : 'transparent',
+                    color: formData.scope === 'GLOBAL' ? '#ffffff' : c.fgSubtle,
                     border: 'none',
                     transition: 'all 0.15s ease',
                   }}
@@ -735,7 +735,7 @@ export default function ShiftTemplateFormModal({
                     fontSize: '13px',
                     fontWeight: 600,
                     cursor: isEditing ? 'not-allowed' : 'pointer',
-                    backgroundColor: formData.scope === 'BRANCH' ? '#a855f7' : 'transparent',
+                    backgroundColor: formData.scope === 'BRANCH' ? (c.primary || '#0D9488') : 'transparent',
                     color: formData.scope === 'BRANCH' ? '#ffffff' : c.fgSubtle,
                     border: 'none',
                     transition: 'all 0.15s ease',
@@ -807,8 +807,8 @@ export default function ShiftTemplateFormModal({
                               width: '22px',
                               height: '22px',
                               borderRadius: '50%',
-                              backgroundColor: 'rgba(168, 85, 247, 0.15)',
-                              color: '#c084fc',
+                              backgroundColor: 'rgba(13, 148, 136, 0.15)',
+                              color: c.primaryLight || '#2DD4BF',
                               fontSize: '12px',
                               fontWeight: 700,
                               display: 'flex',
@@ -1334,9 +1334,9 @@ export default function ShiftTemplateFormModal({
                       loading={submitting}
                       disabled={submitting || Boolean(overlappingShift) || isSelectedBranchLocked}
                       style={{
-                        backgroundColor: 'rgba(168, 85, 247, 0.12)',
-                        color: '#c084fc',
-                        borderColor: 'rgba(168, 85, 247, 0.3)',
+                        backgroundColor: 'rgba(13, 148, 136, 0.12)',
+                        color: c.primaryLight || '#2DD4BF',
+                        borderColor: 'rgba(13, 148, 136, 0.3)',
                       }}
                       title="Lưu ca này và tiếp tục nhập ca tiếp theo mà không đóng form"
                     >
