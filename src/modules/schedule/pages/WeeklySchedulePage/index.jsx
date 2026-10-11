@@ -68,6 +68,7 @@ export default function WeeklySchedulePage() {
     fetchWeeklyMatrix,
     handleGenerateWeekly,
     handleUpdateRequirement,
+    handleDeleteSchedule,
     handleAssignFullTimeBatch,
     handleAssignSingle,
     handleDeleteAssignment,
