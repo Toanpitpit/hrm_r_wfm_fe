@@ -1,452 +1,874 @@
+import axiosInstance from '@/config/axios.config';
 import axios from 'axios';
 
 /**
  * ==============================================================================
- * MODULE: Chuẩn hóa Bộ Khung ca Mẫu - Shift Master Template (Operations Admin)
+ * MODULE: Khung Ca Mẫu (Shift Master Template)
  * SERVICE: shiftTemplate.service.js
  * ==============================================================================
- * Kết nối API trực tiếp với Backend ASP.NET Core:
- * - ShiftsController (/api/Shifts/templates)
- * - Nút chuẩn hóa 3 ca mặc định (/api/Shifts/templates/standardize)
- * Kèm cơ chế tự động xác thực quyền Operations Admin đảm bảo 100% request thành công.
+ * Hợp đồng API:
+ * - GET /api/shift-templates?scope=&branchId=&type=&isActive=&q=&page=&pageSize=
+ * - POST /api/shift-templates
+ * - PUT /api/shift-templates/{id}?confirm=false|true
+ * - PATCH /api/shift-templates/{id}/active?confirm=false|true
+ * - GET /api/branches?shiftMode=&q=
+ * - GET /api/branches/{id}/effective-shifts
+ * - GET /api/branches/{id}/custom-shifts
+ * - PATCH /api/branches/{id}/shift-mode { mode: "GLOBAL"|"CUSTOM", confirm }
+ * - GET /api/shift-templates/stats
+ * Kèm Mock Adapter chuẩn hóa fallback khi Backend chưa sẵn sàng.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api';
+const apiClient = axiosInstance;
 
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 8000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// ==============================================================================
+// 1. CÁC HÀM TIỆN ÍCH TÍNH TOÁN (Live Preview)
+// ==============================================================================
 
 /**
- * Tự động đảm bảo có Bearer Token của Operations Admin khi gọi Backend
+ * Kiểm tra ca có qua đêm không (kết thúc < bắt đầu hoặc kết thúc = bắt đầu)
  */
-export const ensureAdminToken = async () => {
-  let token = localStorage.getItem('accessToken');
-  if (token) return token;
-
-  try {
-    const res = await axios.post(
-      `${API_BASE_URL}/auth/login`,
-      {
-        username: 'ops.admin@rwfm.vn',
-        password: 'Password@123',
-      },
-      {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 5000,
-      }
-    );
-    const data = res.data?.data || res.data;
-    token = data?.token || data?.accessToken;
-    if (token) {
-      localStorage.setItem('accessToken', token);
-      if (data?.user) {
-        localStorage.setItem('user', JSON.stringify(data.user));
-      }
-      return token;
-    }
-  } catch (err) {
-    console.warn('[ShiftTemplateService] Auto-login admin failed:', err.message);
-  }
-  return null;
-};
-
-apiClient.interceptors.request.use(async (config) => {
-  let token = localStorage.getItem('accessToken');
-  if (!token) {
-    token = await ensureAdminToken();
-  }
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      localStorage.removeItem('accessToken');
-      const newToken = await ensureAdminToken();
-      if (newToken) {
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return apiClient(originalRequest);
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Endpoints nội bộ của phân hệ Khung Ca Mẫu
-const SHIFT_API_ENDPOINTS = {
-  LIST: '/Shifts/templates',
-  DETAIL: (id) => `/Shifts/templates/${id}`,
-  CREATE: '/Shifts/templates',
-  UPDATE: (id) => `/Shifts/templates/${id}`,
-  DELETE: (id) => `/Shifts/templates/${id}`,
-  STANDARDIZE: '/Shifts/templates/standardize',
-};
-
-const STORAGE_KEY_SHIFT_TEMPLATES = 'wfm_shift_templates_master_v2';
-
-// 3 Khung ca chuẩn hóa mặc định của hệ thống
-export const DEFAULT_STANDARD_SHIFTS = [
-  {
-    shiftId: 1,
-    shiftCode: 'CA_SANG',
-    shiftName: 'Ca Sáng (06:00 - 14:00)',
-    startTime: '06:00',
-    endTime: '14:00',
-    breakMinutes: 30,
-    workHours: 7.5,
-    isOvernight: false,
-    colorCode: '#0284c7',
-    isSystemDefault: true,
-    isActive: true,
-    description: 'Ca sáng chuẩn hệ thống từ 06:00 đến 14:00 (nghỉ 30 phút)',
-    updatedAt: '2025-05-10T08:00:00Z',
-  },
-  {
-    shiftId: 2,
-    shiftCode: 'CA_CHIEU',
-    shiftName: 'Ca Chiều (14:00 - 22:00)',
-    startTime: '14:00',
-    endTime: '22:00',
-    breakMinutes: 30,
-    workHours: 7.5,
-    isOvernight: false,
-    colorCode: '#d97706',
-    isSystemDefault: true,
-    isActive: true,
-    description: 'Ca chiều chuẩn hệ thống từ 14:00 đến 22:00 (nghỉ 30 phút)',
-    updatedAt: '2025-05-10T08:00:00Z',
-  },
-  {
-    shiftId: 3,
-    shiftCode: 'CA_DEM',
-    shiftName: 'Ca Đêm (22:00 - 06:00)',
-    startTime: '22:00',
-    endTime: '06:00',
-    breakMinutes: 45,
-    workHours: 7.25,
-    isOvernight: true,
-    colorCode: '#7c3aed',
-    isSystemDefault: true,
-    isActive: true,
-    description: 'Ca đêm xuyên đêm chuẩn hệ thống từ 22:00 đến 06:00 hôm sau (nghỉ 45 phút)',
-    updatedAt: '2025-05-10T08:00:00Z',
-  },
-];
-
-// Helper tính số giờ làm việc dựa trên StartTime, EndTime, BreakMinutes
-export const calculateWorkHours = (startTime, endTime, breakMinutes = 0) => {
-  if (!startTime || !endTime) return 0;
-
-  const [startH, startM] = startTime.split(':').map(Number);
-  const [endH, endM] = endTime.split(':').map(Number);
-
-  let startTotalMinutes = startH * 60 + startM;
-  let endTotalMinutes = endH * 60 + endM;
-
-  if (endTotalMinutes <= startTotalMinutes) {
-    endTotalMinutes += 24 * 60;
-  }
-
-  const durationMinutes =
-    endTotalMinutes - startTotalMinutes - Number(breakMinutes || 0);
-  const hours = Math.max(0, durationMinutes / 60);
-  return Number(hours.toFixed(2));
-};
-
-// Helper xác định ca có qua đêm không
 export const checkIsOvernight = (startTime, endTime) => {
   if (!startTime || !endTime) return false;
   const [startH, startM] = startTime.split(':').map(Number);
   const [endH, endM] = endTime.split(':').map(Number);
-  return endH * 60 + endM <= startH * 60 + startM;
+  const startMin = startH * 60 + startM;
+  const endMin = endH * 60 + endM;
+  return endMin <= startMin;
 };
 
-// Helper chuẩn hóa format giờ sang HH:mm:ss cho Backend TimeOnly
-const formatTimeToBackend = (timeStr) => {
-  if (!timeStr) return '08:00:00';
-  const parts = timeStr.trim().split(':');
-  if (parts.length === 2) {
-    return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}:00`;
+/**
+ * Tính số giờ công thực tế (paidHours = thời lượng - nghỉ)
+ */
+export const calculatePaidHours = (startTime, endTime, breakDuration = 0) => {
+  if (!startTime || !endTime) return 0;
+  const [startH, startM] = startTime.split(':').map(Number);
+  const [endH, endM] = endTime.split(':').map(Number);
+
+  let startMin = startH * 60 + startM;
+  let endMin = endH * 60 + endM;
+
+  if (endMin <= startMin) {
+    endMin += 24 * 60; // Cộng thêm 24 tiếng cho ca qua đêm
   }
-  return timeStr;
+
+  const durationMin = endMin - startMin - Number(breakDuration || 0);
+  const hours = Math.max(0, durationMin / 60);
+  return Number(hours.toFixed(2));
 };
 
-// Khởi tạo LocalStorage
-const getLocalShiftTemplates = () => {
-  const data = localStorage.getItem(STORAGE_KEY_SHIFT_TEMPLATES);
+/**
+ * Tính số giờ làm đêm giao với khung 22:00 - 06:00 hôm sau
+ */
+export const calculateNightHours = (startTime, endTime) => {
+  if (!startTime || !endTime) return 0;
+  const [startH, startM] = startTime.split(':').map(Number);
+  const [endH, endM] = endTime.split(':').map(Number);
+
+  const startMin = startH * 60 + startM;
+  const endMin = endH * 60 + endM;
+
+  // Khoảng đêm gồm: [0, 360] (00:00 -> 06:00) và [1320, 1440] (22:00 -> 24:00)
+  const intervals = [];
+  if (endMin <= startMin) {
+    intervals.push([startMin, 1440]);
+    intervals.push([0, endMin]);
+  } else {
+    intervals.push([startMin, endMin]);
+  }
+
+  let totalNightMinutes = 0;
+  for (const [s, e] of intervals) {
+    const morningOverlap = Math.max(0, Math.min(e, 360) - Math.max(s, 0));
+    const nightOverlap = Math.max(0, Math.min(e, 1440) - Math.max(s, 1320));
+    totalNightMinutes += morningOverlap + nightOverlap;
+  }
+
+  const hours = totalNightMinutes / 60;
+  return Number(hours.toFixed(2));
+};
+
+// ==============================================================================
+// 2. MOCK DATA STORE VÀ CƠ CHẾ ADAPTER
+// ==============================================================================
+
+const STORAGE_KEY_SHIFTS = 'wfm_shifts_v3';
+const STORAGE_KEY_BRANCHES = 'wfm_branches_v3';
+
+const INITIAL_GLOBAL_SHIFTS = [
+  {
+    id: 1,
+    templateCode: 'CA_SANG',
+    name: 'Ca Sáng Tiêu Chuẩn',
+    description: 'Ca sáng phục vụ khách mua hàng giờ cao điểm buổi sáng',
+    shiftType: 'Morning',
+    scope: 'GLOBAL',
+    branchId: null,
+    branchName: null,
+    startTime: '06:00',
+    endTime: '14:00',
+    breakDuration: 30,
+    isOvernight: false,
+    isActive: true,
+    paidHours: 7.5,
+    nightHours: 0,
+    usedByBranchCount: 14,
+  },
+  {
+    id: 2,
+    templateCode: 'CA_CHIEU',
+    name: 'Ca Chiều Tiêu Chuẩn',
+    description: 'Ca chiều hỗ trợ nhận hàng và phục vụ giờ tan tầm',
+    shiftType: 'Afternoon',
+    scope: 'GLOBAL',
+    branchId: null,
+    branchName: null,
+    startTime: '14:00',
+    endTime: '22:00',
+    breakDuration: 30,
+    isOvernight: false,
+    isActive: true,
+    paidHours: 7.5,
+    nightHours: 0,
+    usedByBranchCount: 14,
+  },
+  {
+    id: 3,
+    templateCode: 'CA_DEM',
+    name: 'Ca Đêm Qua Ngày',
+    description: 'Ca đêm trực cửa hàng 24/7, kiểm kê và nhập hàng tươi sống',
+    shiftType: 'Night',
+    scope: 'GLOBAL',
+    branchId: null,
+    branchName: null,
+    startTime: '22:00',
+    endTime: '06:00',
+    breakDuration: 45,
+    isOvernight: true,
+    isActive: true,
+    paidHours: 7.25,
+    nightHours: 8.0,
+    usedByBranchCount: 14,
+  },
+];
+
+const INITIAL_BRANCHES = [
+  {
+    id: 1,
+    storeId: 1,
+    name: 'Cửa hàng Q1 - Đồng Khởi',
+    code: 'HCM_DK_01',
+    shiftMode: 'GLOBAL',
+    activeCustomShiftCount: 0,
+    isLocked: false,
+  },
+  {
+    id: 2,
+    storeId: 2,
+    name: 'Cửa hàng Q3 - Nguyễn Thị Minh Khai',
+    code: 'HCM_NTMK_02',
+    shiftMode: 'GLOBAL',
+    activeCustomShiftCount: 0,
+    isLocked: false,
+  },
+  {
+    id: 3,
+    storeId: 3,
+    name: 'Cửa hàng Q7 - Phú Mỹ Hưng',
+    code: 'HCM_PMH_03',
+    shiftMode: 'CUSTOM',
+    activeCustomShiftCount: 3,
+    isLocked: false,
+  },
+  {
+    id: 4,
+    storeId: 4,
+    name: 'Cửa hàng Bình Thạnh - Landmark',
+    code: 'HCM_LM_04',
+    shiftMode: 'GLOBAL',
+    activeCustomShiftCount: 2,
+    isLocked: false,
+  },
+  {
+    id: 5,
+    storeId: 5,
+    name: 'Cửa hàng Tân Bình - Sân Bay (Khóa)',
+    code: 'HCM_SB_05',
+    shiftMode: 'CUSTOM',
+    activeCustomShiftCount: 2,
+    isLocked: true,
+  },
+];
+
+const INITIAL_CUSTOM_SHIFTS = [
+  {
+    id: 101,
+    templateCode: 'PMH_SANG',
+    name: 'Ca Sáng Phú Mỹ Hưng',
+    description: 'Khung ca sáng mở rộng cho khu vực cư dân cao cấp',
+    shiftType: 'Morning',
+    scope: 'BRANCH',
+    branchId: 3,
+    branchName: 'Cửa hàng Q7 - Phú Mỹ Hưng',
+    startTime: '07:00',
+    endTime: '15:00',
+    breakDuration: 30,
+    isOvernight: false,
+    isActive: true,
+    paidHours: 7.5,
+    nightHours: 0,
+  },
+  {
+    id: 102,
+    templateCode: 'PMH_CHIEU',
+    name: 'Ca Chiều Phú Mỹ Hưng',
+    description: 'Ca chiều tăng cường giờ ăn tối và mua sắm',
+    shiftType: 'Afternoon',
+    scope: 'BRANCH',
+    branchId: 3,
+    branchName: 'Cửa hàng Q7 - Phú Mỹ Hưng',
+    startTime: '15:00',
+    endTime: '23:00',
+    breakDuration: 30,
+    isOvernight: false,
+    isActive: true,
+    paidHours: 7.5,
+    nightHours: 1.0,
+  },
+  {
+    id: 103,
+    templateCode: 'PMH_DEM',
+    name: 'Ca Đêm Phú Mỹ Hưng',
+    description: 'Ca trực đêm phục vụ chuyên biệt',
+    shiftType: 'Night',
+    scope: 'BRANCH',
+    branchId: 3,
+    branchName: 'Cửa hàng Q7 - Phú Mỹ Hưng',
+    startTime: '23:00',
+    endTime: '07:00',
+    breakDuration: 45,
+    isOvernight: true,
+    isActive: true,
+    paidHours: 7.25,
+    nightHours: 7.0,
+  },
+  {
+    id: 104,
+    templateCode: 'LM_SANG_SOM',
+    name: 'Ca Sáng Sớm Landmark',
+    description: 'Phục vụ cư dân tập thể dục buổi sáng',
+    shiftType: 'Morning',
+    scope: 'BRANCH',
+    branchId: 4,
+    branchName: 'Cửa hàng Bình Thạnh - Landmark',
+    startTime: '05:30',
+    endTime: '13:30',
+    breakDuration: 30,
+    isOvernight: false,
+    isActive: true,
+    paidHours: 7.5,
+    nightHours: 0.5,
+  },
+  {
+    id: 105,
+    templateCode: 'LM_TOI_MUON',
+    name: 'Ca Tối Muộn Landmark',
+    description: 'Phục vụ cư dân và sự kiện tòa nhà',
+    shiftType: 'Afternoon',
+    scope: 'BRANCH',
+    branchId: 4,
+    branchName: 'Cửa hàng Bình Thạnh - Landmark',
+    startTime: '16:00',
+    endTime: '00:00',
+    breakDuration: 30,
+    isOvernight: true,
+    isActive: true,
+    paidHours: 7.5,
+    nightHours: 2.0,
+  },
+];
+
+const getMockShifts = () => {
+  const data = localStorage.getItem(STORAGE_KEY_SHIFTS);
   if (!data) {
-    localStorage.setItem(
-      STORAGE_KEY_SHIFT_TEMPLATES,
-      JSON.stringify(DEFAULT_STANDARD_SHIFTS)
-    );
-    return DEFAULT_STANDARD_SHIFTS;
+    const initial = [...INITIAL_GLOBAL_SHIFTS, ...INITIAL_CUSTOM_SHIFTS];
+    localStorage.setItem(STORAGE_KEY_SHIFTS, JSON.stringify(initial));
+    return initial;
   }
   try {
     return JSON.parse(data);
   } catch {
-    return DEFAULT_STANDARD_SHIFTS;
+    return [...INITIAL_GLOBAL_SHIFTS, ...INITIAL_CUSTOM_SHIFTS];
   }
 };
 
-const setLocalShiftTemplates = (list) => {
-  localStorage.setItem(STORAGE_KEY_SHIFT_TEMPLATES, JSON.stringify(list));
+const setMockShifts = (shifts) => {
+  localStorage.setItem(STORAGE_KEY_SHIFTS, JSON.stringify(shifts));
+};
+
+const getMockBranches = () => {
+  const data = localStorage.getItem(STORAGE_KEY_BRANCHES);
+  if (!data) {
+    localStorage.setItem(STORAGE_KEY_BRANCHES, JSON.stringify(INITIAL_BRANCHES));
+    return INITIAL_BRANCHES;
+  }
+  try {
+    return JSON.parse(data);
+  } catch {
+    return INITIAL_BRANCHES;
+  }
+};
+
+const setMockBranches = (branches) => {
+  localStorage.setItem(STORAGE_KEY_BRANCHES, JSON.stringify(branches));
+};
+
+// ==============================================================================
+// 3. API SERVICE METHODS THEO HỢP ĐỒNG
+// ==============================================================================
+
+/**
+ * GET /api/shift-templates/stats
+ * Lấy 4 chỉ số thống kê từ API (không tự đếm ở client)
+ */
+export const getShiftTemplateStats = async () => {
+  try {
+    const res = await apiClient.get('/shift-templates/stats');
+    if (res.data) return res.data.data || res.data;
+  } catch (err) {
+    console.warn('[ShiftService] /api/shift-templates/stats fallback mock:', err.message);
+  }
+
+  // Fallback Mock data
+  const shifts = getMockShifts();
+  const branches = getMockBranches();
+  const globalShifts = shifts.filter((s) => s.scope === 'GLOBAL');
+  const overnightGlobal = globalShifts.filter((s) => s.isOvernight).length;
+  const branchesUsingGlobal = branches.filter((b) => b.shiftMode === 'GLOBAL').length;
+  const branchesUsingCustom = branches.filter((b) => b.shiftMode === 'CUSTOM').length;
+
+  return {
+    totalGlobalShifts: globalShifts.length,
+    branchesUsingGlobal,
+    branchesUsingCustom,
+    overnightShifts: overnightGlobal,
+  };
 };
 
 /**
- * 1. Lấy danh sách toàn bộ khung ca mẫu từ Backend
+ * GET /api/shift-templates?scope=&branchId=&type=&isActive=&q=&page=&pageSize=
+ * Lấy danh sách khung ca theo bộ lọc
  */
-export const getAllShiftTemplates = async (includeInactive = true) => {
+export const getShiftTemplates = async (params = {}) => {
   try {
-    const res = await apiClient.get(SHIFT_API_ENDPOINTS.LIST, {
-      params: { includeInactive },
-    });
-    const data = res.data?.data || res.data;
-    if (Array.isArray(data)) {
-      const mapped = data.map((item) => ({
-        shiftId: item.shiftId || item.id,
-        shiftCode: item.shiftCode || item.code || item.templateCode,
-        shiftName: item.shiftName || item.name,
-        shiftType: item.shiftType || 'Morning',
-        startTime: item.startTime?.slice(0, 5) || '08:00',
-        endTime: item.endTime?.slice(0, 5) || '16:00',
-        breakMinutes:
-          item.breakMinutes ?? item.breakDurationMinutes ?? 0,
-        workHours:
-          item.workHours ??
-          calculateWorkHours(item.startTime, item.endTime, item.breakMinutes),
-        colorCode:
-          item.colorCode && item.colorCode !== '#2563eb'
-            ? item.colorCode
-            : (item.isOvernight || (item.shiftCode || '').toUpperCase().includes('DEM') || (item.shiftName || '').toLowerCase().includes('đêm'))
-            ? '#a855f7'
-            : ((item.shiftCode || '').toUpperCase().includes('CHIEU') || (item.shiftName || '').toLowerCase().includes('chiều'))
-            ? '#f59e0b'
-            : '#38bdf8',
-        isSystemDefault:
-          item.isSystemDefault !== undefined
-            ? Boolean(item.isSystemDefault)
-            : ['CA_SANG', 'CA_CHIEU', 'CA_DEM'].includes(
-                (item.shiftCode || '').toUpperCase()
-              ),
-        isActive: item.isActive !== undefined ? Boolean(item.isActive) : true,
-        description: item.description || '',
-        updatedAt: item.updatedAt || new Date().toISOString(),
-      }));
-      setLocalShiftTemplates(mapped);
-      return mapped;
+    let res;
+    try {
+      res = await apiClient.get('/shift-templates', { params });
+    } catch (e) {
+      if (e.response?.status === 404) {
+        res = await apiClient.get('/shifts/templates', { params });
+      } else {
+        throw e;
+      }
+    }
+    if (res && res.data) {
+      const data = res.data.data || res.data;
+      const list = Array.isArray(data) ? data : data.items || [];
+      if (list.length > 0) return list;
     }
   } catch (err) {
-    console.warn('[ShiftTemplateService] Backend getAll error, fallback local:', err.message);
+    console.warn('[ShiftService] getShiftTemplates fallback mock:', err.message);
   }
-  return getLocalShiftTemplates();
+
+  let shifts = getMockShifts();
+  if (params.scope) {
+    shifts = shifts.filter((s) => s.scope === params.scope);
+  }
+  if (params.branchId) {
+    shifts = shifts.filter((s) => String(s.branchId) === String(params.branchId));
+  }
+  if (params.type && params.type !== 'ALL') {
+    shifts = shifts.filter((s) => s.shiftType === params.type);
+  }
+  if (params.isActive !== undefined && params.isActive !== '') {
+    const boolActive = params.isActive === true || params.isActive === 'true';
+    shifts = shifts.filter((s) => s.isActive === boolActive);
+  }
+  if (params.q) {
+    const q = params.q.toLowerCase().trim();
+    shifts = shifts.filter(
+      (s) =>
+        s.name?.toLowerCase().includes(q) ||
+        s.templateCode?.toLowerCase().includes(q) ||
+        s.description?.toLowerCase().includes(q)
+    );
+  }
+
+  return shifts;
 };
 
 /**
- * 2. Tạo khung ca mẫu mới (Gọi Backend ASP.NET Core CreateShiftTemplateDto)
+ * POST /api/shift-templates
+ * Tạo mới khung ca (Chung hoặc Riêng chi nhánh)
  */
 export const createShiftTemplate = async (payload) => {
   const isOvernight = checkIsOvernight(payload.startTime, payload.endTime);
-  const code = (payload.shiftCode || payload.templateCode || '').toUpperCase().trim();
-  const name = (payload.shiftName || payload.name || '').trim();
+  const paidHours = calculatePaidHours(payload.startTime, payload.endTime, payload.breakDuration);
+  const nightHours = calculateNightHours(payload.startTime, payload.endTime);
+  const branchIdNum =
+    payload.scope === 'BRANCH' && payload.branchId ? Number(payload.branchId) : null;
 
-  await ensureAdminToken();
+  const autoCode =
+    payload.templateCode?.trim() ||
+    (payload.scope === 'BRANCH'
+      ? `CR_${branchIdNum || '01'}_${payload.startTime?.replace(':', '') || Date.now().toString().slice(-4)}`
+      : `CA_${payload.startTime?.replace(':', '') || Date.now().toString().slice(-4)}`);
 
-  const backendDto = {
-    templateCode: code,
-    name,
-    shiftType: payload.shiftType || (isOvernight ? 'Night' : 'Morning'),
+  const body = {
+    scope: payload.scope || 'GLOBAL',
+    branchId: branchIdNum,
+    name: payload.name?.trim(),
+    templateCode: autoCode.toUpperCase().trim(),
     description: payload.description || '',
-    startTime: formatTimeToBackend(payload.startTime),
-    endTime: formatTimeToBackend(payload.endTime),
-    isOvernight,
-    breakDurationMinutes: Number(payload.breakMinutes || 0),
-  };
-
-  try {
-    const res = await apiClient.post(SHIFT_API_ENDPOINTS.CREATE, backendDto);
-    const created = res.data?.data || res.data;
-    if (created) {
-      await getAllShiftTemplates();
-      return created;
-    }
-  } catch (err) {
-    console.warn('[ShiftTemplateService] Backend create error, fallback local:', err.response?.data || err.message);
-  }
-
-  const list = getLocalShiftTemplates();
-  const newShift = {
-    shiftId: Date.now(),
-    shiftCode: code,
-    shiftName: name,
+    shiftType: payload.shiftType || (isOvernight ? 'Night' : 'Morning'),
     startTime: payload.startTime,
     endTime: payload.endTime,
-    breakMinutes: Number(payload.breakMinutes || 0),
-    workHours: calculateWorkHours(payload.startTime, payload.endTime, payload.breakMinutes),
+    breakDuration: Number(payload.breakDuration || 0),
+    breakDurationMinutes: Number(payload.breakDuration || 0),
     isOvernight,
-    colorCode: payload.colorCode || '#2563eb',
-    description: payload.description || '',
-    isSystemDefault: false,
-    isActive: true,
-    updatedAt: new Date().toISOString(),
+    isActive: payload.isActive !== undefined ? Boolean(payload.isActive) : true,
   };
-  list.push(newShift);
-  setLocalShiftTemplates(list);
+
+  let backendResult = null;
+  try {
+    let res;
+    try {
+      res = await apiClient.post('/shift-templates', body);
+    } catch (e1) {
+      if (e1.response?.status === 404) {
+        res = await apiClient.post('/shifts/templates', body);
+      } else {
+        throw e1;
+      }
+    }
+    if (res && res.data) {
+      backendResult = res.data.data || res.data;
+    }
+  } catch (err) {
+    // Nếu là lỗi nghiệp vụ xác thực từ server (ví dụ 400 trùng giờ, 409 xung đột)
+    if (err.response?.status === 400 || err.response?.status === 409) {
+      throw err;
+    }
+    console.warn('[ShiftService] POST shift-templates fallback to local storage:', err.message);
+  }
+
+  // Luôn lưu vào Mock Storage để đảm bảo ca riêng xuất hiện ngay lập tức
+  const shifts = getMockShifts();
+  const branches = getMockBranches();
+  const branch = body.branchId
+    ? branches.find((b) => String(b.id || b.storeId) === String(body.branchId))
+    : null;
+
+  const newShift = {
+    id: backendResult?.id || backendResult?.shiftId || Date.now(),
+    templateCode: body.templateCode,
+    name: body.name,
+    description: body.description,
+    shiftType: body.shiftType,
+    scope: body.scope,
+    branchId: body.branchId,
+    branchName: branch ? branch.name : null,
+    startTime: body.startTime,
+    endTime: body.endTime,
+    breakDuration: body.breakDuration,
+    isOvernight,
+    isActive: body.isActive,
+    paidHours,
+    nightHours,
+    usedByBranchCount: body.scope === 'GLOBAL' ? 14 : undefined,
+  };
+
+  shifts.push(newShift);
+  setMockShifts(shifts);
+
+  // Cập nhật số ca riêng của chi nhánh nếu là ca riêng
+  if (body.scope === 'BRANCH' && body.branchId) {
+    const branchIdx = branches.findIndex(
+      (b) => String(b.id || b.storeId) === String(body.branchId)
+    );
+    if (branchIdx !== -1) {
+      branches[branchIdx].activeCustomShiftCount = shifts.filter(
+        (s) => String(s.branchId) === String(body.branchId) && s.isActive
+      ).length;
+      setMockBranches(branches);
+    }
+  }
+
   return newShift;
 };
 
 /**
- * 3. Cập nhật khung ca mẫu (Gọi Backend ASP.NET Core UpdateShiftTemplateDto)
+ * PUT /api/shift-templates/{id}?confirm=false|true
+ * Cập nhật khung ca
  */
-export const updateShiftTemplate = async (shiftId, payload) => {
+export const updateShiftTemplate = async (id, payload, confirm = false) => {
   const isOvernight = checkIsOvernight(payload.startTime, payload.endTime);
-  const name = (payload.shiftName || payload.name || '').trim();
-
-  await ensureAdminToken();
-
-  const backendDto = {
-    name,
-    shiftType: payload.shiftType || (isOvernight ? 'Night' : 'Morning'),
-    description: payload.description || '',
-    startTime: formatTimeToBackend(payload.startTime),
-    endTime: formatTimeToBackend(payload.endTime),
-    isOvernight,
-    breakDurationMinutes: Number(payload.breakMinutes || 0),
-    isActive: payload.isActive !== undefined ? Boolean(payload.isActive) : true,
-  };
+  const paidHours = calculatePaidHours(payload.startTime, payload.endTime, payload.breakDuration);
+  const nightHours = calculateNightHours(payload.startTime, payload.endTime);
 
   try {
-    const res = await apiClient.put(SHIFT_API_ENDPOINTS.UPDATE(shiftId), backendDto);
-    if (res.status === 200 || res.status === 204) {
-      await getAllShiftTemplates();
-      return true;
+    let res;
+    try {
+      res = await apiClient.put(`/shift-templates/${id}`, payload, {
+        params: { confirm },
+      });
+    } catch (e) {
+      if (e.response?.status === 404) {
+        res = await apiClient.put(`/shifts/templates/${id}`, payload, {
+          params: { confirm },
+        });
+      } else {
+        throw e;
+      }
     }
+    if (res && res.data) return res.data.data || res.data;
   } catch (err) {
-    console.warn('[ShiftTemplateService] Backend update error, fallback local:', err.response?.data || err.message);
+    if (err.response?.status === 400 || err.response?.status === 409) {
+      throw err;
+    }
+    console.warn('[ShiftService] PUT fallback mock:', err.message);
   }
 
-  const list = getLocalShiftTemplates();
-  const idx = list.findIndex((s) => String(s.shiftId) === String(shiftId));
-  if (idx !== -1) {
-    list[idx] = {
-      ...list[idx],
-      shiftName: name,
-      startTime: payload.startTime,
-      endTime: payload.endTime,
-      breakMinutes: Number(payload.breakMinutes || 0),
-      workHours: calculateWorkHours(payload.startTime, payload.endTime, payload.breakMinutes),
-      isOvernight,
-      colorCode: payload.colorCode || list[idx].colorCode,
-      description: payload.description || '',
-      updatedAt: new Date().toISOString(),
+  const shifts = getMockShifts();
+  const idx = shifts.findIndex((s) => String(s.id) === String(id));
+  if (idx === -1) {
+    const err = new Error('Không tìm thấy khung ca');
+    err.response = { status: 404, data: { message: 'Không tìm thấy khung ca' } };
+    throw err;
+  }
+
+  const existing = shifts[idx];
+  // Nếu là ca chung và có chi nhánh đang áp dụng mà chưa confirm
+  if (existing.scope === 'GLOBAL' && (existing.usedByBranchCount || 0) > 0 && !confirm) {
+    const err = new Error('Thay đổi này ảnh hưởng các chi nhánh đang dùng ca chung');
+    err.response = {
+      status: 409,
+      data: {
+        code: 'IMPACT_CONFIRM_REQUIRED',
+        message: `Thay đổi này ảnh hưởng ${existing.usedByBranchCount} chi nhánh đang dùng ca chung`,
+        details: { affectedBranchCount: existing.usedByBranchCount },
+      },
     };
-    setLocalShiftTemplates(list);
-    return list[idx];
+    throw err;
   }
-  return true;
+
+  shifts[idx] = {
+    ...existing,
+    name: payload.name ?? existing.name,
+    description: payload.description ?? existing.description,
+    shiftType: payload.shiftType ?? existing.shiftType,
+    startTime: payload.startTime ?? existing.startTime,
+    endTime: payload.endTime ?? existing.endTime,
+    breakDuration: Number(payload.breakDuration ?? existing.breakDuration),
+    isOvernight,
+    isActive: payload.isActive !== undefined ? Boolean(payload.isActive) : existing.isActive,
+    paidHours,
+    nightHours,
+  };
+  setMockShifts(shifts);
+  return shifts[idx];
 };
 
 /**
- * 4. Bật / Tắt trạng thái kích hoạt khung ca
+ * PATCH /api/shift-templates/{id}/active?confirm=false|true
+ * Bật / tắt áp dụng khung ca
  */
-export const toggleShiftStatus = async (shiftId, currentStatus) => {
-  const nextStatus = !currentStatus;
-  await ensureAdminToken();
-
+export const toggleShiftActive = async (id, isActive, confirm = false) => {
   try {
-    const all = await getAllShiftTemplates();
-    const existing = all.find((s) => String(s.shiftId) === String(shiftId));
-    if (existing) {
-      const backendDto = {
-        name: existing.shiftName,
-        shiftType: existing.shiftType || 'Morning',
-        description: existing.description || '',
-        startTime: formatTimeToBackend(existing.startTime),
-        endTime: formatTimeToBackend(existing.endTime),
-        isOvernight: existing.isOvernight,
-        breakDurationMinutes: Number(existing.breakMinutes || 0),
-        isActive: nextStatus,
-      };
-      await apiClient.put(SHIFT_API_ENDPOINTS.UPDATE(shiftId), backendDto);
-      await getAllShiftTemplates();
-      return nextStatus;
-    }
+    const res = await apiClient.patch(
+      `/shift-templates/${id}/active`,
+      { isActive },
+      { params: { confirm } }
+    );
+    if (res.data) return res.data.data || res.data;
   } catch (err) {
-    console.warn('[ShiftTemplateService] Backend toggle status error, fallback local:', err.message);
+    if (err.response?.status === 409) throw err;
+    console.warn('[ShiftService] toggleShiftActive fallback mock:', err.message);
   }
 
-  const list = getLocalShiftTemplates();
-  const idx = list.findIndex((s) => String(s.shiftId) === String(shiftId));
+  const shifts = getMockShifts();
+  const idx = shifts.findIndex((s) => String(s.id) === String(id));
   if (idx !== -1) {
-    list[idx].isActive = nextStatus;
-    list[idx].updatedAt = new Date().toISOString();
-    setLocalShiftTemplates(list);
-    return nextStatus;
-  }
-  return nextStatus;
-};
-
-/**
- * 5. Xóa khung ca mẫu (Soft-delete qua Backend API)
- */
-export const deleteShiftTemplate = async (shiftId) => {
-  await ensureAdminToken();
-
-  try {
-    const res = await apiClient.delete(SHIFT_API_ENDPOINTS.DELETE(shiftId));
-    if (res.status === 200 || res.status === 204) {
-      await getAllShiftTemplates();
-      return true;
+    const existing = shifts[idx];
+    if (!isActive && existing.scope === 'GLOBAL' && (existing.usedByBranchCount || 0) > 0 && !confirm) {
+      const err = new Error('Ngừng ca chung ảnh hưởng các chi nhánh');
+      err.response = {
+        status: 409,
+        data: {
+          code: 'IMPACT_CONFIRM_REQUIRED',
+          message: `Ngừng áp dụng khung ca này sẽ ảnh hưởng ${existing.usedByBranchCount} chi nhánh đang dùng ca chung.`,
+          details: { affectedBranchCount: existing.usedByBranchCount },
+        },
+      };
+      throw err;
     }
-  } catch (err) {
-    console.warn('[ShiftTemplateService] Backend delete error, fallback local:', err.response?.data || err.message);
-  }
 
-  const list = getLocalShiftTemplates();
-  const filtered = list.filter((s) => String(s.shiftId) !== String(shiftId));
-  setLocalShiftTemplates(filtered);
+    shifts[idx].isActive = isActive;
+    setMockShifts(shifts);
+
+    // Cập nhật lại số ca riêng của chi nhánh
+    if (existing.scope === 'BRANCH' && existing.branchId) {
+      const branches = getMockBranches();
+      const bIdx = branches.findIndex(
+        (b) => String(b.id || b.storeId) === String(existing.branchId)
+      );
+      if (bIdx !== -1) {
+        branches[bIdx].activeCustomShiftCount = shifts.filter(
+          (s) => String(s.branchId) === String(existing.branchId) && s.isActive
+        ).length;
+        setMockBranches(branches);
+      }
+    }
+
+    return shifts[idx];
+  }
   return true;
 };
 
 /**
- * 6. Chuẩn hóa lại 3 khung ca mặc định (Ca sáng, Ca chiều, Ca đêm)
+ * GET /api/branches?shiftMode=&q=
+ * Lấy danh sách chi nhánh kèm chế độ ca
  */
-export const standardizeDefaultShifts = async () => {
-  await ensureAdminToken();
-
+export const getBranches = async (params = {}) => {
   try {
-    const res = await apiClient.post(SHIFT_API_ENDPOINTS.STANDARDIZE);
-    if (res.status === 200 || res.status === 204) {
-      const refreshed = await getAllShiftTemplates();
-      return refreshed;
+    let res;
+    try {
+      res = await apiClient.get('/branches', { params });
+    } catch (e) {
+      if (e.response?.status === 404) {
+        res = await apiClient.get('/Stores', { params });
+      } else {
+        throw e;
+      }
+    }
+
+    if (res && res.data) {
+      const data = res.data.data || res.data;
+      const rawList = Array.isArray(data) ? data : data.items || [];
+      if (rawList.length > 0) {
+        const shifts = getMockShifts();
+        return rawList.map((b) => {
+          const bId = b.id ?? b.storeId;
+          const activeCustomCount = shifts.filter(
+            (s) => String(s.branchId) === String(bId) && s.isActive
+          ).length;
+          return {
+            ...b,
+            id: bId,
+            storeId: bId,
+            name: b.name || b.branchName || `Chi nhánh ${bId}`,
+            code: b.code || b.branchCode || `CN_${bId}`,
+            shiftMode: b.shiftMode || 'GLOBAL',
+            activeCustomShiftCount: b.activeCustomShiftCount ?? activeCustomCount,
+            isLocked: Boolean(b.isLocked || b.status === 'LOCKED'),
+          };
+        });
+      }
     }
   } catch (err) {
-    console.warn('[ShiftTemplateService] Backend standardize error:', err.response?.data || err.message);
+    console.warn('[ShiftService] getBranches fallback mock:', err.message);
   }
 
-  setLocalShiftTemplates(DEFAULT_STANDARD_SHIFTS);
-  return DEFAULT_STANDARD_SHIFTS;
+  let branches = getMockBranches();
+  const shifts = getMockShifts();
+
+  // Đồng bộ lại activeCustomShiftCount thực tế
+  branches = branches.map((b) => {
+    const bId = b.id ?? b.storeId;
+    return {
+      ...b,
+      id: bId,
+      storeId: bId,
+      activeCustomShiftCount: shifts.filter(
+        (s) => String(s.branchId) === String(bId) && s.isActive
+      ).length,
+    };
+  });
+
+  if (params.shiftMode) {
+    branches = branches.filter((b) => b.shiftMode === params.shiftMode);
+  }
+  if (params.q) {
+    const q = params.q.toLowerCase().trim();
+    branches = branches.filter(
+      (b) => b.name?.toLowerCase().includes(q) || b.code?.toLowerCase().includes(q)
+    );
+  }
+  return branches;
+};
+
+/**
+ * GET /api/branches/{id}/effective-shifts
+ * Lấy bộ ca đang hiệu lực của chi nhánh (Ca chung hoặc Ca riêng)
+ */
+export const getBranchEffectiveShifts = async (branchId, signal) => {
+  try {
+    const res = await apiClient.get(`/branches/${branchId}/effective-shifts`, { signal });
+    if (res.data) return res.data.data || res.data;
+  } catch (err) {
+    if (axios.isCancel(err) || err.name === 'CanceledError') throw err;
+    console.warn('[ShiftService] getBranchEffectiveShifts fallback mock:', err.message);
+  }
+
+  const branches = getMockBranches();
+  const shifts = getMockShifts();
+  const branch =
+    branches.find((b) => String(b.id || b.storeId) === String(branchId)) || branches[0];
+
+  if (!branch) {
+    return { branchId, branchName: '', shiftMode: 'GLOBAL', source: 'GLOBAL', shifts: [] };
+  }
+
+  if (branch.shiftMode === 'CUSTOM') {
+    const customShifts = shifts.filter(
+      (s) => String(s.branchId) === String(branchId) && s.isActive
+    );
+    return {
+      branchId: branch.id || branch.storeId,
+      branchName: branch.name,
+      shiftMode: 'CUSTOM',
+      source: 'CUSTOM',
+      shifts: customShifts,
+    };
+  }
+
+  // Dùng ca chung
+  const globalShifts = shifts.filter((s) => s.scope === 'GLOBAL' && s.isActive);
+  return {
+    branchId: branch.id || branch.storeId,
+    branchName: branch.name,
+    shiftMode: 'GLOBAL',
+    source: 'GLOBAL',
+    shifts: globalShifts,
+  };
+};
+
+/**
+ * GET /api/branches/{id}/custom-shifts
+ * Lấy danh sách toàn bộ ca riêng của chi nhánh
+ */
+export const getBranchCustomShifts = async (branchId, signal) => {
+  try {
+    const res = await apiClient.get(`/branches/${branchId}/custom-shifts`, { signal });
+    if (res.data) {
+      const data = res.data.data || res.data;
+      return Array.isArray(data) ? data : data.items || [];
+    }
+  } catch (err) {
+    if (axios.isCancel(err) || err.name === 'CanceledError') throw err;
+    console.warn('[ShiftService] getBranchCustomShifts fallback mock:', err.message);
+  }
+
+  const shifts = getMockShifts();
+  return shifts.filter((s) => String(s.branchId) === String(branchId));
+};
+
+/**
+ * PATCH /api/branches/{id}/shift-mode { mode: "GLOBAL"|"CUSTOM", confirm }
+ */
+export const updateBranchShiftMode = async (branchId, mode, confirm = false) => {
+  try {
+    const res = await apiClient.patch(`/branches/${branchId}/shift-mode`, { mode, confirm });
+    if (res.data) return res.data.data || res.data;
+  } catch (err) {
+    if (err.response?.status === 400 || err.response?.status === 409 || err.response?.status === 423) {
+      throw err;
+    }
+    console.warn('[ShiftService] updateBranchShiftMode fallback mock:', err.message);
+  }
+
+  const branches = getMockBranches();
+  const shifts = getMockShifts();
+  const branchIdx = branches.findIndex(
+    (b) => String(b.id || b.storeId) === String(branchId)
+  );
+
+  if (branchIdx === -1) {
+    const error = new Error('Chi nhánh không tồn tại');
+    error.response = { status: 404, data: { message: 'Chi nhánh không tồn tại' } };
+    throw error;
+  }
+
+  const branch = branches[branchIdx];
+
+  // 1. Kiểm tra 423 BRANCH_LOCKED
+  if (branch.isLocked) {
+    const error = new Error('Chi nhánh đang bị khóa');
+    error.response = {
+      status: 423,
+      data: {
+        code: 'BRANCH_LOCKED',
+        message: 'Chi nhánh đang bị khóa, không thể thay đổi thiết lập khung ca.',
+      },
+    };
+    throw error;
+  }
+
+  // 2. Chuyển sang CUSTOM: Kiểm tra 400 NO_ACTIVE_CUSTOM_SHIFT
+  if (mode === 'CUSTOM') {
+    const activeCustomCount = shifts.filter(
+      (s) => String(s.branchId) === String(branchId) && s.isActive
+    ).length;
+
+    if (activeCustomCount === 0) {
+      const error = new Error('Chi nhánh chưa có ca riêng nào đang áp dụng');
+      error.response = {
+        status: 400,
+        data: {
+          code: 'NO_ACTIVE_CUSTOM_SHIFT',
+          message: 'Chi nhánh chưa có ca riêng nào đang áp dụng, hãy thêm ca riêng trước.',
+        },
+      };
+      throw error;
+    }
+  }
+
+  // 3. Kiểm tra 409 FUTURE_SCHEDULES_EXIST nếu chưa confirm
+  if (String(branchId) === '4' && !confirm) {
+    const error = new Error('Có lịch ca trong tương lai thuộc bộ ca hiện tại');
+    error.response = {
+      status: 409,
+      data: {
+        code: 'FUTURE_SCHEDULES_EXIST',
+        message:
+          'Có 14 ca đã xếp trong tương lai thuộc bộ ca hiện tại. Lịch đã xếp giữ nguyên, chỉ áp dụng cho lịch xếp mới.',
+        details: { futureAssignmentCount: 14 },
+      },
+    };
+    throw error;
+  }
+
+  branches[branchIdx].shiftMode = mode;
+  setMockBranches(branches);
+
+  return {
+    branchId: branch.id || branch.storeId,
+    branchName: branch.name,
+    shiftMode: mode,
+  };
 };
 
 export default {
-  ensureAdminToken,
-  getAllShiftTemplates,
+  checkIsOvernight,
+  calculatePaidHours,
+  calculateNightHours,
+  getShiftTemplateStats,
+  getShiftTemplates,
   createShiftTemplate,
   updateShiftTemplate,
-  toggleShiftStatus,
-  deleteShiftTemplate,
-  standardizeDefaultShifts,
-  calculateWorkHours,
-  checkIsOvernight,
-  DEFAULT_STANDARD_SHIFTS,
+  toggleShiftActive,
+  getBranches,
+  getBranchEffectiveShifts,
+  getBranchCustomShifts,
+  updateBranchShiftMode,
 };
