@@ -403,8 +403,8 @@ export default function DispatchDetailModal({
                 {dispatchItem.status === 'REJECTED'
                   ? 'Lý do từ chối phiếu'
                   : dispatchItem.status === 'PARTIAL'
-                  ? 'Phản hồi duyệt một phần'
-                  : 'Phản hồi / Ghi chú từ người duyệt'}
+                    ? 'Phản hồi duyệt một phần'
+                    : 'Phản hồi / Ghi chú từ người duyệt'}
               </div>
               <div
                 style={{
@@ -413,15 +413,14 @@ export default function DispatchDetailModal({
                     dispatchItem.status === 'REJECTED'
                       ? 'rgba(239, 68, 68, 0.08)'
                       : dispatchItem.status === 'PARTIAL'
-                      ? 'rgba(245, 158, 11, 0.08)'
-                      : c.bgRaised,
-                  border: `1px solid ${
-                    dispatchItem.status === 'REJECTED'
-                      ? 'rgba(239, 68, 68, 0.3)'
-                      : dispatchItem.status === 'PARTIAL'
+                        ? 'rgba(245, 158, 11, 0.08)'
+                        : c.bgRaised,
+                  border: `1px solid ${dispatchItem.status === 'REJECTED'
+                    ? 'rgba(239, 68, 68, 0.3)'
+                    : dispatchItem.status === 'PARTIAL'
                       ? 'rgba(245, 158, 11, 0.3)'
                       : c.borderSub
-                  }`,
+                    }`,
                   padding: '10px 12px',
                   borderRadius: 6,
                   fontSize: 12.5,
@@ -432,8 +431,8 @@ export default function DispatchDetailModal({
                   (dispatchItem.status === 'REJECTED'
                     ? 'Lệnh điều động đã bị từ chối.'
                     : dispatchItem.status === 'PARTIAL'
-                    ? 'Một số nhân sự được duyệt, một số bị từ chối. Vui lòng xem lý do cụ thể ở từng nhân sự bên dưới.'
-                    : 'Không có ghi chú xét duyệt bổ sung.')}
+                      ? 'Một số nhân sự được duyệt, một số bị từ chối. Vui lòng xem lý do cụ thể ở từng nhân sự bên dưới.'
+                      : 'Không có ghi chú xét duyệt bổ sung.')}
               </div>
             </div>
           )}
@@ -522,7 +521,7 @@ export default function DispatchDetailModal({
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          ✓ Duyệt
+                          Duyệt
                         </button>
                         <button
                           type="button"
@@ -538,7 +537,7 @@ export default function DispatchDetailModal({
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          ✕ Từ chối
+                          Từ chối
                         </button>
                       </div>
                     </div>
@@ -637,7 +636,7 @@ export default function DispatchDetailModal({
                         gap: 6,
                       }}
                     >
-                      <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>✕ Lý do từ chối:</span>
+                      <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Lý do từ chối:</span>
                       <span style={{ color: c.fg }}>{item.note || 'Không có lý do ghi chú.'}</span>
                     </div>
                   )}
