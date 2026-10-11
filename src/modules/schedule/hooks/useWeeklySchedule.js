@@ -169,16 +169,18 @@ export function useWeeklySchedule(initialBranchId = null) {
   /**
    * Tải danh sách ca chuẩn.
    */
-  const loadTemplates = useCallback(async () => {
+  const loadTemplates = useCallback(async (targetBranchId) => {
+    const bId = targetBranchId || branchId;
+    if (!bId) return;
     try {
-      const res = await scheduleService.getShiftTemplates();
+      const res = await scheduleService.getShiftTemplates(bId);
       if (res.success && res.data) {
         setTemplates(res.data);
       }
     } catch (err) {
       console.error('Lỗi khi tải mẫu ca:', err);
     }
-  }, []);
+  }, [branchId]);
 
   /**
    * Tải dữ liệu ma trận lịch tuần.
@@ -212,14 +214,17 @@ export function useWeeklySchedule(initialBranchId = null) {
 
   useEffect(() => {
     loadAccessibleBranches();
-    loadTemplates();
-  }, [loadAccessibleBranches, loadTemplates]);
+    if (branchId) {
+      loadTemplates(branchId);
+    }
+  }, [loadAccessibleBranches, loadTemplates, branchId]);
 
   useEffect(() => {
     if (branchId) {
       fetchWeeklyMatrix();
+      loadTemplates(branchId);
     }
-  }, [branchId, fetchWeeklyMatrix]);
+  }, [branchId, fetchWeeklyMatrix, loadTemplates]);
 
 
   // Điều hướng tuần
@@ -262,13 +267,25 @@ export function useWeeklySchedule(initialBranchId = null) {
   };
 
   /**
-   * UC 2.1: Cập nhật định mức nhân sự cho 1 ca trực cụ thể.
+   * UC 2.1: Cập nhật định mức nhân sự cho 1 ca trực cụ thể (hoặc khởi tạo ca mới).
    */
-  const handleUpdateRequirement = async ({ scheduleId, requiredCashier, requiredSales, requiredSecurity }) => {
+  const handleUpdateRequirement = async ({
+    scheduleId,
+    branchId: targetBranchId,
+    shiftTemplateId,
+    workDate,
+    requiredCashier,
+    requiredSales,
+    requiredSecurity,
+  }) => {
     setActionLoading(true);
     try {
-      const res = await scheduleService.updateScheduleRequirement(scheduleId, {
-        scheduleId,
+      const bId = targetBranchId || branchId;
+      const res = await scheduleService.updateScheduleRequirement(scheduleId || 0, {
+        scheduleId: scheduleId || 0,
+        branchId: Number(bId),
+        shiftTemplateId: shiftTemplateId ? Number(shiftTemplateId) : undefined,
+        workDate,
         requiredCashier: Number(requiredCashier),
         requiredSales: Number(requiredSales),
         requiredSecurity: Number(requiredSecurity),
@@ -284,6 +301,29 @@ export function useWeeklySchedule(initialBranchId = null) {
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật định mức.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  /**
+   * Xóa 1 khung ca làm việc (DRAFT).
+   */
+  const handleDeleteSchedule = async (scheduleId) => {
+    if (!scheduleId) return;
+    setActionLoading(true);
+    try {
+      const res = await scheduleService.deleteSchedule(scheduleId);
+      if (res.success) {
+        toast.success('Đã xóa khung ca thành công!');
+        await fetchWeeklyMatrix();
+        setSelectedScheduleForQuota(null);
+        setIsQuotaModalOpen(false);
+      } else {
+        toast.error(res.message || 'Xóa khung ca thất bại.');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi xóa khung ca.');
     } finally {
       setActionLoading(false);
     }
@@ -522,6 +562,7 @@ export function useWeeklySchedule(initialBranchId = null) {
     fetchWeeklyMatrix,
     handleGenerateWeekly,
     handleUpdateRequirement,
+    handleDeleteSchedule,
     handleAssignFullTimeBatch,
     handleAssignSingle,
     handleDeleteAssignment,

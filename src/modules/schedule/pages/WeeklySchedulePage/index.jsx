@@ -68,6 +68,7 @@ export default function WeeklySchedulePage() {
     fetchWeeklyMatrix,
     handleGenerateWeekly,
     handleUpdateRequirement,
+    handleDeleteSchedule,
     handleAssignFullTimeBatch,
     handleAssignSingle,
     handleDeleteAssignment,
@@ -372,6 +373,7 @@ export default function WeeklySchedulePage() {
 
         {/* Ma trận phân bổ lịch tuần */}
         <WeeklyRosterMatrix
+          branchId={branchId}
           days={matrix?.days || []}
           schedules={matrix?.schedules || []}
           templates={templates}
@@ -401,6 +403,7 @@ export default function WeeklySchedulePage() {
           selectedSchedule={selectedScheduleForQuota}
           templates={templates}
           onUpdateSingleQuota={handleUpdateRequirement}
+          onDeleteSchedule={handleDeleteSchedule}
           onGenerateWeekly={handleGenerateWeekly}
           actionLoading={actionLoading}
         />

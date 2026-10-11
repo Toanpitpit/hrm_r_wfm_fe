@@ -64,6 +64,7 @@ export default function WeeklyRosterMatrix({
   onDeleteAssignment,
   onEditScheduleQuota,
   isPublished = false,
+  branchId,
 }) {
   const { c, fonts } = useAdminTheme();
   // Tab chế độ xem: 'BY_SHIFT' (mặc định - Lưới 4 Ca) hoặc 'BY_EMPLOYEE' (Theo nhân sự)
@@ -106,10 +107,25 @@ export default function WeeklyRosterMatrix({
     };
   };
 
-  // Tạo danh sách ca hiển thị động 100% theo các ca Admin đã kích hoạt
+  // Tạo danh sách ca hiển thị động 100% theo các ca có trong lịch tuần này (hoặc các ca Admin đã kích hoạt nếu tuần chưa tạo ca)
   const displayShifts = useMemo(() => {
     if (activeTemplates.length > 0) {
-      const sorted = [...activeTemplates].sort((a, b) => {
+      // Nếu tuần này đã có ca (schedules.length > 0), chỉ hiển thị những ca thực tế được chọn/tạo trong tuần
+      const scheduledTemplateIds = new Set(
+        schedules
+          .map((s) => s.shiftTemplateId)
+          .filter(Boolean)
+          .map(Number)
+      );
+
+      let filteredTemplates = activeTemplates;
+      if (schedules && schedules.length > 0 && scheduledTemplateIds.size > 0) {
+        filteredTemplates = activeTemplates.filter((t) =>
+          scheduledTemplateIds.has(Number(t.id || t.shiftId))
+        );
+      }
+
+      const sorted = [...filteredTemplates].sort((a, b) => {
         const codeA = (a.templateCode || a.shiftCode || '').toUpperCase();
         const codeB = (b.templateCode || b.shiftCode || '').toUpperCase();
         const numA = (codeA.match(/\d+/) || [])[0];
@@ -162,7 +178,11 @@ export default function WeeklyRosterMatrix({
     }
 
     return STANDARD_SHIFTS_CONFIG;
-  }, [activeTemplates]);
+  }, [activeTemplates, schedules]);
+
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
   // Early return SAU tất cả hooks - tránh vi phạm Rules of Hooks
   if (loading) {
@@ -325,78 +345,89 @@ export default function WeeklyRosterMatrix({
             </thead>
 
             <tbody>
-              {displayShifts.map((shift, sIdx) => (
-                <tr
-                  key={shift.code}
-                  style={{
-                    borderBottom: sIdx < displayShifts.length - 1 ? `2px solid ${c.border}` : 'none',
-                    background: sIdx % 2 === 0 ? 'transparent' : `${c.bgElev}30`,
-                  }}
-                >
-                  {/* Cột thông tin Ca trực (Cố định bên trái) */}
-                  <td
+              {displayShifts.map((shift, sIdx) => {
+                const shiftSchedules = schedules.filter(
+                  (s) =>
+                    (s.shiftTemplateId && Number(s.shiftTemplateId) === Number(shift.id)) ||
+                    (s.shiftTemplateName && s.shiftTemplateName.includes(shift.name.split(' - ')[0]))
+                );
+                const activeCashierQuota = shiftSchedules.find((s) => s.requiredCashier !== undefined)?.requiredCashier ?? 1;
+                const activeSalesQuota = shiftSchedules.find((s) => s.requiredSales !== undefined)?.requiredSales ?? 2;
+                const activeSecurityQuota = shiftSchedules.find((s) => s.requiredSecurity !== undefined)?.requiredSecurity ?? 1;
+
+                return (
+                  <tr
+                    key={shift.code}
                     style={{
-                      padding: '16px 14px',
-                      verticalAlign: 'top',
-                      borderRight: `2px solid ${c.border}`,
-                      position: 'sticky',
-                      left: 0,
-                      background: c.bgCard,
-                      zIndex: 1,
+                      borderBottom: sIdx < displayShifts.length - 1 ? `2px solid ${c.border}` : 'none',
+                      background: sIdx % 2 === 0 ? 'transparent' : `${c.bgElev}30`,
                     }}
                   >
-                    <div
+                    {/* Cột thông tin Ca trực (Cố định bên trái) */}
+                    <td
                       style={{
-                        background: shift.bg,
-                        border: `1px solid ${shift.border}`,
-                        borderRadius: 8,
-                        padding: '10px 12px',
+                        padding: '16px 14px',
+                        verticalAlign: 'top',
+                        borderRight: `2px solid ${c.border}`,
+                        position: 'sticky',
+                        left: 0,
+                        background: c.bgCard,
+                        zIndex: 1,
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <Icon name="clock" size={16} color={shift.color} />
-                        <span style={{ fontWeight: 800, fontSize: 13.5, color: shift.color }}>
-                          {shift.name}
-                        </span>
-                      </div>
-
                       <div
                         style={{
-                          display: 'inline-block',
-                          padding: '2px 8px',
-                          borderRadius: 4,
-                          background: `${shift.color}20`,
-                          color: shift.color,
-                          fontWeight: 700,
-                          fontSize: 11,
-                          fontFamily: 'monospace',
-                          marginBottom: 6,
+                          background: shift.bg,
+                          border: `1px solid ${shift.border}`,
+                          borderRadius: 8,
+                          padding: '10px 12px',
                         }}
                       >
-                        {shift.time}
-                      </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <Icon name="clock" size={16} color={shift.color} />
+                          <span style={{ fontWeight: 800, fontSize: 13.5, color: shift.color }}>
+                            {shift.name}
+                          </span>
+                        </div>
 
-                      <div style={{ fontSize: 11, color: c.fgFaint }}>
-                        Thời lượng: <strong>{shift.duration}</strong>
-                      </div>
+                        <div
+                          style={{
+                            display: 'inline-block',
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            background: `${shift.color}20`,
+                            color: shift.color,
+                            fontWeight: 700,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            marginBottom: 6,
+                          }}
+                        >
+                          {shift.time}
+                        </div>
 
-                      <div
-                        style={{
-                          marginTop: 8,
-                          paddingTop: 8,
-                          borderTop: `1px dashed ${shift.border}`,
-                          fontSize: 10.5,
-                          color: c.fgSubtle,
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        <div>• Trưởng ca (≥1)</div>
-                        <div>• Thu ngân (≥1)</div>
-                        <div>• Bán hàng (≥1)</div>
-                        <div>• Bảo vệ (≥1)</div>
+                        <div style={{ fontSize: 11, color: c.fgFaint }}>
+                          Thời lượng: <strong>{shift.duration}</strong>
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 8,
+                            paddingTop: 8,
+                            borderTop: `1px dashed ${shift.border}`,
+                            fontSize: 10.5,
+                            color: c.fgSubtle,
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          <div style={{ fontWeight: 700, marginBottom: 3, color: c.fg }}>Định mức ca:</div>
+                          <div>• Trưởng ca: ≥1</div>
+                          <div>• Thu ngân: ≥{activeCashierQuota}</div>
+                          <div>• Bán hàng: ≥{activeSalesQuota}</div>
+                          <div>• Bảo vệ: ≥{activeSecurityQuota}</div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
                   {/* 7 ô giao điểm Ca x Ngày */}
                   {days.map((dateStr) => {
@@ -406,6 +437,8 @@ export default function WeeklyRosterMatrix({
                         ((s.shiftTemplateId && Number(s.shiftTemplateId) === Number(shift.id)) ||
                           (s.shiftTemplateName && s.shiftTemplateName.includes(shift.name.split(' - ')[0])))
                     );
+
+                    const isPastOrToday = Boolean(dateStr && dateStr <= todayStr);
 
                     // Danh sách nhân viên trong ca
                     const assignedEmployees = schedule?.assignedEmployees || [];
@@ -443,6 +476,7 @@ export default function WeeklyRosterMatrix({
                           borderLeft: `1px solid ${c.borderSub}`,
                           verticalAlign: 'top',
                           minHeight: 220,
+                          background: isPastOrToday ? 'rgba(0,0,0,0.03)' : 'transparent',
                         }}
                       >
                         {!schedule ? (
@@ -460,48 +494,64 @@ export default function WeeklyRosterMatrix({
                               justifyContent: 'center',
                               padding: 12,
                               textAlign: 'center',
+                              opacity: isPastOrToday ? 0.45 : 1,
                             }}
                           >
                             <span style={{ fontSize: 11, color: c.fgFaint, marginBottom: 8 }}>
-                              Chưa có khung ca
+                              {isPastOrToday ? 'Đã khóa lịch' : 'Chưa có khung ca'}
                             </span>
-                            <button
-                              onClick={() =>
-                                onEditScheduleQuota &&
-                                onEditScheduleQuota({
-                                  shiftTemplateId: shift.id,
-                                  shiftTemplateName: shift.name,
-                                  workDate: dateStr,
-                                  requiredCashier: 1,
-                                  requiredSales: 1,
-                                  requiredSecurity: 1,
-                                })
-                              }
-                              style={{
-                                padding: '4px 10px',
-                                borderRadius: 6,
-                                background: c.bgElev,
-                                border: `1px solid ${c.border}`,
-                                color: c.accent,
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              + Khởi tạo ca
-                            </button>
+                            {!isPastOrToday && (
+                              <button
+                                onClick={() =>
+                                  onEditScheduleQuota &&
+                                  onEditScheduleQuota({
+                                    scheduleId: 0,
+                                    branchId,
+                                    shiftTemplateId: shift.id,
+                                    shiftTemplateName: shift.name,
+                                    workDate: dateStr,
+                                    requiredCashier: activeCashierQuota,
+                                    requiredSales: activeSalesQuota,
+                                    requiredSecurity: activeSecurityQuota,
+                                  })
+                                }
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: 6,
+                                  background: c.bgElev,
+                                  border: `1px solid ${c.border}`,
+                                  color: c.accent,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                + Khởi tạo ca
+                              </button>
+                            )}
                           </div>
                         ) : (
                           // Thẻ ca làm việc với 4 vị trí trực quan
                           <div
                             style={{
-                              background: isAllFilled ? `${c.tones.good}08` : `${c.tones.bad}06`,
-                              border: `1px solid ${isAllFilled ? `${c.tones.good}40` : `${c.tones.bad}40`}`,
+                              background: isPastOrToday
+                                ? `${c.bgElev}80`
+                                : isAllFilled
+                                ? `${c.tones.good}08`
+                                : `${c.tones.bad}06`,
+                              border: `1px solid ${
+                                isPastOrToday
+                                  ? c.borderSub
+                                  : isAllFilled
+                                  ? `${c.tones.good}40`
+                                  : `${c.tones.bad}40`
+                              }`,
                               borderRadius: 8,
                               padding: '8px',
                               display: 'flex',
                               flexDirection: 'column',
                               gap: 8,
+                              opacity: isPastOrToday ? 0.65 : 1,
                             }}
                           >
                             {/* Tiêu đề ô: Trạng thái Đủ / Thiếu & Nút chỉnh định mức */}
@@ -529,21 +579,23 @@ export default function WeeklyRosterMatrix({
                                   : `THIẾU (${totalAssigned}/${totalRequired})`}
                               </span>
 
-                              <button
-                                onClick={() => onEditScheduleQuota && onEditScheduleQuota(schedule)}
-                                title="Điều chỉnh định mức ca này"
-                                style={{
-                                  background: 'transparent',
-                                  border: 'none',
-                                  color: c.fgFaint,
-                                  cursor: 'pointer',
-                                  padding: '2px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                }}
-                              >
-                                <Icon name="edit" size={13} />
-                              </button>
+                              {!isPastOrToday && (
+                                <button
+                                  onClick={() => onEditScheduleQuota && onEditScheduleQuota(schedule)}
+                                  title="Điều chỉnh định mức ca này"
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: c.fgFaint,
+                                    cursor: 'pointer',
+                                    padding: '2px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                  }}
+                                >
+                                  <Icon name="edit" size={13} />
+                                </button>
+                              )}
                             </div>
 
                             {/* 4 Khối Vị Trí Nghiệp Vụ Bắt Buộc */}
@@ -556,6 +608,7 @@ export default function WeeklyRosterMatrix({
                                 requiredCount={reqLeader}
                                 employees={leaders}
                                 isOk={isLeaderOk}
+                                isLocked={isPastOrToday}
                                 onAddClick={() =>
                                   onCellClick &&
                                   onCellClick({
@@ -580,6 +633,7 @@ export default function WeeklyRosterMatrix({
                                 requiredCount={reqCashier}
                                 employees={cashiers}
                                 isOk={isCashierOk}
+                                isLocked={isPastOrToday}
                                 onAddClick={() =>
                                   onCellClick &&
                                   onCellClick({
@@ -604,6 +658,7 @@ export default function WeeklyRosterMatrix({
                                 requiredCount={reqSales}
                                 employees={sales}
                                 isOk={isSalesOk}
+                                isLocked={isPastOrToday}
                                 onAddClick={() =>
                                   onCellClick &&
                                   onCellClick({
@@ -628,6 +683,7 @@ export default function WeeklyRosterMatrix({
                                 requiredCount={reqSecurity}
                                 employees={security}
                                 isOk={isSecurityOk}
+                                isLocked={isPastOrToday}
                                 onAddClick={() =>
                                   onCellClick &&
                                   onCellClick({
@@ -650,7 +706,8 @@ export default function WeeklyRosterMatrix({
                     );
                   })}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -812,6 +869,18 @@ export default function WeeklyRosterMatrix({
 
                       {days.map((dateStr) => {
                         const assignment = assignedShiftsMap.get(dateStr);
+                        const targetDate = String(dateStr || '').substring(0, 10);
+                        const dStart = String(emp.dispatchStartDate || '').substring(0, 10);
+                        const dEnd = String(emp.dispatchEndDate || '').substring(0, 10);
+                        const dAwayStart = String(emp.dispatchAwayStartDate || '').substring(0, 10);
+                        const dAwayEnd = String(emp.dispatchAwayEndDate || '').substring(0, 10);
+
+                        const isNotYetDispatched = Boolean(emp.isDispatched && dStart && targetDate < dStart);
+                        const isDispatchExpired = Boolean(emp.isDispatched && dEnd && targetDate > dEnd);
+                        const isDispatchedAwayOnDate = Boolean(emp.isDispatchedAway && dAwayStart && dAwayEnd &&
+                          targetDate >= dAwayStart && targetDate <= dAwayEnd);
+
+                        const isPastOrToday = Boolean(targetDate && targetDate <= todayStr);
 
                         return (
                           <td
@@ -822,14 +891,15 @@ export default function WeeklyRosterMatrix({
                               verticalAlign: 'middle',
                               textAlign: 'center',
                               height: 60,
+                              background: isPastOrToday ? 'rgba(0,0,0,0.03)' : 'transparent',
                             }}
                           >
                             {assignment ? (
                               <div
                                 style={{
-                                  background: `${c.accentDim}30`,
-                                  border: `1px solid ${c.accent}`,
-                                  color: c.accent,
+                                  background: isPastOrToday ? `${c.bgElev}90` : `${c.accentDim}30`,
+                                  border: `1px solid ${isPastOrToday ? c.borderSub : c.accent}`,
+                                  color: isPastOrToday ? c.fgSubtle : c.accent,
                                   borderRadius: 6,
                                   padding: '6px 8px',
                                   display: 'flex',
@@ -838,17 +908,20 @@ export default function WeeklyRosterMatrix({
                                   position: 'relative',
                                   fontSize: 11,
                                   textAlign: 'left',
-                                  cursor: 'pointer',
+                                  cursor: isPastOrToday ? 'default' : 'pointer',
+                                  opacity: isPastOrToday ? 0.75 : 1,
                                 }}
-                                onClick={() =>
+                                onClick={() => {
+                                  if (isPastOrToday) return;
                                   onCellClick &&
-                                  onCellClick({
-                                    mode: 'BY_EMPLOYEE',
-                                    user: emp,
-                                    date: dateStr,
-                                    currentAssignment: assignment,
-                                  })
-                                }
+                                    onCellClick({
+                                      mode: 'BY_EMPLOYEE',
+                                      user: emp,
+                                      date: dateStr,
+                                      currentAssignment: assignment,
+                                    });
+                                }}
+                                title={isPastOrToday ? 'Ngày đã qua / Hôm nay - Đã khóa phân công' : undefined}
                               >
                                 <div
                                   style={{
@@ -858,35 +931,105 @@ export default function WeeklyRosterMatrix({
                                   }}
                                 >
                                   <span style={{ fontWeight: 800 }}>{assignment.shiftName}</span>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      requestDelete(
-                                        assignment.assignmentId,
-                                        `Bạn có chắc muốn hủy ca '${assignment.shiftName}' ngày ${formatVNDate(
-                                          dateStr
-                                        )} của NV ${emp.fullName}?`
-                                      );
-                                    }}
-                                    style={{
-                                      background: 'transparent',
-                                      border: 'none',
-                                      color: c.tones.bad,
-                                      cursor: 'pointer',
-                                      padding: 0,
-                                      fontSize: 14,
-                                      fontWeight: 800,
-                                      lineHeight: 1,
-                                    }}
-                                    title="Hủy ca trực"
-                                  >
-                                    ×
-                                  </button>
+                                  {!isPastOrToday && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        requestDelete(
+                                          assignment.assignmentId,
+                                          `Bạn có chắc muốn hủy ca '${assignment.shiftName}' ngày ${formatVNDate(
+                                            dateStr
+                                          )} của NV ${emp.fullName}?`
+                                        );
+                                      }}
+                                      style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: c.tones.bad,
+                                        cursor: 'pointer',
+                                        padding: 0,
+                                        fontSize: 14,
+                                        fontWeight: 800,
+                                        lineHeight: 1,
+                                      }}
+                                      title="Hủy ca trực"
+                                    >
+                                      ×
+                                    </button>
+                                  )}
                                 </div>
                                 <div style={{ fontSize: 9.5, opacity: 0.85 }}>
                                   {assignment.startTime ? assignment.startTime.substring(0, 5) : ''} -{' '}
                                   {assignment.endTime ? assignment.endTime.substring(0, 5) : ''}
                                 </div>
+                              </div>
+                            ) : isPastOrToday ? (
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: c.fgFaint,
+                                  background: `${c.bgElev}40`,
+                                  borderRadius: 6,
+                                  padding: '6px 4px',
+                                  border: `1px dashed ${c.borderSub}`,
+                                  cursor: 'not-allowed',
+                                  lineHeight: 1.2,
+                                  opacity: 0.45,
+                                }}
+                                title="Ngày đã qua / Hôm nay - Đã khóa"
+                              >
+                                Đã khóa
+                              </div>
+                            ) : isNotYetDispatched ? (
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: '#d97706',
+                                  fontWeight: 700,
+                                  background: 'rgba(217, 119, 6, 0.08)',
+                                  borderRadius: 6,
+                                  padding: '6px 4px',
+                                  border: '1px dashed rgba(217, 119, 6, 0.35)',
+                                  cursor: 'not-allowed',
+                                  lineHeight: 1.2,
+                                }}
+                                title={`Nhân sự chỉ có thể xếp ca từ ngày ${formatVNDate(emp.dispatchStartDate)}`}
+                              >
+                                Chưa đến ngày ĐC
+                              </div>
+                            ) : isDispatchExpired ? (
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: c.tones.bad,
+                                  fontWeight: 700,
+                                  background: `${c.tones.bad}10`,
+                                  borderRadius: 6,
+                                  padding: '6px 4px',
+                                  border: `1px dashed ${c.tones.bad}40`,
+                                  cursor: 'not-allowed',
+                                  lineHeight: 1.2,
+                                }}
+                                title={`Lệnh điều chuyển đã hết hạn vào ngày ${formatVNDate(emp.dispatchEndDate)}`}
+                              >
+                                Hết hạn ĐC
+                              </div>
+                            ) : isDispatchedAwayOnDate ? (
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: '#d97706',
+                                  fontWeight: 700,
+                                  background: 'rgba(217, 119, 6, 0.08)',
+                                  borderRadius: 6,
+                                  padding: '6px 4px',
+                                  border: '1px dashed rgba(217, 119, 6, 0.35)',
+                                  cursor: 'not-allowed',
+                                  lineHeight: 1.2,
+                                }}
+                                title={`Đang điều chuyển sang ${emp.destinationBranchName || 'cơ sở khác'}`}
+                              >
+                                Điều chuyển đi
                               </div>
                             ) : (
                               <button
@@ -960,6 +1103,7 @@ function RoleSlotSection({
   requiredCount,
   employees = [],
   isOk,
+  isLocked = false,
   onAddClick,
   onDeleteClick,
   c,
@@ -1018,45 +1162,47 @@ function RoleSlotSection({
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  maxWidth: 110,
+                  maxWidth: isLocked ? 130 : 110,
                 }}
                 title={`${emp.fullName} (${emp.employeeCode})`}
               >
                 {emp.fullName}
               </div>
 
-              {/* Nút hủy phân công ca của nhân viên */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteClick &&
-                    onDeleteClick(
-                      emp.assignmentId,
-                      `Bạn có chắc chắn muốn hủy phân công của nhân viên '${emp.fullName}' khỏi ca này?`
-                    );
-                }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: c.tones.bad,
-                  cursor: 'pointer',
-                  padding: 0,
-                  marginLeft: 4,
-                  fontSize: 13,
-                  fontWeight: 800,
-                  lineHeight: 1,
-                }}
-                title="Gỡ khỏi ca trực"
-              >
-                ×
-              </button>
+              {/* Nút hủy phân công ca của nhân viên - ẩn nếu ngày đã qua hoặc hôm nay */}
+              {!isLocked && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteClick &&
+                      onDeleteClick(
+                        emp.assignmentId,
+                        `Bạn có chắc chắn muốn hủy phân công của nhân viên '${emp.fullName}' khỏi ca này?`
+                      );
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: c.tones.bad,
+                    cursor: 'pointer',
+                    padding: 0,
+                    marginLeft: 4,
+                    fontSize: 13,
+                    fontWeight: 800,
+                    lineHeight: 1,
+                  }}
+                  title="Gỡ khỏi ca trực"
+                >
+                  ×
+                </button>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Nút gán slot còn thiếu */}
-      {!isOk && (
+      {/* Nút gán slot còn thiếu - ẩn nếu ngày đã qua hoặc hôm nay */}
+      {!isOk && !isLocked && (
         <button
           onClick={onAddClick}
           style={{
