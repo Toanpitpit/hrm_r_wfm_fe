@@ -16,6 +16,7 @@ export default function EmployeeFormModal({
   initialData = null, // null => Create mode, object => Edit mode
   roles = [],
   branches = [],
+  existingEmployees = [],
   canManageSystem = false, // True for Admin & Business Owner
   isBusinessOwner = false,
   isStoreManager = false,
@@ -50,8 +51,12 @@ export default function EmployeeFormModal({
   });
 
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Trạng thái xác nhận hủy khi form đang có dữ liệu dở dang (Dirty check)
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   // Quản trị trạng thái tài khoản & Xóa tài khoản (khi Chỉnh sửa)
   const [accountStatus, setAccountStatus] = useState(initialData?.status || 'ACTIVE');
@@ -93,6 +98,18 @@ export default function EmployeeFormModal({
   const [importMessage, setImportMessage] = useState('');
   const [importStatus, setImportStatus] = useState('idle'); // 'idle' | 'success' | 'partial' | 'error'
 
+  // Kiểm tra xem form đã được nhập thông tin dở dang chưa (Đặt sau khi selectedFile đã được khai báo)
+  const isDirty = Boolean(
+    !isEdit && (
+      formData.fullName?.trim() ||
+      formData.email?.trim() ||
+      formData.phone?.trim() ||
+      formData.roleId ||
+      (!isStoreManager && formData.branchId) ||
+      selectedFile
+    )
+  );
+
   // Phân quyền chọn Vai trò:
   // - Nếu là Cửa Hàng Trưởng (Store Manager): Không được cấp quyền tạo Cửa hàng trưởng hoặc tài khoản hệ thống
   // - Nếu là Operations Admin / Business Owner: Được phép cấp quyền chọn Cửa hàng trưởng (STORE_MANAGER)
@@ -105,6 +122,106 @@ export default function EmployeeFormModal({
     return !excludedRoles.includes(r.roleCode);
   });
 
+  const debounceTimerRef = useRef({});
+
+  // ─── Kiểm tra trùng lặp thời gian thực (Real-time duplicate check) ──────────
+  const checkCodeDuplicate = useCallback(async (code) => {
+    if (!code || isEdit) return;
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) return;
+
+    // 1. Kiểm tra nhanh trong danh sách local
+    const localMatch = existingEmployees?.find(
+      (e) => (e.employeeCode || '').trim().toUpperCase() === trimmed && (!isEdit || e.id !== initialData?.id)
+    );
+    if (localMatch) {
+      setErrors((prev) => ({
+        ...prev,
+        employeeCode: `Mã nhân viên "${trimmed}" đã tồn tại (${localMatch.fullName || 'Đã có trên hệ thống'}). Vui lòng đổi mã khác.`,
+      }));
+      return;
+    }
+
+    // 2. Tra cứu trực tiếp server database
+    try {
+      const res = await employeeService.checkDuplicate({ employeeCode: trimmed, excludeId: initialData?.id });
+      if (res?.isEmployeeCodeDuplicate) {
+        setErrors((prev) => ({
+          ...prev,
+          employeeCode: `Mã nhân viên "${trimmed}" đã tồn tại (${res.existingEmployeeName || 'Đã có trong hệ thống'}). Vui lòng đổi mã khác.`,
+        }));
+      } else {
+        setErrors((prev) => {
+          if (prev.employeeCode && prev.employeeCode.includes('đã tồn tại')) {
+            const { employeeCode: _, ...rest } = prev;
+            return rest;
+          }
+          return prev;
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, [existingEmployees, isEdit, initialData?.id]);
+
+  const checkEmailDuplicate = useCallback(async (email) => {
+    if (!email || isEdit) return;
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return;
+
+    const localMatch = existingEmployees?.find(
+      (e) => (e.email || '').trim().toLowerCase() === trimmed && (!isEdit || e.id !== initialData?.id)
+    );
+    if (localMatch) {
+      setErrors((prev) => ({
+        ...prev,
+        email: `Email "${trimmed}" đã được sử dụng (${localMatch.fullName || 'Đã có trong hệ thống'}).`,
+      }));
+      return;
+    }
+
+    try {
+      const res = await employeeService.checkDuplicate({ email: trimmed, excludeId: initialData?.id });
+      if (res?.isEmailDuplicate) {
+        setErrors((prev) => ({
+          ...prev,
+          email: `Email "${trimmed}" đã được sử dụng (${res.existingEmailOwnerName || 'Đã có trong hệ thống'}).`,
+        }));
+      }
+    } catch {
+      // ignore
+    }
+  }, [existingEmployees, isEdit, initialData?.id]);
+
+  const checkPhoneDuplicate = useCallback(async (phone) => {
+    if (!phone || isEdit) return;
+    const clean = phone.trim().replace(/\s/g, '');
+    if (!clean || !/^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(clean)) return;
+
+    const localMatch = existingEmployees?.find(
+      (e) => (e.phone || '').trim().replace(/\s/g, '') === clean && (!isEdit || e.id !== initialData?.id)
+    );
+    if (localMatch) {
+      setErrors((prev) => ({
+        ...prev,
+        phone: `Số điện thoại "${phone}" đã được sử dụng (${localMatch.fullName || 'Đã có trong hệ thống'}).`,
+      }));
+      return;
+    }
+
+    try {
+      const res = await employeeService.checkDuplicate({ phone: clean, excludeId: initialData?.id });
+      if (res?.isPhoneDuplicate) {
+        setErrors((prev) => ({
+          ...prev,
+          phone: `Số điện thoại "${phone}" đã được sử dụng (${res.existingPhoneOwnerName || 'Đã có trong hệ thống'}).`,
+        }));
+      }
+    } catch {
+      // ignore
+    }
+  }, [existingEmployees, isEdit, initialData?.id]);
+
   // Reset form & import khi mở modal
   useEffect(() => {
     if (isOpen) {
@@ -116,6 +233,8 @@ export default function EmployeeFormModal({
       setImportStatus('idle');
       setAccountStatus(initialData?.status || 'ACTIVE');
       setShowDeleteConfirm(false);
+      setShowDiscardConfirm(false);
+      setSubmitError('');
       setIsDeleting(false);
       setIsTogglingStatus(false);
 
@@ -143,8 +262,9 @@ export default function EmployeeFormModal({
           ? branches.find((b) => String(b.id || b.storeId) === String(defaultBranchId))
           : null;
 
+        const initialCode = `NV-${Math.floor(1000 + Math.random() * 9000)}`;
         setFormData({
-          employeeCode: `NV-${Math.floor(1000 + Math.random() * 9000)}`,
+          employeeCode: initialCode,
           fullName: '',
           email: '',
           phone: '',
@@ -158,10 +278,11 @@ export default function EmployeeFormModal({
           password: `Rwfm@${Math.floor(100000 + Math.random() * 900000)}`,
         });
         setBranchQuota(null);
+        setTimeout(() => checkCodeDuplicate(initialCode), 150);
       }
       setErrors({});
     }
-  }, [initialData, isOpen, isStoreManager, currentStoreBranchId]);
+  }, [initialData, isOpen, isStoreManager, currentStoreBranchId, checkCodeDuplicate]);
 
   // Tải Effective Quota khi chọn chi nhánh (khi tạo mới)
   useEffect(() => {
@@ -269,8 +390,23 @@ export default function EmployeeFormModal({
       return next;
     });
 
+    if (submitError) {
+      setSubmitError('');
+    }
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: null }));
+    }
+
+    // Debounced real-time duplicate check
+    if (!isEdit) {
+      if (debounceTimerRef.current[field]) {
+        clearTimeout(debounceTimerRef.current[field]);
+      }
+      debounceTimerRef.current[field] = setTimeout(() => {
+        if (field === 'employeeCode') checkCodeDuplicate(value);
+        if (field === 'email') checkEmailDuplicate(value);
+        if (field === 'phone') checkPhoneDuplicate(value);
+      }, 350);
     }
 
     if (
@@ -337,22 +473,76 @@ export default function EmployeeFormModal({
     }
   };
 
+  const handleSafeClose = () => {
+    if (isImporting || submitting) return;
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      onClose();
+    }
+  };
+
   const validate = () => {
     const newErrors = {};
-    if (!formData.employeeCode.trim()) newErrors.employeeCode = 'Mã nhân viên là bắt buộc';
-    if (!formData.fullName.trim()) newErrors.fullName = 'Họ và tên là bắt buộc';
-    if (!formData.email.trim()) {
+    const code = (formData.employeeCode || '').trim().toUpperCase();
+    const name = (formData.fullName || '').trim();
+    const email = (formData.email || '').trim().toLowerCase();
+    const phone = (formData.phone || '').trim().replace(/\s/g, '');
+
+    // 1. Mã định danh nhân viên
+    if (!code) {
+      newErrors.employeeCode = 'Mã nhân viên là bắt buộc';
+    } else if (!/^[A-Z0-9_-]{3,20}$/.test(code)) {
+      newErrors.employeeCode = 'Mã nhân viên chỉ gồm chữ hoa, số và dấu gạch ngang (3-20 ký tự, VD: NV-6414)';
+    } else if (!isEdit && existingEmployees && existingEmployees.length > 0) {
+      const dupCode = existingEmployees.find(
+        (e) => (e.employeeCode || '').trim().toUpperCase() === code && (!isEdit || e.id !== initialData?.id)
+      );
+      if (dupCode) {
+        newErrors.employeeCode = `Mã nhân viên "${code}" đã tồn tại (${dupCode.fullName || 'Đã có trong hệ thống'}). Vui lòng chọn mã khác.`;
+      }
+    }
+
+    // 2. Họ và tên
+    if (!name) {
+      newErrors.fullName = 'Họ và tên là bắt buộc';
+    } else if (name.length < 2) {
+      newErrors.fullName = 'Họ và tên cần tối thiểu 2 ký tự';
+    }
+
+    // 3. Email
+    if (!email) {
       newErrors.email = 'Email là bắt buộc';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email không đúng định dạng';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = 'Email không đúng định dạng (VD: an.nguyen@rwfm.vn)';
+    } else if (!isEdit && existingEmployees && existingEmployees.length > 0) {
+      const dupEmail = existingEmployees.find(
+        (e) => (e.email || '').trim().toLowerCase() === email && (!isEdit || e.id !== initialData?.id)
+      );
+      if (dupEmail) {
+        newErrors.email = `Email "${formData.email}" đã được đăng ký bởi nhân viên (${dupEmail.fullName || 'Đã đăng ký'}).`;
+      }
     }
-    if (!formData.phone.trim()) {
+
+    // 4. Số điện thoại
+    if (!phone) {
       newErrors.phone = 'Số điện thoại là bắt buộc';
-    } else if (!/^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(formData.phone)) {
-      newErrors.phone = 'Số điện thoại Việt Nam không hợp lệ';
+    } else if (!/^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(phone)) {
+      newErrors.phone = 'Số điện thoại Việt Nam không hợp lệ (cần 10 chữ số, VD: 0912345678)';
+    } else if (!isEdit && existingEmployees && existingEmployees.length > 0) {
+      const dupPhone = existingEmployees.find(
+        (e) => (e.phone || '').trim().replace(/\s/g, '') === phone && (!isEdit || e.id !== initialData?.id)
+      );
+      if (dupPhone) {
+        newErrors.phone = `Số điện thoại "${formData.phone}" đã được sử dụng bởi nhân viên (${dupPhone.fullName || 'Đã đăng ký'}).`;
+      }
     }
-    if (!formData.roleId) newErrors.roleId = 'Vui lòng chọn vai trò';
-    if (!formData.branchId && !formData.homeBranchId) newErrors.branchId = 'Vui lòng chọn chi nhánh';
+
+    // 5. Vai trò
+    if (!formData.roleId) newErrors.roleId = 'Vui lòng chọn vai trò cho nhân sự';
+
+    // 6. Chi nhánh
+    if (!formData.branchId && !formData.homeBranchId) newErrors.branchId = 'Vui lòng chọn chi nhánh công tác';
 
     // Ràng buộc duy nhất 1 Cửa hàng trưởng trên mỗi chi nhánh
     if (
@@ -373,16 +563,46 @@ export default function EmployeeFormModal({
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
+    setSubmitError('');
     if (!validate()) return;
 
     setSubmitting(true);
     try {
-      const success = await onSubmit(formData, isEdit);
-      if (success !== false) {
+      const result = await onSubmit(formData, isEdit);
+      const isSuccess = result === true || (typeof result === 'object' && result?.success === true);
+      if (isSuccess) {
         onClose();
+      } else {
+        const errorMsg = result?.message || (typeof result === 'string' ? result : 'Khai báo nhân sự không thành công. Vui lòng kiểm tra lại thông tin.');
+        setSubmitError(errorMsg);
+
+        // Highlight matching field
+        const lowerMsg = errorMsg.toLowerCase();
+        const fieldErrors = {};
+
+        if (lowerMsg.includes('mã nhân viên') || lowerMsg.includes('mã nv') || lowerMsg.includes('employeecode')) {
+          fieldErrors.employeeCode = errorMsg;
+        }
+        if (lowerMsg.includes('email')) {
+          fieldErrors.email = errorMsg;
+        }
+        if (lowerMsg.includes('số điện thoại') || lowerMsg.includes('sđt') || lowerMsg.includes('phone')) {
+          fieldErrors.phone = errorMsg;
+        }
+        if (lowerMsg.includes('cửa hàng trưởng') || lowerMsg.includes('vai trò') || lowerMsg.includes('role')) {
+          fieldErrors.roleId = errorMsg;
+        }
+        if (lowerMsg.includes('định biên') || lowerMsg.includes('chi nhánh') || lowerMsg.includes('branch')) {
+          fieldErrors.branchId = errorMsg;
+        }
+
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...fieldErrors }));
+        }
       }
     } catch (err) {
       console.error('Submit employee error:', err);
+      setSubmitError(err.message || 'Lỗi hệ thống khi gửi dữ liệu khai báo.');
     } finally {
       setSubmitting(false);
     }
@@ -597,14 +817,15 @@ export default function EmployeeFormModal({
     <>
       <Modal
         open={isOpen}
-        onClose={isImporting ? undefined : onClose}
+        closeOnOutsideClick={false}
+        onClose={isImporting ? undefined : handleSafeClose}
         title={title}
         sub={sub}
         width={activeTab === 'bulk' ? 720 : 680}
         footer={
           activeTab === 'bulk' ? (
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', width: '100%', gap: '10px' }}>
-              <Button variant="ghost" onClick={onClose} disabled={isImporting}>
+              <Button variant="ghost" onClick={handleSafeClose} disabled={isImporting}>
                 {importStatus !== 'idle' ? 'Đóng' : 'Hủy Bỏ'}
               </Button>
               {importStatus !== 'success' && (
@@ -636,7 +857,7 @@ export default function EmployeeFormModal({
                 <div />
               )}
               <div style={{ display: 'flex', gap: '10px' }}>
-                <Button variant="ghost" onClick={onClose} disabled={submitting}>
+                <Button variant="ghost" onClick={handleSafeClose} disabled={submitting}>
                   {isEdit ? 'Đóng' : 'Hủy Bỏ'}
                 </Button>
                 {!isEdit && (
@@ -720,36 +941,85 @@ export default function EmployeeFormModal({
         {/* ─── TAB 1: FORM KHAI BÁO THỦ CÔNG ─── */}
         {activeTab === 'manual' && (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Banner Welcome Email */}
-            {!isEdit && (
+            {/* Banner Thông Báo Lỗi Ràng Buộc / Trùng Lặp */}
+            {submitError && (
               <div
                 style={{
                   padding: '12px 14px',
-                  background: 'rgba(34, 197, 94, 0.08)',
-                  border: '1px solid rgba(34, 197, 94, 0.25)',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
                   borderRadius: '8px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '10px',
-                  fontSize: '12.5px',
-                  color: '#86efac',
+                  fontSize: '13px',
+                  color: '#f87171',
+                  fontWeight: 600,
+                  animation: 'lx-fade-in .15s ease',
                 }}
               >
-
-                <span>
-                  <strong>Tự Động Gửi Welcome Email:</strong> Sau khi khai báo, Backend sẽ tự động gửi thư chào mừng HTML chuyên nghiệp tới Email nhân sự kèm Mã NV, Mật khẩu khởi tạo và đường link đăng nhập.
-                </span>
+                <Icon name="warning" size={18} color="#ef4444" />
+                <span style={{ flex: 1, lineHeight: '1.4' }}>{submitError}</span>
+                <button
+                  type="button"
+                  onClick={() => setSubmitError('')}
+                  title="Đóng thông báo"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#f87171',
+                    cursor: 'pointer',
+                    display: 'grid',
+                    placeItems: 'center',
+                    padding: '2px',
+                  }}
+                >
+                  <Icon name="x" size={14} />
+                </button>
               </div>
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               {/* Mã nhân viên */}
-              <Field label="Mã Định Danh Nhân Viên" required error={errors.employeeCode}>
+              <Field
+                label="Mã Định Danh Nhân Viên"
+                required
+                error={errors.employeeCode}
+                hint={
+                  !isEdit && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newCode = `NV-${Math.floor(1000 + Math.random() * 9000)}`;
+                        handleChange('employeeCode', newCode);
+                        checkCodeDuplicate(newCode);
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: c.accent,
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        padding: 0,
+                      }}
+                    >
+                      <Icon name="refresh" size={11} />
+                      <span>Sinh mã khác</span>
+                    </button>
+                  )
+                }
+              >
                 <TextInput
                   value={formData.employeeCode}
                   onChange={(e) => handleChange('employeeCode', e.target.value.toUpperCase())}
+                  onBlur={() => checkCodeDuplicate(formData.employeeCode)}
                   placeholder="VD: NV-001 hoặc SM-001"
                   disabled={isEdit}
+                  error={Boolean(errors.employeeCode)}
                 />
               </Field>
 
@@ -760,6 +1030,7 @@ export default function EmployeeFormModal({
                   onChange={(e) => handleChange('fullName', e.target.value)}
                   placeholder="VD: Nguyễn Văn An"
                   disabled={isEdit}
+                  error={Boolean(errors.fullName)}
                 />
               </Field>
             </div>
@@ -771,8 +1042,10 @@ export default function EmployeeFormModal({
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
+                  onBlur={() => checkEmailDuplicate(formData.email)}
                   placeholder="VD: an.nguyen@rwfm.vn"
                   disabled={isEdit}
+                  error={Boolean(errors.email)}
                 />
               </Field>
 
@@ -781,8 +1054,10 @@ export default function EmployeeFormModal({
                 <TextInput
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
+                  onBlur={() => checkPhoneDuplicate(formData.phone)}
                   placeholder="VD: 0912345678"
                   disabled={isEdit}
+                  error={Boolean(errors.phone)}
                 />
               </Field>
             </div>
@@ -1191,7 +1466,7 @@ export default function EmployeeFormModal({
                     }
                     return (
                       <span style={{ color: '#4ade80' }}>
-                        ✅ <strong>Đã đủ điều kiện:</strong> Tài khoản đã khóa đủ 14 ngày theo quy định lưu trữ. Bạn có thể thực hiện xóa vĩnh viễn tài khoản này khỏi hệ thống và CSDL.
+                        <strong>Đã đủ điều kiện:</strong> Tài khoản đã khóa đủ 14 ngày theo quy định lưu trữ. Bạn có thể thực hiện xóa vĩnh viễn tài khoản này khỏi hệ thống và CSDL.
                       </span>
                     );
                   })()}
@@ -1656,6 +1931,44 @@ export default function EmployeeFormModal({
           </div>
 
           <div>Bạn có chắc chắn muốn tiếp tục thực hiện xóa tài khoản này không?</div>
+        </div>
+      </Modal>
+
+      {/* ─── MODAL XÁC NHẬN HỦY DỮ LIỆU ĐANG ĐIỀN DỞ (Dirty State Confirm) ─── */}
+      <Modal
+        open={showDiscardConfirm}
+        closeOnOutsideClick={false}
+        onClose={() => setShowDiscardConfirm(false)}
+        title="Xác Nhận Hủy Thao Tác"
+        sub="Bạn đang có các trường thông tin hồ sơ nhân sự chưa được lưu."
+        width={460}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', width: '100%' }}>
+            <Button variant="ghost" onClick={() => setShowDiscardConfirm(false)}>
+              Tiếp Tục Điền
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowDiscardConfirm(false);
+                onClose();
+              }}
+              style={{
+                background: '#ef4444',
+                color: '#fff',
+                borderColor: '#dc2626',
+              }}
+            >
+              Hủy Bỏ & Thoát
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '6px 0' }}>
+
+          <div style={{ fontSize: '13.5px', lineHeight: '1.5', color: c.fg }}>
+            Nếu thoát lúc này, toàn bộ dữ liệu bạn vừa nhập vào form sẽ <strong>bị mất</strong>. Bạn có chắc chắn muốn hủy bỏ và đóng cửa sổ này không?
+          </div>
         </div>
       </Modal>
     </>

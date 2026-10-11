@@ -90,6 +90,17 @@ export default function DispatchDetailModal({
 
   if (!dispatchItem) return null;
 
+  const approvalNotesText =
+    dispatchItem.approvalNotes ||
+    (dispatchItem.reason && dispatchItem.reason.includes(' | Ghi chú duyệt: ')
+      ? dispatchItem.reason.split(' | Ghi chú duyệt: ')[1]
+      : (dispatchItem.note !== dispatchItem.reason ? dispatchItem.note : null));
+
+  const displayReason =
+    dispatchItem.reason && dispatchItem.reason.includes(' | Ghi chú duyệt: ')
+      ? dispatchItem.reason.split(' | Ghi chú duyệt: ')[0]
+      : (dispatchItem.reason || 'Không có lý do ghi chú.');
+
   const formatDate = (dStr) => {
     if (!dStr) return '--';
     const parts = dStr.split('-');
@@ -132,6 +143,25 @@ export default function DispatchDetailModal({
   // Xử lý gửi xét duyệt: Phê duyệt (theo danh sách đã tick) hoặc Từ chối toàn bộ
   const handleReviewAction = async (isRejectAll = false) => {
     setErrorMessage('');
+
+    if (isRejectAll) {
+      if (!approvalNotes.trim()) {
+        setErrorMessage('Vui lòng nhập lý do từ chối vào ô "Ý kiến phản hồi / Ghi chú xét duyệt" bên dưới.');
+        return;
+      }
+    } else {
+      // Khi từ chối một phần hoặc từ chối cá nhân, bắt buộc phải có lý do
+      const rejectedWithoutReason = itemsToReview.find(
+        (item) => !item.isApproved && !item.note?.trim()
+      );
+      if (rejectedWithoutReason) {
+        setErrorMessage(
+          `Vui lòng nhập lý do từ chối cho nhân sự "${rejectedWithoutReason.employeeName}".`
+        );
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
@@ -143,10 +173,10 @@ export default function DispatchDetailModal({
           employeeReviews: itemsToReview.map((item) => ({
             employeeId: item.employeeId,
             isApproved: false,
-            note: item.note ? item.note.trim() : (approvalNotes.trim() || 'Không chấp thuận chi viện'),
+            note: item.note ? item.note.trim() : approvalNotes.trim(),
           })),
           isApproved: false,
-          approvalNotes: approvalNotes.trim() || 'Từ chối toàn bộ phiếu điều động',
+          approvalNotes: approvalNotes.trim(),
         };
       } else {
         // Phê duyệt theo cấu hình duyệt từng người
@@ -362,28 +392,48 @@ export default function DispatchDetailModal({
                 lineHeight: 1.5,
               }}
             >
-              {dispatchItem.reason || 'Không có lý do ghi chú.'}
+              {displayReason}
             </div>
           </div>
 
           {/* Ghi chú duyệt phiếu nếu đã duyệt/từ chối */}
-          {dispatchItem.approvedByName && (
+          {(dispatchItem.approvedByName || dispatchItem.status === 'REJECTED' || dispatchItem.status === 'PARTIAL' || approvalNotesText) && (
             <div style={{ gridColumn: '1 / -1' }}>
               <div style={{ fontSize: 11, color: c.fgFaint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>
-                Phản hồi / Ghi chú từ người duyệt
+                {dispatchItem.status === 'REJECTED'
+                  ? 'Lý do từ chối phiếu'
+                  : dispatchItem.status === 'PARTIAL'
+                  ? 'Phản hồi duyệt một phần'
+                  : 'Phản hồi / Ghi chú từ người duyệt'}
               </div>
               <div
                 style={{
-                  color: c.fgMuted,
-                  background: c.bgRaised,
-                  border: `1px solid ${c.borderSub}`,
-                  padding: '8px 12px',
+                  color: dispatchItem.status === 'REJECTED' ? '#f87171' : dispatchItem.status === 'PARTIAL' ? '#fbbf24' : c.fg,
+                  background:
+                    dispatchItem.status === 'REJECTED'
+                      ? 'rgba(239, 68, 68, 0.08)'
+                      : dispatchItem.status === 'PARTIAL'
+                      ? 'rgba(245, 158, 11, 0.08)'
+                      : c.bgRaised,
+                  border: `1px solid ${
+                    dispatchItem.status === 'REJECTED'
+                      ? 'rgba(239, 68, 68, 0.3)'
+                      : dispatchItem.status === 'PARTIAL'
+                      ? 'rgba(245, 158, 11, 0.3)'
+                      : c.borderSub
+                  }`,
+                  padding: '10px 12px',
                   borderRadius: 6,
                   fontSize: 12.5,
-                  fontStyle: 'italic',
+                  lineHeight: 1.5,
                 }}
               >
-                {dispatchItem.approvalNotes || dispatchItem.note || 'Không có ghi chú xét duyệt bổ sung.'}
+                {approvalNotesText ||
+                  (dispatchItem.status === 'REJECTED'
+                    ? 'Lệnh điều động đã bị từ chối.'
+                    : dispatchItem.status === 'PARTIAL'
+                    ? 'Một số nhân sự được duyệt, một số bị từ chối. Vui lòng xem lý do cụ thể ở từng nhân sự bên dưới.'
+                    : 'Không có ghi chú xét duyệt bổ sung.')}
               </div>
             </div>
           )}
@@ -494,16 +544,19 @@ export default function DispatchDetailModal({
                     </div>
 
                     {!item.isApproved && (
-                      <div style={{ marginTop: 2 }}>
+                      <div style={{ marginTop: 6 }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 600, color: '#f87171', marginBottom: 4 }}>
+                          Lý do từ chối nhân sự này <span style={{ color: '#ef4444' }}>*</span>:
+                        </div>
                         <input
                           type="text"
                           value={item.note || ''}
                           onChange={(e) => updateEmployeeNote(item.employeeId, e.target.value)}
-                          placeholder="Lý do từ chối nhân sự này (tùy chọn)..."
+                          placeholder="Nhập lý do từ chối (bắt buộc, ví dụ: Thiếu nhân sự trực ca, bận lịch...)"
                           style={{
                             width: '100%',
                             background: c.bgRaised,
-                            border: '1px solid rgba(239, 68, 68, 0.4)',
+                            border: '1px solid rgba(239, 68, 68, 0.5)',
                             borderRadius: 4,
                             color: c.fg,
                             fontSize: 12,
@@ -526,46 +579,87 @@ export default function DispatchDetailModal({
                     background: c.bgCard,
                     border: `1px solid ${c.borderSub}`,
                     borderRadius: 6,
-                    padding: '8px 12px',
+                    padding: '9px 12px',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
+                    flexDirection: 'column',
+                    gap: 6,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: '50%',
-                        background: c.bgElev,
-                        color: c.accent,
-                        fontWeight: 700,
-                        fontSize: 12,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {avatar}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: '50%',
+                          background: item.status === 'REJECTED' ? 'rgba(239, 68, 68, 0.15)' : c.bgElev,
+                          color: item.status === 'REJECTED' ? '#f87171' : c.accent,
+                          fontWeight: 700,
+                          fontSize: 12,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {avatar}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: c.fg }}>
+                          {item.employeeName}
+                        </div>
+                        <div style={{ fontSize: 11, color: c.fgFaint }}>
+                          {item.employeeCode} • {item.positionName}
+                        </div>
+                      </div>
                     </div>
+
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: c.fg }}>
-                        {item.employeeName}
-                      </div>
-                      <div style={{ fontSize: 11, color: c.fgFaint }}>
-                        {item.employeeCode} • {item.positionName}
-                      </div>
+                      {item.status ? (
+                        getStatusBadge(item.status)
+                      ) : (
+                        <Badge tone="neutral">Nhân viên</Badge>
+                      )}
                     </div>
                   </div>
 
-                  <div>
-                    {item.status ? (
-                      getStatusBadge(item.status)
-                    ) : (
-                      <Badge tone="neutral">Nhân viên</Badge>
-                    )}
-                  </div>
+                  {/* Hiển thị lý do từ chối cụ thể cho nhân sự nếu bị từ chối */}
+                  {item.status === 'REJECTED' && (
+                    <div
+                      style={{
+                        padding: '6px 10px',
+                        background: 'rgba(239, 68, 68, 0.08)',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        borderRadius: 4,
+                        fontSize: 12,
+                        color: '#f87171',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 6,
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>✕ Lý do từ chối:</span>
+                      <span style={{ color: c.fg }}>{item.note || 'Không có lý do ghi chú.'}</span>
+                    </div>
+                  )}
+
+                  {item.status === 'APPROVED' && item.note && (
+                    <div
+                      style={{
+                        padding: '6px 10px',
+                        background: 'rgba(16, 185, 129, 0.08)',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        borderRadius: 4,
+                        fontSize: 12,
+                        color: '#34d399',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 6,
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>✓ Ghi chú duyệt:</span>
+                      <span style={{ color: c.fg }}>{item.note}</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -576,13 +670,13 @@ export default function DispatchDetailModal({
         {canReview && (
           <div>
             <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', color: c.fgSubtle, marginBottom: 6 }}>
-              Ý kiến phản hồi / Ghi chú xét duyệt (tùy chọn)
+              Ý kiến phản hồi / Ghi chú xét duyệt {itemsToReview.every((i) => !i.isApproved) && <span style={{ color: '#ef4444' }}>(bắt buộc khi từ chối toàn bộ)</span>}
             </label>
             <textarea
               rows={2}
               value={approvalNotes}
               onChange={(e) => setApprovalNotes(e.target.value)}
-              placeholder="Nhập ý kiến phản hồi hoặc hướng dẫn cho chi nhánh xin mượn quân..."
+              placeholder="Nhập ý kiến phản hồi (bắt buộc khi bấm Từ Chối toàn bộ phiếu)..."
               disabled={submitting}
               style={{
                 width: '100%',

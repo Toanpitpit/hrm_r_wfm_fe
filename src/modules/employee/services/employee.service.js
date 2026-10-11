@@ -256,6 +256,62 @@ export const employeeService = {
   },
 
   /**
+   * 2b. Kiểm tra trùng lặp thông tin nhân sự (Mã NV, Email, SĐT) trong thời gian thực
+   */
+  async checkDuplicate(params = {}) {
+    try {
+      const res = await axiosInstance.get('Users/check-duplicate', { params });
+      if (res.data?.success) {
+        return res.data?.data || res.data;
+      }
+    } catch {
+      // Endpoint fallback nếu API chưa chạy
+    }
+
+    try {
+      // Fallback: Tìm qua danh sách nhân sự hiện hành
+      const target = (params.employeeCode || params.email || params.phone || '').trim();
+      if (target) {
+        const res = await axiosInstance.get('Users/employees', { params: { search: target } });
+        const list = res.data?.data || res.data || [];
+        const items = Array.isArray(list) ? list : (list.items || []);
+
+        if (params.employeeCode) {
+          const match = items.find(
+            (e) => (e.employeeCode || '').trim().toUpperCase() === params.employeeCode.trim().toUpperCase() &&
+                   (!params.excludeId || String(e.id) !== String(params.excludeId))
+          );
+          if (match) {
+            return { isEmployeeCodeDuplicate: true, existingEmployeeName: match.fullName };
+          }
+        }
+        if (params.email) {
+          const match = items.find(
+            (e) => (e.email || '').trim().toLowerCase() === params.email.trim().toLowerCase() &&
+                   (!params.excludeId || String(e.id) !== String(params.excludeId))
+          );
+          if (match) {
+            return { isEmailDuplicate: true, existingEmailOwnerName: match.fullName };
+          }
+        }
+        if (params.phone) {
+          const cleanP = params.phone.trim().replace(/\s/g, '');
+          const match = items.find(
+            (e) => (e.phone || '').trim().replace(/\s/g, '') === cleanP &&
+                   (!params.excludeId || String(e.id) !== String(params.excludeId))
+          );
+          if (match) {
+            return { isPhoneDuplicate: true, existingPhoneOwnerName: match.fullName };
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Fallback search duplicate error:', err);
+    }
+    return { isEmployeeCodeDuplicate: false, isEmailDuplicate: false, isPhoneDuplicate: false };
+  },
+
+  /**
    * 3. Lấy danh sách nhân sự (GET /api/Users/employees)
    */
   async getEmployees(params = {}, options = {}) {
@@ -370,19 +426,19 @@ export const employeeService = {
     } catch (err) {
       const status = err.response?.status;
       const msg = err.response?.data?.message || err.response?.data?.title || err.message;
-      if (status === 403) {
+      if (err.response) {
+        if (status === 403) {
+          return {
+            success: false,
+            message: msg || 'Từ chối quyền truy cập (403): Chỉ Quản trị vận hành (Operations Admin) mới có quyền tạo nhân sự.',
+          };
+        }
         return {
           success: false,
-          message: 'Từ chối quyền truy cập (403): Chỉ Quản trị vận hành (Operations Admin) mới có quyền tạo nhân sự.',
+          message: msg || `Lỗi từ máy chủ (${status}): Vui lòng kiểm tra lại thông tin hồ sơ nhân viên.`,
         };
       }
-      if (status === 400) {
-        return {
-          success: false,
-          message: msg || 'Yêu cầu không hợp lệ (400): Vui lòng kiểm tra lại thông tin hoặc định biên chi nhánh.',
-        };
-      }
-      console.warn('[EmployeeService] Backend createEmployee error, saving locally:', msg);
+      console.warn('[EmployeeService] Backend createEmployee network error, saving locally:', msg);
     }
 
     // Fallback lưu cục bộ
@@ -482,8 +538,8 @@ export const employeeService = {
       };
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
-      if (err.response?.status === 400 || err.response?.status === 403) {
-        return { success: false, message: msg };
+      if (err.response) {
+        return { success: false, message: msg || 'Cấp tài khoản Cửa hàng trưởng thất bại.' };
       }
       console.warn('[EmployeeService] Backend createStoreManager error:', msg);
     }

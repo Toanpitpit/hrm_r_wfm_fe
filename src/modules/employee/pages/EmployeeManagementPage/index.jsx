@@ -324,10 +324,10 @@ export default function EmployeeManagementPage() {
         fetchEmployees();
         fetchStats();
         fetchHeadcountData();
-        return true;
+        return { success: true };
       } else {
         toast.error(res.message || 'Cập nhật thất bại.');
-        return false;
+        return { success: false, message: res.message };
       }
     } else {
       if (formData.roleCode === 'STORE_MANAGER' && canManageSystem) {
@@ -337,10 +337,10 @@ export default function EmployeeManagementPage() {
           fetchEmployees();
           fetchStats();
           fetchHeadcountData();
-          return true;
+          return { success: true };
         } else {
           toast.error(res.message || 'Khai báo thất bại.');
-          return false;
+          return { success: false, message: res.message };
         }
       } else {
         const res = await employeeService.createEmployee(formData);
@@ -349,10 +349,10 @@ export default function EmployeeManagementPage() {
           fetchEmployees();
           fetchStats();
           fetchHeadcountData();
-          return true;
+          return { success: true };
         } else {
           toast.error(res.message || 'Khai báo thất bại.');
-          return false;
+          return { success: false, message: res.message };
         }
       }
     }
@@ -605,6 +605,7 @@ export default function EmployeeManagementPage() {
         initialData={editingEmployee}
         roles={roles}
         branches={branches}
+        existingEmployees={employees}
         canManageSystem={canManageSystem}
         isBusinessOwner={isBusinessOwner}
         isStoreManager={isStoreManager}
