@@ -11,6 +11,7 @@ export default function DispatchListTable({
   currentStoreId,
   onReview,
   onEdit,
+  onRecall,
   onDelete,
   onViewDetail,
   emptyText = 'Chưa có lệnh điều động nhân sự nào.',
@@ -33,6 +34,8 @@ export default function DispatchListTable({
         return <Badge tone="info" dot>Duyệt một phần</Badge>;
       case 'REJECTED':
         return <Badge tone="bad" dot>Đã từ chối</Badge>;
+      case 'RECALLED':
+        return <Badge tone="warn" dot>Đã thu hồi (Đang sửa)</Badge>;
       case 'PENDING':
       default:
         return <Badge tone="warn" dot>Chờ xét duyệt</Badge>;
@@ -101,8 +104,10 @@ export default function DispatchListTable({
           {displayDispatches.map((item) => {
             const isSource = currentStoreId && Number(item.fromStoreId) === Number(currentStoreId);
             const isTarget = currentStoreId && Number(item.toStoreId) === Number(currentStoreId);
-            const canReview = isSource && item.status === 'PENDING';
-            const canModify = isTarget && item.status === 'PENDING';
+            const isPending = item.status === 'PENDING';
+            const isRecalled = item.status === 'RECALLED';
+            const canReview = isSource && isPending;
+            const canModify = isTarget && (isPending || isRecalled);
 
             return (
               <tr
@@ -251,15 +256,30 @@ export default function DispatchListTable({
                 {/* Thao tác */}
                 <td style={{ ...tdStyle(c), textAlign: 'right' }}>
                   <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                    {canModify && onEdit && (
+
+
+                    {isTarget && isPending && onRecall && (
                       <Button
                         size="sm"
                         kind="ghost"
-                        onClick={() => onEdit(item)}
+                        onClick={() => onRecall(item)}
+                        title="Thu hồi đơn tạm thời để chỉnh sửa nội dung"
                       >
-                        Sửa
+                        Thu Hồi
                       </Button>
                     )}
+
+                    {isTarget && isRecalled && onEdit && (
+                      <Button
+                        size="sm"
+                        kind="primary"
+                        onClick={() => onEdit(item)}
+                        title="Chỉnh sửa nội dung và gửi lại cho bên đối tác"
+                      >
+                        Sửa & Gửi Lại
+                      </Button>
+                    )}
+
                     {canModify && onDelete && (
                       <Button
                         size="sm"
@@ -269,6 +289,7 @@ export default function DispatchListTable({
                         Hủy
                       </Button>
                     )}
+
                     {onViewDetail && (
                       <Button
                         size="sm"

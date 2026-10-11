@@ -77,10 +77,30 @@ export default function StoreDispatchPage() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Xử lý hủy và xóa yêu cầu điều động PENDING
+  // Xử lý thu hồi yêu cầu điều động PENDING để chỉnh sửa (RECALLED)
+  const handleRecallDispatch = async (item) => {
+    const confirmRecall = window.confirm(
+      `Bạn có chắc chắn muốn thu hồi yêu cầu điều động (#${item.dispatchId}) không?\n\nSau khi thu hồi, đơn sẽ tạm dừng xét duyệt để bạn chỉnh sửa nội dung và gửi lại khi hoàn tất.`
+    );
+    if (!confirmRecall) return;
+
+    try {
+      const res = await dispatchService.recallDispatchRequest(item.dispatchId);
+      if (res?.success) {
+        showToast('Đã thu hồi đơn điều động. Bạn có thể bấm "Sửa & Gửi Lại" để cập nhật nội dung.');
+        loadDispatches();
+      } else {
+        alert(res?.message || 'Không thể thu hồi phiếu điều động.');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra khi thu hồi yêu cầu điều động.');
+    }
+  };
+
+  // Xử lý hủy và xóa yêu cầu điều động PENDING hoặc RECALLED
   const handleDeleteDispatch = async (item) => {
     const confirmDelete = window.confirm(
-      `Bạn có chắc chắn muốn hủy và xóa yêu cầu điều động nhân sự "${item.employeeName}" (#${item.dispatchId}) không?\n\nThao tác này sẽ xóa hoàn toàn phiếu đề nghị đang chờ duyệt.`
+      `Bạn có chắc chắn muốn hủy và xóa yêu cầu điều động nhân sự "${item.employeeName}" (#${item.dispatchId}) không?\n\nThao tác này sẽ xóa hoàn toàn phiếu đề nghị.`
     );
     if (!confirmDelete) return;
 
@@ -296,10 +316,11 @@ export default function StoreDispatchPage() {
                 options={[
                   { value: 'ALL', label: 'Tất cả trạng thái' },
                   { value: 'PENDING', label: 'Chờ xét duyệt' },
+                  { value: 'RECALLED', label: 'Đã thu hồi (Đang sửa)' },
                   { value: 'APPROVED', label: 'Đã phê duyệt' },
                   { value: 'REJECTED', label: 'Đã từ chối' },
                 ]}
-                width={170}
+                width={190}
               />
 
               <SearchInput
@@ -321,6 +342,7 @@ export default function StoreDispatchPage() {
               setEditItem(item);
               setIsCreateModalOpen(true);
             }}
+            onRecall={handleRecallDispatch}
             onDelete={handleDeleteDispatch}
             onViewDetail={(item) => setDetailItem(item)}
             emptyText={

@@ -712,7 +712,6 @@ export default function EmployeeFormModal({
                 boxShadow: activeTab === 'bulk' ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
               }}
             >
-              <Icon name="table-import" size={15} color={activeTab === 'bulk' ? '#fff' : c.fgMuted} />
               <span>Import Nhân Sự Hàng Loạt (Excel/CSV)</span>
             </button>
           </div>
@@ -736,7 +735,7 @@ export default function EmployeeFormModal({
                   color: '#86efac',
                 }}
               >
-                <Icon name="check" size={16} color="#22c55e" />
+
                 <span>
                   <strong>Tự Động Gửi Welcome Email:</strong> Sau khi khai báo, Backend sẽ tự động gửi thư chào mừng HTML chuyên nghiệp tới Email nhân sự kèm Mã NV, Mật khẩu khởi tạo và đường link đăng nhập.
                 </span>
@@ -830,60 +829,6 @@ export default function EmployeeFormModal({
                     })}
                 </select>
               </Field>
-
-              {/* Thông báo nghiệp vụ Cửa Hàng Trưởng */}
-              {formData.roleCode === 'STORE_MANAGER' && (
-                <div
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '6px',
-                    fontSize: '12.5px',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '8px',
-                    background:
-                      branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
-                        ? 'rgba(239, 68, 68, 0.12)'
-                        : 'rgba(59, 130, 246, 0.12)',
-                    border: `1px solid ${branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
-                        ? 'rgba(239, 68, 68, 0.35)'
-                        : 'rgba(59, 130, 246, 0.3)'
-                      }`,
-                    color:
-                      branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
-                        ? '#fca5a5'
-                        : '#93c5fd',
-                  }}
-                >
-                  <Icon
-                    name={
-                      branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
-                        ? 'alert-triangle'
-                        : 'info'
-                    }
-                    size={16}
-                    color={
-                      branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
-                        ? '#ef4444'
-                        : '#3b82f6'
-                    }
-                  />
-                  <div>
-                    {branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId) ? (
-                      <span>
-                        <strong>Không thể chỉ định:</strong> Chi nhánh{' '}
-                        <strong>{branchQuota.branchName || ''}</strong> hiện đã có Cửa hàng trưởng đang hoạt động là{' '}
-                        <strong style={{ color: '#fff' }}>{branchQuota.activeStoreManagerName}</strong> ({branchQuota.activeStoreManagerCode}).{' '}
-                        <em>Quy định bắt buộc: Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.</em>
-                      </span>
-                    ) : (
-                      <span>
-                        <strong>Ràng buộc quản lý:</strong> Mỗi chi nhánh chỉ có tối đa 1 Cửa hàng trưởng. Tài khoản này sẽ có quyền điều hành và lập lịch ca cho toàn bộ nhân sự tại chi nhánh đã chọn.
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {/* Chi nhánh công tác */}
               <Field
@@ -1003,7 +948,7 @@ export default function EmployeeFormModal({
                 {/* Thông tin slot hoặc Cơ chế Nâng Tier khi kịch biên */}
                 {!isQuotaReached ? (
                   <div style={{ fontSize: '12px', color: '#86efac' }}>
-                    ✓ Chi nhánh còn trống{' '}
+                    Chi nhánh còn trống{' '}
                     <strong>{branchQuota.standardQuota - (branchQuota.officialHeadcount ?? branchQuota.currentHeadcount)}</strong> vị trí theo định biên chuẩn.
                   </div>
                 ) : (
@@ -1019,11 +964,11 @@ export default function EmployeeFormModal({
                     <div style={{ fontSize: '12px', color: '#fca5a5' }}>
                       {branchQuota.canUpgradeTier ? (
                         <span>
-                          ⚠️ Đã đạt trần Tier {branchQuota.branchTier}. Bạn có thể nâng chi nhánh lên{' '}
+                          Đã đạt trần Tier {branchQuota.branchTier}. Bạn có thể nâng chi nhánh lên{' '}
                           <strong>Tier {branchQuota.branchTier - 1}</strong> để tuyển thêm.
                         </span>
                       ) : (
-                        <span>❌ Chi nhánh đã đạt kịch trần cao nhất Tier 1 (30 nhân sự). Không thể tuyển thêm!</span>
+                        <span> Chi nhánh đã đạt kịch trần cao nhất Tier 1 (30 nhân sự). Không thể tuyển thêm!</span>
                       )}
                     </div>
 

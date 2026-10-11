@@ -53,7 +53,18 @@ const dispatchService = {
   },
 
   /**
-   * Hủy và xóa phiếu đề nghị chi viện nhân sự khi còn chờ duyệt (PENDING)
+   * Thu hồi phiếu đề nghị chi viện nhân sự khi còn chờ duyệt để chỉnh sửa (RECALLED)
+   * @param {number|string} id - DispatchId
+   * @param {string} [reason] - Lý do thu hồi
+   * @returns {Promise<Object>} ApiResponse<DispatchRecordDto>
+   */
+  recallDispatchRequest: async (id, reason) => {
+    const response = await axiosInstance.post(`/Dispatch/recall/${id}`, { reason });
+    return response.data;
+  },
+
+  /**
+   * Hủy và xóa phiếu đề nghị chi viện nhân sự khi còn chờ duyệt (PENDING) hoặc đã thu hồi (RECALLED)
    * @param {number|string} id - DispatchId
    * @returns {Promise<Object>} ApiResponse<bool>
    */
@@ -164,6 +175,24 @@ const dispatchService = {
       }
     }
     return [];
+  },
+
+  /**
+   * Tra cứu định biên an toàn và số lượng nhân sự khả dụng cho điều động của chi nhánh cho mượn (SourceBranch).
+   * @param {number|string} branchId
+   * @param {string} [startDate]
+   * @param {string} [endDate]
+   * @param {number|string} [excludeDispatchId]
+   * @returns {Promise<Object>} ApiResponse<BranchDispatchQuotaStatusDto>
+   */
+  getBranchDispatchQuota: async (branchId, startDate, endDate, excludeDispatchId) => {
+    if (!branchId) return null;
+    const params = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (excludeDispatchId) params.excludeDispatchId = excludeDispatchId;
+    const response = await axiosInstance.get(`/Dispatch/branch-quota/${branchId}`, { params });
+    return response.data;
   },
 };
 
