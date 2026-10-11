@@ -16,11 +16,11 @@ import Icon from '@/shared/components/ui/Icon';
 
 // Subcomponents & Hook
 import { useShiftTemplate } from '../../hooks/useShiftTemplate';
-import ShiftEnforcementBanner from '../../components/ShiftEnforcementBanner';
 import Shift24hTimeline from '../../components/Shift24hTimeline';
 import ShiftTemplateTable from '../../components/ShiftTemplateTable';
 import ShiftTemplateFormModal from '../../components/ShiftTemplateFormModal';
 import ShiftImpactModal from '../../components/ShiftImpactModal';
+import ShiftDeleteModal from '../../components/ShiftDeleteModal';
 
 /**
  * ==============================================================================
@@ -68,6 +68,12 @@ export default function ShiftMasterPage() {
     handleCreateShift,
     handleUpdateShift,
     handleToggleStatus,
+    deleteModalOpen,
+    setDeleteModalOpen,
+    deletingShift,
+    setDeletingShift,
+    handleOpenDeleteModal,
+    handleDeleteShift,
     impactModal,
     setImpactModal,
   } = useShiftTemplate();
@@ -178,9 +184,6 @@ export default function ShiftMasterPage() {
           hint="Tính phụ cấp ca đêm tự động"
         />
       </div>
-
-      {/* 3. Banner chính sách quy định */}
-      <ShiftEnforcementBanner />
 
       {/* 4. Hai Tab điều hướng: "Khung ca chung" | "Khung ca chi nhánh" */}
       <div
@@ -352,6 +355,7 @@ export default function ShiftMasterPage() {
               isOperationsAdmin={isOperationsAdmin}
               onEdit={handleOpenEditModal}
               onToggleStatus={handleToggleStatus}
+              onDelete={handleOpenDeleteModal}
               emptyMessage="Chưa có khung ca chung nào phù hợp với bộ lọc."
             />
           </Panel>
@@ -559,22 +563,6 @@ export default function ShiftMasterPage() {
                     : 'Các ca riêng dưới đây đang được áp dụng trực tiếp cho việc xếp lịch làm việc tại chi nhánh.'}
                 </div>
               </div>
-
-              {isOperationsAdmin && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={selectedBranch?.isLocked}
-                  onClick={() => {
-                    setEditingShift(null);
-                    setFormModalOpen(true);
-                  }}
-                  title={selectedBranch?.isLocked ? 'Chi nhánh đang bị khóa' : 'Thêm ca riêng'}
-                >
-                  <Icon name="plus" size={14} />
-                  <span>Thêm Ca Riêng</span>
-                </Button>
-              )}
             </div>
 
             {/* Trạng thái trống nếu chưa có ca riêng nào */}
@@ -609,19 +597,6 @@ export default function ShiftMasterPage() {
                 <div style={{ fontSize: '13px', color: c.fgSubtle, maxWidth: '420px', margin: '0 auto 16px' }}>
                   Thêm ca riêng để có thể chuyển sang chế độ ca riêng. Khi ở chế độ ca chung, cửa hàng sẽ dùng bộ ca mặc định của chuỗi.
                 </div>
-                {isOperationsAdmin && !selectedBranch?.isLocked && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      setEditingShift(null);
-                      setFormModalOpen(true);
-                    }}
-                  >
-                    <Icon name="plus" size={14} />
-                    <span>Thêm Ca Riêng Đầu Tiên</span>
-                  </Button>
-                )}
               </div>
             ) : (
               <ShiftTemplateTable
@@ -631,6 +606,7 @@ export default function ShiftMasterPage() {
                 isBranchMuted={selectedBranch?.shiftMode === 'GLOBAL'}
                 onEdit={handleOpenEditModal}
                 onToggleStatus={handleToggleStatus}
+                onDelete={handleOpenDeleteModal}
                 emptyMessage="Chi nhánh chưa có ca riêng nào."
               />
             )}
@@ -647,10 +623,14 @@ export default function ShiftMasterPage() {
         defaultScope={activeTab === 'BRANCH' ? 'BRANCH' : 'GLOBAL'}
         defaultBranchId={selectedBranchId}
         branches={branches}
+        allGlobalShifts={allGlobalShifts}
+        customShifts={customShifts}
+        existingShifts={activeTab === 'BRANCH' ? customShifts : allGlobalShifts}
         onClose={() => {
           setFormModalOpen(false);
           setEditingShift(null);
         }}
+        onDelete={handleOpenDeleteModal}
         onSubmit={async (formData) => {
           if (editingShift) {
             return await handleUpdateShift(editingShift.id || editingShift.shiftId, formData);
@@ -675,6 +655,19 @@ export default function ShiftMasterPage() {
             await impactModal.onConfirm();
           }
         }}
+      />
+
+      {/* ============================================================================== */}
+      {/* 9. MODAL XÁC NHẬN XÓA KHUNG CA */}
+      {/* ============================================================================== */}
+      <ShiftDeleteModal
+        open={deleteModalOpen}
+        shift={deletingShift}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeletingShift(null);
+        }}
+        onConfirm={handleDeleteShift}
       />
     </DashboardShell>
   );

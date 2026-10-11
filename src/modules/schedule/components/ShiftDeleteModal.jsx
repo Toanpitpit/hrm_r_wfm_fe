@@ -22,7 +22,8 @@ export default function ShiftDeleteModal({
   const handleConfirm = async () => {
     try {
       setSubmitting(true);
-      const res = await onConfirm(shift.shiftId);
+      const shiftId = shift.id ?? shift.shiftId ?? shift.templateId ?? shift.shiftTemplateId;
+      const res = await onConfirm(shiftId);
       if (res?.success !== false) {
         onClose();
       }
@@ -30,6 +31,9 @@ export default function ShiftDeleteModal({
       setSubmitting(false);
     }
   };
+
+  const displayName = shift.name || shift.shiftName || 'Khung ca';
+  const displayCode = shift.templateCode || shift.shiftCode || '';
 
   return (
     <Modal
@@ -44,23 +48,24 @@ export default function ShiftDeleteModal({
             display: 'flex',
             alignItems: 'flex-start',
             gap: '12px',
-            backgroundColor: '#fee2e2',
-            border: '1px solid #fca5a5',
+            backgroundColor: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
             borderRadius: '8px',
             padding: '12px 14px',
-            color: '#991b1b',
+            color: '#f87171',
           }}
         >
           <div style={{ marginTop: '2px' }}>
             <Icon
               name="alert"
               size={18}
+              color="#ef4444"
             />
           </div>
-          <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
+          <div style={{ fontSize: '13px', lineHeight: '1.5', color: '#f87171' }}>
             Bạn có chắc chắn muốn xóa khung ca{' '}
-            <strong>{shift.shiftName} ({shift.shiftCode})</strong>? Thao tác này
-            sẽ gỡ bỏ khung ca khỏi danh mục xếp lịch của toàn bộ chuỗi cửa hàng.
+            <strong style={{ color: '#ffffff' }}>{displayName} {displayCode ? `(${displayCode})` : ''}</strong>?
+            Thao tác này sẽ gỡ bỏ khung ca khỏi danh mục cấu hình của hệ thống.
           </div>
         </div>
 
