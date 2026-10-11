@@ -89,13 +89,15 @@ export default function AssignShiftCellModal({
 
   if (!isOpen || !cellData) return null;
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const isPastDate = Boolean(workDate && workDate < todayStr);
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const isPastOrToday = Boolean(workDate && workDate <= todayStr);
 
   // Submit cho Mode 1 (Gán nhân viên vào ca theo vị trí)
   const handleRoleSubmit = (e) => {
     e.preventDefault();
-    if (isPastDate) return;
+    if (isPastOrToday) return;
     if (!selectedUserId || !shiftTemplate || !workDate) return;
 
     const shiftId = shiftTemplate.id || shiftTemplate.shiftId;
@@ -112,7 +114,7 @@ export default function AssignShiftCellModal({
   const isUserNotYetDispatched = Boolean(user?.isDispatched && uDispStart && targetDateStrMode2 < uDispStart);
   const isUserDispatchExpired = Boolean(user?.isDispatched && uDispEnd && targetDateStrMode2 > uDispEnd);
   const isUserDispatchedAway = Boolean(user?.isDispatchedAway && uDispAwayStart && uDispAwayEnd && targetDateStrMode2 >= uDispAwayStart && targetDateStrMode2 <= uDispAwayEnd);
-  const isMode2Blocked = isPastDate || isUserNotYetDispatched || isUserDispatchExpired || isUserDispatchedAway;
+  const isMode2Blocked = isPastOrToday || isUserNotYetDispatched || isUserDispatchExpired || isUserDispatchedAway;
 
   // Submit cho Mode 2 (Gán ca cho nhân viên cụ thể)
   const handleEmployeeSubmit = (e) => {
@@ -124,7 +126,7 @@ export default function AssignShiftCellModal({
   };
 
   const handleDelete = () => {
-    if (!currentAssignment || isPastDate) return;
+    if (!currentAssignment || isPastOrToday) return;
     setShowConfirmDelete(true);
   };
 
@@ -145,7 +147,7 @@ export default function AssignShiftCellModal({
         title={`Gán Nhân Sự Cho Vị Trí: ${targetRoleLabel}`}
       >
         <form onSubmit={handleRoleSubmit}>
-          {isPastDate && (
+          {isPastOrToday && (
             <div
               style={{
                 padding: '10px 14px',
@@ -161,7 +163,7 @@ export default function AssignShiftCellModal({
               }}
             >
               <Icon name="alertTriangle" size={16} color={c.tones.bad} />
-              <span>Ca làm việc thuộc ngày quá khứ ({formatVNDate(workDate)}). Hệ thống khóa phân công lịch ca đã qua.</span>
+              <span>Ngày {formatVNDate(workDate)} là ngày hôm nay hoặc ngày đã qua. Hệ thống khóa, không thể phân công ca trực.</span>
             </div>
           )}
 
@@ -236,7 +238,7 @@ export default function AssignShiftCellModal({
               placeholder="Tìm nhân viên theo tên hoặc mã NV..."
               value={roleSearchTerm}
               onChange={(e) => setRoleSearchTerm(e.target.value)}
-              disabled={isPastDate}
+              disabled={isPastOrToday}
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -288,7 +290,7 @@ export default function AssignShiftCellModal({
                     const isDispatchedAwayOnDate = Boolean(emp.isDispatchedAway && dAwayStart && dAwayEnd &&
                       targetDateStr >= dAwayStart && targetDateStr <= dAwayEnd);
 
-                    const isDisabled = isConflict || isPastDate || isNotYetDispatched || isDispatchExpired || isDispatchedAwayOnDate;
+                    const isDisabled = isConflict || isPastOrToday || isNotYetDispatched || isDispatchExpired || isDispatchedAwayOnDate;
 
                     return (
                       <label
@@ -430,7 +432,7 @@ export default function AssignShiftCellModal({
             <Button
               variant="primary"
               type="submit"
-              disabled={actionLoading || !selectedUserId || isPastDate}
+              disabled={actionLoading || !selectedUserId || isPastOrToday}
             >
               {actionLoading ? 'Đang phân bổ...' : 'Xác Nhận Phân Bổ'}
             </Button>
@@ -452,7 +454,7 @@ export default function AssignShiftCellModal({
       title={currentAssignment ? 'Điều Chỉnh / Hủy Phân Công Ca' : 'Phân Công Ca Làm Việc'}
     >
       <form onSubmit={handleEmployeeSubmit}>
-        {isPastDate && (
+        {isPastOrToday && (
           <div
             style={{
               padding: '10px 14px',
@@ -468,7 +470,7 @@ export default function AssignShiftCellModal({
             }}
           >
             <Icon name="alertTriangle" size={16} color={c.tones.bad} />
-            <span>Ca làm việc này thuộc ngày trong quá khứ ({formatVNDate(workDate)}). Hệ thống khóa không cho phép chỉnh sửa hoặc hủy ca đã trôi qua.</span>
+            <span>Ngày {formatVNDate(workDate)} là ngày hôm nay hoặc ngày đã qua. Hệ thống khóa không cho phép chỉnh sửa hoặc hủy ca.</span>
           </div>
         )}
 
@@ -579,7 +581,7 @@ export default function AssignShiftCellModal({
                 {currentAssignment.shiftName} ({currentAssignment.startTime?.substring(0, 5)} - {currentAssignment.endTime?.substring(0, 5)})
               </div>
             </div>
-            <Button variant="danger" type="button" onClick={handleDelete} disabled={actionLoading || isPastDate}>
+            <Button variant="danger" type="button" onClick={handleDelete} disabled={actionLoading || isPastOrToday}>
               Hủy Ca Này
             </Button>
           </div>

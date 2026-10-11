@@ -164,6 +164,10 @@ export default function WeeklyRosterMatrix({
     return STANDARD_SHIFTS_CONFIG;
   }, [activeTemplates]);
 
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
   // Early return SAU tất cả hooks - tránh vi phạm Rules of Hooks
   if (loading) {
     return (
@@ -407,6 +411,8 @@ export default function WeeklyRosterMatrix({
                           (s.shiftTemplateName && s.shiftTemplateName.includes(shift.name.split(' - ')[0])))
                     );
 
+                    const isPastOrToday = Boolean(dateStr && dateStr <= todayStr);
+
                     // Danh sách nhân viên trong ca
                     const assignedEmployees = schedule?.assignedEmployees || [];
                     const leaders = assignedEmployees.filter(
@@ -443,6 +449,7 @@ export default function WeeklyRosterMatrix({
                           borderLeft: `1px solid ${c.borderSub}`,
                           verticalAlign: 'top',
                           minHeight: 220,
+                          background: isPastOrToday ? 'rgba(0,0,0,0.03)' : 'transparent',
                         }}
                       >
                         {!schedule ? (
@@ -460,48 +467,62 @@ export default function WeeklyRosterMatrix({
                               justifyContent: 'center',
                               padding: 12,
                               textAlign: 'center',
+                              opacity: isPastOrToday ? 0.45 : 1,
                             }}
                           >
                             <span style={{ fontSize: 11, color: c.fgFaint, marginBottom: 8 }}>
-                              Chưa có khung ca
+                              {isPastOrToday ? 'Đã khóa lịch' : 'Chưa có khung ca'}
                             </span>
-                            <button
-                              onClick={() =>
-                                onEditScheduleQuota &&
-                                onEditScheduleQuota({
-                                  shiftTemplateId: shift.id,
-                                  shiftTemplateName: shift.name,
-                                  workDate: dateStr,
-                                  requiredCashier: 1,
-                                  requiredSales: 1,
-                                  requiredSecurity: 1,
-                                })
-                              }
-                              style={{
-                                padding: '4px 10px',
-                                borderRadius: 6,
-                                background: c.bgElev,
-                                border: `1px solid ${c.border}`,
-                                color: c.accent,
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              + Khởi tạo ca
-                            </button>
+                            {!isPastOrToday && (
+                              <button
+                                onClick={() =>
+                                  onEditScheduleQuota &&
+                                  onEditScheduleQuota({
+                                    shiftTemplateId: shift.id,
+                                    shiftTemplateName: shift.name,
+                                    workDate: dateStr,
+                                    requiredCashier: 1,
+                                    requiredSales: 1,
+                                    requiredSecurity: 1,
+                                  })
+                                }
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: 6,
+                                  background: c.bgElev,
+                                  border: `1px solid ${c.border}`,
+                                  color: c.accent,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                + Khởi tạo ca
+                              </button>
+                            )}
                           </div>
                         ) : (
                           // Thẻ ca làm việc với 4 vị trí trực quan
                           <div
                             style={{
-                              background: isAllFilled ? `${c.tones.good}08` : `${c.tones.bad}06`,
-                              border: `1px solid ${isAllFilled ? `${c.tones.good}40` : `${c.tones.bad}40`}`,
+                              background: isPastOrToday
+                                ? `${c.bgElev}80`
+                                : isAllFilled
+                                ? `${c.tones.good}08`
+                                : `${c.tones.bad}06`,
+                              border: `1px solid ${
+                                isPastOrToday
+                                  ? c.borderSub
+                                  : isAllFilled
+                                  ? `${c.tones.good}40`
+                                  : `${c.tones.bad}40`
+                              }`,
                               borderRadius: 8,
                               padding: '8px',
                               display: 'flex',
                               flexDirection: 'column',
                               gap: 8,
+                              opacity: isPastOrToday ? 0.65 : 1,
                             }}
                           >
                             {/* Tiêu đề ô: Trạng thái Đủ / Thiếu & Nút chỉnh định mức */}
@@ -529,21 +550,23 @@ export default function WeeklyRosterMatrix({
                                   : `THIẾU (${totalAssigned}/${totalRequired})`}
                               </span>
 
-                              <button
-                                onClick={() => onEditScheduleQuota && onEditScheduleQuota(schedule)}
-                                title="Điều chỉnh định mức ca này"
-                                style={{
-                                  background: 'transparent',
-                                  border: 'none',
-                                  color: c.fgFaint,
-                                  cursor: 'pointer',
-                                  padding: '2px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                }}
-                              >
-                                <Icon name="edit" size={13} />
-                              </button>
+                              {!isPastOrToday && (
+                                <button
+                                  onClick={() => onEditScheduleQuota && onEditScheduleQuota(schedule)}
+                                  title="Điều chỉnh định mức ca này"
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: c.fgFaint,
+                                    cursor: 'pointer',
+                                    padding: '2px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                  }}
+                                >
+                                  <Icon name="edit" size={13} />
+                                </button>
+                              )}
                             </div>
 
                             {/* 4 Khối Vị Trí Nghiệp Vụ Bắt Buộc */}
@@ -556,6 +579,7 @@ export default function WeeklyRosterMatrix({
                                 requiredCount={reqLeader}
                                 employees={leaders}
                                 isOk={isLeaderOk}
+                                isLocked={isPastOrToday}
                                 onAddClick={() =>
                                   onCellClick &&
                                   onCellClick({
@@ -580,6 +604,7 @@ export default function WeeklyRosterMatrix({
                                 requiredCount={reqCashier}
                                 employees={cashiers}
                                 isOk={isCashierOk}
+                                isLocked={isPastOrToday}
                                 onAddClick={() =>
                                   onCellClick &&
                                   onCellClick({
@@ -604,6 +629,7 @@ export default function WeeklyRosterMatrix({
                                 requiredCount={reqSales}
                                 employees={sales}
                                 isOk={isSalesOk}
+                                isLocked={isPastOrToday}
                                 onAddClick={() =>
                                   onCellClick &&
                                   onCellClick({
@@ -628,6 +654,7 @@ export default function WeeklyRosterMatrix({
                                 requiredCount={reqSecurity}
                                 employees={security}
                                 isOk={isSecurityOk}
+                                isLocked={isPastOrToday}
                                 onAddClick={() =>
                                   onCellClick &&
                                   onCellClick({
@@ -823,6 +850,8 @@ export default function WeeklyRosterMatrix({
                         const isDispatchedAwayOnDate = Boolean(emp.isDispatchedAway && dAwayStart && dAwayEnd &&
                           targetDate >= dAwayStart && targetDate <= dAwayEnd);
 
+                        const isPastOrToday = Boolean(targetDate && targetDate <= todayStr);
+
                         return (
                           <td
                             key={dateStr}
@@ -832,14 +861,15 @@ export default function WeeklyRosterMatrix({
                               verticalAlign: 'middle',
                               textAlign: 'center',
                               height: 60,
+                              background: isPastOrToday ? 'rgba(0,0,0,0.03)' : 'transparent',
                             }}
                           >
                             {assignment ? (
                               <div
                                 style={{
-                                  background: `${c.accentDim}30`,
-                                  border: `1px solid ${c.accent}`,
-                                  color: c.accent,
+                                  background: isPastOrToday ? `${c.bgElev}90` : `${c.accentDim}30`,
+                                  border: `1px solid ${isPastOrToday ? c.borderSub : c.accent}`,
+                                  color: isPastOrToday ? c.fgSubtle : c.accent,
                                   borderRadius: 6,
                                   padding: '6px 8px',
                                   display: 'flex',
@@ -848,17 +878,20 @@ export default function WeeklyRosterMatrix({
                                   position: 'relative',
                                   fontSize: 11,
                                   textAlign: 'left',
-                                  cursor: 'pointer',
+                                  cursor: isPastOrToday ? 'default' : 'pointer',
+                                  opacity: isPastOrToday ? 0.75 : 1,
                                 }}
-                                onClick={() =>
+                                onClick={() => {
+                                  if (isPastOrToday) return;
                                   onCellClick &&
-                                  onCellClick({
-                                    mode: 'BY_EMPLOYEE',
-                                    user: emp,
-                                    date: dateStr,
-                                    currentAssignment: assignment,
-                                  })
-                                }
+                                    onCellClick({
+                                      mode: 'BY_EMPLOYEE',
+                                      user: emp,
+                                      date: dateStr,
+                                      currentAssignment: assignment,
+                                    });
+                                }}
+                                title={isPastOrToday ? 'Ngày đã qua / Hôm nay - Đã khóa phân công' : undefined}
                               >
                                 <div
                                   style={{
@@ -868,35 +901,54 @@ export default function WeeklyRosterMatrix({
                                   }}
                                 >
                                   <span style={{ fontWeight: 800 }}>{assignment.shiftName}</span>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      requestDelete(
-                                        assignment.assignmentId,
-                                        `Bạn có chắc muốn hủy ca '${assignment.shiftName}' ngày ${formatVNDate(
-                                          dateStr
-                                        )} của NV ${emp.fullName}?`
-                                      );
-                                    }}
-                                    style={{
-                                      background: 'transparent',
-                                      border: 'none',
-                                      color: c.tones.bad,
-                                      cursor: 'pointer',
-                                      padding: 0,
-                                      fontSize: 14,
-                                      fontWeight: 800,
-                                      lineHeight: 1,
-                                    }}
-                                    title="Hủy ca trực"
-                                  >
-                                    ×
-                                  </button>
+                                  {!isPastOrToday && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        requestDelete(
+                                          assignment.assignmentId,
+                                          `Bạn có chắc muốn hủy ca '${assignment.shiftName}' ngày ${formatVNDate(
+                                            dateStr
+                                          )} của NV ${emp.fullName}?`
+                                        );
+                                      }}
+                                      style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: c.tones.bad,
+                                        cursor: 'pointer',
+                                        padding: 0,
+                                        fontSize: 14,
+                                        fontWeight: 800,
+                                        lineHeight: 1,
+                                      }}
+                                      title="Hủy ca trực"
+                                    >
+                                      ×
+                                    </button>
+                                  )}
                                 </div>
                                 <div style={{ fontSize: 9.5, opacity: 0.85 }}>
                                   {assignment.startTime ? assignment.startTime.substring(0, 5) : ''} -{' '}
                                   {assignment.endTime ? assignment.endTime.substring(0, 5) : ''}
                                 </div>
+                              </div>
+                            ) : isPastOrToday ? (
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: c.fgFaint,
+                                  background: `${c.bgElev}40`,
+                                  borderRadius: 6,
+                                  padding: '6px 4px',
+                                  border: `1px dashed ${c.borderSub}`,
+                                  cursor: 'not-allowed',
+                                  lineHeight: 1.2,
+                                  opacity: 0.45,
+                                }}
+                                title="Ngày đã qua / Hôm nay - Đã khóa"
+                              >
+                                Đã khóa
                               </div>
                             ) : isNotYetDispatched ? (
                               <div
@@ -1021,6 +1073,7 @@ function RoleSlotSection({
   requiredCount,
   employees = [],
   isOk,
+  isLocked = false,
   onAddClick,
   onDeleteClick,
   c,
@@ -1079,45 +1132,47 @@ function RoleSlotSection({
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  maxWidth: 110,
+                  maxWidth: isLocked ? 130 : 110,
                 }}
                 title={`${emp.fullName} (${emp.employeeCode})`}
               >
                 {emp.fullName}
               </div>
 
-              {/* Nút hủy phân công ca của nhân viên */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteClick &&
-                    onDeleteClick(
-                      emp.assignmentId,
-                      `Bạn có chắc chắn muốn hủy phân công của nhân viên '${emp.fullName}' khỏi ca này?`
-                    );
-                }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: c.tones.bad,
-                  cursor: 'pointer',
-                  padding: 0,
-                  marginLeft: 4,
-                  fontSize: 13,
-                  fontWeight: 800,
-                  lineHeight: 1,
-                }}
-                title="Gỡ khỏi ca trực"
-              >
-                ×
-              </button>
+              {/* Nút hủy phân công ca của nhân viên - ẩn nếu ngày đã qua hoặc hôm nay */}
+              {!isLocked && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteClick &&
+                      onDeleteClick(
+                        emp.assignmentId,
+                        `Bạn có chắc chắn muốn hủy phân công của nhân viên '${emp.fullName}' khỏi ca này?`
+                      );
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: c.tones.bad,
+                    cursor: 'pointer',
+                    padding: 0,
+                    marginLeft: 4,
+                    fontSize: 13,
+                    fontWeight: 800,
+                    lineHeight: 1,
+                  }}
+                  title="Gỡ khỏi ca trực"
+                >
+                  ×
+                </button>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Nút gán slot còn thiếu */}
-      {!isOk && (
+      {/* Nút gán slot còn thiếu - ẩn nếu ngày đã qua hoặc hôm nay */}
+      {!isOk && !isLocked && (
         <button
           onClick={onAddClick}
           style={{
