@@ -94,8 +94,15 @@ export default function EmployeeFormModal({
   const [importStatus, setImportStatus] = useState('idle'); // 'idle' | 'success' | 'partial' | 'error'
 
   // Phân quyền chọn Vai trò:
+  // - Nếu là Cửa Hàng Trưởng (Store Manager): Không được cấp quyền tạo Cửa hàng trưởng hoặc tài khoản hệ thống
+  // - Nếu là Operations Admin / Business Owner: Được phép cấp quyền chọn Cửa hàng trưởng (STORE_MANAGER)
+  const isManagerUser = Boolean(isStoreManager || (!canManageSystem && !effectiveIsBusinessOwner));
+  const excludedRoles = isManagerUser
+    ? ['OPERATIONS_ADMIN', 'STORE_MANAGER', 'BUSINESS_OWNER', 'ADMIN']
+    : ['OPERATIONS_ADMIN', 'BUSINESS_OWNER', 'ADMIN'];
+
   const availableRoles = (roles.length > 0 ? roles : STORE_ROLES).filter((r) => {
-    return !['OPERATIONS_ADMIN', 'STORE_MANAGER', 'BUSINESS_OWNER'].includes(r.roleCode);
+    return !excludedRoles.includes(r.roleCode);
   });
 
   // Reset form & import khi mở modal
@@ -175,6 +182,16 @@ export default function EmployeeFormModal({
         const quotaRes = await headcountService.getBranchHeadcountStatus(targetBranchId, tier);
         if (mounted && quotaRes.success) {
           setBranchQuota(quotaRes.data);
+          if (
+            formData.roleCode === 'STORE_MANAGER' &&
+            quotaRes.data?.hasActiveStoreManager &&
+            (!isEdit || initialData?.id !== quotaRes.data?.activeStoreManagerId)
+          ) {
+            setErrors((prevErr) => ({
+              ...prevErr,
+              roleId: `Chi nhánh "${quotaRes.data?.branchName || foundBranch?.name || ''}" hiện đã có Cửa hàng trưởng (${quotaRes.data?.activeStoreManagerName || 'CHT'}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`,
+            }));
+          }
         }
       } catch (err) {
         console.warn('Lỗi khi tải quota chi nhánh:', err);
@@ -230,6 +247,13 @@ export default function EmployeeFormModal({
   };
 
   const handleChange = (field, value) => {
+    let nextRoleCode = formData.roleCode;
+
+    if (field === 'roleId') {
+      const found = availableRoles.find((r) => String(r.id) === String(value));
+      nextRoleCode = found?.roleCode || '';
+    }
+
     setFormData((prev) => {
       const next = { ...prev, [field]: value };
       if (field === 'roleId') {
@@ -244,8 +268,21 @@ export default function EmployeeFormModal({
       }
       return next;
     });
+
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: null }));
+    }
+
+    if (
+      field === 'roleId' &&
+      nextRoleCode === 'STORE_MANAGER' &&
+      branchQuota?.hasActiveStoreManager &&
+      (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
+    ) {
+      setErrors((prev) => ({
+        ...prev,
+        roleId: `Chi nhánh "${branchQuota.branchName || ''}" hiện đã có Cửa hàng trưởng (${branchQuota.activeStoreManagerName || 'CHT'}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`,
+      }));
     }
   };
 
@@ -318,8 +355,12 @@ export default function EmployeeFormModal({
     if (!formData.branchId && !formData.homeBranchId) newErrors.branchId = 'Vui lòng chọn chi nhánh';
 
     // Ràng buộc duy nhất 1 Cửa hàng trưởng trên mỗi chi nhánh
-    if (formData.roleCode === 'STORE_MANAGER' && branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)) {
-      newErrors.roleId = `Chi nhánh này đã có Cửa hàng trưởng (${branchQuota.activeStoreManagerName || ''}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`;
+    if (
+      formData.roleCode === 'STORE_MANAGER' &&
+      branchQuota?.hasActiveStoreManager &&
+      (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
+    ) {
+      newErrors.roleId = `Chi nhánh "${branchQuota.branchName || ''}" hiện đã có Cửa hàng trưởng (${branchQuota.activeStoreManagerName || 'CHT'}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`;
     }
 
     if (!isEdit && (!formData.password || formData.password.length < 6)) {
@@ -336,8 +377,10 @@ export default function EmployeeFormModal({
 
     setSubmitting(true);
     try {
-      await onSubmit(formData, isEdit);
-      onClose();
+      const success = await onSubmit(formData, isEdit);
+      if (success !== false) {
+        onClose();
+      }
     } catch (err) {
       console.error('Submit employee error:', err);
     } finally {
@@ -669,7 +712,6 @@ export default function EmployeeFormModal({
                 boxShadow: activeTab === 'bulk' ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
               }}
             >
-              <Icon name="table-import" size={15} color={activeTab === 'bulk' ? '#fff' : c.fgMuted} />
               <span>Import Nhân Sự Hàng Loạt (Excel/CSV)</span>
             </button>
           </div>
@@ -693,7 +735,7 @@ export default function EmployeeFormModal({
                   color: '#86efac',
                 }}
               >
-                <Icon name="check" size={16} color="#22c55e" />
+
                 <span>
                   <strong>Tự Động Gửi Welcome Email:</strong> Sau khi khai báo, Backend sẽ tự động gửi thư chào mừng HTML chuyên nghiệp tới Email nhân sự kèm Mã NV, Mật khẩu khởi tạo và đường link đăng nhập.
                 </span>
@@ -749,6 +791,8 @@ export default function EmployeeFormModal({
               {/* Vai trò (Role) */}
               <Field
                 label="Vai Trò Cửa Hàng"
+                required
+                error={errors.roleId}
               >
                 <select
                   value={formData.roleId}
@@ -779,7 +823,7 @@ export default function EmployeeFormModal({
                       return (
                         <option key={r.id} value={String(r.id)} disabled={isAlreadyTaken}>
                           {r.roleName} ({r.roleCode})
-                          {isAlreadyTaken ? ` — (Đã có: ${branchQuota?.activeStoreManagerName || 'CHT'})` : ''}
+                          {isAlreadyTaken ? ` — (Đã có CHT: ${branchQuota?.activeStoreManagerName || 'Đã có'})` : ''}
                         </option>
                       );
                     })}
@@ -864,6 +908,35 @@ export default function EmployeeFormModal({
                     >
                       Tier {branchQuota.branchTier} (Chuẩn {branchQuota.standardQuota})
                     </span>
+                    {branchQuota.hasActiveStoreManager ? (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: '#f59e0b',
+                          background: 'rgba(245, 158, 11, 0.12)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                        }}
+                      >
+                        CHT: {branchQuota.activeStoreManagerName}
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: '#38bdf8',
+                          background: 'rgba(56, 189, 248, 0.12)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                        }}
+                      >
+                        Trống CHT
+                      </span>
+                    )}
                     {branchQuota.inactiveCount > 0 && (
                       <span style={{ fontSize: '11.5px', color: c.fgSubtle }}>
                         Đã nghỉ: {branchQuota.inactiveCount}
@@ -875,7 +948,7 @@ export default function EmployeeFormModal({
                 {/* Thông tin slot hoặc Cơ chế Nâng Tier khi kịch biên */}
                 {!isQuotaReached ? (
                   <div style={{ fontSize: '12px', color: '#86efac' }}>
-                    ✓ Chi nhánh còn trống{' '}
+                    Chi nhánh còn trống{' '}
                     <strong>{branchQuota.standardQuota - (branchQuota.officialHeadcount ?? branchQuota.currentHeadcount)}</strong> vị trí theo định biên chuẩn.
                   </div>
                 ) : (
@@ -891,11 +964,11 @@ export default function EmployeeFormModal({
                     <div style={{ fontSize: '12px', color: '#fca5a5' }}>
                       {branchQuota.canUpgradeTier ? (
                         <span>
-                          ⚠️ Đã đạt trần Tier {branchQuota.branchTier}. Bạn có thể nâng chi nhánh lên{' '}
+                          Đã đạt trần Tier {branchQuota.branchTier}. Bạn có thể nâng chi nhánh lên{' '}
                           <strong>Tier {branchQuota.branchTier - 1}</strong> để tuyển thêm.
                         </span>
                       ) : (
-                        <span>❌ Chi nhánh đã đạt kịch trần cao nhất Tier 1 (30 nhân sự). Không thể tuyển thêm!</span>
+                        <span> Chi nhánh đã đạt kịch trần cao nhất Tier 1 (30 nhân sự). Không thể tuyển thêm!</span>
                       )}
                     </div>
 
@@ -913,7 +986,7 @@ export default function EmployeeFormModal({
                           fontWeight: 700,
                         }}
                       >
-                        {upgradingTier ? 'Đang Nâng Tier...' : `⚡ Nâng Lên Tier ${branchQuota.branchTier - 1}`}
+                        {upgradingTier ? 'Đang Nâng Tier...' : ` Nâng Lên Tier ${branchQuota.branchTier - 1}`}
                       </Button>
                     )}
                   </div>

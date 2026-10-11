@@ -280,7 +280,7 @@ export default function HeadcountQuotaCard({
                           }}
                           title={`Nâng lên Tier ${bTier === 3 ? 2 : 1} để mở rộng thêm định biên`}
                         >
-                          ⚡ Nâng Tier {bTier === 3 ? '2 (15)' : '1 (30)'}
+                          Nâng Tier {bTier === 3 ? '2 (15)' : '1 (30)'}
                         </button>
                       )}
                     </div>

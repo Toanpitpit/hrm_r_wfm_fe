@@ -324,8 +324,10 @@ export default function EmployeeManagementPage() {
         fetchEmployees();
         fetchStats();
         fetchHeadcountData();
+        return true;
       } else {
         toast.error(res.message || 'Cập nhật thất bại.');
+        return false;
       }
     } else {
       if (formData.roleCode === 'STORE_MANAGER' && canManageSystem) {
@@ -335,8 +337,10 @@ export default function EmployeeManagementPage() {
           fetchEmployees();
           fetchStats();
           fetchHeadcountData();
+          return true;
         } else {
           toast.error(res.message || 'Khai báo thất bại.');
+          return false;
         }
       } else {
         const res = await employeeService.createEmployee(formData);
@@ -345,8 +349,10 @@ export default function EmployeeManagementPage() {
           fetchEmployees();
           fetchStats();
           fetchHeadcountData();
+          return true;
         } else {
           toast.error(res.message || 'Khai báo thất bại.');
+          return false;
         }
       }
     }

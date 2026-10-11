@@ -50,6 +50,7 @@ export default function DispatchDetailModal({
     Number(dispatchItem?.toStoreId) === Number(currentStoreId);
 
   const isPending = dispatchItem?.status === 'PENDING';
+  const isRecalled = dispatchItem?.status === 'RECALLED';
   const canReview = isPending && (isSourceBranch || isOpsAdmin);
 
   // Khởi tạo dữ liệu khi mở modal
@@ -104,6 +105,8 @@ export default function DispatchDetailModal({
         return <Badge tone="info" dot>Duyệt một phần</Badge>;
       case 'REJECTED':
         return <Badge tone="bad" dot>Đã từ chối</Badge>;
+      case 'RECALLED':
+        return <Badge tone="warn" dot>Đã thu hồi (Đang sửa)</Badge>;
       case 'PENDING':
       default:
         return <Badge tone="warn" dot>Chờ xét duyệt</Badge>;
@@ -243,6 +246,29 @@ export default function DispatchDetailModal({
           >
             <div style={{ fontWeight: 700, marginBottom: 3 }}>Thông báo từ hệ thống:</div>
             {errorMessage}
+          </div>
+        )}
+
+        {/* Cảnh báo nếu đơn đã bị người gửi thu hồi để chỉnh sửa */}
+        {isRecalled && (
+          <div
+            style={{
+              background: 'rgba(245, 158, 11, 0.12)',
+              border: '1px solid rgba(245, 158, 11, 0.35)',
+              color: '#f59e0b',
+              padding: '12px 14px',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span>⚠️</span>
+            <span>
+              Phiếu đề nghị này đã được bên gửi tạm thời thu hồi để chỉnh sửa nội dung. Bạn chưa thể phê duyệt vào thời điểm này.
+            </span>
           </div>
         )}
 

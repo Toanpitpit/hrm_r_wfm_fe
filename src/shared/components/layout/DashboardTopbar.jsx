@@ -4,8 +4,7 @@ import Icon from '../ui/Icon';
 import Badge from '../ui/Badge';
 import { useAdminTheme } from '../../context/ThemeContext';
 import { useToast } from '@/components/ui/toast/ToastProvider';
-import authService from '@/modules/auth/services/auth.service';
-import { clearAccessToken } from '@/config/axios.config';
+import { useAuthContext } from '@/modules/auth/context/AuthContext';
 import ProfileModal from './ProfileModal';
 import ChangePasswordModal from './ChangePasswordModal';
 
@@ -21,6 +20,7 @@ export default function DashboardTopbar({
 }) {
   const navigate = useNavigate();
   const toast = useToast();
+  const { logout } = useAuthContext();
   const { c, fonts, theme, setTheme } = useAdminTheme();
 
   // Dropdown & Modal States
@@ -112,15 +112,11 @@ export default function DashboardTopbar({
   // Handle Logout
   const handleLogout = async () => {
     try {
-      await authService.logout();
-    } finally {
-      clearAccessToken();
-      localStorage.removeItem('token');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('user');
-      sessionStorage.clear();
-      toast.success('Đã đăng xuất khỏi hệ thống thành công.');
-      navigate('/login');
+      toast.success('Đang đăng xuất khỏi hệ thống...');
+      await logout();
+    } catch (err) {
+      console.error('Logout error:', err);
+      window.location.href = '/login';
     }
   };
 

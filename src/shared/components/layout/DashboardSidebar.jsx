@@ -3,8 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../ui/Icon';
 import { useAdminTheme } from '../../context/ThemeContext';
 import { getNavItemsForRole } from '../../constants/navigation.config';
-import authService from '@/modules/auth/services/auth.service';
-import { clearAccessToken } from '@/config/axios.config';
+import { useAuthContext } from '@/modules/auth/context/AuthContext';
 
 export default function DashboardSidebar({
   page,
@@ -20,6 +19,7 @@ export default function DashboardSidebar({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuthContext();
   const { c, fonts, sidebarCollapsed: collapsed, setSidebarCollapsed } = useAdminTheme();
   const sb = c.sidebar;
   const width = collapsed ? 72 : 252;
@@ -48,13 +48,10 @@ export default function DashboardSidebar({
       onLogout();
     } else {
       try {
-        await authService.logout();
-      } finally {
-        clearAccessToken();
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        navigate('/login');
+        await logout();
+      } catch (err) {
+        console.error('Sidebar logout error:', err);
+        window.location.href = '/login';
       }
     }
   };

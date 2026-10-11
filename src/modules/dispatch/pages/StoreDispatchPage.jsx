@@ -77,10 +77,30 @@ export default function StoreDispatchPage() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Xử lý hủy và xóa yêu cầu điều động PENDING
+  // Xử lý thu hồi yêu cầu điều động PENDING để chỉnh sửa (RECALLED)
+  const handleRecallDispatch = async (item) => {
+    const confirmRecall = window.confirm(
+      `Bạn có chắc chắn muốn thu hồi yêu cầu điều động (#${item.dispatchId}) không?\n\nSau khi thu hồi, đơn sẽ tạm dừng xét duyệt để bạn chỉnh sửa nội dung và gửi lại khi hoàn tất.`
+    );
+    if (!confirmRecall) return;
+
+    try {
+      const res = await dispatchService.recallDispatchRequest(item.dispatchId);
+      if (res?.success) {
+        showToast('Đã thu hồi đơn điều động. Bạn có thể bấm "Sửa & Gửi Lại" để cập nhật nội dung.');
+        loadDispatches();
+      } else {
+        alert(res?.message || 'Không thể thu hồi phiếu điều động.');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra khi thu hồi yêu cầu điều động.');
+    }
+  };
+
+  // Xử lý hủy và xóa yêu cầu điều động PENDING hoặc RECALLED
   const handleDeleteDispatch = async (item) => {
     const confirmDelete = window.confirm(
-      `Bạn có chắc chắn muốn hủy và xóa yêu cầu điều động nhân sự "${item.employeeName}" (#${item.dispatchId}) không?\n\nThao tác này sẽ xóa hoàn toàn phiếu đề nghị đang chờ duyệt.`
+      `Bạn có chắc chắn muốn hủy và xóa yêu cầu điều động nhân sự "${item.employeeName}" (#${item.dispatchId}) không?\n\nThao tác này sẽ xóa hoàn toàn phiếu đề nghị.`
     );
     if (!confirmDelete) return;
 
@@ -172,204 +192,206 @@ export default function StoreDispatchPage() {
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Toast Notification */}
-          {toastMessage && (
-            <div
-              style={{
-                position: 'fixed',
-                top: 24,
-                right: 32,
-                zIndex: 999,
-                background: '#10b981',
-                color: '#fff',
-                padding: '12px 20px',
-                borderRadius: 8,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-                fontSize: 14,
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <span>✓</span> {toastMessage}
-            </div>
-          )}
-
-          {/* Tiêu đề & Nút Tạo mới */}
-          <PageHeader
-            index="Store Manager · Quản trị nhân sự"
-            title="Điều Động Nhân Sự Liên Chi Nhánh"
-            desc={`Quản lý mượn quân & chi viện hỗ trợ giữa cơ sở "${currentStoreName}" và các chi nhánh đối tác`}
-            actions={
-              <Button
-                kind="primary"
-                onClick={() => {
-                  setEditItem(null);
-                  setIsCreateModalOpen(true);
-                }}
-              >
-                📥 Xin Chi Viện Nhân Sự
-              </Button>
-            }
-          />
-
-          {/* 4 Thẻ Thống Kê Nhanh */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <StatCard
-              title="ĐƠN CẦN BẠN XÉT DUYỆT"
-              value={pendingIncomingCount}
-              subtext="Cơ sở khác đang xin mượn quân"
-              icon="bell"
-              tone={pendingIncomingCount > 0 ? 'warn' : 'neutral'}
-            />
-            <StatCard
-              title="NHÂN SỰ ĐANG CHI VIỆN HÔM NAY"
-              value={activeArrivingToday}
-              subtext="Đang có mặt làm việc tại quầy"
-              icon="users"
-              tone="ok"
-            />
-            <StatCard
-              title="NHÂN SỰ ĐANG ĐI HỖ TRỢ"
-              value={activeDepartingToday}
-              subtext="Nhân viên cơ sở mình đang đi chi viện"
-              icon="swap"
-              tone="neutral"
-            />
-            <StatCard
-              title="TỔNG SỐ LỆNH ĐIỀU ĐỘNG"
-              value={dispatches.length}
-              subtext="Tổng lịch sử điều chuyển cơ sở"
-              icon="calendar"
-              tone="info"
-            />
+        {/* Toast Notification */}
+        {toastMessage && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 24,
+              right: 32,
+              zIndex: 999,
+              background: '#10b981',
+              color: '#fff',
+              padding: '12px 20px',
+              borderRadius: 8,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+              fontSize: 14,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span>✓</span> {toastMessage}
           </div>
+        )}
 
-          {/* Thanh chuyển đổi Tab & Tìm kiếm */}
-          <Panel style={{ padding: '16px 20px' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: 16,
-                marginBottom: 16,
-              }}
-            >
-              {/* 3 Tabs */}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('incoming')}
-                  style={tabButtonStyle(c, activeTab === 'incoming')}
-                >
-                  Yêu Cầu Nhận Được
-                  {pendingIncomingCount > 0 && (
-                    <span style={badgeCountStyle(c)}>{pendingIncomingCount}</span>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('outgoing')}
-                  style={tabButtonStyle(c, activeTab === 'outgoing')}
-                >
-                  Yêu Cầu Đã Gửi Đi
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('all')}
-                  style={tabButtonStyle(c, activeTab === 'all')}
-                >
-                  Tất Cả Lệnh Điều Động
-                </button>
-              </div>
-
-              {/* Bộ lọc & Tìm kiếm */}
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <Select
-                  value={statusFilter}
-                  onChange={(v) => setStatusFilter(v)}
-                  options={[
-                    { value: 'ALL', label: 'Tất cả trạng thái' },
-                    { value: 'PENDING', label: 'Chờ xét duyệt' },
-                    { value: 'APPROVED', label: 'Đã phê duyệt' },
-                    { value: 'REJECTED', label: 'Đã từ chối' },
-                  ]}
-                  width={170}
-                />
-
-                <SearchInput
-                  value={searchTerm}
-                  onChange={(v) => setSearchTerm(v)}
-                  placeholder="Tìm nhân viên, mã, cơ sở..."
-                  width={220}
-                />
-              </div>
-            </div>
-
-            {/* Bảng danh sách điều động */}
-            <DispatchListTable
-              dispatches={filteredDispatches}
-              loading={loading}
-              currentStoreId={currentStoreId}
-              onReview={(item) => setDetailItem(item)}
-              onEdit={(item) => {
-                setEditItem(item);
+        {/* Tiêu đề & Nút Tạo mới */}
+        <PageHeader
+          index="Store Manager · Quản trị nhân sự"
+          title="Điều Động Nhân Sự Liên Chi Nhánh"
+          desc={`Quản lý mượn quân & chi viện hỗ trợ giữa cơ sở "${currentStoreName}" và các chi nhánh đối tác`}
+          actions={
+            <Button
+              kind="primary"
+              onClick={() => {
+                setEditItem(null);
                 setIsCreateModalOpen(true);
               }}
-              onDelete={handleDeleteDispatch}
-              onViewDetail={(item) => setDetailItem(item)}
-              emptyText={
-                activeTab === 'incoming'
-                  ? 'Cơ sở của bạn hiện không có yêu cầu xin mượn quân nào.'
-                  : activeTab === 'outgoing'
+            >
+              Xin Chi Viện Nhân Sự
+            </Button>
+          }
+        />
+
+        {/* 4 Thẻ Thống Kê Nhanh */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+          <StatCard
+            title="ĐƠN CẦN BẠN XÉT DUYỆT"
+            value={pendingIncomingCount}
+            subtext="Cơ sở khác đang xin mượn quân"
+            icon="bell"
+            tone={pendingIncomingCount > 0 ? 'warn' : 'neutral'}
+          />
+          <StatCard
+            title="NHÂN SỰ ĐANG CHI VIỆN HÔM NAY"
+            value={activeArrivingToday}
+            subtext="Đang có mặt làm việc tại quầy"
+            icon="users"
+            tone="ok"
+          />
+          <StatCard
+            title="NHÂN SỰ ĐANG ĐI HỖ TRỢ"
+            value={activeDepartingToday}
+            subtext="Nhân viên cơ sở mình đang đi chi viện"
+            icon="swap"
+            tone="neutral"
+          />
+          <StatCard
+            title="TỔNG SỐ LỆNH ĐIỀU ĐỘNG"
+            value={dispatches.length}
+            subtext="Tổng lịch sử điều chuyển cơ sở"
+            icon="calendar"
+            tone="info"
+          />
+        </div>
+
+        {/* Thanh chuyển đổi Tab & Tìm kiếm */}
+        <Panel style={{ padding: '16px 20px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 16,
+              marginBottom: 16,
+            }}
+          >
+            {/* 3 Tabs */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setActiveTab('incoming')}
+                style={tabButtonStyle(c, activeTab === 'incoming')}
+              >
+                Yêu Cầu Nhận Được
+                {pendingIncomingCount > 0 && (
+                  <span style={badgeCountStyle(c)}>{pendingIncomingCount}</span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('outgoing')}
+                style={tabButtonStyle(c, activeTab === 'outgoing')}
+              >
+                Yêu Cầu Đã Gửi Đi
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('all')}
+                style={tabButtonStyle(c, activeTab === 'all')}
+              >
+                Tất Cả Lệnh Điều Động
+              </button>
+            </div>
+
+            {/* Bộ lọc & Tìm kiếm */}
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <Select
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(v)}
+                options={[
+                  { value: 'ALL', label: 'Tất cả trạng thái' },
+                  { value: 'PENDING', label: 'Chờ xét duyệt' },
+                  { value: 'RECALLED', label: 'Đã thu hồi (Đang sửa)' },
+                  { value: 'APPROVED', label: 'Đã phê duyệt' },
+                  { value: 'REJECTED', label: 'Đã từ chối' },
+                ]}
+                width={190}
+              />
+
+              <SearchInput
+                value={searchTerm}
+                onChange={(v) => setSearchTerm(v)}
+                placeholder="Tìm nhân viên, mã, cơ sở..."
+                width={220}
+              />
+            </div>
+          </div>
+
+          {/* Bảng danh sách điều động */}
+          <DispatchListTable
+            dispatches={filteredDispatches}
+            loading={loading}
+            currentStoreId={currentStoreId}
+            onReview={(item) => setDetailItem(item)}
+            onEdit={(item) => {
+              setEditItem(item);
+              setIsCreateModalOpen(true);
+            }}
+            onRecall={handleRecallDispatch}
+            onDelete={handleDeleteDispatch}
+            onViewDetail={(item) => setDetailItem(item)}
+            emptyText={
+              activeTab === 'incoming'
+                ? 'Cơ sở của bạn hiện không có yêu cầu xin mượn quân nào.'
+                : activeTab === 'outgoing'
                   ? 'Bạn chưa gửi yêu cầu xin chi viện nhân sự nào.'
                   : 'Không tìm thấy lệnh điều động phù hợp.'
-              }
-            />
-          </Panel>
+            }
+          />
+        </Panel>
 
-      {/* Modal Tạo & Chỉnh Sửa Yêu Cầu */}
-      <CreateDispatchRequestModal
-        open={isCreateModalOpen}
-        onClose={() => {
-          setIsCreateModalOpen(false);
-          setEditItem(null);
-        }}
-        currentStoreId={currentStoreId}
-        currentStoreName={currentStoreName}
-        editItem={editItem}
-        onSuccess={(data, isEdit) => {
-          showToast(
-            isEdit
-              ? 'Đã chỉnh sửa và cập nhật yêu cầu điều động thành công!'
-              : 'Đã tạo và gửi phiếu đề nghị điều động nhân sự thành công!'
-          );
-          setEditItem(null);
-          loadDispatches();
-        }}
-      />
+        {/* Modal Tạo & Chỉnh Sửa Yêu Cầu */}
+        <CreateDispatchRequestModal
+          open={isCreateModalOpen}
+          onClose={() => {
+            setIsCreateModalOpen(false);
+            setEditItem(null);
+          }}
+          currentStoreId={currentStoreId}
+          currentStoreName={currentStoreName}
+          editItem={editItem}
+          onSuccess={(data, isEdit) => {
+            showToast(
+              isEdit
+                ? 'Đã chỉnh sửa và cập nhật yêu cầu điều động thành công!'
+                : 'Đã tạo và gửi phiếu đề nghị điều động nhân sự thành công!'
+            );
+            setEditItem(null);
+            loadDispatches();
+          }}
+        />
 
-      {/* Modal Xem Chi Tiết & Phê Duyệt / Từ Chối */}
-      <DispatchDetailModal
-        open={Boolean(detailItem)}
-        onClose={() => setDetailItem(null)}
-        dispatchItem={detailItem}
-        currentStoreId={currentStoreId}
-        onSuccess={(isApproved) => {
-          showToast(
-            isApproved
-              ? 'Đã phê duyệt lệnh điều động nhân sự thành công!'
-              : 'Đã từ chối lệnh điều động nhân sự.'
-          );
-          setDetailItem(null);
-          loadDispatches();
-        }}
-      />
+        {/* Modal Xem Chi Tiết & Phê Duyệt / Từ Chối */}
+        <DispatchDetailModal
+          open={Boolean(detailItem)}
+          onClose={() => setDetailItem(null)}
+          dispatchItem={detailItem}
+          currentStoreId={currentStoreId}
+          onSuccess={(isApproved) => {
+            showToast(
+              isApproved
+                ? 'Đã phê duyệt lệnh điều động nhân sự thành công!'
+                : 'Đã từ chối lệnh điều động nhân sự.'
+            );
+            setDetailItem(null);
+            loadDispatches();
+          }}
+        />
       </div>
     </DashboardShell>
   );

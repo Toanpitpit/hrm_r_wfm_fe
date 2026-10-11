@@ -19,8 +19,9 @@ import axiosInstance from '@/config/axios.config';
  * ==============================================================================
  */
 
-// 4 vai trò nhân sự cửa hàng chuẩn hóa
+// 5 vai trò nhân sự cửa hàng chuẩn hóa
 export const STORE_ROLES = [
+  { id: 3, roleCode: 'STORE_MANAGER', roleName: 'Cửa Hàng Trưởng', description: 'Quản lý vận hành chi nhánh & phân bổ nhân sự' },
   { id: 4, roleCode: 'SHIFT_LEADER', roleName: 'Trưởng Ca Trực', description: 'Điều hành ca trực, giám sát điểm danh tại chỗ' },
   { id: 5, roleCode: 'CASHIER', roleName: 'Nhân Viên Thu Ngân', description: 'Trực thu ngân, điểm danh và bán hàng' },
   { id: 6, roleCode: 'SALES_STAFF', roleName: 'Nhân Viên Bán Hàng', description: 'Tư vấn bán hàng và sắp xếp quầy kệ' },
@@ -162,7 +163,7 @@ export const employeeService = {
       const data = res.data?.data || res.data;
       if (Array.isArray(data) && data.length > 0) {
         const filtered = data.filter(
-          (r) => !['BUSINESS_OWNER', 'OPERATIONS_ADMIN', 'STORE_MANAGER'].includes(r.roleCode)
+          (r) => !['BUSINESS_OWNER', 'OPERATIONS_ADMIN'].includes(r.roleCode)
         );
         if (filtered.length > 0) return filtered;
       }
