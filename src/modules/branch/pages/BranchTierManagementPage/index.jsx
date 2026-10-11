@@ -624,7 +624,7 @@ export default function BranchTierManagementPage() {
               }}
             >
               <Icon name="plus" size={13} />
-              <span></span>
+              <span>Thêm Phân Cấp Mới</span>
             </Button>
           }
         >

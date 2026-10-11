@@ -165,30 +165,30 @@ export function useBranchTier() {
     });
   }, [enhancedBranches, searchTerm, selectedTierFilter, statusFilter]);
 
-  // Tính toán số lượng chi nhánh thực tế đang sử dụng cho từng Tier từ DB
+  // Tính toán số lượng và danh sách chi nhánh thực tế đang sử dụng cho từng Tier từ DB
   const enhancedTiers = useMemo(() => {
     return (tiers || []).map((t) => {
       const tId = Number(t.id || t.tier_id);
-      const tName = (t.name || t.tierName || t.tier_name || '').toLowerCase();
 
-      const usedCount = (branches || []).filter((b) => {
-        const bTierId = Number(b.tierId || b.tier?.id || 0);
-        if (bTierId > 0 && tId > 0 && bTierId === tId) {
-          return true;
-        }
-        if (b.branchTierName && tName && b.branchTierName.toLowerCase() === tName) {
-          return true;
-        }
-        return false;
-      }).length;
+      // Tìm các chi nhánh đang thuộc Tier này theo tierId thực tế trong database
+      const appliedBranches = (enhancedBranches || branches || []).filter((b) => {
+        const bTierId = Number(b.tierId || b.tier?.id || b.tierObj?.id || b.matchedTier?.id || 0);
+        return bTierId > 0 && tId > 0 && bTierId === tId;
+      });
+
+      // Nếu có danh sách chi nhánh thì ưu tiên độ tươi mới từ branches, fallback theo t.branchCount từ database
+      const count = branches && branches.length > 0
+        ? appliedBranches.length
+        : Number(t.branchCount ?? t.branch_count ?? 0);
 
       return {
         ...t,
-        branch_count: usedCount,
-        branchCount: usedCount,
+        branch_count: count,
+        branchCount: count,
+        appliedBranches,
       };
     });
-  }, [tiers, branches]);
+  }, [tiers, branches, enhancedBranches]);
 
   // Handle Changing Tier & Headcount Quota of a Branch
   const handleUpdateTierAndQuota = async (storeId, newTier, quota, note = '') => {
