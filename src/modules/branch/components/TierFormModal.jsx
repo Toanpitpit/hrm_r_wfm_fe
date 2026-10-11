@@ -1,15 +1,30 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAdminTheme } from '@/shared/context/ThemeContext';
+import Modal from '@/shared/components/ui/Modal';
+import { Field as FormField } from '@/shared/components/ui/FormField';
+import Button from '@/shared/components/ui/Button';
 
 /**
+ * ==============================================================================
+ * COMPONENT: TierFormModal.jsx
  * Modal Thêm mới / Cập nhật Tier Phân cấp Chi nhánh
+ * ==============================================================================
  */
-export const TierFormModal = ({ isOpen, onClose, onSubmit, tier = null, isLoading = false }) => {
+export default function TierFormModal({
+  isOpen = false,
+  onClose,
+  onSubmit,
+  tier = null,
+  isLoading = false,
+}) {
+  const { c } = useAdminTheme();
+
   const [formData, setFormData] = useState({
-    tier_name: '',
-    min_staff_count: 0,
-    max_staff_count: '',
+    tierName: '',
+    minStaffCount: 0,
+    maxStaffCount: '',
     description: '',
-    other_conditions: '',
+    conditions: '',
     benefits: '',
   });
 
@@ -18,20 +33,25 @@ export const TierFormModal = ({ isOpen, onClose, onSubmit, tier = null, isLoadin
   useEffect(() => {
     if (tier) {
       setFormData({
-        tier_name: tier.tier_name || tier.tierName || '',
-        min_staff_count: tier.min_staff_count ?? tier.minStaffCount ?? 0,
-        max_staff_count: tier.max_staff_count !== null && tier.max_staff_count !== undefined ? tier.max_staff_count : (tier.maxStaffCount !== null && tier.maxStaffCount !== undefined ? tier.maxStaffCount : ''),
+        tierName: tier.tier_name || tier.tierName || '',
+        minStaffCount: tier.min_staff_count ?? tier.minStaffCount ?? 0,
+        maxStaffCount:
+          tier.max_staff_count !== null && tier.max_staff_count !== undefined
+            ? tier.max_staff_count
+            : tier.maxStaffCount !== null && tier.maxStaffCount !== undefined
+            ? tier.maxStaffCount
+            : '',
         description: tier.description || '',
-        other_conditions: tier.other_conditions || tier.otherConditions || '',
+        conditions: tier.conditions || tier.other_conditions || tier.otherConditions || '',
         benefits: tier.benefits || '',
       });
     } else {
       setFormData({
-        tier_name: '',
-        min_staff_count: 0,
-        max_staff_count: '',
+        tierName: '',
+        minStaffCount: 0,
+        maxStaffCount: '',
         description: '',
-        other_conditions: '',
+        conditions: '',
         benefits: '',
       });
     }
@@ -42,180 +62,241 @@ export const TierFormModal = ({ isOpen, onClose, onSubmit, tier = null, isLoadin
 
   const validate = () => {
     const err = {};
-    if (!formData.tier_name.trim()) err.tier_name = 'Tên Tier không được để trống';
-    if (formData.min_staff_count === '' || Number(formData.min_staff_count) < 0) {
-      err.min_staff_count = 'Số nhân sự tối thiểu phải từ 0 trở lên';
+    if (!formData.tierName.trim()) {
+      err.tierName = 'Tên phân cấp không được để trống';
     }
-    if (formData.max_staff_count !== '' && Number(formData.max_staff_count) < Number(formData.min_staff_count)) {
-      err.max_staff_count = 'Số nhân sự tối đa không được nhỏ hơn tối thiểu';
+    if (formData.minStaffCount === '' || Number(formData.minStaffCount) < 0) {
+      err.minStaffCount = 'Số nhân sự tối thiểu phải từ 0 trở lên';
+    }
+    if (
+      formData.maxStaffCount !== '' &&
+      formData.maxStaffCount !== null &&
+      Number(formData.maxStaffCount) < Number(formData.minStaffCount)
+    ) {
+      err.maxStaffCount = 'Số nhân sự tối đa không được nhỏ hơn số tối thiểu';
     }
     setErrors(err);
     return Object.keys(err).length === 0;
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!validate()) return;
 
     const payload = {
-      tier_name: formData.tier_name.trim(),
-      min_staff_count: Number(formData.min_staff_count),
-      max_staff_count: formData.max_staff_count !== '' ? Number(formData.max_staff_count) : null,
-      description: formData.description.trim(),
-      other_conditions: formData.other_conditions.trim(),
-      benefits: formData.benefits.trim(),
+      tierName: formData.tierName.trim(),
+      tier_name: formData.tierName.trim(),
+      minStaffCount: Number(formData.minStaffCount),
+      min_staff_count: Number(formData.minStaffCount),
+      maxStaffCount:
+        formData.maxStaffCount !== '' && formData.maxStaffCount !== null
+          ? Number(formData.maxStaffCount)
+          : null,
+      max_staff_count:
+        formData.maxStaffCount !== '' && formData.maxStaffCount !== null
+          ? Number(formData.maxStaffCount)
+          : null,
+      description: formData.description.trim() || null,
+      conditions: formData.conditions.trim() || null,
+      otherConditions: formData.conditions.trim() || null,
+      other_conditions: formData.conditions.trim() || null,
+      benefits: formData.benefits.trim() || null,
     };
 
     onSubmit(payload);
   };
 
+  const isEditing = Boolean(tier);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-[#111827] border border-slate-700/80 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 py-4 border-b border-slate-800 bg-[#162032]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">
-                {tier ? 'Cập Nhật Phân Cấp Tier' : 'Tạo Mới Phân Cấp Tier'}
-              </h2>
-              <p className="text-xs text-slate-400">
-                {tier ? `Chỉnh sửa thông số cho Tier ID #${tier.id || tier.tier_id}` : 'Định nghĩa tiêu chí quy mô và quyền lợi cho Tier mới'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title={isEditing ? 'Cập Nhật Phân Cấp (Tier)' : 'Tạo Mới Phân Cấp (Tier)'}
+      width="560px"
+    >
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Tên Tier */}
+        <FormField
+          label="Tên Phân Cấp (Tier Name)"
+          required
+          error={errors.tierName}
+          hint="Ví dụ: Tier 1 - Flagship, Tier 2 - Tiêu chuẩn, Tier 4 - Hub Kiosk"
+        >
+          <input
+            type="text"
+            placeholder="Nhập tên phân cấp..."
+            value={formData.tierName}
+            onChange={(e) => setFormData({ ...formData, tierName: e.target.value })}
+            style={{
+              width: '100%',
+              padding: '9px 12px',
+              borderRadius: '8px',
+              border: `1px solid ${errors.tierName ? '#ef4444' : c.border}`,
+              backgroundColor: c.bgCard,
+              color: c.fg,
+              fontSize: '14px',
+              outline: 'none',
+            }}
+          />
+        </FormField>
+
+        {/* Khoảng nhân sự Min - Max */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <FormField
+            label="Nhân Sự Tối Thiểu (Min)"
+            required
+            error={errors.minStaffCount}
+            hint="Quy mô nhân sự tối thiểu"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+            <input
+              type="number"
+              min="0"
+              placeholder="0"
+              value={formData.minStaffCount}
+              onChange={(e) => setFormData({ ...formData, minStaffCount: e.target.value })}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                border: `1px solid ${errors.minStaffCount ? '#ef4444' : c.border}`,
+                backgroundColor: c.bgCard,
+                color: c.fg,
+                fontSize: '14px',
+                fontFamily: 'monospace',
+                fontWeight: 600,
+                outline: 'none',
+              }}
+            />
+          </FormField>
+
+          <FormField
+            label="Nhân Sự Tối Đa (Max)"
+            error={errors.maxStaffCount}
+            hint="Để trống nếu không giới hạn"
+          >
+            <input
+              type="number"
+              min="0"
+              placeholder="Không giới hạn"
+              value={formData.maxStaffCount}
+              onChange={(e) => setFormData({ ...formData, maxStaffCount: e.target.value })}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                border: `1px solid ${errors.maxStaffCount ? '#ef4444' : c.border}`,
+                backgroundColor: c.bgCard,
+                color: c.fg,
+                fontSize: '14px',
+                fontFamily: 'monospace',
+                fontWeight: 600,
+                outline: 'none',
+              }}
+            />
+          </FormField>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 text-sm text-slate-200">
-          {/* Tên Tier */}
-          <div>
-            <label className="block font-medium text-slate-300 mb-1">
-              Tên Phân Cấp (Tier Name) <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="VD: Tier 1 - Flagship, Tier 2 - Tiêu chuẩn..."
-              value={formData.tier_name}
-              onChange={(e) => setFormData({ ...formData, tier_name: e.target.value })}
-              className={`w-full px-3.5 py-2.5 bg-[#0f172a] border ${errors.tier_name ? 'border-rose-500' : 'border-slate-700'} rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition`}
-            />
-            {errors.tier_name && <p className="text-xs text-rose-400 mt-1">{errors.tier_name}</p>}
-          </div>
+        {/* Mô tả tổng quan */}
+        <FormField
+          label="Mô Tả Tổng Quan"
+          hint="Mô tả vị trí, lưu lượng khách hoặc đặc thù mô hình"
+        >
+          <textarea
+            rows={2}
+            placeholder="VD: Cửa hàng quy mô lớn tại các trục đường trung tâm hoặc TTTM..."
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            style={{
+              width: '100%',
+              padding: '9px 12px',
+              borderRadius: '8px',
+              border: `1px solid ${c.border}`,
+              backgroundColor: c.bgCard,
+              color: c.fg,
+              fontSize: '13px',
+              outline: 'none',
+              resize: 'vertical',
+            }}
+          />
+        </FormField>
 
-          {/* Khoảng nhân sự */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-medium text-slate-300 mb-1">
-                Số nhân sự tối thiểu (Min) <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="number"
-                min="0"
-                placeholder="0"
-                value={formData.min_staff_count}
-                onChange={(e) => setFormData({ ...formData, min_staff_count: e.target.value })}
-                className={`w-full px-3.5 py-2.5 bg-[#0f172a] border ${errors.min_staff_count ? 'border-rose-500' : 'border-slate-700'} rounded-xl text-white focus:outline-none focus:border-emerald-500 transition`}
-              />
-              {errors.min_staff_count && <p className="text-xs text-rose-400 mt-1">{errors.min_staff_count}</p>}
-            </div>
+        {/* Điều kiện & Tiêu chí */}
+        <FormField
+          label="Tiêu Chuẩn & Điều Kiện"
+          hint="Doanh thu mục tiêu, diện tích mặt sàn, tiêu chuẩn mặt bằng..."
+        >
+          <textarea
+            rows={2}
+            placeholder="VD: Diện tích sàn > 250m², doanh thu > 500tr/tháng..."
+            value={formData.conditions}
+            onChange={(e) => setFormData({ ...formData, conditions: e.target.value })}
+            style={{
+              width: '100%',
+              padding: '9px 12px',
+              borderRadius: '8px',
+              border: `1px solid ${c.border}`,
+              backgroundColor: c.bgCard,
+              color: c.fg,
+              fontSize: '13px',
+              outline: 'none',
+              resize: 'vertical',
+            }}
+          />
+        </FormField>
 
-            <div>
-              <label className="block font-medium text-slate-300 mb-1">
-                Số nhân sự tối đa (Max)
-              </label>
-              <input
-                type="number"
-                min="0"
-                placeholder="Để trống nếu không giới hạn"
-                value={formData.max_staff_count}
-                onChange={(e) => setFormData({ ...formData, max_staff_count: e.target.value })}
-                className={`w-full px-3.5 py-2.5 bg-[#0f172a] border ${errors.max_staff_count ? 'border-rose-500' : 'border-slate-700'} rounded-xl text-white focus:outline-none focus:border-emerald-500 transition`}
-              />
-              {errors.max_staff_count && <p className="text-xs text-rose-400 mt-1">{errors.max_staff_count}</p>}
-            </div>
-          </div>
+        {/* Quyền lợi & Chính sách */}
+        <FormField
+          label="Quyền Lợi & Đặc Quyền Vận Hành"
+          hint="Hạn mức trạm Kiosk, ưu tiên điều động, ngân sách OT..."
+        >
+          <textarea
+            rows={2}
+            placeholder="VD: Cấp 2-4 máy Kiosk iPad, ưu tiên điều động nhân sự cao điểm..."
+            value={formData.benefits}
+            onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
+            style={{
+              width: '100%',
+              padding: '9px 12px',
+              borderRadius: '8px',
+              border: `1px solid ${c.border}`,
+              backgroundColor: c.bgCard,
+              color: c.fg,
+              fontSize: '13px',
+              outline: 'none',
+              resize: 'vertical',
+            }}
+          />
+        </FormField>
 
-          {/* Mô tả tổng quan */}
-          <div>
-            <label className="block font-medium text-slate-300 mb-1">Mô tả tổng quan</label>
-            <textarea
-              rows="2"
-              placeholder="VD: Chi nhánh quy mô lớn tại các trục đường trung tâm..."
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3.5 py-2.5 bg-[#0f172a] border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition resize-none"
-            />
-          </div>
-
-          {/* Tiêu chí mở rộng */}
-          <div>
-            <label className="block font-medium text-slate-300 mb-1">
-              Tiêu chí khác (Doanh thu, Diện tích, KPI...)
-            </label>
-            <textarea
-              rows="2"
-              placeholder="• Doanh thu ≥ 1 tỷ/tháng&#10;• Diện tích ≥ 350m²"
-              value={formData.other_conditions}
-              onChange={(e) => setFormData({ ...formData, other_conditions: e.target.value })}
-              className="w-full px-3.5 py-2.5 bg-[#0f172a] border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition resize-none font-mono text-xs"
-            />
-          </div>
-
-          {/* Quyền lợi / Chính sách đi kèm */}
-          <div>
-            <label className="block font-medium text-slate-300 mb-1">
-              Quyền lợi & Chính sách phân bổ đi kèm
-            </label>
-            <textarea
-              rows="3"
-              placeholder="• Cấp phát tối đa 6 máy Kiosk&#10;• Ưu tiên điều động nhân sự cấp cao&#10;• Ngân sách đào tạo & marketing riêng"
-              value={formData.benefits}
-              onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
-              className="w-full px-3.5 py-2.5 bg-[#0f172a] border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition resize-none font-mono text-xs"
-            />
-          </div>
-
-          {/* Footer buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-medium transition"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold shadow-lg shadow-emerald-500/20 transition flex items-center gap-2"
-            >
-              {isLoading && (
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              )}
-              {tier ? 'Lưu Thay Đổi' : 'Tạo Mới Tier'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {/* Footer nút bấm */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '10px',
+            marginTop: '8px',
+          }}
+        >
+          <Button
+            variant="outline"
+            type="button"
+            onClick={onClose}
+            disabled={isLoading}
+          >
+            Hủy Bỏ
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleSubmit}
+            loading={isLoading}
+          >
+            {isEditing ? 'Lưu Thay Đổi' : 'Tạo Mới Phân Cấp'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
-};
+}
 
-export default TierFormModal;
+export { TierFormModal };

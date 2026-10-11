@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import DashboardShell from '@/shared/components/layout/DashboardShell';
@@ -11,7 +11,6 @@ import StatCard from '@/shared/components/ui/StatCard';
 import Panel from '@/shared/components/ui/Panel';
 import Button from '@/shared/components/ui/Button';
 import SearchInput from '@/shared/components/ui/SearchInput';
-import Select from '@/shared/components/ui/Select';
 import Badge from '@/shared/components/ui/Badge';
 import Icon from '@/shared/components/ui/Icon';
 import DataTable from '@/shared/components/ui/DataTable';
@@ -19,6 +18,39 @@ import DataTable from '@/shared/components/ui/DataTable';
 // Hook & Subcomponents
 import { useBranchTier } from '../../hooks/useBranchTier';
 import ChangeTierModal from '../../components/ChangeTierModal';
+import BranchDeleteModal from '../../components/BranchDeleteModal';
+import { TierTable } from '../../components/TierTable';
+import { TierFormModal } from '../../components/TierFormModal';
+import { TierDeleteModal } from '../../components/TierDeleteModal';
+
+const TIER_COLOR_PALETTE = [
+  { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.35)' },
+  { color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.35)' },
+  { color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.35)' },
+  { color: '#a855f7', bg: 'rgba(168, 85, 247, 0.15)', border: 'rgba(168, 85, 247, 0.35)' },
+  { color: '#ec4899', bg: 'rgba(236, 72, 153, 0.15)', border: 'rgba(236, 72, 153, 0.35)' },
+  { color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.15)', border: 'rgba(6, 182, 212, 0.35)' },
+];
+
+const getTierStyle = (tierObj, index = 0) => {
+  const tName = (tierObj?.tierName || tierObj?.name || '').toLowerCase();
+  if (tName.includes('flagship') || tName.includes('cấp 1') || tName.includes('tier 1')) {
+    return TIER_COLOR_PALETTE[0];
+  }
+  if (tName.includes('tiêu chuẩn') || tName.includes('cấp 2') || tName.includes('tier 2')) {
+    return TIER_COLOR_PALETTE[1];
+  }
+  if (tName.includes('mini') || tName.includes('cấp 3') || tName.includes('tier 3')) {
+    return TIER_COLOR_PALETTE[2];
+  }
+  if (tName.includes('tier 4') || tName.includes('cấp 4')) {
+    return TIER_COLOR_PALETTE[3];
+  }
+  if (tName.includes('tier 5') || tName.includes('cấp 5')) {
+    return TIER_COLOR_PALETTE[4];
+  }
+  return TIER_COLOR_PALETTE[index % TIER_COLOR_PALETTE.length];
+};
 
 /**
  * ==============================================================================
@@ -26,6 +58,7 @@ import ChangeTierModal from '../../components/ChangeTierModal';
  * ACTOR: Operations Admin / Business Owner
  * ROUTE: /branch-tiers
  * ==============================================================================
+ * Cung cấp đầy đủ Thêm - Sửa - Xóa cho cả Chi Nhánh Phân Cấp & Danh Mục Tier.
  */
 export default function BranchTierManagementPage() {
   const navigate = useNavigate();
@@ -34,21 +67,52 @@ export default function BranchTierManagementPage() {
   const {
     branches,
     rawBranches,
+    tiers,
     tierSummary,
     tierDefinitions,
     loading,
+    tiersLoading,
+    activeTab,
+    setActiveTab,
     searchTerm,
     setSearchTerm,
     selectedTierFilter,
     setSelectedTierFilter,
     statusFilter,
     setStatusFilter,
+    // Change Tier Modal
     changeTierModalOpen,
     setChangeTierModalOpen,
     selectedBranch,
     setSelectedBranch,
     updating,
+    // Branch CRUD
+    branchFormModalOpen,
+    setBranchFormModalOpen,
+    editingBranch,
+    setEditingBranch,
+    branchDeleteModalOpen,
+    setBranchDeleteModalOpen,
+    deletingBranch,
+    setDeletingBranch,
+    // Tier CRUD
+    tierFormModalOpen,
+    setTierFormModalOpen,
+    editingTier,
+    setEditingTier,
+    tierDeleteModalOpen,
+    setTierDeleteModalOpen,
+    deletingTier,
+    setDeletingTier,
+    tierActionLoading,
+    // Handlers
     handleUpdateTierAndQuota,
+    handleCreateBranch,
+    handleUpdateBranch,
+    handleDeleteBranch,
+    handleCreateTier,
+    handleUpdateTierDefinition,
+    handleDeleteTier,
   } = useBranchTier();
 
   const totalBranches = tierSummary.totalCount || rawBranches.length || 1;
@@ -89,10 +153,21 @@ export default function BranchTierManagementPage() {
     {
       key: 'branchTier',
       label: 'PHÂN CẤP (TIER)',
-      width: '150px',
+      width: '160px',
       render: (row) => {
-        const tier = Number(row.branchTier ?? row.tier ?? 2);
-        const tDef = tierDefinitions.find((td) => td.tier === tier) || tierDefinitions[1];
+        const matchedTier =
+          row.matchedTier ||
+          (tiers || []).find((t) => Number(t.id || t.tier_id) === Number(row.tierId || row.tier?.id)) ||
+          row.tierObj ||
+          row.tier;
+
+        const displayName =
+          matchedTier?.tierName ||
+          matchedTier?.name ||
+          row.branchTierName ||
+          (row.branchTier ? `Cấp ${row.branchTier}` : 'Chưa phân cấp');
+
+        const style = getTierStyle(matchedTier);
 
         return (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -105,9 +180,9 @@ export default function BranchTierManagementPage() {
                 borderRadius: '6px',
                 fontSize: '12px',
                 fontWeight: 700,
-                backgroundColor: tDef.badgeBg,
-                border: `1px solid ${tDef.badgeBorder}`,
-                color: tDef.color,
+                backgroundColor: style.bg,
+                border: `1px solid ${style.border}`,
+                color: style.color,
                 letterSpacing: '0.3px',
               }}
             >
@@ -116,10 +191,10 @@ export default function BranchTierManagementPage() {
                   width: '6px',
                   height: '6px',
                   borderRadius: '50%',
-                  backgroundColor: tDef.color,
+                  backgroundColor: style.color,
                 }}
               />
-              {tDef.shortName}
+              {displayName}
             </span>
           </div>
         );
@@ -160,16 +235,23 @@ export default function BranchTierManagementPage() {
       label: 'QUÂN SỐ & ĐỊNH BIÊN NHÂN SỰ',
       width: '240px',
       render: (row) => {
-        const tier = Number(row.branchTier ?? row.tier ?? 2);
-        const tDef = tierDefinitions.find((td) => td.tier === tier) || tierDefinitions[1];
-        const quota = Number(row.customQuota || row.targetStaffCount || tDef.standardQuota);
+        const matchedTier =
+          row.matchedTier ||
+          (tiers || []).find((t) => Number(t.id || t.tier_id) === Number(row.tierId || row.tier?.id)) ||
+          row.tierObj ||
+          row.tier;
+
+        const style = getTierStyle(matchedTier);
+        const quota = Number(row.customQuota || row.staffCount || row.targetStaffCount || matchedTier?.maxStaffCount || 20);
         const currentStaff = Number(row.currentStaffCount || 0);
         const fillPercent = Math.min(100, Math.round((currentStaff / quota) * 100));
         const isOver = currentStaff > quota;
 
+        const minStaff = matchedTier?.minStaffCount ?? matchedTier?.minStaff ?? 0;
+        const maxStaff = matchedTier?.maxStaffCount ?? matchedTier?.maxStaff ?? 0;
+
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {/* Quota badge & staff count */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span
                 style={{
@@ -178,7 +260,7 @@ export default function BranchTierManagementPage() {
                   padding: '2px 8px',
                   fontSize: '12.5px',
                   fontWeight: 800,
-                  color: tDef.color,
+                  color: style.color,
                   backgroundColor: c.bgRaised,
                   border: `1px solid ${c.border}`,
                   borderRadius: '6px',
@@ -193,7 +275,6 @@ export default function BranchTierManagementPage() {
               </span>
             </div>
 
-            {/* Mini Progress bar */}
             <div
               style={{
                 width: '100%',
@@ -207,7 +288,7 @@ export default function BranchTierManagementPage() {
                 style={{
                   height: '100%',
                   width: `${fillPercent}%`,
-                  backgroundColor: isOver ? '#ef4444' : tDef.color,
+                  backgroundColor: isOver ? '#ef4444' : style.color,
                   borderRadius: '2px',
                   transition: 'width 0.3s ease',
                 }}
@@ -215,7 +296,12 @@ export default function BranchTierManagementPage() {
             </div>
 
             <div style={{ fontSize: '11px', color: c.fgFaint }}>
-              Chuẩn Tier: {tDef.minStaff}-{tDef.maxStaff} nv • {row.availableSlots > 0 ? `Còn trống ${row.availableSlots} slot` : isOver ? `Vượt ${currentStaff - quota} nv` : 'Đã đủ định biên'}
+              {maxStaff > 0 ? `Chuẩn Tier: ${minStaff}-${maxStaff} nv • ` : ''}
+              {row.availableSlots > 0
+                ? `Còn trống ${row.availableSlots} slot`
+                : isOver
+                  ? `Vượt ${currentStaff - quota} nv`
+                  : 'Đã đủ định biên'}
             </div>
           </div>
         );
@@ -261,21 +347,51 @@ export default function BranchTierManagementPage() {
     {
       key: 'actions',
       label: 'THAO TÁC',
-      width: '160px',
-      render: (row) => (
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            setSelectedBranch(row);
-            setChangeTierModalOpen(true);
-          }}
-          title="Chỉnh sửa phân cấp chi nhánh"
-        >
-          <Icon name="settings" size={13} />
-          <span>Đổi Phân Cấp</span>
-        </Button>
-      ),
+      width: '210px',
+      render: (row) => {
+        const staffCount = Number(row.currentStaffCount || 0);
+        const hasStaff = staffCount > 0;
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setSelectedBranch(row);
+                setChangeTierModalOpen(true);
+              }}
+              title="Chỉnh sửa phân cấp chi nhánh"
+            >
+              <Icon name="settings" size={13} />
+              <span>Đổi Phân Cấp</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={hasStaff}
+              onClick={() => {
+                setDeletingBranch(row);
+                setBranchDeleteModalOpen(true);
+              }}
+              title={
+                hasStaff
+                  ? `Chi nhánh đang có ${staffCount} nhân sự trực thuộc. Không thể xóa.`
+                  : 'Xóa chi nhánh này'
+              }
+              style={{
+                color: hasStaff ? '#64748b' : '#ef4444',
+                borderColor: hasStaff ? 'rgba(100, 116, 139, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+                cursor: hasStaff ? 'not-allowed' : 'pointer',
+                opacity: hasStaff ? 0.5 : 1,
+              }}
+            >
+              <Icon name="trash" size={13} color={hasStaff ? '#64748b' : '#ef4444'} />
+              <span>Xóa</span>
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -301,300 +417,295 @@ export default function BranchTierManagementPage() {
         />
       }
     >
-      {/* Tiêu đề trang & Nút tải lại */}
+      {/* Tiêu đề trang & Nút Thêm Mới */}
       <PageHeader
         title="Quản Lý Phân Cấp Chi Nhánh"
-        subtitle="Chuẩn hóa mô hình quy mô cửa hàng (Tier 1 Flagship, Tier 2 Tiêu Chuẩn, Tier 3 Mini), định biên nhân sự và cấu hình thiết bị trạm Kiosk."
         actions={
-          <Button variant="primary" onClick={() => navigate('/branches')}>
-            <Icon name="pin" size={14} />
-            <span>Quản Lý Chi Nhánh & Kiosk</span>
-          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditingTier(null);
+                setTierFormModalOpen(true);
+              }}
+            >
+              <Icon name="plus" size={14} />
+              <span>Thêm Cấp (Tier) Mới</span>
+            </Button>
+
+            <Button variant="outline" onClick={() => navigate('/branches')}>
+              <Icon name="pin" size={14} />
+              <span>Quản Lý Chi Nhánh & Kiosk</span>
+            </Button>
+          </div>
         }
       />
 
-      {/* 4 Thẻ Thống Kê Tổng Quan lấy từ Backend */}
+      {/* Thẻ Thống Kê Tổng Quan Lấy Động Từ Database */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
           gap: '16px',
-          marginBottom: '24px',
+          marginBottom: '20px',
         }}
       >
         <StatCard
           label="TỔNG SỐ CHI NHÁNH"
-          value={loading ? '...' : tierSummary.totalCount || rawBranches.length}
+          value={loading ? '...' : `${rawBranches.length} Chi nhánh`}
           sub="Toàn hệ thống chuỗi"
           icon="store"
         />
-        <StatCard
-          label="CẤP 1 - FLAGSHIP"
-          value={loading ? '...' : `${tierSummary.tier1Count || 0} CN`}
-          sub={`Chiếm ${t1Percent}% • Quota 20-35 nv`}
-          icon="award"
-          color="#f59e0b"
-        />
-        <StatCard
-          label="CẤP 2 - TIÊU CHUẨN"
-          value={loading ? '...' : `${tierSummary.tier2Count || 0} CN`}
-          sub={`Chiếm ${t2Percent}% • Quota 10-19 nv`}
-          icon="layers"
-          color="#3b82f6"
-        />
-        <StatCard
-          label="CẤP 3 - MINI STORE"
-          value={loading ? '...' : `${tierSummary.tier3Count || 0} CN`}
-          sub={`Chiếm ${t3Percent}% • Quota 4-9 nv`}
-          icon="pin"
-          color="#10b981"
-        />
+        {tiers && tiers.length > 0 ? (
+          tiers.map((t, idx) => {
+            const style = getTierStyle(t, idx);
+            const count = t.branchCount || t.branch_count || 0;
+            const percent = rawBranches.length > 0 ? Math.round((count / rawBranches.length) * 100) : 0;
+            const tName = (t.tierName || t.name || `Cấp ${t.id}`).toUpperCase();
+            const minS = t.minStaffCount ?? t.minStaff ?? 0;
+            const maxS = t.maxStaffCount ?? t.maxStaff ?? 0;
+            return (
+              <StatCard
+                key={t.id || t.tier_id || idx}
+                label={tName}
+                value={loading ? '...' : `${count} CN`}
+                sub={`Chiếm ${percent}% • Chuẩn ${minS}-${maxS} nv`}
+                icon={idx === 0 ? 'award' : idx === 1 ? 'layers' : 'pin'}
+                color={style.color}
+              />
+            );
+          })
+        ) : (
+          <StatCard
+            label="PHÂN CẤP CHI NHÁNH"
+            value={`${tiers.length} Cấp`}
+            sub="Đang cấu hình trong hệ thống"
+            icon="layers"
+          />
+        )}
       </div>
 
-      {/* 3 Thẻ Tiêu Chuẩn & Chính Sách Phân Cấp Chi Nhánh */}
-      <div style={{ marginBottom: '24px' }}>
-        <h3
+      {/* Tabs chuyển đổi giữa 2 chế độ: "Danh sách Chi nhánh phân cấp" vs "Cấu hình Danh mục Tier" */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          marginBottom: '16px',
+          borderBottom: `1px solid ${c.border}`,
+          paddingBottom: '8px',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setActiveTab('branches')}
           style={{
-            fontSize: '16px',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontSize: '13px',
             fontWeight: 700,
-            color: c.fg,
-            margin: '0 0 14px 0',
-            fontFamily: fonts?.heading || 'inherit',
+            cursor: 'pointer',
+            border: 'none',
+            backgroundColor: activeTab === 'branches' ? c.accent : 'transparent',
+            color: activeTab === 'branches' ? '#000' : c.fgSubtle,
+            transition: 'all 0.15s ease',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
           }}
         >
-          <Icon name="layers" size={18} color={c.accent} />
-          <span>Tiêu Chuẩn & Đặc Quyền Vận Hành Theo Từng Phân Cấp</span>
-        </h3>
+          <Icon name="store" size={14} />
+          <span>Danh Sách Chi Nhánh Theo Cấp ({branches.length})</span>
+        </button>
 
-        <div
+        <button
+          type="button"
+          onClick={() => setActiveTab('tiers')}
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '16px',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            border: 'none',
+            backgroundColor: activeTab === 'tiers' ? '#a855f7' : 'transparent',
+            color: activeTab === 'tiers' ? '#fff' : c.fgSubtle,
+            transition: 'all 0.15s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
           }}
         >
-          {tierDefinitions.map((td) => {
-            const count =
-              td.tier === 1
-                ? tierSummary.tier1Count
-                : td.tier === 2
-                  ? tierSummary.tier2Count
-                  : tierSummary.tier3Count;
-            const percent = totalBranches > 0 ? Math.round(((count || 0) / totalBranches) * 100) : 0;
-            const isFilterActive = selectedTierFilter === td.tier;
-
-            return (
-              <div
-                key={td.tier}
-                style={{
-                  backgroundColor: c.bgCard,
-                  border: `1px solid ${isFilterActive ? td.color : c.border}`,
-                  borderRadius: '14px',
-                  padding: '20px',
-                  boxShadow: isFilterActive ? td.accentGlow : '0 2px 10px rgba(0,0,0,0.04)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <div>
-                  {/* Top Tier Badge & Ratio */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginBottom: '12px',
-                    }}
-                  >
-                    <span
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        backgroundColor: td.badgeBg,
-                        border: `1px solid ${td.badgeBorder}`,
-                        color: td.color,
-                      }}
-                    >
-                      {td.tierName}
-                    </span>
-
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: td.color }}>
-                      {count} CN ({percent}%)
-                    </span>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div
-                    style={{
-                      height: '6px',
-                      borderRadius: '3px',
-                      backgroundColor: c.bgRaised,
-                      overflow: 'hidden',
-                      marginBottom: '16px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: '100%',
-                        width: `${percent}%`,
-                        backgroundColor: td.color,
-                        borderRadius: '3px',
-                        transition: 'width 0.4s ease',
-                      }}
-                    />
-                  </div>
-
-                  {/* Description */}
-                  <p style={{ margin: '0 0 14px', fontSize: '13px', color: c.fgSubtle, lineHeight: 1.5 }}>
-                    {td.description}
-                  </p>
-
-                  {/* Criteria specs */}
-                  <div
-                    style={{
-                      padding: '12px',
-                      borderRadius: '8px',
-                      backgroundColor: c.bgRaised,
-                      border: `1px solid ${c.border}`,
-                      fontSize: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '6px',
-                      marginBottom: '14px',
-                    }}
-                  >
-                    <div>
-                      🎯 <strong>Điều kiện:</strong> {td.conditions}
-                    </div>
-                    <div>
-                      🎁 <strong>Quyền lợi:</strong> {td.benefits}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Filter shortcut button */}
-                <Button
-                  variant={isFilterActive ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => {
-                    if (isFilterActive) {
-                      setSelectedTierFilter('ALL');
-                    } else {
-                      setSelectedTierFilter(td.tier);
-                    }
-                  }}
-                  style={{ width: '100%', justifyContent: 'center' }}
-                >
-                  <Icon name={isFilterActive ? 'check' : 'search'} size={13} />
-                  <span>{isFilterActive ? 'Đang lọc cấp này (Bấm để hủy)' : `Xem ${count} chi nhánh ${td.shortName}`}</span>
-                </Button>
-              </div>
-            );
-          })}
-        </div>
+          <Icon name="layers" size={14} />
+          <span>Cấu Hình & Tiêu Chuẩn Phân Cấp ({tiers.length || tierDefinitions.length} Cấp)</span>
+        </button>
       </div>
 
-      {/* Danh Sách Chi Nhánh Theo Phân Cấp */}
-      <Panel title="Danh Sách Phân Cấp Chi Nhánh Toàn Hệ Thống">
-        {/* Bộ Lọc & Tìm Kiếm */}
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            marginBottom: '16px',
-          }}
-        >
-          <div style={{ flex: '1', minWidth: '280px', maxWidth: '420px' }}>
-            <SearchInput
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder="Tìm theo mã CN, tên chi nhánh, địa chỉ..."
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            {/* Quick Tier Filter Tabs */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Button
-                variant={selectedTierFilter === 'ALL' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => setSelectedTierFilter('ALL')}
-              >
-                Tất cả ({tierSummary.totalCount || rawBranches.length})
-              </Button>
-              <Button
-                variant={selectedTierFilter === 1 ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setSelectedTierFilter(1)}
-                style={{ color: selectedTierFilter === 1 ? '#f59e0b' : undefined }}
-              >
-                Cấp 1 ({tierSummary.tier1Count || 0})
-              </Button>
-              <Button
-                variant={selectedTierFilter === 2 ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setSelectedTierFilter(2)}
-                style={{ color: selectedTierFilter === 2 ? '#3b82f6' : undefined }}
-              >
-                Cấp 2 ({tierSummary.tier2Count || 0})
-              </Button>
-              <Button
-                variant={selectedTierFilter === 3 ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setSelectedTierFilter(3)}
-                style={{ color: selectedTierFilter === 3 ? '#10b981' : undefined }}
-              >
-                Cấp 3 ({tierSummary.tier3Count || 0})
-              </Button>
-            </div>
-
-            {/* Status Filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '13px', color: c.fgSubtle }}>Trạng thái:</span>
-              <Select
-                value={statusFilter}
-                onChange={setStatusFilter}
-                options={[
-                  { value: 'ALL', label: 'Tất cả trạng thái' },
-                  { value: 'ACTIVE', label: 'Đang hoạt động' },
-                  { value: 'LOCKED', label: 'Tạm khóa' },
-                ]}
+      {/* ============================================================================== */}
+      {/* TAB 1: DANH SÁCH CHI NHÁNH THEO PHÂN CẤP                                       */}
+      {/* ============================================================================== */}
+      {activeTab === 'branches' ? (
+        <Panel title="Danh Sách Phân Cấp Chi Nhánh Toàn Hệ Thống">
+          {/* Bộ Lọc & Tìm Kiếm */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              marginBottom: '16px',
+            }}
+          >
+            <div style={{ flex: '1', minWidth: '280px', maxWidth: '420px' }}>
+              <SearchInput
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="Tìm theo mã CN, tên chi nhánh, địa chỉ..."
               />
             </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {/* Quick Tier Filter Tabs Lấy Động Từ Database */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <Button
+                  variant={selectedTierFilter === 'ALL' ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSelectedTierFilter('ALL')}
+                >
+                  Tất cả ({rawBranches.length})
+                </Button>
+                {tiers.map((t, idx) => {
+                  const style = getTierStyle(t, idx);
+                  const isSelected = selectedTierFilter === t.id || selectedTierFilter === t.tier_id;
+                  const tName = t.tierName || t.name || `Cấp ${t.id}`;
+                  const count = t.branchCount || t.branch_count || 0;
+                  return (
+                    <Button
+                      key={t.id || t.tier_id || idx}
+                      variant={isSelected ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setSelectedTierFilter(isSelected ? 'ALL' : (t.id || t.tier_id))}
+                      style={{
+                        color: isSelected ? style.color : undefined,
+                        border: isSelected ? `1px solid ${style.border}` : undefined,
+                        backgroundColor: isSelected ? style.bg : undefined,
+                      }}
+                    >
+                      {tName} ({count})
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* DataTable */}
-        <DataTable
-          columns={columns}
-          data={branches}
-          loading={loading}
-          pageSize={10}
-          pageSizeOptions={[5, 10, 20, 50]}
-          emptyMessage="Không tìm thấy chi nhánh nào phù hợp với bộ lọc phân cấp."
-        />
-      </Panel>
+          {/* Bảng Dữ Liệu Chi Nhánh */}
+          <DataTable
+            columns={columns}
+            data={branches}
+            loading={loading}
+            emptyMessage="Không tìm thấy chi nhánh nào phù hợp với bộ lọc."
+          />
+        </Panel>
+      ) : (
+        /* ============================================================================== */
+        /* TAB 2: QUẢN LÝ TIÊU CHUẨN & DANH MỤC TIER                                      */
+        /* ============================================================================== */
+        <Panel
+          title="Quản Lý Danh Mục Phân Cấp (Tier Definitions)"
+          action={
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setEditingTier(null);
+                setTierFormModalOpen(true);
+              }}
+            >
+              <Icon name="plus" size={13} />
+              <span></span>
+            </Button>
+          }
+        >
+          <div style={{ marginBottom: '16px', fontSize: '13px', color: c.fgSubtle }}>
+            Thiết lập tiêu chuẩn quân số nhân sự tối thiểu - tối đa, điều kiện cơ sở hạ tầng và quyền lợi vận hành theo từng cấp chi nhánh trong hệ thống.
+          </div>
 
-      {/* Modal Cập Nhật Phân Cấp */}
+          <TierTable
+            tiers={tiers}
+            isLoading={tiersLoading}
+            onEdit={(tier) => {
+              setEditingTier(tier);
+              setTierFormModalOpen(true);
+            }}
+            onDelete={(tier) => {
+              setDeletingTier(tier);
+              setTierDeleteModalOpen(true);
+            }}
+          />
+        </Panel>
+      )}
+
+      {/* ============================================================================== */}
+      {/* CÁC MODAL HỆ THỐNG                                                             */}
+      {/* ============================================================================== */}
+
+      {/* 1. Modal Đổi Phân Cấp & Định Biên */}
       <ChangeTierModal
         isOpen={changeTierModalOpen}
+        open={changeTierModalOpen}
         branch={selectedBranch}
+        tiers={tiers}
+        tierDefinitions={tierDefinitions}
+        loading={updating}
         onClose={() => {
           setChangeTierModalOpen(false);
           setSelectedBranch(null);
         }}
         onSubmit={handleUpdateTierAndQuota}
-        loading={updating}
+        onConfirm={handleUpdateTierAndQuota}
+      />
+
+      {/* 2. Modal Thêm / Chỉnh Sửa Phân Cấp Tier */}
+      <TierFormModal
+        isOpen={tierFormModalOpen}
+        tier={editingTier}
+        isLoading={tierActionLoading}
+        onClose={() => {
+          setTierFormModalOpen(false);
+          setEditingTier(null);
+        }}
+        onSubmit={async (payload) => {
+          if (editingTier) {
+            return await handleUpdateTierDefinition(editingTier.id || editingTier.tier_id, payload);
+          } else {
+            return await handleCreateTier(payload);
+          }
+        }}
+      />
+
+      {/* 5. Modal Xác Nhận Xóa Phân Cấp Tier */}
+      <TierDeleteModal
+        isOpen={tierDeleteModalOpen}
+        tier={deletingTier}
+        isLoading={tierActionLoading}
+        onClose={() => {
+          setTierDeleteModalOpen(false);
+          setDeletingTier(null);
+        }}
+        onConfirm={handleDeleteTier}
+      />
+
+      {/* 6. Modal Xác Nhận Xóa Chi Nhánh */}
+      <BranchDeleteModal
+        open={branchDeleteModalOpen}
+        branch={deletingBranch}
+        onClose={() => {
+          setBranchDeleteModalOpen(false);
+          setDeletingBranch(null);
+        }}
+        onConfirm={handleDeleteBranch}
       />
     </DashboardShell>
   );

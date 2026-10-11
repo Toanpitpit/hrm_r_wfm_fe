@@ -1,47 +1,152 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
-import { TIER_DEFINITIONS } from '../services/tier.service';
+import tierService, { TIER_DEFINITIONS } from '../services/tier.service';
 
 export default function ChangeTierModal({
   isOpen,
+  open,
   branch,
+  tiers = null,
+  tierDefinitions = null,
   onClose,
   onSubmit,
+  onConfirm,
   loading = false,
 }) {
   const { c, fonts } = useAdminTheme();
 
-  const currentTierVal = Number(branch?.branchTier ?? branch?.tier ?? 2);
-  const [selectedTier, setSelectedTier] = useState(currentTierVal);
+  const isModalOpen = isOpen ?? open ?? false;
+  const [dbTiers, setDbTiers] = useState([]);
+  const [selectedTier, setSelectedTier] = useState(null);
   const [note, setNote] = useState('');
   const [validationError, setValidationError] = useState('');
 
-  const currentStaffCount = Number(branch?.currentStaffCount ?? 15);
+  const currentStaffCount = Number(branch?.currentStaffCount ?? 0);
+
+  // Lấy dữ liệu Tier trực tiếp từ database nếu chưa có từ props
+  useEffect(() => {
+    let isMounted = true;
+    tierService.getAllTiers()
+      .then((data) => {
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          setDbTiers(data);
+        }
+      })
+      .catch((err) => console.warn('[ChangeTierModal] Load tiers from DB error:', err));
+    return () => { isMounted = false; };
+  }, [isModalOpen]);
+
+  // Chuẩn hóa danh sách Tier lấy từ Database
+  const activeTiers = useMemo(() => {
+    const rawList = (Array.isArray(tiers) && tiers.length > 0)
+      ? tiers
+      : (dbTiers.length > 0 ? dbTiers : (Array.isArray(tierDefinitions) && tierDefinitions.length > 0 ? tierDefinitions : TIER_DEFINITIONS));
+
+    // Sắp xếp theo minStaffCount hoặc id
+    const sorted = [...rawList].sort((a, b) => {
+      const aMin = Number(a.minStaffCount ?? a.min_staff_count ?? a.minStaff ?? 0);
+      const bMin = Number(b.minStaffCount ?? b.min_staff_count ?? b.minStaff ?? 0);
+      return aMin - bMin;
+    });
+
+    return sorted.map((t, idx) => {
+      const id = t.id ?? t.tier_id ?? t.tier ?? idx + 1;
+      const rawName = t.tierName || t.tier_name || t.shortName || `Tier ${id}`;
+      const min = Number(t.minStaffCount ?? t.min_staff_count ?? t.minStaff ?? 0);
+      const max = t.maxStaffCount !== null && t.maxStaffCount !== undefined
+        ? Number(t.maxStaffCount)
+        : (t.max_staff_count !== null && t.max_staff_count !== undefined
+            ? Number(t.max_staff_count)
+            : (t.maxStaff ? Number(t.maxStaff) : null));
+      const quota = Number(t.standardQuota || max || (min > 0 ? min + 5 : 15));
+
+      // Màu sắc nhận diện
+      let color = t.color;
+      if (!color) {
+        const lower = rawName.toLowerCase();
+        if (lower.includes('1') || lower.includes('flagship')) color = '#f59e0b';
+        else if (lower.includes('2') || lower.includes('tiêu chuẩn') || lower.includes('standard')) color = '#3b82f6';
+        else if (lower.includes('3') || lower.includes('mini') || lower.includes('nhỏ')) color = '#10b981';
+        else if (lower.includes('4')) color = '#a855f7';
+        else color = ['#f59e0b', '#3b82f6', '#10b981', '#a855f7', '#ec4899', '#06b6d4'][idx % 6];
+      }
+
+      return {
+        id,
+        rawObj: t,
+        name: rawName,
+        shortName: rawName,
+        minStaff: min,
+        maxStaff: max,
+        standardQuota: quota,
+        color,
+        description: t.description || '',
+      };
+    });
+  }, [tiers, dbTiers, tierDefinitions]);
 
   useEffect(() => {
-    if (branch) {
-      const t = Number(branch.branchTier ?? branch.tier ?? 2);
-      setSelectedTier(t);
+    if (branch && activeTiers.length > 0) {
+      const bTierId = Number(branch.tierId || 0);
+      const bTierVal = Number(branch.branchTier ?? branch.tier ?? 2);
+
+      const found =
+        activeTiers.find((t) => Number(t.id) === bTierId) ||
+        activeTiers.find((t) => {
+          const match = t.name.match(/\d+/);
+          return match && Number(match[0]) === bTierVal;
+        }) ||
+        activeTiers.find((t) => Number(t.id) === bTierVal) ||
+        activeTiers[0];
+
+      setSelectedTier(found ? found.id : activeTiers[0].id);
       setNote('');
       setValidationError('');
     }
-  }, [branch, isOpen]);
+  }, [branch, isModalOpen, activeTiers]);
 
-  if (!isOpen || !branch) return null;
+  if (!isModalOpen || !branch) return null;
 
-  const currentTierDef = TIER_DEFINITIONS.find((t) => t.tier === currentTierVal) || TIER_DEFINITIONS[1];
-  const targetTierDef = TIER_DEFINITIONS.find((t) => t.tier === selectedTier) || TIER_DEFINITIONS[1];
+  const targetTierDef = activeTiers.find((t) => t.id === selectedTier) || activeTiers[0];
 
-  const handleSelectTier = (newTier) => {
-    setSelectedTier(newTier);
+  const handleSelectTier = (tierId) => {
+    setSelectedTier(tierId);
     setValidationError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(branch.storeId || branch.id, selectedTier, targetTierDef.standardQuota, note);
+    const submitHandler = onSubmit || onConfirm;
+    if (typeof submitHandler === 'function') {
+      try {
+        const matchedTier = targetTierDef;
+        const targetTierId = Number(matchedTier?.rawObj?.id || matchedTier?.id || selectedTier || 0);
+
+        // Trích xuất số phân cấp nếu có (1, 2, 3...)
+        let tierNum = matchedTier?.name && matchedTier.name.match(/\d+/)
+          ? Number(matchedTier.name.match(/\d+/)[0])
+          : (Number(matchedTier?.id) <= 3 ? Number(matchedTier?.id) : 2);
+
+        await submitHandler(
+          branch.storeId || branch.id,
+          {
+            tierId: targetTierId,
+            id: targetTierId,
+            branchTier: tierNum,
+            tier: tierNum,
+            tierName: matchedTier?.name,
+            quota: matchedTier?.standardQuota,
+            note: note,
+          },
+          matchedTier?.standardQuota,
+          note
+        );
+      } catch (err) {
+        setValidationError(err.message || 'Lỗi khi cập nhật phân cấp');
+      }
+    }
   };
 
   return (
@@ -181,23 +286,29 @@ export default function ChangeTierModal({
             </div>
           </div>
 
-          {/* 1. Tier Selection Cards */}
+          {/* 1. Tier Selection Cards (Lấy động từ Database) */}
           <div>
             <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: c.fg, marginBottom: '8px' }}>
               1. Chọn Phân Cấp Chi Nhánh (Tier):
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-              {TIER_DEFINITIONS.map((td) => {
-                const isSelected = selectedTier === td.tier;
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: activeTiers.length > 3 ? 'repeat(auto-fit, minmax(150px, 1fr))' : `repeat(${Math.max(1, activeTiers.length)}, 1fr)`,
+                gap: '12px',
+              }}
+            >
+              {activeTiers.map((td) => {
+                const isSelected = selectedTier === td.id;
                 return (
                   <div
-                    key={td.tier}
-                    onClick={() => handleSelectTier(td.tier)}
+                    key={td.id}
+                    onClick={() => handleSelectTier(td.id)}
                     style={{
                       border: `2px solid ${isSelected ? td.color : c.border}`,
                       borderRadius: '12px',
                       padding: '14px',
-                      backgroundColor: isSelected ? `${td.color}12` : c.bgRaised,
+                      backgroundColor: isSelected ? `${td.color}15` : c.bgRaised,
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       position: 'relative',
@@ -231,6 +342,7 @@ export default function ChangeTierModal({
                           height: '8px',
                           borderRadius: '50%',
                           backgroundColor: td.color,
+                          flexShrink: 0,
                         }}
                       />
                       <strong style={{ fontSize: '14px', color: td.color }}>
@@ -239,10 +351,10 @@ export default function ChangeTierModal({
                     </div>
 
                     <div style={{ fontSize: '12px', color: c.fgSubtle, marginBottom: '4px' }}>
-                      Định biên chuẩn: <strong style={{ color: c.fg }}>{td.standardQuota} nv</strong>
+                      Định biên: <strong style={{ color: c.fg }}>{td.standardQuota} nv</strong>
                     </div>
                     <div style={{ fontSize: '11.5px', color: c.fgFaint }}>
-                      Khoảng: {td.minStaff} - {td.maxStaff} nv
+                      Khoảng: {td.minStaff} - {td.maxStaff ? `${td.maxStaff} nv` : '+ nv'}
                     </div>
                   </div>
                 );
