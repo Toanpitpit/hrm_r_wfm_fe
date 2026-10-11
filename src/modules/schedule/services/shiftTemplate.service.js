@@ -88,6 +88,175 @@ export const calculateNightHours = (startTime, endTime) => {
   return Number(hours.toFixed(2));
 };
 
+/**
+ * Chuyển chuỗi thời gian HH:mm thành số phút từ 0:00 (0 -> 1439)
+ */
+export const timeToMinutes = (timeStr) => {
+  if (!timeStr) return 0;
+  const [h, m] = timeStr.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+
+/**
+ * Lấy danh sách các khoảng thời gian [start, end) mà ca làm việc hoạt động trong chu kỳ 24h
+ */
+export const getShiftIntervals = (startTime, endTime) => {
+  const startMin = timeToMinutes(startTime);
+  const endMin = timeToMinutes(endTime);
+
+  if (startMin < endMin) {
+    // Ca trong ngày (VD: 06:00 -> 14:00 => [360, 840))
+    return [[startMin, endMin]];
+  } else {
+    // Ca qua đêm (VD: 22:00 -> 06:00 => [1320, 1440) và [0, 360))
+    return [
+      [startMin, 1440],
+      [0, endMin],
+    ];
+  }
+};
+
+/**
+ * Kiểm tra xem 2 khung ca có bị trùng lặp / đè lên nhau không
+ * (Trường hợp tiếp giáp giờ như 06:00-14:00 và 14:00-22:00 là hợp lệ, không tính là đè)
+ */
+export const isShiftsOverlapping = (shiftA, shiftB) => {
+  if (!shiftA?.startTime || !shiftA?.endTime || !shiftB?.startTime || !shiftB?.endTime) {
+    return false;
+  }
+  const intervalsA = getShiftIntervals(shiftA.startTime, shiftA.endTime);
+  const intervalsB = getShiftIntervals(shiftB.startTime, shiftB.endTime);
+
+  for (const [sA, eA] of intervalsA) {
+    for (const [sB, eB] of intervalsB) {
+      // Giao nhau khi max(sA, sB) < min(eA, eB)
+      if (Math.max(sA, sB) < Math.min(eA, eB)) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
+
+/**
+ * Kiểm tra xem 2 ca có bị trùng giờ hoặc đè ca nhau không
+ * Quy định:
+ * - Không được trùng giờ hoàn toàn (cùng start và end)
+ * - Không được trùng giờ bắt đầu
+ * - Không được trùng giờ kết thúc
+ * - Không được đè khoảng giờ lên nhau (overlapping intervals)
+ */
+export const checkShiftConflict = (shiftA, shiftB) => {
+  if (!shiftA?.startTime || !shiftA?.endTime || !shiftB?.startTime || !shiftB?.endTime) {
+    return null;
+  }
+
+  // Chuẩn hóa giờ về định dạng HH:mm (bỏ giây nếu có từ backend .NET)
+  const sA = String(shiftA.startTime).slice(0, 5);
+  const eA = String(shiftA.endTime).slice(0, 5);
+  const sB = String(shiftB.startTime).slice(0, 5);
+  const eB = String(shiftB.endTime).slice(0, 5);
+
+  const nameB = shiftB.name || shiftB.shiftName || 'Ca khác';
+
+  // 1. Trùng chính xác toàn bộ khung giờ (ví dụ cùng 06:00 - 14:00)
+  if (sA === sB && eA === eB) {
+    return {
+      type: 'EXACT_MATCH',
+      message: `Khung giờ (${sA} - ${eA}) bị trùng khớp 100% với ca "${nameB}".`,
+    };
+  }
+
+  // 2. Trùng giờ bắt đầu (ví dụ cùng bắt đầu lúc 06:00)
+  if (sA === sB) {
+    return {
+      type: 'SAME_START',
+      message: `Giờ bắt đầu (${sA}) bị trùng với ca "${nameB}" (${sB} - ${eB}).`,
+    };
+  }
+
+  // 3. Trùng giờ kết thúc (ví dụ cùng kết thúc lúc 14:00)
+  if (eA === eB) {
+    return {
+      type: 'SAME_END',
+      message: `Giờ kết thúc (${eA}) bị trùng với ca "${nameB}" (${sB} - ${eB}).`,
+    };
+  }
+
+  // 4. Đè ca (chồng lấn khoảng thời gian làm việc)
+  if (isShiftsOverlapping({ startTime: sA, endTime: eA }, { startTime: sB, endTime: eB })) {
+    return {
+      type: 'OVERLAP',
+      message: `Khoảng giờ (${sA} - ${eA}) bị đè (giao thoa) lên ca "${nameB}" (${sB} - ${eB}).`,
+    };
+  }
+
+  return null;
+};
+
+/**
+ * Tìm khung ca bị trùng giờ hoặc đè lên nhau trong danh sách ca hiện có
+ */
+export const findOverlappingShift = (newShift, existingShifts = [], ignoreShiftId = null) => {
+  if (!newShift?.startTime || !newShift?.endTime || !Array.isArray(existingShifts)) {
+    return null;
+  }
+
+  const currentId =
+    ignoreShiftId ??
+    newShift.id ??
+    newShift.shiftId ??
+    newShift.templateId ??
+    newShift.shiftTemplateId;
+
+  for (const existing of existingShifts) {
+    const existingId =
+      existing.id ??
+      existing.shiftId ??
+      existing.templateId ??
+      existing.shiftTemplateId;
+
+    // Bỏ qua chính ca đang chỉnh sửa
+    if (currentId && existingId && String(existingId) === String(currentId)) {
+      continue;
+    }
+
+    // Chỉ kiểm tra những ca trong cùng phạm vi
+    const targetScope = newShift.scope || 'GLOBAL';
+    const existingScope =
+      existing.scope || (existing.branchId ? 'BRANCH' : 'GLOBAL');
+
+    if (targetScope !== existingScope) {
+      continue;
+    }
+
+    // Nếu là ca riêng theo chi nhánh, chỉ kiểm tra cùng branchId
+    if (targetScope === 'BRANCH') {
+      const b1 = String(newShift.branchId || '');
+      const b2 = String(existing.branchId || '');
+      if (b1 && b2 && b1 !== b2) {
+        continue;
+      }
+    }
+
+    // Bỏ qua nếu ca đã bị đánh dấu xóa
+    if (existing.isDeleted === true) {
+      continue;
+    }
+
+    const conflict = checkShiftConflict(newShift, existing);
+    if (conflict) {
+      return {
+        ...existing,
+        conflictType: conflict.type,
+        conflictMessage: conflict.message,
+      };
+    }
+  }
+
+  return null;
+};
+
 // ==============================================================================
 // 2. MOCK DATA STORE VÀ CƠ CHẾ ADAPTER
 // ==============================================================================
@@ -439,6 +608,27 @@ export const createShiftTemplate = async (payload) => {
     isActive: payload.isActive !== undefined ? Boolean(payload.isActive) : true,
   };
 
+  // Kiểm tra chống trùng giờ & đè ca (overlapping & duplicate time shifts)
+  let allCurrentShifts = [];
+  try {
+    allCurrentShifts = await getShiftTemplates({ scope: body.scope, branchId: body.branchId });
+  } catch (_) {
+    allCurrentShifts = getMockShifts();
+  }
+  if (!Array.isArray(allCurrentShifts) || allCurrentShifts.length === 0) {
+    allCurrentShifts = getMockShifts();
+  }
+
+  const conflictingShift = findOverlappingShift(body, allCurrentShifts);
+  if (conflictingShift) {
+    const errorMsg =
+      conflictingShift.conflictMessage ||
+      `Khung ca (${body.startTime} - ${body.endTime}) bị trùng giờ hoặc đè lên ca "${conflictingShift.name}". Các ca không được phép trùng giờ hoặc đè lên nhau.`;
+    const err = new Error(errorMsg);
+    err.response = { status: 400, data: { message: errorMsg, code: 'SHIFT_OVERLAPPING' } };
+    throw err;
+  }
+
   let backendResult = null;
   try {
     let res;
@@ -455,19 +645,36 @@ export const createShiftTemplate = async (payload) => {
       backendResult = res.data.data || res.data;
     }
   } catch (err) {
-    // Nếu là lỗi nghiệp vụ xác thực từ server (ví dụ 400 trùng giờ, 409 xung đột)
-    if (err.response?.status === 400 || err.response?.status === 409) {
+    // Nếu là lỗi nghiệp vụ xác thực từ server (400 dữ liệu sai, 409 xung đột, 423 chi nhánh bị khóa)
+    if (
+      err.response?.status === 400 ||
+      err.response?.status === 409 ||
+      err.response?.status === 423
+    ) {
       throw err;
     }
     console.warn('[ShiftService] POST shift-templates fallback to local storage:', err.message);
   }
 
-  // Luôn lưu vào Mock Storage để đảm bảo ca riêng xuất hiện ngay lập tức
+  // Luôn lưu vào Mock Storage nếu không kết nối được backend
   const shifts = getMockShifts();
   const branches = getMockBranches();
   const branch = body.branchId
     ? branches.find((b) => String(b.id || b.storeId) === String(body.branchId))
     : null;
+
+  // Nếu chi nhánh đang bị khóa, từ chối tạo ca riêng theo quy tắc 11
+  if (body.scope === 'BRANCH' && branch && (branch.isLocked || branch.status === 'LOCKED')) {
+    const error = new Error('Chi nhánh đang bị khóa, không thể tạo ca riêng.');
+    error.response = {
+      status: 423,
+      data: {
+        code: 'BRANCH_LOCKED',
+        message: 'Chi nhánh đang bị tạm khóa, không thể thêm khung ca riêng.',
+      },
+    };
+    throw error;
+  }
 
   const newShift = {
     id: backendResult?.id || backendResult?.shiftId || Date.now(),
@@ -516,6 +723,43 @@ export const updateShiftTemplate = async (id, payload, confirm = false) => {
   const paidHours = calculatePaidHours(payload.startTime, payload.endTime, payload.breakDuration);
   const nightHours = calculateNightHours(payload.startTime, payload.endTime);
 
+  // 1. Kiểm tra chống trùng giờ & đè ca TRƯỚC KHI gửi lên server hoặc lưu mock
+  const targetStartTime = payload.startTime ? String(payload.startTime).slice(0, 5) : '06:00';
+  const targetEndTime = payload.endTime ? String(payload.endTime).slice(0, 5) : '14:00';
+  const targetIsActive = payload.isActive !== undefined ? Boolean(payload.isActive) : true;
+
+  if (targetIsActive) {
+    let allCurrentShifts = [];
+    try {
+      allCurrentShifts = await getShiftTemplates({ scope: payload.scope, branchId: payload.branchId });
+    } catch (_) {
+      allCurrentShifts = getMockShifts();
+    }
+    if (!Array.isArray(allCurrentShifts) || allCurrentShifts.length === 0) {
+      allCurrentShifts = getMockShifts();
+    }
+
+    const conflictingShift = findOverlappingShift(
+      {
+        ...payload,
+        id,
+        startTime: targetStartTime,
+        endTime: targetEndTime,
+      },
+      allCurrentShifts,
+      id
+    );
+
+    if (conflictingShift) {
+      const errorMsg =
+        conflictingShift.conflictMessage ||
+        `Khung ca (${targetStartTime} - ${targetEndTime}) bị trùng giờ hoặc đè lên ca "${conflictingShift.name}". Các ca không được phép trùng giờ hoặc đè lên nhau.`;
+      const err = new Error(errorMsg);
+      err.response = { status: 400, data: { message: errorMsg, code: 'SHIFT_OVERLAPPING' } };
+      throw err;
+    }
+  }
+
   try {
     let res;
     try {
@@ -533,7 +777,11 @@ export const updateShiftTemplate = async (id, payload, confirm = false) => {
     }
     if (res && res.data) return res.data.data || res.data;
   } catch (err) {
-    if (err.response?.status === 400 || err.response?.status === 409) {
+    if (
+      err.response?.status === 400 ||
+      err.response?.status === 409 ||
+      err.response?.status === 423
+    ) {
       throw err;
     }
     console.warn('[ShiftService] PUT fallback mock:', err.message);
@@ -548,6 +796,9 @@ export const updateShiftTemplate = async (id, payload, confirm = false) => {
   }
 
   const existing = shifts[idx];
+
+
+
   // Nếu là ca chung và có chi nhánh đang áp dụng mà chưa confirm
   if (existing.scope === 'GLOBAL' && (existing.usedByBranchCount || 0) > 0 && !confirm) {
     const err = new Error('Thay đổi này ảnh hưởng các chi nhánh đang dùng ca chung');
@@ -633,6 +884,65 @@ export const toggleShiftActive = async (id, isActive, confirm = false) => {
     return shifts[idx];
   }
   return true;
+};
+
+/**
+ * DELETE /api/shift-templates/{id}
+ * Xóa khung ca mẫu khỏi hệ thống
+ */
+export const deleteShiftTemplate = async (id) => {
+  try {
+    let res;
+    try {
+      res = await apiClient.delete(`/shift-templates/${id}`);
+    } catch (e1) {
+      if (e1.response?.status === 404 || e1.response?.status === 405) {
+        try {
+          res = await apiClient.delete(`/shifts/templates/${id}`);
+        } catch (e2) {
+          if (e2.response?.status === 404 || e2.response?.status === 405) {
+            res = await apiClient.delete(`/ShiftTemplates/${id}`);
+          } else {
+            throw e2;
+          }
+        }
+      } else {
+        throw e1;
+      }
+    }
+    if (res && res.data) {
+      // Backend phản hồi xóa thành công
+    }
+  } catch (err) {
+    if (err.response?.status === 400 || err.response?.status === 409) {
+      throw err;
+    }
+    console.warn('[ShiftService] DELETE fallback mock:', err.message);
+  }
+
+  // Cập nhật và lưu vào Mock Storage
+  const shifts = getMockShifts();
+  const deletedShift = shifts.find((s) => String(s.id) === String(id) || String(s.shiftId) === String(id));
+  const remainingShifts = shifts.filter(
+    (s) => String(s.id) !== String(id) && String(s.shiftId) !== String(id)
+  );
+  setMockShifts(remainingShifts);
+
+  // Nếu là ca riêng chi nhánh, cập nhật lại số lượng ca của chi nhánh
+  if (deletedShift?.scope === 'BRANCH' && deletedShift.branchId) {
+    const branches = getMockBranches();
+    const bIdx = branches.findIndex(
+      (b) => String(b.id || b.storeId) === String(deletedShift.branchId)
+    );
+    if (bIdx !== -1) {
+      branches[bIdx].activeCustomShiftCount = remainingShifts.filter(
+        (s) => String(s.branchId) === String(deletedShift.branchId) && s.isActive
+      ).length;
+      setMockBranches(branches);
+    }
+  }
+
+  return { success: true };
 };
 
 /**
@@ -866,6 +1176,7 @@ export default {
   getShiftTemplates,
   createShiftTemplate,
   updateShiftTemplate,
+  deleteShiftTemplate,
   toggleShiftActive,
   getBranches,
   getBranchEffectiveShifts,
