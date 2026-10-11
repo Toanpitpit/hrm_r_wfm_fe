@@ -64,6 +64,7 @@ export default function WeeklyRosterMatrix({
   onDeleteAssignment,
   onEditScheduleQuota,
   isPublished = false,
+  branchId,
 }) {
   const { c, fonts } = useAdminTheme();
   // Tab chế độ xem: 'BY_SHIFT' (mặc định - Lưới 4 Ca) hoặc 'BY_EMPLOYEE' (Theo nhân sự)
@@ -329,78 +330,89 @@ export default function WeeklyRosterMatrix({
             </thead>
 
             <tbody>
-              {displayShifts.map((shift, sIdx) => (
-                <tr
-                  key={shift.code}
-                  style={{
-                    borderBottom: sIdx < displayShifts.length - 1 ? `2px solid ${c.border}` : 'none',
-                    background: sIdx % 2 === 0 ? 'transparent' : `${c.bgElev}30`,
-                  }}
-                >
-                  {/* Cột thông tin Ca trực (Cố định bên trái) */}
-                  <td
+              {displayShifts.map((shift, sIdx) => {
+                const shiftSchedules = schedules.filter(
+                  (s) =>
+                    (s.shiftTemplateId && Number(s.shiftTemplateId) === Number(shift.id)) ||
+                    (s.shiftTemplateName && s.shiftTemplateName.includes(shift.name.split(' - ')[0]))
+                );
+                const activeCashierQuota = shiftSchedules.find((s) => s.requiredCashier !== undefined)?.requiredCashier ?? 1;
+                const activeSalesQuota = shiftSchedules.find((s) => s.requiredSales !== undefined)?.requiredSales ?? 2;
+                const activeSecurityQuota = shiftSchedules.find((s) => s.requiredSecurity !== undefined)?.requiredSecurity ?? 1;
+
+                return (
+                  <tr
+                    key={shift.code}
                     style={{
-                      padding: '16px 14px',
-                      verticalAlign: 'top',
-                      borderRight: `2px solid ${c.border}`,
-                      position: 'sticky',
-                      left: 0,
-                      background: c.bgCard,
-                      zIndex: 1,
+                      borderBottom: sIdx < displayShifts.length - 1 ? `2px solid ${c.border}` : 'none',
+                      background: sIdx % 2 === 0 ? 'transparent' : `${c.bgElev}30`,
                     }}
                   >
-                    <div
+                    {/* Cột thông tin Ca trực (Cố định bên trái) */}
+                    <td
                       style={{
-                        background: shift.bg,
-                        border: `1px solid ${shift.border}`,
-                        borderRadius: 8,
-                        padding: '10px 12px',
+                        padding: '16px 14px',
+                        verticalAlign: 'top',
+                        borderRight: `2px solid ${c.border}`,
+                        position: 'sticky',
+                        left: 0,
+                        background: c.bgCard,
+                        zIndex: 1,
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <Icon name="clock" size={16} color={shift.color} />
-                        <span style={{ fontWeight: 800, fontSize: 13.5, color: shift.color }}>
-                          {shift.name}
-                        </span>
-                      </div>
-
                       <div
                         style={{
-                          display: 'inline-block',
-                          padding: '2px 8px',
-                          borderRadius: 4,
-                          background: `${shift.color}20`,
-                          color: shift.color,
-                          fontWeight: 700,
-                          fontSize: 11,
-                          fontFamily: 'monospace',
-                          marginBottom: 6,
+                          background: shift.bg,
+                          border: `1px solid ${shift.border}`,
+                          borderRadius: 8,
+                          padding: '10px 12px',
                         }}
                       >
-                        {shift.time}
-                      </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <Icon name="clock" size={16} color={shift.color} />
+                          <span style={{ fontWeight: 800, fontSize: 13.5, color: shift.color }}>
+                            {shift.name}
+                          </span>
+                        </div>
 
-                      <div style={{ fontSize: 11, color: c.fgFaint }}>
-                        Thời lượng: <strong>{shift.duration}</strong>
-                      </div>
+                        <div
+                          style={{
+                            display: 'inline-block',
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            background: `${shift.color}20`,
+                            color: shift.color,
+                            fontWeight: 700,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            marginBottom: 6,
+                          }}
+                        >
+                          {shift.time}
+                        </div>
 
-                      <div
-                        style={{
-                          marginTop: 8,
-                          paddingTop: 8,
-                          borderTop: `1px dashed ${shift.border}`,
-                          fontSize: 10.5,
-                          color: c.fgSubtle,
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        <div>• Trưởng ca (≥1)</div>
-                        <div>• Thu ngân (≥1)</div>
-                        <div>• Bán hàng (≥1)</div>
-                        <div>• Bảo vệ (≥1)</div>
+                        <div style={{ fontSize: 11, color: c.fgFaint }}>
+                          Thời lượng: <strong>{shift.duration}</strong>
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 8,
+                            paddingTop: 8,
+                            borderTop: `1px dashed ${shift.border}`,
+                            fontSize: 10.5,
+                            color: c.fgSubtle,
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          <div style={{ fontWeight: 700, marginBottom: 3, color: c.fg }}>Định mức ca:</div>
+                          <div>• Trưởng ca: ≥1</div>
+                          <div>• Thu ngân: ≥{activeCashierQuota}</div>
+                          <div>• Bán hàng: ≥{activeSalesQuota}</div>
+                          <div>• Bảo vệ: ≥{activeSecurityQuota}</div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
                   {/* 7 ô giao điểm Ca x Ngày */}
                   {days.map((dateStr) => {
@@ -478,12 +490,14 @@ export default function WeeklyRosterMatrix({
                                 onClick={() =>
                                   onEditScheduleQuota &&
                                   onEditScheduleQuota({
+                                    scheduleId: 0,
+                                    branchId,
                                     shiftTemplateId: shift.id,
                                     shiftTemplateName: shift.name,
                                     workDate: dateStr,
-                                    requiredCashier: 1,
-                                    requiredSales: 1,
-                                    requiredSecurity: 1,
+                                    requiredCashier: activeCashierQuota,
+                                    requiredSales: activeSalesQuota,
+                                    requiredSecurity: activeSecurityQuota,
                                   })
                                 }
                                 style={{
@@ -677,7 +691,8 @@ export default function WeeklyRosterMatrix({
                     );
                   })}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

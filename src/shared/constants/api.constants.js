@@ -28,6 +28,7 @@ export const API_ENDPOINTS = Object.freeze({
 
     GENERATE_WEEKLY: '/shifts/schedules/generate-weekly',
     UPDATE_REQUIREMENT: (scheduleId) => `/shifts/schedules/${scheduleId}/requirements`,
+    DELETE_SCHEDULE: (scheduleId) => `/shifts/schedules/${scheduleId}`,
     ASSIGN_FULLTIME_BATCH: '/shifts/assignments/assign-fulltime-batch',
     ASSIGN_BATCH: '/shifts/assignments/batch',
     ASSIGN_SINGLE: '/shifts/assign',

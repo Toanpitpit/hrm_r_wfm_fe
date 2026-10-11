@@ -45,7 +45,15 @@ export const generateWeeklySchedule = async (payload) => {
  * Cập nhật định mức nhân sự (Thu ngân, Bán hàng, Bảo vệ) cho 1 ca trực.
  */
 export const updateScheduleRequirement = async (scheduleId, payload) => {
-  const response = await axiosInstance.put(API_ENDPOINTS.SHIFTS.UPDATE_REQUIREMENT(scheduleId), payload);
+  const response = await axiosInstance.put(API_ENDPOINTS.SHIFTS.UPDATE_REQUIREMENT(scheduleId || 0), payload);
+  return response.data;
+};
+
+/**
+ * Xóa 1 khung ca làm việc DRAFT.
+ */
+export const deleteSchedule = async (scheduleId) => {
+  const response = await axiosInstance.delete(API_ENDPOINTS.SHIFTS.DELETE_SCHEDULE(scheduleId));
   return response.data;
 };
 
