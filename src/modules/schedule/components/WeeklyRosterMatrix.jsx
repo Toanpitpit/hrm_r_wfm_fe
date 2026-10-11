@@ -107,10 +107,25 @@ export default function WeeklyRosterMatrix({
     };
   };
 
-  // Tạo danh sách ca hiển thị động 100% theo các ca Admin đã kích hoạt
+  // Tạo danh sách ca hiển thị động 100% theo các ca có trong lịch tuần này (hoặc các ca Admin đã kích hoạt nếu tuần chưa tạo ca)
   const displayShifts = useMemo(() => {
     if (activeTemplates.length > 0) {
-      const sorted = [...activeTemplates].sort((a, b) => {
+      // Nếu tuần này đã có ca (schedules.length > 0), chỉ hiển thị những ca thực tế được chọn/tạo trong tuần
+      const scheduledTemplateIds = new Set(
+        schedules
+          .map((s) => s.shiftTemplateId)
+          .filter(Boolean)
+          .map(Number)
+      );
+
+      let filteredTemplates = activeTemplates;
+      if (schedules && schedules.length > 0 && scheduledTemplateIds.size > 0) {
+        filteredTemplates = activeTemplates.filter((t) =>
+          scheduledTemplateIds.has(Number(t.id || t.shiftId))
+        );
+      }
+
+      const sorted = [...filteredTemplates].sort((a, b) => {
         const codeA = (a.templateCode || a.shiftCode || '').toUpperCase();
         const codeB = (b.templateCode || b.shiftCode || '').toUpperCase();
         const numA = (codeA.match(/\d+/) || [])[0];
@@ -163,7 +178,7 @@ export default function WeeklyRosterMatrix({
     }
 
     return STANDARD_SHIFTS_CONFIG;
-  }, [activeTemplates]);
+  }, [activeTemplates, schedules]);
 
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
