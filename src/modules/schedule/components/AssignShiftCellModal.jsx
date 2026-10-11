@@ -94,6 +94,71 @@ export default function AssignShiftCellModal({
   const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const isPastOrToday = Boolean(workDate && workDate <= todayStr);
 
+  /**
+   * Kiểm tra khoảng cách nghỉ giữa 2 ca của 2 ngày liên tiếp có đạt tối thiểu 12 giờ không.
+   * targetDateStr: YYYY-MM-DD
+   * targetShift: { startTime, endTime, isOvernight }
+   * existingShifts: danh sách ca đã có [{ date, startTime, endTime, isOvernight, shiftName }]
+   */
+  const checkRest12hViolation = (targetDateStr, targetShift, existingShifts) => {
+    if (!targetDateStr || !targetShift || !targetShift.startTime || !targetShift.endTime || !existingShifts || existingShifts.length === 0) {
+      return { violated: false, message: '' };
+    }
+
+    const parseMinutes = (tStr) => {
+      const [h, m] = String(tStr || '00:00').split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+
+    const targetDate = new Date(targetDateStr);
+    const prevDateObj = new Date(targetDate);
+    prevDateObj.setDate(prevDateObj.getDate() - 1);
+    const prevDateStr = `${prevDateObj.getFullYear()}-${pad(prevDateObj.getMonth() + 1)}-${pad(prevDateObj.getDate())}`;
+
+    const nextDateObj = new Date(targetDate);
+    nextDateObj.setDate(nextDateObj.getDate() + 1);
+    const nextDateStr = `${nextDateObj.getFullYear()}-${pad(nextDateObj.getMonth() + 1)}-${pad(nextDateObj.getDate())}`;
+
+    const newStartMin = parseMinutes(targetShift.startTime);
+    let newEndMin = parseMinutes(targetShift.endTime);
+    if (Boolean(targetShift.isOvernight) || newEndMin <= newStartMin) {
+      newEndMin += 24 * 60;
+    }
+
+    for (const ex of existingShifts) {
+      const exDate = String(ex.date || '').substring(0, 10);
+      const exStartMin = parseMinutes(ex.startTime);
+      let exEndMin = parseMinutes(ex.endTime);
+      if (Boolean(ex.isOvernight) || exEndMin <= exStartMin) {
+        exEndMin += 24 * 60;
+      }
+
+      // Trường hợp 1: ex là ca của ngày hôm trước (prevDateStr) -> khoảng cách từ exEnd đến newStart
+      if (exDate === prevDateStr) {
+        const gapHours = (24 * 60 + newStartMin - exEndMin) / 60.0;
+        if (gapHours < 12.0) {
+          return {
+            violated: true,
+            message: `Vi phạm nghỉ 12h: Sau ca '${ex.shiftName}' ngày hôm trước (${formatVNDate(prevDateStr)}) chỉ nghỉ ${gapHours.toFixed(1)}h trước ca này (< 12h)`,
+          };
+        }
+      }
+
+      // Trường hợp 2: ex là ca của ngày hôm sau (nextDateStr) -> khoảng cách từ newEnd đến exStart
+      if (exDate === nextDateStr) {
+        const gapHours = (24 * 60 + exStartMin - newEndMin) / 60.0;
+        if (gapHours < 12.0) {
+          return {
+            violated: true,
+            message: `Vi phạm nghỉ 12h: Ca này kết thúc chỉ nghỉ ${gapHours.toFixed(1)}h trước ca '${ex.shiftName}' ngày hôm sau (${formatVNDate(nextDateStr)}) (< 12h)`,
+          };
+        }
+      }
+    }
+
+    return { violated: false, message: '' };
+  };
+
   // Submit cho Mode 1 (Gán nhân viên vào ca theo vị trí)
   const handleRoleSubmit = (e) => {
     e.preventDefault();
@@ -290,7 +355,13 @@ export default function AssignShiftCellModal({
                     const isDispatchedAwayOnDate = Boolean(emp.isDispatchedAway && dAwayStart && dAwayEnd &&
                       targetDateStr >= dAwayStart && targetDateStr <= dAwayEnd);
 
-                    const isDisabled = isConflict || isPastOrToday || isNotYetDispatched || isDispatchExpired || isDispatchedAwayOnDate;
+                    const restViolation = checkRest12hViolation(
+                      workDate,
+                      shiftTemplate,
+                      emp.assignedShifts || []
+                    );
+
+                    const isDisabled = isConflict || isPastOrToday || isNotYetDispatched || isDispatchExpired || isDispatchedAwayOnDate || restViolation.violated;
 
                     return (
                       <label
@@ -311,6 +382,7 @@ export default function AssignShiftCellModal({
                           opacity: isDisabled ? 0.65 : 1,
                           transition: 'all 0.15s ease',
                         }}
+                        title={restViolation.violated ? restViolation.message : undefined}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <input
@@ -400,6 +472,20 @@ export default function AssignShiftCellModal({
                               }}
                             >
                               Đã có ca: {assignedShiftOnDate.shiftName}
+                            </span>
+                          ) : restViolation.violated ? (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                background: `${c.tones.bad}20`,
+                                color: c.tones.bad,
+                                fontWeight: 700,
+                              }}
+                              title={restViolation.message}
+                            >
+                              Nghỉ &lt; 12h
                             </span>
                           ) : (
                             <span
@@ -595,6 +681,14 @@ export default function AssignShiftCellModal({
                 const tId = t.shiftId || t.id;
                 const isSelected = String(selectedShiftId) === String(tId);
 
+                // Kiểm tra nghỉ 12h với các ca khác của nhân viên này
+                const otherShifts = (user?.assignedShifts || []).filter(
+                  (s) => s.date !== workDate || (currentAssignment && s.assignmentId !== currentAssignment.assignmentId)
+                );
+                const restViolation = checkRest12hViolation(workDate, t, otherShifts);
+
+                const isShiftDisabled = isMode2Blocked || restViolation.violated;
+
                 return (
                   <label
                     key={tId}
@@ -604,12 +698,13 @@ export default function AssignShiftCellModal({
                       justifyContent: 'space-between',
                       padding: '10px 14px',
                       borderRadius: 8,
-                      background: isSelected ? `${c.accentDim}30` : c.bgElev,
-                      border: `1px solid ${isSelected ? c.accent : c.border}`,
-                      cursor: isMode2Blocked ? 'not-allowed' : 'pointer',
-                      opacity: isMode2Blocked ? 0.65 : 1,
+                      background: isSelected ? `${c.accentDim}30` : isShiftDisabled ? `${c.bgElev}40` : c.bgElev,
+                      border: `1px solid ${isSelected ? c.accent : isShiftDisabled ? c.borderSub : c.border}`,
+                      cursor: isShiftDisabled ? 'not-allowed' : 'pointer',
+                      opacity: isShiftDisabled ? 0.65 : 1,
                       transition: 'all 0.15s ease',
                     }}
+                    title={restViolation.violated ? restViolation.message : undefined}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <input
@@ -617,16 +712,32 @@ export default function AssignShiftCellModal({
                         name="shiftSelect"
                         value={tId}
                         checked={isSelected}
-                        disabled={isMode2Blocked}
+                        disabled={isShiftDisabled}
                         onChange={() => setSelectedShiftId(tId)}
                       />
                       <span style={{ fontWeight: 750, color: isSelected ? c.accent : c.fg, fontSize: 13 }}>
                         {formatShiftTemplateName(t.shiftName || t.name)}
                       </span>
                     </div>
-                    <span style={{ fontSize: 12, color: c.fgFaint }}>
-                      {t.startTime?.substring(0, 5)} - {t.endTime?.substring(0, 5)}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {restViolation.violated && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background: `${c.tones.bad}20`,
+                            color: c.tones.bad,
+                            fontWeight: 700,
+                          }}
+                        >
+                          Nghỉ &lt; 12h
+                        </span>
+                      )}
+                      <span style={{ fontSize: 12, color: c.fgFaint }}>
+                        {t.startTime?.substring(0, 5)} - {t.endTime?.substring(0, 5)}
+                      </span>
+                    </div>
                   </label>
                 );
               })}
