@@ -242,9 +242,9 @@ export default function ShiftMasterPage() {
             fontSize: '14px',
             fontWeight: 700,
             cursor: 'pointer',
-            backgroundColor: activeTab === 'BRANCH' ? 'rgba(168, 85, 247, 0.18)' : 'transparent',
-            color: activeTab === 'BRANCH' ? '#c084fc' : c.fgSubtle,
-            border: activeTab === 'BRANCH' ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid transparent',
+            backgroundColor: activeTab === 'BRANCH' ? `${c.accent}20` : 'transparent',
+            color: activeTab === 'BRANCH' ? c.accent : c.fgSubtle,
+            border: activeTab === 'BRANCH' ? `1px solid ${c.accent}50` : '1px solid transparent',
             transition: 'all 0.18s ease',
           }}
         >
@@ -255,7 +255,7 @@ export default function ShiftMasterPage() {
               fontSize: '11px',
               padding: '1px 7px',
               borderRadius: '10px',
-              backgroundColor: activeTab === 'BRANCH' ? '#a855f7' : c.bgElev,
+              backgroundColor: activeTab === 'BRANCH' ? (c.primary || '#0D9488') : c.bgElev,
               color: activeTab === 'BRANCH' ? '#ffffff' : c.fgSubtle,
               fontWeight: 700,
             }}
@@ -385,11 +385,11 @@ export default function ShiftMasterPage() {
                     width: '36px',
                     height: '36px',
                     borderRadius: '8px',
-                    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                    backgroundColor: `${c.accent}20`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#c084fc',
+                    color: c.accent,
                     flexShrink: 0,
                   }}
                 >
@@ -483,9 +483,9 @@ export default function ShiftMasterPage() {
                           fontWeight: 700,
                           cursor: !isOperationsAdmin || selectedBranch.isLocked ? 'not-allowed' : 'pointer',
                           backgroundColor:
-                            selectedBranch.shiftMode === 'GLOBAL' ? c.accent : 'transparent',
+                            selectedBranch.shiftMode === 'GLOBAL' ? (c.primary || '#0D9488') : 'transparent',
                           color:
-                            selectedBranch.shiftMode === 'GLOBAL' ? '#000000' : c.fgSubtle,
+                            selectedBranch.shiftMode === 'GLOBAL' ? '#ffffff' : c.fgSubtle,
                           border: 'none',
                           transition: 'all 0.18s ease',
                           opacity: !isOperationsAdmin || selectedBranch.isLocked ? 0.6 : 1,
@@ -511,7 +511,7 @@ export default function ShiftMasterPage() {
                           fontWeight: 700,
                           cursor: !isOperationsAdmin || selectedBranch.isLocked ? 'not-allowed' : 'pointer',
                           backgroundColor:
-                            selectedBranch.shiftMode === 'CUSTOM' ? '#a855f7' : 'transparent',
+                            selectedBranch.shiftMode === 'CUSTOM' ? (c.primary || '#0D9488') : 'transparent',
                           color:
                             selectedBranch.shiftMode === 'CUSTOM' ? '#ffffff' : c.fgSubtle,
                           border: 'none',
@@ -581,11 +581,11 @@ export default function ShiftMasterPage() {
                     width: '40px',
                     height: '40px',
                     borderRadius: '50%',
-                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                    backgroundColor: `${c.accent}15`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#c084fc',
+                    color: c.accent,
                     margin: '0 auto 12px',
                   }}
                 >

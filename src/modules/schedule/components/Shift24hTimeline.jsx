@@ -142,17 +142,9 @@ export default function Shift24hTimeline({
                     fontWeight: 700,
                     padding: '2px 8px',
                     borderRadius: '12px',
-                    backgroundColor: sourceLabel.includes('riêng') || sourceLabel.includes('CUSTOM')
-                      ? 'rgba(168, 85, 247, 0.15)'
-                      : `${c.accent}18`,
-                    color: sourceLabel.includes('riêng') || sourceLabel.includes('CUSTOM')
-                      ? '#c084fc'
-                      : c.accent,
-                    border: `1px solid ${
-                      sourceLabel.includes('riêng') || sourceLabel.includes('CUSTOM')
-                        ? 'rgba(168, 85, 247, 0.3)'
-                        : `${c.accent}30`
-                    }`,
+                    backgroundColor: `${c.accent}18`,
+                    color: c.accent,
+                    border: `1px solid ${c.accent}30`,
                   }}
                 >
                   Nguồn: {sourceLabel}

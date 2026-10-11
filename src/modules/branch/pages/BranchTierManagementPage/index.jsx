@@ -506,8 +506,8 @@ export default function BranchTierManagementPage() {
             fontWeight: 700,
             cursor: 'pointer',
             border: 'none',
-            backgroundColor: activeTab === 'branches' ? c.accent : 'transparent',
-            color: activeTab === 'branches' ? '#000' : c.fgSubtle,
+            backgroundColor: activeTab === 'branches' ? (c.primary || '#0D9488') : 'transparent',
+            color: activeTab === 'branches' ? '#ffffff' : c.fgSubtle,
             transition: 'all 0.15s ease',
             display: 'flex',
             alignItems: 'center',
@@ -528,8 +528,8 @@ export default function BranchTierManagementPage() {
             fontWeight: 700,
             cursor: 'pointer',
             border: 'none',
-            backgroundColor: activeTab === 'tiers' ? '#a855f7' : 'transparent',
-            color: activeTab === 'tiers' ? '#fff' : c.fgSubtle,
+            backgroundColor: activeTab === 'tiers' ? (c.primary || '#0D9488') : 'transparent',
+            color: activeTab === 'tiers' ? '#ffffff' : c.fgSubtle,
             transition: 'all 0.15s ease',
             display: 'flex',
             alignItems: 'center',
@@ -624,7 +624,7 @@ export default function BranchTierManagementPage() {
               }}
             >
               <Icon name="plus" size={13} />
-              <span></span>
+              <span>Thêm Phân Cấp Mới</span>
             </Button>
           }
         >

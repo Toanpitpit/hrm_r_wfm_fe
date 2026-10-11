@@ -124,13 +124,50 @@ export default function TierTable({
     {
       key: 'branchCount',
       label: 'CHI NHÁNH ÁP DỤNG',
-      width: '150px',
+      width: '240px',
       render: (row) => {
         const count = Number(row.branchCount ?? row.branch_count ?? 0);
+        const branchesList = row.appliedBranches || [];
+
         return (
-          <Badge tone={count > 0 ? 'good' : 'neutral'}>
-            <span style={{ fontWeight: 700 }}>{count}</span> chi nhánh
-          </Badge>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Badge tone={count > 0 ? 'good' : 'neutral'}>
+                <span style={{ fontWeight: 700 }}>{count}</span> chi nhánh
+              </Badge>
+              {count === 0 && (
+                <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600 }}>
+                  (Có thể xóa)
+                </span>
+              )}
+            </div>
+
+            {branchesList.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {branchesList.map((b) => {
+                  const code = b.branchCode || b.code || `CH0${b.storeId || b.id}`;
+                  return (
+                    <span
+                      key={b.id || b.storeId}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        backgroundColor: c.bgRaised,
+                        border: `1px solid ${c.border}`,
+                        color: c.fgSubtle,
+                        padding: '1px 5px',
+                        borderRadius: '4px',
+                      }}
+                      title={b.name || b.storeName}
+                    >
+                      {code}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         );
       },
     },
@@ -164,7 +201,7 @@ export default function TierTable({
               title={
                 canDelete
                   ? 'Xóa phân cấp này'
-                  : `Phân cấp này đang được sử dụng cho ${count} chi nhánh. Không thể xóa!`
+                  : `Phân cấp này đang được sử dụng cho ${count} chi nhánh. Vui lòng chuyển chi nhánh sang tier khác trước khi xóa!`
               }
             >
               <Icon name="trash" size={13} color={canDelete ? '#ef4444' : '#64748b'} />
