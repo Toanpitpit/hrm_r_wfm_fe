@@ -22,12 +22,13 @@ import tierService from '../services/tier.service';
 export default function BranchFormModal({
   open = false,
   initialData = null,
+  tiers: propTiers = null,
   onClose,
   onSubmit,
 }) {
   const { c } = useAdminTheme();
 
-  const [dbTiers, setDbTiers] = useState([]);
+  const [dbTiers, setDbTiers] = useState(Array.isArray(propTiers) ? propTiers : []);
   const [formData, setFormData] = useState({
     branchCode: '',
     name: '',
@@ -45,6 +46,10 @@ export default function BranchFormModal({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (Array.isArray(propTiers) && propTiers.length > 0) {
+      setDbTiers(propTiers);
+      return;
+    }
     let isMounted = true;
     tierService.getAllTiers()
       .then((tiers) => {
@@ -54,12 +59,12 @@ export default function BranchFormModal({
       })
       .catch((err) => console.warn('[BranchFormModal] Load tiers from DB error:', err));
     return () => { isMounted = false; };
-  }, [open]);
+  }, [open, propTiers]);
 
   useEffect(() => {
     if (initialData) {
       const tierVal = Number(initialData.branchTier ?? initialData.tier ?? 2);
-      const tierIdVal = initialData.tierId ? Number(initialData.tierId) : null;
+      const tierIdVal = Number(initialData.tierId || initialData.tier?.id || initialData.tierObj?.id || 0) || null;
       setFormData({
         branchCode: initialData.branchCode || initialData.code || '',
         name: initialData.name || initialData.storeName || '',
@@ -135,12 +140,17 @@ export default function BranchFormModal({
       setSubmitting(true);
       const rawRadius = parseInt(formData.radiusMeters, 10);
       const validRadius = isNaN(rawRadius) || rawRadius < 20 ? 100 : Math.min(rawRadius, 1000);
-      const tierVal = Number(formData.branchTier) || 2;
+      const selectedTier = dbTiers.find((t) => Number(t.id || t.tier_id) === Number(formData.tierId));
+      const tierVal = selectedTier?.tierName && selectedTier.tierName.match(/\d+/)
+        ? Number(selectedTier.tierName.match(/\d+/)[0])
+        : (Number(formData.branchTier) || 2);
+      const safeTier = [1, 2, 3].includes(tierVal) ? tierVal : 2;
+
       const submitPayload = {
         ...formData,
-        tierId: formData.tierId || undefined,
-        branchTier: tierVal,
-        tier: tierVal,
+        tierId: formData.tierId ? Number(formData.tierId) : undefined,
+        branchTier: safeTier,
+        tier: safeTier,
         radiusMeters: validRadius,
         geofenceRadiusMeters: validRadius,
       };

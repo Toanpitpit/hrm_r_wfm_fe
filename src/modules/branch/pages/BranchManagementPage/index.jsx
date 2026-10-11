@@ -45,6 +45,7 @@ export default function BranchManagementPage() {
   const {
     branches,
     allBranches,
+    tiers,
     loading,
     stats,
     searchTerm,
@@ -229,17 +230,25 @@ export default function BranchManagementPage() {
         <StatCard
           label="PHÂN CẤP CHI NHÁNH"
           value={
-            <div style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ color: '#eab308' }}>C1: {stats.tier1Count || 0}</span>
+            <div style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '-0.2px', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+              <span style={{ color: '#f59e0b' }}>T1: {stats.tier1Count || 0}</span>
               <span style={{ color: c.fgFaint }}>|</span>
-              <span style={{ color: '#60a5fa' }}>C2: {stats.tier2Count || 0}</span>
+              <span style={{ color: '#60a5fa' }}>T2: {stats.tier2Count || 0}</span>
               <span style={{ color: c.fgFaint }}>|</span>
-              <span style={{ color: '#9ca3af' }}>C3: {stats.tier3Count || 0}</span>
+              <span style={{ color: '#10b981' }}>T3: {stats.tier3Count || 0}</span>
+              {(stats.tier4Count > 0 || stats.tier5Count > 0) && (
+                <>
+                  <span style={{ color: c.fgFaint }}>|</span>
+                  <span style={{ color: '#a855f7' }}>T4: {stats.tier4Count || 0}</span>
+                  <span style={{ color: c.fgFaint }}>|</span>
+                  <span style={{ color: '#ec4899' }}>T5: {stats.tier5Count || 0}</span>
+                </>
+              )}
             </div>
           }
           tone="neutral"
           icon="building"
-          subtext="C1: Lớn · C2: Chuẩn · C3: Nhỏ"
+          subtext="Phân bố theo phân cấp Tier thực tế từ Database"
         />
       </div>
 
@@ -291,9 +300,16 @@ export default function BranchManagementPage() {
                   onChange={setTierFilter}
                   options={[
                     { value: 'ALL', label: 'Tất cả cấp' },
-                    { value: '1', label: 'Cấp 1' },
-                    { value: '2', label: 'Cấp 2' },
-                    { value: '3', label: 'Cấp 3' },
+                    ...(tiers && tiers.length > 0
+                      ? tiers.map((t) => ({
+                          value: String(t.id || t.tier_id),
+                          label: t.tierName || t.tier_name || `Tier ${t.id}`,
+                        }))
+                      : [
+                          { value: '1', label: 'Cấp 1' },
+                          { value: '2', label: 'Cấp 2' },
+                          { value: '3', label: 'Cấp 3' },
+                        ]),
                   ]}
                 />
               </div>
@@ -316,6 +332,7 @@ export default function BranchManagementPage() {
           {/* Bảng chi nhánh */}
           <BranchTable
             branches={branches}
+            tiers={tiers}
             loading={loading}
             isActionInProgress={isActionInProgress}
             onEdit={(branch) => {
@@ -353,6 +370,7 @@ export default function BranchManagementPage() {
       <BranchFormModal
         open={formModalOpen}
         initialData={editingBranch}
+        tiers={tiers}
         onClose={() => {
           setFormModalOpen(false);
           setEditingBranch(null);

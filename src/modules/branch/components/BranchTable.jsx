@@ -134,6 +134,7 @@ function LockedStatusBadge({ branch, c }) {
  */
 export default function BranchTable({
   branches = [],
+  tiers = [],
   loading = false,
   isActionInProgress = false,
   onEdit,
@@ -193,27 +194,46 @@ export default function BranchTable({
     {
       key: 'branchTier',
       label: 'CẤP CN',
-      width: '110px',
+      width: '150px',
       render: (row) => {
-        const tier = Number(row.branchTier ?? row.tier ?? 2);
-        let label = 'Cấp 2';
+        const matchedTier =
+          (tiers || []).find((t) => Number(t.id || t.tier_id) === Number(row.tierId || row.tier?.id)) ||
+          row.tierObj ||
+          (typeof row.tier === 'object' ? row.tier : null);
+
+        const tierName =
+          matchedTier?.tierName ||
+          matchedTier?.tier_name ||
+          row.tierObj?.tierName ||
+          (typeof row.tier === 'object' && row.tier?.tierName) ||
+          row.branchTierName ||
+          (row.branchTier ? `Cấp ${row.branchTier}` : 'Cấp 2');
+        const lower = tierName.toLowerCase();
+
         let bg = 'rgba(59, 130, 246, 0.15)';
         let border = 'rgba(59, 130, 246, 0.35)';
         let color = '#60a5fa';
-        let fontWeight = 600;
 
-        if (tier === 1) {
-          label = 'Cấp 1';
-          bg = 'rgba(234, 179, 8, 0.15)';
-          border = 'rgba(234, 179, 8, 0.4)';
-          color = '#eab308';
-          fontWeight = 700;
-        } else if (tier === 3) {
-          label = 'Cấp 3';
-          bg = 'rgba(156, 163, 175, 0.15)';
-          border = 'rgba(156, 163, 175, 0.35)';
-          color = '#9ca3af';
-          fontWeight = 500;
+        if (lower.includes('flagship') || lower.includes('tier 1') || lower.includes('cấp 1')) {
+          bg = 'rgba(245, 158, 11, 0.15)';
+          border = 'rgba(245, 158, 11, 0.35)';
+          color = '#f59e0b';
+        } else if (lower.includes('tiêu chuẩn') || lower.includes('tier 2') || lower.includes('cấp 2')) {
+          bg = 'rgba(59, 130, 246, 0.15)';
+          border = 'rgba(59, 130, 246, 0.35)';
+          color = '#60a5fa';
+        } else if (lower.includes('mini') || lower.includes('tier 3') || lower.includes('cấp 3')) {
+          bg = 'rgba(16, 185, 129, 0.15)';
+          border = 'rgba(16, 185, 129, 0.35)';
+          color = '#10b981';
+        } else if (lower.includes('tier 4') || lower.includes('cấp 4')) {
+          bg = 'rgba(168, 85, 247, 0.15)';
+          border = 'rgba(168, 85, 247, 0.35)';
+          color = '#a855f7';
+        } else if (lower.includes('tier 5') || lower.includes('cấp 5')) {
+          bg = 'rgba(236, 72, 153, 0.15)';
+          border = 'rgba(236, 72, 153, 0.35)';
+          color = '#ec4899';
         }
 
         return (
@@ -221,19 +241,26 @@ export default function BranchTable({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px',
+              gap: '6px',
               padding: '3px 8px',
               borderRadius: '6px',
               fontSize: '12px',
-              fontWeight: fontWeight,
+              fontWeight: 600,
               backgroundColor: bg,
               border: `1px solid ${border}`,
               color: color,
-              letterSpacing: '0.3px',
-              lineHeight: 1.2,
+              whiteSpace: 'nowrap',
             }}
           >
-            {label}
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: color,
+              }}
+            />
+            {tierName}
           </span>
         );
       },
