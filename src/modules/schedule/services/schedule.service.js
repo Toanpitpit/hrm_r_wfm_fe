@@ -6,10 +6,11 @@ import { API_ENDPOINTS } from '@/shared/constants/api.constants';
  */
 
 /**
- * Lấy danh sách mẫu ca chuẩn đang hoạt động.
+ * Lấy danh sách mẫu ca chuẩn đang hoạt động (tùy chọn theo branchId để lấy đúng bộ ca của chi nhánh).
  */
-export const getShiftTemplates = async () => {
-  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.TEMPLATES);
+export const getShiftTemplates = async (branchId) => {
+  const url = branchId ? `${API_ENDPOINTS.SHIFTS.TEMPLATES}?branchId=${branchId}` : API_ENDPOINTS.SHIFTS.TEMPLATES;
+  const response = await axiosInstance.get(url);
   return response.data;
 };
 

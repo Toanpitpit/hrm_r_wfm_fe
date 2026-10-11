@@ -102,10 +102,22 @@ export default function AssignShiftCellModal({
     onAssignSingle(selectedUserId, shiftId, workDate);
   };
 
+  // Helper kiểm tra ngày điều chuyển cho Mode 2
+  const targetDateStrMode2 = String(workDate || '').substring(0, 10);
+  const uDispStart = String(user?.dispatchStartDate || '').substring(0, 10);
+  const uDispEnd = String(user?.dispatchEndDate || '').substring(0, 10);
+  const uDispAwayStart = String(user?.dispatchAwayStartDate || '').substring(0, 10);
+  const uDispAwayEnd = String(user?.dispatchAwayEndDate || '').substring(0, 10);
+
+  const isUserNotYetDispatched = Boolean(user?.isDispatched && uDispStart && targetDateStrMode2 < uDispStart);
+  const isUserDispatchExpired = Boolean(user?.isDispatched && uDispEnd && targetDateStrMode2 > uDispEnd);
+  const isUserDispatchedAway = Boolean(user?.isDispatchedAway && uDispAwayStart && uDispAwayEnd && targetDateStrMode2 >= uDispAwayStart && targetDateStrMode2 <= uDispAwayEnd);
+  const isMode2Blocked = isPastDate || isUserNotYetDispatched || isUserDispatchExpired || isUserDispatchedAway;
+
   // Submit cho Mode 2 (Gán ca cho nhân viên cụ thể)
   const handleEmployeeSubmit = (e) => {
     e.preventDefault();
-    if (isPastDate) return;
+    if (isMode2Blocked) return;
     if (!selectedShiftId || !user || !workDate) return;
 
     onAssignSingle(user.userId, selectedShiftId, workDate);
@@ -264,11 +276,17 @@ export default function AssignShiftCellModal({
                     const isConflict = Boolean(assignedShiftOnDate);
 
                     // Kiểm tra điều chuyển nhân sự
-                    const isNotYetDispatched = emp.isDispatched && emp.dispatchStartDate && workDate < emp.dispatchStartDate;
-                    const isDispatchExpired = emp.isDispatched && emp.dispatchEndDate && workDate > emp.dispatchEndDate;
-                    const isDispatchedValid = emp.isDispatched && (!emp.dispatchStartDate || workDate >= emp.dispatchStartDate) && (!emp.dispatchEndDate || workDate <= emp.dispatchEndDate);
-                    const isDispatchedAwayOnDate = emp.isDispatchedAway && emp.dispatchAwayStartDate && emp.dispatchAwayEndDate &&
-                      workDate >= emp.dispatchAwayStartDate && workDate <= emp.dispatchAwayEndDate;
+                    const targetDateStr = String(workDate || '').substring(0, 10);
+                    const dStart = String(emp.dispatchStartDate || '').substring(0, 10);
+                    const dEnd = String(emp.dispatchEndDate || '').substring(0, 10);
+                    const dAwayStart = String(emp.dispatchAwayStartDate || '').substring(0, 10);
+                    const dAwayEnd = String(emp.dispatchAwayEndDate || '').substring(0, 10);
+
+                    const isNotYetDispatched = Boolean(emp.isDispatched && dStart && targetDateStr < dStart);
+                    const isDispatchExpired = Boolean(emp.isDispatched && dEnd && targetDateStr > dEnd);
+                    const isDispatchedValid = Boolean(emp.isDispatched && (!dStart || targetDateStr >= dStart) && (!dEnd || targetDateStr <= dEnd));
+                    const isDispatchedAwayOnDate = Boolean(emp.isDispatchedAway && dAwayStart && dAwayEnd &&
+                      targetDateStr >= dAwayStart && targetDateStr <= dAwayEnd);
 
                     const isDisabled = isConflict || isPastDate || isNotYetDispatched || isDispatchExpired || isDispatchedAwayOnDate;
 
@@ -454,6 +472,66 @@ export default function AssignShiftCellModal({
           </div>
         )}
 
+        {isUserNotYetDispatched && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 6,
+              background: 'rgba(217, 119, 6, 0.15)',
+              border: '1px solid #d97706',
+              color: '#d97706',
+              fontSize: 12.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            <Icon name="alertTriangle" size={16} color="#d97706" />
+            <span>Nhân sự '{user.fullName}' được điều chuyển từ ngày {formatVNDate(user.dispatchStartDate)} đến {formatVNDate(user.dispatchEndDate)}. Chỉ có thể xếp ca từ ngày {formatVNDate(user.dispatchStartDate)} trở đi!</span>
+          </div>
+        )}
+
+        {isUserDispatchExpired && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 6,
+              background: `${c.tones.bad}15`,
+              border: `1px solid ${c.tones.bad}`,
+              color: c.tones.bad,
+              fontSize: 12.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            <Icon name="alertTriangle" size={16} color={c.tones.bad} />
+            <span>Lệnh điều chuyển của nhân sự '{user.fullName}' tại chi nhánh này đã kết thúc vào ngày {formatVNDate(user.dispatchEndDate)}. Không thể xếp ca vào ngày {formatVNDate(workDate)} do đã quá hạn điều chuyển!</span>
+          </div>
+        )}
+
+        {isUserDispatchedAway && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 6,
+              background: `${c.tones.bad}15`,
+              border: `1px solid ${c.tones.bad}`,
+              color: c.tones.bad,
+              fontSize: 12.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            <Icon name="alertTriangle" size={16} color={c.tones.bad} />
+            <span>Nhân sự '{user.fullName}' đang được điều chuyển sang '{user.destinationBranchName || 'cơ sở khác'}' từ ngày {formatVNDate(user.dispatchAwayStartDate)} đến {formatVNDate(user.dispatchAwayEndDate)}. Không thể xếp ca tại cơ sở gốc trong thời gian này!</span>
+          </div>
+        )}
+
         {/* Thông tin nhân viên & ngày */}
         <div
           style={{
@@ -526,8 +604,8 @@ export default function AssignShiftCellModal({
                       borderRadius: 8,
                       background: isSelected ? `${c.accentDim}30` : c.bgElev,
                       border: `1px solid ${isSelected ? c.accent : c.border}`,
-                      cursor: isPastDate ? 'not-allowed' : 'pointer',
-                      opacity: isPastDate ? 0.65 : 1,
+                      cursor: isMode2Blocked ? 'not-allowed' : 'pointer',
+                      opacity: isMode2Blocked ? 0.65 : 1,
                       transition: 'all 0.15s ease',
                     }}
                   >
@@ -537,7 +615,7 @@ export default function AssignShiftCellModal({
                         name="shiftSelect"
                         value={tId}
                         checked={isSelected}
-                        disabled={isPastDate}
+                        disabled={isMode2Blocked}
                         onChange={() => setSelectedShiftId(tId)}
                       />
                       <span style={{ fontWeight: 750, color: isSelected ? c.accent : c.fg, fontSize: 13 }}>
@@ -558,7 +636,7 @@ export default function AssignShiftCellModal({
           <Button variant="ghost" onClick={onClose} type="button" disabled={actionLoading}>
             Đóng
           </Button>
-          <Button variant="primary" type="submit" disabled={actionLoading || isPastDate}>
+          <Button variant="primary" type="submit" disabled={actionLoading || isMode2Blocked || !selectedShiftId}>
             {actionLoading ? 'Đang lưu...' : currentAssignment ? 'Cập Nhật Ca' : 'Xác Nhận Gán Ca'}
           </Button>
         </div>

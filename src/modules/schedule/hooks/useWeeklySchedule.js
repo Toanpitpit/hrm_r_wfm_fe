@@ -169,16 +169,17 @@ export function useWeeklySchedule(initialBranchId = null) {
   /**
    * Tải danh sách ca chuẩn.
    */
-  const loadTemplates = useCallback(async () => {
+  const loadTemplates = useCallback(async (targetBranchId) => {
+    const bId = targetBranchId || branchId;
     try {
-      const res = await scheduleService.getShiftTemplates();
+      const res = await scheduleService.getShiftTemplates(bId);
       if (res.success && res.data) {
         setTemplates(res.data);
       }
     } catch (err) {
       console.error('Lỗi khi tải mẫu ca:', err);
     }
-  }, []);
+  }, [branchId]);
 
   /**
    * Tải dữ liệu ma trận lịch tuần.
@@ -212,14 +213,15 @@ export function useWeeklySchedule(initialBranchId = null) {
 
   useEffect(() => {
     loadAccessibleBranches();
-    loadTemplates();
-  }, [loadAccessibleBranches, loadTemplates]);
+    loadTemplates(branchId);
+  }, [loadAccessibleBranches, loadTemplates, branchId]);
 
   useEffect(() => {
     if (branchId) {
       fetchWeeklyMatrix();
+      loadTemplates(branchId);
     }
-  }, [branchId, fetchWeeklyMatrix]);
+  }, [branchId, fetchWeeklyMatrix, loadTemplates]);
 
 
   // Điều hướng tuần

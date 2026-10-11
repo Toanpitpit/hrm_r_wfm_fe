@@ -812,6 +812,16 @@ export default function WeeklyRosterMatrix({
 
                       {days.map((dateStr) => {
                         const assignment = assignedShiftsMap.get(dateStr);
+                        const targetDate = String(dateStr || '').substring(0, 10);
+                        const dStart = String(emp.dispatchStartDate || '').substring(0, 10);
+                        const dEnd = String(emp.dispatchEndDate || '').substring(0, 10);
+                        const dAwayStart = String(emp.dispatchAwayStartDate || '').substring(0, 10);
+                        const dAwayEnd = String(emp.dispatchAwayEndDate || '').substring(0, 10);
+
+                        const isNotYetDispatched = Boolean(emp.isDispatched && dStart && targetDate < dStart);
+                        const isDispatchExpired = Boolean(emp.isDispatched && dEnd && targetDate > dEnd);
+                        const isDispatchedAwayOnDate = Boolean(emp.isDispatchedAway && dAwayStart && dAwayEnd &&
+                          targetDate >= dAwayStart && targetDate <= dAwayEnd);
 
                         return (
                           <td
@@ -887,6 +897,57 @@ export default function WeeklyRosterMatrix({
                                   {assignment.startTime ? assignment.startTime.substring(0, 5) : ''} -{' '}
                                   {assignment.endTime ? assignment.endTime.substring(0, 5) : ''}
                                 </div>
+                              </div>
+                            ) : isNotYetDispatched ? (
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: '#d97706',
+                                  fontWeight: 700,
+                                  background: 'rgba(217, 119, 6, 0.08)',
+                                  borderRadius: 6,
+                                  padding: '6px 4px',
+                                  border: '1px dashed rgba(217, 119, 6, 0.35)',
+                                  cursor: 'not-allowed',
+                                  lineHeight: 1.2,
+                                }}
+                                title={`Nhân sự chỉ có thể xếp ca từ ngày ${formatVNDate(emp.dispatchStartDate)}`}
+                              >
+                                Chưa đến ngày ĐC
+                              </div>
+                            ) : isDispatchExpired ? (
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: c.tones.bad,
+                                  fontWeight: 700,
+                                  background: `${c.tones.bad}10`,
+                                  borderRadius: 6,
+                                  padding: '6px 4px',
+                                  border: `1px dashed ${c.tones.bad}40`,
+                                  cursor: 'not-allowed',
+                                  lineHeight: 1.2,
+                                }}
+                                title={`Lệnh điều chuyển đã hết hạn vào ngày ${formatVNDate(emp.dispatchEndDate)}`}
+                              >
+                                Hết hạn ĐC
+                              </div>
+                            ) : isDispatchedAwayOnDate ? (
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: '#d97706',
+                                  fontWeight: 700,
+                                  background: 'rgba(217, 119, 6, 0.08)',
+                                  borderRadius: 6,
+                                  padding: '6px 4px',
+                                  border: '1px dashed rgba(217, 119, 6, 0.35)',
+                                  cursor: 'not-allowed',
+                                  lineHeight: 1.2,
+                                }}
+                                title={`Đang điều chuyển sang ${emp.destinationBranchName || 'cơ sở khác'}`}
+                              >
+                                Điều chuyển đi
                               </div>
                             ) : (
                               <button
