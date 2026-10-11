@@ -483,9 +483,9 @@ export default function ShiftMasterPage() {
                           fontWeight: 700,
                           cursor: !isOperationsAdmin || selectedBranch.isLocked ? 'not-allowed' : 'pointer',
                           backgroundColor:
-                            selectedBranch.shiftMode === 'GLOBAL' ? c.accent : 'transparent',
+                            selectedBranch.shiftMode === 'GLOBAL' ? (c.primary || '#0D9488') : 'transparent',
                           color:
-                            selectedBranch.shiftMode === 'GLOBAL' ? '#000000' : c.fgSubtle,
+                            selectedBranch.shiftMode === 'GLOBAL' ? '#ffffff' : c.fgSubtle,
                           border: 'none',
                           transition: 'all 0.18s ease',
                           opacity: !isOperationsAdmin || selectedBranch.isLocked ? 0.6 : 1,
@@ -511,7 +511,7 @@ export default function ShiftMasterPage() {
                           fontWeight: 700,
                           cursor: !isOperationsAdmin || selectedBranch.isLocked ? 'not-allowed' : 'pointer',
                           backgroundColor:
-                            selectedBranch.shiftMode === 'CUSTOM' ? '#a855f7' : 'transparent',
+                            selectedBranch.shiftMode === 'CUSTOM' ? (c.primary || '#0D9488') : 'transparent',
                           color:
                             selectedBranch.shiftMode === 'CUSTOM' ? '#ffffff' : c.fgSubtle,
                           border: 'none',
