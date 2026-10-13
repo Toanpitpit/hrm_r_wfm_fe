@@ -5,6 +5,7 @@ import { Field as FormField } from '@/shared/components/ui/FormField';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
 import BranchMapPicker from './BranchMapPicker';
+import tierService from '../services/tier.service';
 
 /**
  * ==============================================================================
@@ -21,15 +22,18 @@ import BranchMapPicker from './BranchMapPicker';
 export default function BranchFormModal({
   open = false,
   initialData = null,
+  tiers: propTiers = null,
   onClose,
   onSubmit,
 }) {
   const { c } = useAdminTheme();
 
+  const [dbTiers, setDbTiers] = useState(Array.isArray(propTiers) ? propTiers : []);
   const [formData, setFormData] = useState({
     branchCode: '',
     name: '',
     address: '',
+    tierId: null,
     branchTier: 2,
     staffCount: 0,
     latitude: 21.033333,
@@ -42,12 +46,30 @@ export default function BranchFormModal({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (Array.isArray(propTiers) && propTiers.length > 0) {
+      setDbTiers(propTiers);
+      return;
+    }
+    let isMounted = true;
+    tierService.getAllTiers()
+      .then((tiers) => {
+        if (isMounted && Array.isArray(tiers) && tiers.length > 0) {
+          setDbTiers(tiers);
+        }
+      })
+      .catch((err) => console.warn('[BranchFormModal] Load tiers from DB error:', err));
+    return () => { isMounted = false; };
+  }, [open, propTiers]);
+
+  useEffect(() => {
     if (initialData) {
       const tierVal = Number(initialData.branchTier ?? initialData.tier ?? 2);
+      const tierIdVal = Number(initialData.tierId || initialData.tier?.id || initialData.tierObj?.id || 0) || null;
       setFormData({
         branchCode: initialData.branchCode || initialData.code || '',
         name: initialData.name || initialData.storeName || '',
         address: initialData.address || '',
+        tierId: tierIdVal,
         branchTier: [1, 2, 3].includes(tierVal) ? tierVal : 2,
         staffCount: Number(initialData.staffCount ?? 0),
         latitude: Number(initialData.latitude || initialData.lat || (initialData.location?.coordinates ? initialData.location.coordinates[1] : 21.033333)),
@@ -59,6 +81,7 @@ export default function BranchFormModal({
         branchCode: '',
         name: '',
         address: '',
+        tierId: dbTiers.length > 0 ? dbTiers[0].id : null,
         branchTier: 2,
         staffCount: 0,
         latitude: 21.028511,
@@ -68,7 +91,7 @@ export default function BranchFormModal({
     }
     setErrors({});
     setServerError('');
-  }, [initialData, open]);
+  }, [initialData, open, dbTiers]);
 
   const validate = () => {
     const errs = {};
@@ -117,11 +140,17 @@ export default function BranchFormModal({
       setSubmitting(true);
       const rawRadius = parseInt(formData.radiusMeters, 10);
       const validRadius = isNaN(rawRadius) || rawRadius < 20 ? 100 : Math.min(rawRadius, 1000);
-      const tierVal = Number(formData.branchTier) || 2;
+      const selectedTier = dbTiers.find((t) => Number(t.id || t.tier_id) === Number(formData.tierId));
+      const tierVal = selectedTier?.tierName && selectedTier.tierName.match(/\d+/)
+        ? Number(selectedTier.tierName.match(/\d+/)[0])
+        : (Number(formData.branchTier) || 2);
+      const safeTier = [1, 2, 3].includes(tierVal) ? tierVal : 2;
+
       const submitPayload = {
         ...formData,
-        branchTier: tierVal,
-        tier: tierVal,
+        tierId: formData.tierId ? Number(formData.tierId) : undefined,
+        branchTier: safeTier,
+        tier: safeTier,
         radiusMeters: validRadius,
         geofenceRadiusMeters: validRadius,
       };
@@ -209,12 +238,29 @@ export default function BranchFormModal({
             <FormField
               label="Phân Cấp Chi Nhánh (Tier)"
               required
-              hint="Định biên chuẩn cố định: Tier 1 = 30, Tier 2 = 15, Tier 3 = 8"
+
             >
               <select
-                value={formData.branchTier}
+                value={
+                  formData.tierId ||
+                  dbTiers.find((t) => {
+                    const match = (t.tierName || t.tier_name || '').match(/\d+/);
+                    return match && Number(match[0]) === Number(formData.branchTier);
+                  })?.id ||
+                  formData.branchTier ||
+                  2
+                }
                 onChange={(e) => {
-                  setFormData((prev) => ({ ...prev, branchTier: Number(e.target.value) }));
+                  const val = Number(e.target.value);
+                  const selected = dbTiers.find((t) => Number(t.id || t.tier_id) === val);
+                  const tierNum = selected?.tierName && selected.tierName.match(/\d+/)
+                    ? Number(selected.tierName.match(/\d+/)[0])
+                    : (val <= 3 ? val : 2);
+                  setFormData((prev) => ({
+                    ...prev,
+                    tierId: val,
+                    branchTier: [1, 2, 3].includes(tierNum) ? tierNum : (val <= 3 ? val : 2),
+                  }));
                   if (serverError) setServerError('');
                 }}
                 style={{
@@ -230,40 +276,38 @@ export default function BranchFormModal({
                   fontWeight: 600,
                 }}
               >
-                <option value={1} style={{ backgroundColor: c.bgCard, color: c.fg }}>Tier 1 - Đại siêu thị (Tối đa 30 nhân sự)</option>
-                <option value={2} style={{ backgroundColor: c.bgCard, color: c.fg }}>Tier 2 - Tiêu chuẩn (Tối đa 15 nhân sự)</option>
-                <option value={3} style={{ backgroundColor: c.bgCard, color: c.fg }}>Tier 3 - Cửa hàng tiện lợi mini (Tối đa 8 nhân sự)</option>
+                {dbTiers.length > 0 ? (
+                  dbTiers.map((t) => {
+                    const id = t.id || t.tier_id;
+                    const name = t.tierName || t.tier_name || `Tier ${id}`;
+                    const min = t.minStaffCount ?? t.min_staff_count ?? 0;
+                    const max = t.maxStaffCount ?? t.max_staff_count;
+                    const countDesc = max ? `Tối đa ${max} nhân sự` : `Từ ${min} nhân sự`;
+                    return (
+                      <option key={id} value={id} style={{ backgroundColor: c.bgCard, color: c.fg }}>
+                        {name} ({countDesc})
+                      </option>
+                    );
+                  })
+                ) : (
+                  <>
+                    <option value={1} style={{ backgroundColor: c.bgCard, color: c.fg }}>Tier 1 - Đại siêu thị (Tối đa 30 nhân sự)</option>
+                    <option value={2} style={{ backgroundColor: c.bgCard, color: c.fg }}>Tier 2 - Tiêu chuẩn (Tối đa 15 nhân sự)</option>
+                    <option value={3} style={{ backgroundColor: c.bgCard, color: c.fg }}>Tier 3 - Cửa hàng tiện lợi mini (Tối đa 8 nhân sự)</option>
+                  </>
+                )}
               </select>
             </FormField>
           </div>
 
-          {/* Quy định định biên cố định theo Tier */}
-          <div
-            style={{
-              padding: '10px 14px',
-              borderRadius: '8px',
-              background: 'rgba(59, 130, 246, 0.08)',
-              border: '1px solid rgba(59, 130, 246, 0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              fontSize: '12.5px',
-              color: c.fg,
-            }}
-          >
-            <span style={{ fontSize: '15px' }}>ℹ️</span>
-            <div>
-              <strong>Định biên chuẩn cơ sở theo Tier (cố định):</strong> Tier 1 = 30 người, Tier 2 = 15 người, Tier 3 = 8 người.
-              Khi chi nhánh đã đầy định biên và muốn tuyển thêm nhân viên, Admin thực hiện <strong>nâng Tier chi nhánh</strong> lên.
-            </div>
-          </div>
+
 
           {/* 2. Tên Chi Nhánh */}
           <FormField
             label="Tên Chi Nhánh"
             required
             error={errors.name}
-            hint="Tên hiển thị chuỗi cửa hàng"
+
           >
             <input
               type="text"

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import branchService from '../services/branch.service';
+import tierService from '../services/tier.service';
 
 /**
  * ==============================================================================
@@ -10,6 +11,7 @@ import branchService from '../services/branch.service';
  */
 export function useBranch() {
   const [branches, setBranches] = useState([]);
+  const [tiers, setTiers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -33,13 +35,17 @@ export function useBranch() {
 
   const [isActionInProgress, setIsActionInProgress] = useState(false);
 
-  // Tải danh sách chi nhánh
+  // Tải danh sách chi nhánh và phân cấp
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const branchList = await branchService.getAllBranches();
+      const [branchList, tierList] = await Promise.all([
+        branchService.getAllBranches(),
+        tierService.getAllTiers().catch(() => []),
+      ]);
       setBranches(branchList || []);
+      setTiers(tierList || []);
     } catch (err) {
       setError(err.message || 'Không thể tải dữ liệu chi nhánh');
     } finally {
@@ -56,18 +62,52 @@ export function useBranch() {
     const totalBranches = branches.length;
     const activeBranches = branches.filter((b) => (b.status || '').toUpperCase() === 'ACTIVE').length;
     const lockedBranches = totalBranches - activeBranches;
-    const tier1Count = branches.filter((b) => Number(b.branchTier || b.tier || 2) === 1).length;
-    const tier2Count = branches.filter((b) => Number(b.branchTier || b.tier || 2) === 2).length;
-    const tier3Count = branches.filter((b) => Number(b.branchTier || b.tier || 2) === 3).length;
+
+    let t1Count = 0;
+    let t2Count = 0;
+    let t3Count = 0;
+    let t4Count = 0;
+    let t5Count = 0;
+    let otherCount = 0;
+
+    branches.forEach((b) => {
+      const tId = Number(b.tierId || b.tier?.id || b.tier_id || 0);
+      const matchedTier = (tiers || []).find((t) => Number(t.id || t.tier_id) === tId) || b.tierObj || b.tier;
+      const tName = (matchedTier?.tierName || matchedTier?.name || b.branchTierName || '').toLowerCase();
+
+      if (tId === 6 || tName.includes('tier 1') || tName.includes('flagship')) {
+        t1Count++;
+      } else if (tId === 7 || tName.includes('tier 2') || tName.includes('tiêu chuẩn')) {
+        t2Count++;
+      } else if (tId === 3 || tName.includes('tier 3') || tName.includes('mini')) {
+        t3Count++;
+      } else if (tId === 9 || tName.includes('tier 4')) {
+        t4Count++;
+      } else if (tId === 10 || tName.includes('tier 5')) {
+        t5Count++;
+      } else if (Number(b.branchTier) === 1) {
+        t1Count++;
+      } else if (Number(b.branchTier) === 2) {
+        t2Count++;
+      } else if (Number(b.branchTier) === 3) {
+        t3Count++;
+      } else {
+        otherCount++;
+      }
+    });
+
     return {
       totalBranches,
       activeBranches,
       lockedBranches,
-      tier1Count,
-      tier2Count,
-      tier3Count,
+      tier1Count: t1Count,
+      tier2Count: t2Count,
+      tier3Count: t3Count,
+      tier4Count: t4Count,
+      tier5Count: t5Count,
+      otherTierCount: otherCount,
     };
-  }, [branches]);
+  }, [branches, tiers]);
 
   // Danh sách chi nhánh đã lọc theo Search, Status và Tier
   const filteredBranches = useMemo(() => {
@@ -80,12 +120,19 @@ export function useBranch() {
       const matchStatus =
         statusFilter === 'ALL' ||
         (b.status || '').toUpperCase() === statusFilter.toUpperCase();
+
+      const bTierId = Number(b.tierId || b.tier?.id || 0);
+      const matchedTier = (tiers || []).find((t) => Number(t.id || t.tier_id) === bTierId);
+      const bBranchTier = Number(b.branchTier || b.tier || 2);
       const matchTier =
         tierFilter === 'ALL' ||
-        Number(b.branchTier || b.tier || 2) === Number(tierFilter);
+        String(bTierId) === String(tierFilter) ||
+        (matchedTier && String(matchedTier.id) === String(tierFilter)) ||
+        String(bBranchTier) === String(tierFilter);
+
       return matchSearch && matchStatus && matchTier;
     });
-  }, [branches, searchTerm, statusFilter, tierFilter]);
+  }, [branches, searchTerm, statusFilter, tierFilter, tiers]);
 
   // Thao tác Tạo mới chi nhánh
   const handleCreateBranch = async (formData) => {
@@ -179,6 +226,7 @@ export function useBranch() {
   return {
     branches: filteredBranches,
     allBranches: branches,
+    tiers,
     loading,
     error,
     stats,

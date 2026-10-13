@@ -34,7 +34,6 @@ export default function AssignShiftCellModal({
   const allEmployees = cellData?.allEmployees || [];
 
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [showAllStoreRoles, setShowAllStoreRoles] = useState(false);
   const [roleSearchTerm, setRoleSearchTerm] = useState('');
 
   // --- State cho Mode 2: BY_EMPLOYEE (Legacy) ---
@@ -46,7 +45,6 @@ export default function AssignShiftCellModal({
   useEffect(() => {
     if (isRoleMode) {
       setSelectedUserId('');
-      setShowAllStoreRoles(false);
       setRoleSearchTerm('');
     } else {
       if (currentAssignment) {
@@ -57,21 +55,20 @@ export default function AssignShiftCellModal({
     }
   }, [isRoleMode, cellData, currentAssignment, activeTemplates]);
 
-  // Lọc danh sách nhân sự phù hợp cho Mode 1
+  // Lọc danh sách nhân sự phù hợp cho Mode 1: Chỉ cho phép nhân sự có đúng vai trò tương ứng
   const eligibleEmployees = useMemo(() => {
     if (!isRoleMode || !allEmployees) return [];
 
     let list = allEmployees;
 
-    // Nếu không tick "Hiện tất cả", chỉ lọc đúng vai trò cần gán
-    if (!showAllStoreRoles && targetRole) {
+    if (targetRole) {
       list = list.filter((emp) => {
         const rCode = (emp.roleCode || '').toUpperCase();
         if (targetRole === 'SHIFT_LEADER') return rCode === 'SHIFT_LEADER' || rCode === 'LEADER';
         if (targetRole === 'CASHIER') return rCode === 'CASHIER';
         if (targetRole === 'SALES_STAFF') return rCode === 'SALES' || rCode === 'SALES_STAFF';
         if (targetRole === 'SECURITY_GUARD') return rCode === 'SECURITY' || rCode === 'SECURITY_GUARD';
-        return true;
+        return false;
       });
     }
 
@@ -85,7 +82,7 @@ export default function AssignShiftCellModal({
     }
 
     return list;
-  }, [isRoleMode, allEmployees, targetRole, showAllStoreRoles, roleSearchTerm]);
+  }, [isRoleMode, allEmployees, targetRole, roleSearchTerm]);
 
   if (!isOpen || !cellData) return null;
 
@@ -277,23 +274,9 @@ export default function AssignShiftCellModal({
             <span style={{ fontSize: 12, fontWeight: 700, color: c.accent }}>
               Vị trí cần bổ sung: {targetRoleLabel}
             </span>
-            <label
-              style={{
-                fontSize: 11,
-                color: c.fgSubtle,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                cursor: 'pointer',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={showAllStoreRoles}
-                onChange={(e) => setShowAllStoreRoles(e.target.checked)}
-              />
-              Hiện tất cả nhân viên khác
-            </label>
+            <span style={{ fontSize: 11, color: c.fgFaint }}>
+              Chỉ hiển thị đúng vai trò
+            </span>
           </div>
 
           {/* Ô tìm nhanh nhân viên */}
@@ -331,7 +314,7 @@ export default function AssignShiftCellModal({
               >
                 {eligibleEmployees.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '24px 0', color: c.fgFaint, fontSize: 12 }}>
-                    Không có nhân sự nào phù hợp vị trí này. Hãy bật &quot;Hiện tất cả nhân viên khác&quot; để gán kiêm nhiệm.
+                    Không có nhân sự nào giữ vị trí {targetRoleLabel} tại chi nhánh này.
                   </div>
                 ) : (
                   eligibleEmployees.map((emp) => {

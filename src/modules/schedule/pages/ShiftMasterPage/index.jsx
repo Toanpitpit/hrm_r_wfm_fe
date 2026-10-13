@@ -16,11 +16,11 @@ import Icon from '@/shared/components/ui/Icon';
 
 // Subcomponents & Hook
 import { useShiftTemplate } from '../../hooks/useShiftTemplate';
-import ShiftEnforcementBanner from '../../components/ShiftEnforcementBanner';
 import Shift24hTimeline from '../../components/Shift24hTimeline';
 import ShiftTemplateTable from '../../components/ShiftTemplateTable';
 import ShiftTemplateFormModal from '../../components/ShiftTemplateFormModal';
 import ShiftImpactModal from '../../components/ShiftImpactModal';
+import ShiftDeleteModal from '../../components/ShiftDeleteModal';
 
 /**
  * ==============================================================================
@@ -68,6 +68,12 @@ export default function ShiftMasterPage() {
     handleCreateShift,
     handleUpdateShift,
     handleToggleStatus,
+    deleteModalOpen,
+    setDeleteModalOpen,
+    deletingShift,
+    setDeletingShift,
+    handleOpenDeleteModal,
+    handleDeleteShift,
     impactModal,
     setImpactModal,
   } = useShiftTemplate();
@@ -179,9 +185,6 @@ export default function ShiftMasterPage() {
         />
       </div>
 
-      {/* 3. Banner chính sách quy định */}
-      <ShiftEnforcementBanner />
-
       {/* 4. Hai Tab điều hướng: "Khung ca chung" | "Khung ca chi nhánh" */}
       <div
         style={{
@@ -239,9 +242,9 @@ export default function ShiftMasterPage() {
             fontSize: '14px',
             fontWeight: 700,
             cursor: 'pointer',
-            backgroundColor: activeTab === 'BRANCH' ? 'rgba(168, 85, 247, 0.18)' : 'transparent',
-            color: activeTab === 'BRANCH' ? '#c084fc' : c.fgSubtle,
-            border: activeTab === 'BRANCH' ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid transparent',
+            backgroundColor: activeTab === 'BRANCH' ? `${c.accent}20` : 'transparent',
+            color: activeTab === 'BRANCH' ? c.accent : c.fgSubtle,
+            border: activeTab === 'BRANCH' ? `1px solid ${c.accent}50` : '1px solid transparent',
             transition: 'all 0.18s ease',
           }}
         >
@@ -252,7 +255,7 @@ export default function ShiftMasterPage() {
               fontSize: '11px',
               padding: '1px 7px',
               borderRadius: '10px',
-              backgroundColor: activeTab === 'BRANCH' ? '#a855f7' : c.bgElev,
+              backgroundColor: activeTab === 'BRANCH' ? (c.primary || '#0D9488') : c.bgElev,
               color: activeTab === 'BRANCH' ? '#ffffff' : c.fgSubtle,
               fontWeight: 700,
             }}
@@ -352,6 +355,7 @@ export default function ShiftMasterPage() {
               isOperationsAdmin={isOperationsAdmin}
               onEdit={handleOpenEditModal}
               onToggleStatus={handleToggleStatus}
+              onDelete={handleOpenDeleteModal}
               emptyMessage="Chưa có khung ca chung nào phù hợp với bộ lọc."
             />
           </Panel>
@@ -381,11 +385,11 @@ export default function ShiftMasterPage() {
                     width: '36px',
                     height: '36px',
                     borderRadius: '8px',
-                    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                    backgroundColor: `${c.accent}20`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#c084fc',
+                    color: c.accent,
                     flexShrink: 0,
                   }}
                 >
@@ -479,9 +483,9 @@ export default function ShiftMasterPage() {
                           fontWeight: 700,
                           cursor: !isOperationsAdmin || selectedBranch.isLocked ? 'not-allowed' : 'pointer',
                           backgroundColor:
-                            selectedBranch.shiftMode === 'GLOBAL' ? c.accent : 'transparent',
+                            selectedBranch.shiftMode === 'GLOBAL' ? (c.primary || '#0D9488') : 'transparent',
                           color:
-                            selectedBranch.shiftMode === 'GLOBAL' ? '#000000' : c.fgSubtle,
+                            selectedBranch.shiftMode === 'GLOBAL' ? '#ffffff' : c.fgSubtle,
                           border: 'none',
                           transition: 'all 0.18s ease',
                           opacity: !isOperationsAdmin || selectedBranch.isLocked ? 0.6 : 1,
@@ -507,7 +511,7 @@ export default function ShiftMasterPage() {
                           fontWeight: 700,
                           cursor: !isOperationsAdmin || selectedBranch.isLocked ? 'not-allowed' : 'pointer',
                           backgroundColor:
-                            selectedBranch.shiftMode === 'CUSTOM' ? '#a855f7' : 'transparent',
+                            selectedBranch.shiftMode === 'CUSTOM' ? (c.primary || '#0D9488') : 'transparent',
                           color:
                             selectedBranch.shiftMode === 'CUSTOM' ? '#ffffff' : c.fgSubtle,
                           border: 'none',
@@ -559,22 +563,6 @@ export default function ShiftMasterPage() {
                     : 'Các ca riêng dưới đây đang được áp dụng trực tiếp cho việc xếp lịch làm việc tại chi nhánh.'}
                 </div>
               </div>
-
-              {isOperationsAdmin && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={selectedBranch?.isLocked}
-                  onClick={() => {
-                    setEditingShift(null);
-                    setFormModalOpen(true);
-                  }}
-                  title={selectedBranch?.isLocked ? 'Chi nhánh đang bị khóa' : 'Thêm ca riêng'}
-                >
-                  <Icon name="plus" size={14} />
-                  <span>Thêm Ca Riêng</span>
-                </Button>
-              )}
             </div>
 
             {/* Trạng thái trống nếu chưa có ca riêng nào */}
@@ -593,11 +581,11 @@ export default function ShiftMasterPage() {
                     width: '40px',
                     height: '40px',
                     borderRadius: '50%',
-                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                    backgroundColor: `${c.accent}15`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#c084fc',
+                    color: c.accent,
                     margin: '0 auto 12px',
                   }}
                 >
@@ -609,19 +597,6 @@ export default function ShiftMasterPage() {
                 <div style={{ fontSize: '13px', color: c.fgSubtle, maxWidth: '420px', margin: '0 auto 16px' }}>
                   Thêm ca riêng để có thể chuyển sang chế độ ca riêng. Khi ở chế độ ca chung, cửa hàng sẽ dùng bộ ca mặc định của chuỗi.
                 </div>
-                {isOperationsAdmin && !selectedBranch?.isLocked && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      setEditingShift(null);
-                      setFormModalOpen(true);
-                    }}
-                  >
-                    <Icon name="plus" size={14} />
-                    <span>Thêm Ca Riêng Đầu Tiên</span>
-                  </Button>
-                )}
               </div>
             ) : (
               <ShiftTemplateTable
@@ -631,6 +606,7 @@ export default function ShiftMasterPage() {
                 isBranchMuted={selectedBranch?.shiftMode === 'GLOBAL'}
                 onEdit={handleOpenEditModal}
                 onToggleStatus={handleToggleStatus}
+                onDelete={handleOpenDeleteModal}
                 emptyMessage="Chi nhánh chưa có ca riêng nào."
               />
             )}
@@ -647,10 +623,14 @@ export default function ShiftMasterPage() {
         defaultScope={activeTab === 'BRANCH' ? 'BRANCH' : 'GLOBAL'}
         defaultBranchId={selectedBranchId}
         branches={branches}
+        allGlobalShifts={allGlobalShifts}
+        customShifts={customShifts}
+        existingShifts={activeTab === 'BRANCH' ? customShifts : allGlobalShifts}
         onClose={() => {
           setFormModalOpen(false);
           setEditingShift(null);
         }}
+        onDelete={handleOpenDeleteModal}
         onSubmit={async (formData) => {
           if (editingShift) {
             return await handleUpdateShift(editingShift.id || editingShift.shiftId, formData);
@@ -675,6 +655,19 @@ export default function ShiftMasterPage() {
             await impactModal.onConfirm();
           }
         }}
+      />
+
+      {/* ============================================================================== */}
+      {/* 9. MODAL XÁC NHẬN XÓA KHUNG CA */}
+      {/* ============================================================================== */}
+      <ShiftDeleteModal
+        open={deleteModalOpen}
+        shift={deletingShift}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeletingShift(null);
+        }}
+        onConfirm={handleDeleteShift}
       />
     </DashboardShell>
   );

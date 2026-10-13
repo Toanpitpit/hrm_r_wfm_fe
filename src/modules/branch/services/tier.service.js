@@ -168,15 +168,37 @@ export const getBranchQuota = (storeId, tier) => {
 /**
  * 2. Cập nhật cấp chi nhánh & chỉ tiêu nhân sự định biên (Lưu trực tiếp vào Backend)
  */
-export const updateBranchTierAndQuota = async (storeId, newTier, quota, note = '') => {
+export const updateBranchTierAndQuota = async (storeId, tierInput, quota, note = '') => {
   const currentBranches = await getAllBranches();
   const id = Number(storeId);
   const branch = currentBranches.find(
     (b) => String(b.storeId || b.id) === String(storeId)
   );
 
-  const finalTier = Number(newTier ?? branch?.branchTier ?? 2);
-  const finalQuota = Number(quota ?? getBranchQuota(id, finalTier));
+  let targetTierId = null;
+  let targetBranchTier = null;
+  let targetQuota = quota;
+  let targetNote = note;
+
+  if (typeof tierInput === 'object' && tierInput !== null) {
+    targetTierId = tierInput.tierId || tierInput.id || null;
+    targetBranchTier = tierInput.branchTier ?? tierInput.tier ?? null;
+    targetQuota = tierInput.quota ?? quota;
+    targetNote = tierInput.note ?? note;
+  } else if (typeof tierInput === 'number' || typeof tierInput === 'string') {
+    const num = Number(tierInput);
+    const allDbTiers = await getAllTiers();
+    const matched = allDbTiers.find((t) => Number(t.id || t.tier_id) === num);
+    if (matched) {
+      targetTierId = Number(matched.id || matched.tier_id);
+    }
+    if (num === 1 || num === 2 || num === 3) {
+      targetBranchTier = num;
+    }
+  }
+
+  const finalTier = Number(targetBranchTier ?? branch?.branchTier ?? 2);
+  const finalQuota = Number(targetQuota ?? (branch?.staffCount || 20));
 
   // Lưu quota tùy chỉnh
   const quotasMap = getCustomQuotasMap();
@@ -189,12 +211,13 @@ export const updateBranchTierAndQuota = async (storeId, newTier, quota, note = '
     address: branch?.address || 'Hà Nội',
     storeId: id,
     id: id,
+    tierId: targetTierId || branch?.tierId || null,
     branchTier: finalTier,
     tier: finalTier,
     staffCount: finalQuota,
     targetStaffCount: finalQuota,
     headcountQuota: finalQuota,
-    tierNote: note,
+    tierNote: targetNote,
   };
 
   return await updateBranch(storeId, payload);
@@ -218,6 +241,47 @@ export const quickAdjustHeadcount = async (storeId, delta) => {
   return await updateBranchTierAndQuota(id, tier, newQuota, `Điều chỉnh nhanh ${delta > 0 ? '+' : ''}${delta} định biên nhân sự`);
 };
 
+/**
+ * 4. CRUD Quản lý Danh mục Phân cấp Tier (/api/tiers)
+ */
+export const getAllTiers = async () => {
+  try {
+    const res = await apiClient.get('/tiers');
+    if (res.data) {
+      const data = res.data.data || res.data;
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (e) {
+    console.warn('[tier.service] getAllTiers fallback:', e.message);
+  }
+  return TIER_DEFINITIONS.map((td) => ({
+    id: td.tier,
+    tier_name: td.tierName,
+    short_name: td.shortName,
+    min_staff_count: td.minStaff,
+    max_staff_count: td.maxStaff,
+    description: td.description,
+    other_conditions: td.conditions,
+    benefits: td.benefits,
+    color: td.color,
+  }));
+};
+
+export const createTier = async (dto) => {
+  const res = await apiClient.post('/tiers', dto);
+  return res.data?.data || res.data;
+};
+
+export const updateTier = async (id, dto) => {
+  const res = await apiClient.put(`/tiers/${id}`, dto);
+  return res.data?.data || res.data;
+};
+
+export const deleteTier = async (id) => {
+  const res = await apiClient.delete(`/tiers/${id}`);
+  return res.data?.data || res.data;
+};
+
 export default {
   TIER_DEFINITIONS,
   getTierSummary,
@@ -227,4 +291,8 @@ export default {
   updateBranchTier,
   updateBranchTierAndQuota,
   quickAdjustHeadcount,
+  getAllTiers,
+  createTier,
+  updateTier,
+  deleteTier,
 };

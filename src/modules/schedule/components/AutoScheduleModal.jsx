@@ -61,8 +61,9 @@ export default function AutoScheduleModal({
           </div>
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: c.fgSubtle, lineHeight: 1.6 }}>
             <li>Mỗi ca đảm bảo đúng số lượng Trưởng ca, Thu ngân, Bán hàng, Bảo vệ theo định mức.</li>
+            <li><strong>Tuyệt đối không xếp ca quá khứ:</strong> Chỉ tự động phân bổ cho các ngày tương lai, giữ nguyên lịch sử điểm danh.</li>
             <li><strong>Tuyệt đối không trùng:</strong> Mỗi nhân viên làm tối đa 1 ca / ngày.</li>
-            <li><strong>Bảo vệ sức khỏe:</strong> Nhân viên làm ca đêm hôm trước bắt buộc nghỉ ca sáng hôm sau.</li>
+            <li><strong>Bảo vệ sức khỏe:</strong> Nghỉ cách ca ít nhất 12 giờ giữa 2 ngày liên tiếp (ca đêm hôm trước nghỉ sáng hôm sau).</li>
             <li>Không xếp quá giới hạn số ca quy định trong tuần (đảm bảo ngày nghỉ).</li>
           </ul>
 
