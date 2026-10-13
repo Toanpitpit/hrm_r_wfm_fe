@@ -36,6 +36,8 @@ export default function DispatchListTable({
         return <Badge tone="bad" dot>Đã từ chối</Badge>;
       case 'RECALLED':
         return <Badge tone="warn" dot>Đã thu hồi (Đang sửa)</Badge>;
+      case 'EXPIRED':
+        return <Badge tone="bad" dot>Đã quá hạn</Badge>;
       case 'PENDING':
       default:
         return <Badge tone="warn" dot>Chờ xét duyệt</Badge>;
@@ -102,12 +104,16 @@ export default function DispatchListTable({
         </thead>
         <tbody>
           {displayDispatches.map((item) => {
-            const isSource = currentStoreId && Number(item.fromStoreId) === Number(currentStoreId);
-            const isTarget = currentStoreId && Number(item.toStoreId) === Number(currentStoreId);
-            const isPending = item.status === 'PENDING';
-            const isRecalled = item.status === 'RECALLED';
-            const canReview = isSource && isPending;
-            const canModify = isTarget && (isPending || isRecalled);
+            const isSource = Boolean(currentStoreId) && Number(item.fromStoreId) === Number(currentStoreId);
+            const isTarget = Boolean(currentStoreId) && Number(item.toStoreId) === Number(currentStoreId);
+            const todayStr = new Date().toISOString().split('T')[0];
+            const isOverdue = Boolean(item.endDate && item.endDate < todayStr);
+            const isExpired = item.status === 'EXPIRED' || ((item.status === 'PENDING' || item.status === 'RECALLED') && isOverdue);
+            const effectiveStatus = isExpired ? 'EXPIRED' : item.status;
+            const isPending = effectiveStatus === 'PENDING';
+            const isRecalled = effectiveStatus === 'RECALLED';
+            const canReview = isSource && isPending && !isExpired;
+            const canModify = isTarget && (isPending || isRecalled || isExpired);
 
             return (
               <tr
@@ -215,7 +221,7 @@ export default function DispatchListTable({
 
                 {/* Trạng thái */}
                 <td style={tdStyle(c)}>
-                  {getStatusBadge(item.status)}
+                  {getStatusBadge(effectiveStatus)}
                 </td>
 
                 {/* Người lập / duyệt */}

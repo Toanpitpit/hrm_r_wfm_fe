@@ -106,7 +106,7 @@ export default function EmployeeFormModal({
       formData.phone?.trim() ||
       formData.roleId ||
       (!isStoreManager && formData.branchId) ||
-      selectedFile
+      (selectedFile && importStatus === 'idle')
     )
   );
 
@@ -222,9 +222,27 @@ export default function EmployeeFormModal({
     }
   }, [existingEmployees, isEdit, initialData?.id]);
 
-  // Reset form & import khi mở modal
+  const checkCodeDuplicateRef = useRef(checkCodeDuplicate);
   useEffect(() => {
-    if (isOpen) {
+    checkCodeDuplicateRef.current = checkCodeDuplicate;
+  }, [checkCodeDuplicate]);
+
+  const prevIsOpenRef = useRef(false);
+  const prevInitialDataIdRef = useRef(initialData?.id || null);
+
+  // Reset form & import khi mở modal hoặc khi chuyển đổi nhân viên cần sửa
+  useEffect(() => {
+    const isOpening = isOpen && !prevIsOpenRef.current;
+    const initialDataChanged = isOpen && (initialData?.id || null) !== prevInitialDataIdRef.current;
+
+    prevIsOpenRef.current = isOpen;
+    prevInitialDataIdRef.current = initialData?.id || null;
+
+    if (!isOpen) return;
+
+    // Chỉ thực hiện reset khi modal vừa mở lên hoặc đổi nhân viên edit
+    // Tuyệt đối không reset khi modal đang mở mà danh sách existingEmployees / stats cập nhật ngầm phía sau
+    if (isOpening || initialDataChanged) {
       setActiveTab('manual');
       setSelectedFile(null);
       setFileError('');
@@ -278,11 +296,11 @@ export default function EmployeeFormModal({
           password: `Rwfm@${Math.floor(100000 + Math.random() * 900000)}`,
         });
         setBranchQuota(null);
-        setTimeout(() => checkCodeDuplicate(initialCode), 150);
+        setTimeout(() => checkCodeDuplicateRef.current?.(initialCode), 150);
       }
       setErrors({});
     }
-  }, [initialData, isOpen, isStoreManager, currentStoreBranchId, checkCodeDuplicate]);
+  }, [initialData, isOpen, isStoreManager, currentStoreBranchId, branches]);
 
   // Tải Effective Quota khi chọn chi nhánh (khi tạo mới)
   useEffect(() => {

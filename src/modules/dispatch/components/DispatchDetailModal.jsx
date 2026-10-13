@@ -49,9 +49,12 @@ export default function DispatchDetailModal({
     Boolean(currentStoreId) &&
     Number(dispatchItem?.toStoreId) === Number(currentStoreId);
 
-  const isPending = dispatchItem?.status === 'PENDING';
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isEndDatePassed = Boolean(dispatchItem?.endDate && dispatchItem.endDate < todayStr);
+  const isExpired = dispatchItem?.status === 'EXPIRED' || ((dispatchItem?.status === 'PENDING' || dispatchItem?.status === 'RECALLED') && isEndDatePassed);
+  const isPending = dispatchItem?.status === 'PENDING' && !isExpired;
   const isRecalled = dispatchItem?.status === 'RECALLED';
-  const canReview = isPending && (isSourceBranch || isOpsAdmin);
+  const canReview = isPending && (isSourceBranch || isOpsAdmin) && !isExpired;
 
   // Khởi tạo dữ liệu khi mở modal
   useEffect(() => {
@@ -118,6 +121,8 @@ export default function DispatchDetailModal({
         return <Badge tone="bad" dot>Đã từ chối</Badge>;
       case 'RECALLED':
         return <Badge tone="warn" dot>Đã thu hồi (Đang sửa)</Badge>;
+      case 'EXPIRED':
+        return <Badge tone="bad" dot>Đã quá hạn</Badge>;
       case 'PENDING':
       default:
         return <Badge tone="warn" dot>Chờ xét duyệt</Badge>;
@@ -229,7 +234,7 @@ export default function DispatchDetailModal({
               </span>
             ) : (
               <span style={{ fontSize: 12, color: c.fgFaint }}>
-                Trạng thái hiện tại: {getStatusBadge(dispatchItem.status)}
+                Trạng thái hiện tại: {getStatusBadge(isExpired ? 'EXPIRED' : dispatchItem.status)}
               </span>
             )}
           </div>
@@ -279,8 +284,31 @@ export default function DispatchDetailModal({
           </div>
         )}
 
+        {/* Cảnh báo nếu đơn đã quá hạn thời gian điều chuyển */}
+        {isExpired && (
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              color: '#f87171',
+              padding: '12px 14px',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span>⚠️</span>
+            <span>
+              Lệnh điều động này đã quá hạn thời gian điều chuyển (kết thúc ngày {formatDate(dispatchItem.endDate)}). Hệ thống đã tự động khóa và không cho phép phê duyệt nữa.
+            </span>
+          </div>
+        )}
+
         {/* Cảnh báo nếu đơn đã bị người gửi thu hồi để chỉnh sửa */}
-        {isRecalled && (
+        {isRecalled && !isExpired && (
           <div
             style={{
               background: 'rgba(245, 158, 11, 0.12)',
