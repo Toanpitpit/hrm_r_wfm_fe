@@ -20,9 +20,9 @@ export default function DashboardSidebar({
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuthContext();
-  const { c, fonts, sidebarCollapsed: collapsed, setSidebarCollapsed } = useAdminTheme();
+  const { c, fonts, sidebarCollapsed: collapsed, setSidebarCollapsed, isMobile, mobileSidebarOpen, setMobileSidebarOpen } = useAdminTheme();
   const sb = c.sidebar;
-  const width = collapsed ? 72 : 252;
+  const width = isMobile ? 280 : (collapsed ? 72 : 252);
 
   // Read stored user profile from localStorage
   let user = null;
@@ -57,6 +57,9 @@ export default function DashboardSidebar({
   };
 
   const handleItemClick = (item) => {
+    if (isMobile) {
+      setMobileSidebarOpen(false);
+    }
     if (typeof item.onClick === 'function') {
       item.onClick();
       return;
@@ -112,21 +115,43 @@ export default function DashboardSidebar({
     : getNavItemsForRole(roleCode);
 
   return (
-    <aside
-      style={{
-        width,
-        minWidth: width,
-        height: '100vh',
-        background: sb.bg,
-        borderRight: `1px solid ${sb.border}`,
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-        zIndex: 60,
-        transition: 'width 0.22s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s ease, border-color 0.25s ease',
-        userSelect: 'none',
-      }}
-    >
+    <>
+      {isMobile && mobileSidebarOpen && (
+        <div
+          onClick={() => setMobileSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.45)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 998,
+            transition: 'opacity 0.25s ease',
+          }}
+        />
+      )}
+      <aside
+        style={{
+          width: isMobile ? 280 : width,
+          minWidth: isMobile ? undefined : width,
+          maxWidth: isMobile ? '85vw' : undefined,
+          height: '100vh',
+          background: sb.bg,
+          borderRight: `1px solid ${sb.border}`,
+          display: 'flex',
+          flexDirection: 'column',
+          position: isMobile ? 'fixed' : 'relative',
+          top: isMobile ? 0 : undefined,
+          left: isMobile ? 0 : undefined,
+          bottom: isMobile ? 0 : undefined,
+          zIndex: isMobile ? 999 : 60,
+          transform: isMobile ? (mobileSidebarOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
+          boxShadow: isMobile && mobileSidebarOpen ? '0 10px 40px rgba(0,0,0,0.35)' : 'none',
+          transition: isMobile
+            ? 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s ease'
+            : 'width 0.22s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s ease, border-color 0.25s ease',
+          userSelect: 'none',
+        }}
+      >
       {/* Brand Header — Logo Badge + RWFM Enterprise + 3-Line Menu Button */}
       <div
         style={{
@@ -197,12 +222,12 @@ export default function DashboardSidebar({
           </div>
         </div>
 
-        {/* 3-Bar Hamburger Menu Button Inside Sidebar Header */}
-        {!collapsed && (
+        {/* Hamburger / Close Button Inside Sidebar Header */}
+        {isMobile ? (
           <button
             type="button"
-            onClick={() => setSidebarCollapsed(true)}
-            title="Thu gọn Sidebar"
+            onClick={() => setMobileSidebarOpen(false)}
+            title="Đóng thanh điều hướng"
             style={{
               background: 'transparent',
               border: 'none',
@@ -216,20 +241,45 @@ export default function DashboardSidebar({
               cursor: 'pointer',
               flexShrink: 0,
               marginLeft: 'auto',
-              transition: 'color 0.15s ease, background-color 0.15s ease',
               padding: 0,
             }}
-            onMouseEnter={e => {
-              e.currentTarget.style.color = sb.hamburgerHoverColor;
-              e.currentTarget.style.background = sb.hamburgerHoverBg;
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = sb.hamburgerColor;
-              e.currentTarget.style.background = 'transparent';
-            }}
           >
-            <Icon name="menu" size={18} />
+            <Icon name="x" size={18} />
           </button>
+        ) : (
+          !collapsed && (
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed(true)}
+              title="Thu gọn Sidebar"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: sb.hamburgerColor,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                cursor: 'pointer',
+                flexShrink: 0,
+                marginLeft: 'auto',
+                transition: 'color 0.15s ease, background-color 0.15s ease',
+                padding: 0,
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = sb.hamburgerHoverColor;
+                e.currentTarget.style.background = sb.hamburgerHoverBg;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = sb.hamburgerColor;
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <Icon name="menu" size={18} />
+            </button>
+          )
         )}
       </div>
 
@@ -460,5 +510,6 @@ export default function DashboardSidebar({
         )}
       </div>
     </aside>
+    </>
   );
 }
