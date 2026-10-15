@@ -530,16 +530,7 @@ export const getShiftTemplateStats = async () => {
  */
 export const getShiftTemplates = async (params = {}) => {
   try {
-    let res;
-    try {
-      res = await apiClient.get('/shift-templates', { params });
-    } catch (e) {
-      if (e.response?.status === 404) {
-        res = await apiClient.get('/shifts/templates', { params });
-      } else {
-        throw e;
-      }
-    }
+    const res = await apiClient.get('/shift-templates', { params });
     if (res && res.data) {
       const data = res.data.data || res.data;
       const list = Array.isArray(data) ? data : data.items || [];
@@ -631,16 +622,7 @@ export const createShiftTemplate = async (payload) => {
 
   let backendResult = null;
   try {
-    let res;
-    try {
-      res = await apiClient.post('/shift-templates', body);
-    } catch (e1) {
-      if (e1.response?.status === 404) {
-        res = await apiClient.post('/shifts/templates', body);
-      } else {
-        throw e1;
-      }
-    }
+    const res = await apiClient.post('/shift-templates', body);
     if (res && res.data) {
       backendResult = res.data.data || res.data;
     }
@@ -761,20 +743,9 @@ export const updateShiftTemplate = async (id, payload, confirm = false) => {
   }
 
   try {
-    let res;
-    try {
-      res = await apiClient.put(`/shift-templates/${id}`, payload, {
-        params: { confirm },
-      });
-    } catch (e) {
-      if (e.response?.status === 404) {
-        res = await apiClient.put(`/shifts/templates/${id}`, payload, {
-          params: { confirm },
-        });
-      } else {
-        throw e;
-      }
-    }
+    const res = await apiClient.put(`/shift-templates/${id}`, payload, {
+      params: { confirm },
+    });
     if (res && res.data) return res.data.data || res.data;
   } catch (err) {
     if (
@@ -892,24 +863,7 @@ export const toggleShiftActive = async (id, isActive, confirm = false) => {
  */
 export const deleteShiftTemplate = async (id) => {
   try {
-    let res;
-    try {
-      res = await apiClient.delete(`/shift-templates/${id}`);
-    } catch (e1) {
-      if (e1.response?.status === 404 || e1.response?.status === 405) {
-        try {
-          res = await apiClient.delete(`/shifts/templates/${id}`);
-        } catch (e2) {
-          if (e2.response?.status === 404 || e2.response?.status === 405) {
-            res = await apiClient.delete(`/ShiftTemplates/${id}`);
-          } else {
-            throw e2;
-          }
-        }
-      } else {
-        throw e1;
-      }
-    }
+    const res = await apiClient.delete(`/shift-templates/${id}`);
     if (res && res.data) {
       // Backend phản hồi xóa thành công
     }
@@ -951,16 +905,7 @@ export const deleteShiftTemplate = async (id) => {
  */
 export const getBranches = async (params = {}) => {
   try {
-    let res;
-    try {
-      res = await apiClient.get('/branches', { params });
-    } catch (e) {
-      if (e.response?.status === 404) {
-        res = await apiClient.get('/Stores', { params });
-      } else {
-        throw e;
-      }
-    }
+    const res = await apiClient.get('/branches', { params });
 
     if (res && res.data) {
       const data = res.data.data || res.data;

@@ -48,14 +48,7 @@ export const LiveRosterDashboardPage = ({ storeId = null }) => {
     errorMsg,
     selectedPhoto,
     setSelectedPhoto,
-    flagModal,
-    setFlagModal,
-    fraudReason,
-    setFraudReason,
-    actionLoading,
     fetchRoster,
-    handleFlagFraudSubmit,
-    handleResolveFraud,
   } = useLiveRoster(effectiveStoreId);
 
   const renderStatusBadge = (status) => {
@@ -64,8 +57,6 @@ export const LiveRosterDashboardPage = ({ storeId = null }) => {
         return <Badge tone="good" dot>ĐÃ CÓ MẶT</Badge>;
       case 'COMPLETED':
         return <Badge tone="info" dot>ĐÃ HOÀN THÀNH CA</Badge>;
-      case 'FRAUD_FLAGGED':
-        return <Badge tone="bad" dot>GẮN CỜ VI PHẠM</Badge>;
       default:
         return <Badge tone="neutral" dot>CHƯA CÓ MẶT</Badge>;
     }
@@ -192,45 +183,6 @@ export const LiveRosterDashboardPage = ({ storeId = null }) => {
     {
       title: 'Trạng Thái',
       render: (item) => renderStatusBadge(item.status),
-    },
-    {
-      title: 'Thao Tác Giám Sát',
-      align: 'right',
-      render: (item) => (
-        <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end' }}>
-          {item.attendanceId && !item.isFraudFlagged && (
-            <Button
-              size="sm"
-              kind="danger"
-              icon="alert-triangle"
-              onClick={() => setFlagModal({ attendanceId: item.attendanceId, name: item.fullName })}
-            >
-              Gắn Cờ Vi Phạm
-            </Button>
-          )}
-
-          {item.isFraudFlagged && (
-            <>
-              <Button
-                size="sm"
-                kind="success"
-                loading={actionLoading}
-                onClick={() => handleResolveFraud(item.attendanceId, true)}
-              >
-                Khôi Phục
-              </Button>
-              <Button
-                size="sm"
-                kind="ghost"
-                loading={actionLoading}
-                onClick={() => handleResolveFraud(item.attendanceId, false)}
-              >
-                Bác Bỏ
-              </Button>
-            </>
-          )}
-        </div>
-      ),
     },
   ];
 
@@ -372,86 +324,6 @@ export const LiveRosterDashboardPage = ({ storeId = null }) => {
         </div>
       )}
 
-      {/* Modal Gắn Cờ Gian Lận */}
-      {flagModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(4px)',
-            display: 'grid',
-            placeItems: 'center',
-            padding: 16,
-          }}
-        >
-          <form
-            onSubmit={handleFlagFraudSubmit}
-            style={{
-              backgroundColor: c.bgCard,
-              border: `1px solid ${c.border}`,
-              borderRadius: 14,
-              padding: 24,
-              maxWidth: 460,
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 16,
-              boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-            }}
-          >
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: c.tones?.bad || '#EF4444', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
-              <Icon name="alert-triangle" size={20} color={c.tones?.bad || '#EF4444'} />
-              <span>Gắn Cờ Vi Phạm / Vắng Mặt</span>
-            </h3>
-            <p style={{ fontSize: 13, color: c.fgSubtle, margin: 0 }}>
-              Nhân viên: <strong style={{ color: c.fg }}>{flagModal.name}</strong>
-            </p>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: c.fgSubtle, textTransform: 'uppercase', marginBottom: 6 }}>
-                Lý do gắn cờ vi phạm:
-              </label>
-              <textarea
-                required
-                rows="3"
-                value={fraudReason}
-                onChange={(e) => setFraudReason(e.target.value)}
-                placeholder="VD: Đã check-in trên hệ thống nhưng thực tế vắng mặt tại quầy..."
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  backgroundColor: c.bgRaised,
-                  border: `1px solid ${c.border}`,
-                  borderRadius: 8,
-                  color: c.fg,
-                  fontSize: 13,
-                  outline: 'none',
-                  fontFamily: fonts?.body || 'inherit',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8 }}>
-              <Button
-                kind="ghost"
-                type="button"
-                onClick={() => setFlagModal(null)}
-              >
-                Hủy Bỏ
-              </Button>
-              <Button
-                kind="danger"
-                type="submit"
-                loading={actionLoading}
-              >
-                Xác Nhận Gắn Cờ
-              </Button>
-            </div>
-          </form>
-        </div>
-      )}
     </DashboardShell>
   );
 };

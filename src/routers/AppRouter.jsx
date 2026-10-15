@@ -6,7 +6,7 @@ import { useAuthContext } from '@/modules/auth/context/AuthContext';
 const LoginPage = lazy(() => import('@/modules/auth/pages/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('@/modules/auth/pages/ForgotPasswordPage'));
 const DashboardPage = lazy(() => import('@/modules/dashboard/pages/DashboardPage'));
-const KioskCodePage = lazy(() => import('@/modules/kiosk/pages/KioskCodePage'));
+const KioskCodePage = lazy(() => import('@/modules/kiosk-activation/pages/KioskCodePage'));
 const BranchManagementPage = lazy(() => import('@/modules/branch/pages/BranchManagementPage'));
 const BranchTierManagementPage = lazy(() => import('@/modules/branch/pages/BranchTierManagementPage'));
 const ShiftMasterPage = lazy(() => import('@/modules/schedule/pages/ShiftMasterPage'));
