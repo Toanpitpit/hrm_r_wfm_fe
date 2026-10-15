@@ -38,6 +38,11 @@ const axiosInstance = axios.create({
 // ==================== REQUEST INTERCEPTOR ====================
 axiosInstance.interceptors.request.use(
   (config) => {
+    // Chuẩn hóa URL: Nếu gọi '/endpoint' thay vì 'endpoint', loại bỏ dấu '/' đầu tiên
+    // để Axios không ghi đè mất tiền tố '/api' trong baseURL
+    if (config.url && config.url.startsWith('/') && !config.url.startsWith('/api')) {
+      config.url = config.url.slice(1);
+    }
     const token = getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

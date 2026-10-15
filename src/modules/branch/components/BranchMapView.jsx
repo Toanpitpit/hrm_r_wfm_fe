@@ -323,7 +323,7 @@ export default function BranchMapView({
           </div>
 
           <div style="font-size: 12px; color: #94a3b8; margin-bottom: 10px; line-height: 1.4;">
-            📍 ${b.address || 'Chưa cập nhật địa chỉ'}
+            ${b.address || 'Chưa cập nhật địa chỉ'}
           </div>
 
           <div style="
@@ -452,7 +452,7 @@ export default function BranchMapView({
             fillOpacity: 0.9,
           })
             .addTo(map)
-            .bindPopup('<strong>📍 Vị trí hiện tại của bạn</strong>')
+            .bindPopup('<strong>Vị trí hiện tại của bạn</strong>')
             .openPopup();
         }
       },
@@ -975,7 +975,7 @@ export default function BranchMapView({
                       marginBottom: '8px',
                     }}
                   >
-                    📍 {b.address || 'Chưa cập nhật địa chỉ'}
+                    {b.address || 'Chưa cập nhật địa chỉ'}
                   </div>
 
                   <div
@@ -989,9 +989,9 @@ export default function BranchMapView({
                       borderTop: `1px solid ${c.border}`,
                     }}
                   >
-                    <span>🎯 Geofence: <strong style={{ color: c.fg }}>{radius}m</strong></span>
+                    <span>Geofence: <strong style={{ color: c.fg }}>{radius}m</strong></span>
                     <span style={{ color: activeKiosks > 0 ? '#10b981' : c.fgSubtle, fontWeight: 600 }}>
-                      🖥️ Kiosk: {activeKiosks}/{totalKiosks}
+                      Kiosk: {activeKiosks}/{totalKiosks}
                     </span>
                   </div>
                 </div>

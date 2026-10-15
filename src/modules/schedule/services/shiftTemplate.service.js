@@ -543,7 +543,7 @@ export const getShiftTemplates = async (params = {}) => {
     if (res && res.data) {
       const data = res.data.data || res.data;
       const list = Array.isArray(data) ? data : data.items || [];
-      if (list.length > 0) return list;
+      return list;
     }
   } catch (err) {
     console.warn('[ShiftService] getShiftTemplates fallback mock:', err.message);
@@ -914,18 +914,27 @@ export const deleteShiftTemplate = async (id) => {
       // Backend phản hồi xóa thành công
     }
   } catch (err) {
-    if (err.response?.status === 400 || err.response?.status === 409) {
+    // Nếu Backend phản hồi mã lỗi (400, 401, 403, 409, 500,...), phải ném lỗi ra ngoài
+    // để giao diện thông báo lỗi thật cho người dùng, tránh việc báo xóa thành công ảo khi DB chưa xóa
+    if (err.response) {
       throw err;
     }
-    console.warn('[ShiftService] DELETE fallback mock:', err.message);
+    console.warn('[ShiftService] DELETE fallback mock (Network Error / Server Offline):', err.message);
   }
 
   // Cập nhật và lưu vào Mock Storage
   const shifts = getMockShifts();
-  const deletedShift = shifts.find((s) => String(s.id) === String(id) || String(s.shiftId) === String(id));
-  const remainingShifts = shifts.filter(
-    (s) => String(s.id) !== String(id) && String(s.shiftId) !== String(id)
-  );
+  const idStr = String(id).toLowerCase();
+  const deletedShift = shifts.find((s) => {
+    const sId = String(s.id ?? s.shiftId ?? s.templateId ?? s.shiftTemplateId ?? '').toLowerCase();
+    const sCode = String(s.templateCode ?? s.code ?? '').toLowerCase();
+    return sId === idStr || sCode === idStr;
+  });
+  const remainingShifts = shifts.filter((s) => {
+    const sId = String(s.id ?? s.shiftId ?? s.templateId ?? s.shiftTemplateId ?? '').toLowerCase();
+    const sCode = String(s.templateCode ?? s.code ?? '').toLowerCase();
+    return sId !== idStr && sCode !== idStr;
+  });
   setMockShifts(remainingShifts);
 
   // Nếu là ca riêng chi nhánh, cập nhật lại số lượng ca của chi nhánh
