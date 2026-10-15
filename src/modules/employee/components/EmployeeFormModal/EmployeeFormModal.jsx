@@ -58,10 +58,8 @@ export default function EmployeeFormModal({
   // Trạng thái xác nhận hủy khi form đang có dữ liệu dở dang (Dirty check)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
-  // Quản trị trạng thái tài khoản & Xóa tài khoản (khi Chỉnh sửa)
+  // Quản trị trạng thái tài khoản (khi Chỉnh sửa)
   const [accountStatus, setAccountStatus] = useState(initialData?.status || 'ACTIVE');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
   // Xác định quyền Chủ Doanh Nghiệp (Business Owner)
@@ -250,10 +248,8 @@ export default function EmployeeFormModal({
       setImportMessage('');
       setImportStatus('idle');
       setAccountStatus(initialData?.status || 'ACTIVE');
-      setShowDeleteConfirm(false);
       setShowDiscardConfirm(false);
       setSubmitError('');
-      setIsDeleting(false);
       setIsTogglingStatus(false);
 
       if (initialData) {
@@ -464,32 +460,7 @@ export default function EmployeeFormModal({
     }
   };
 
-  // Xóa tài khoản nhân sự (Chỉ được xóa khi tài khoản đã bị khóa)
-  const handleDeleteAccount = async () => {
-    if (!initialData?.id) return;
-    if (accountStatus === 'ACTIVE') {
-      toast.error('Tài khoản đang hoạt động. Bạn phải khóa tài khoản trước khi thực hiện xóa!');
-      return;
-    }
-    setIsDeleting(true);
-    try {
-      const res = await employeeService.deleteEmployee(initialData.id);
-      if (res.success) {
-        toast.success(res.message || 'Đã xóa tài khoản nhân sự thành công!');
-        setShowDeleteConfirm(false);
-        onClose();
-        if (onDeleteSuccess) {
-          onDeleteSuccess(initialData.id);
-        }
-      } else {
-        toast.error(res.message || 'Không thể xóa tài khoản nhân sự.');
-      }
-    } catch (err) {
-      toast.error('Lỗi khi thực hiện xóa tài khoản.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+
 
   const handleSafeClose = () => {
     if (isImporting || submitting) return;
@@ -1418,76 +1389,13 @@ export default function EmployeeFormModal({
                     <span>Reset Mật Khẩu</span>
                   </Button>
 
-                  {/* Nút Xóa Tài Khoản: Bắt buộc đã khóa và đủ thời gian chờ 14 ngày (áp dụng tuyệt đối cho mọi tài khoản) */}
-                  {(() => {
-                    const lockedDate = initialData?.lockedAt ? new Date(initialData.lockedAt) : (initialData?.updatedAt ? new Date(initialData.updatedAt) : null);
-                    const daysPassed = lockedDate ? Math.floor((new Date() - lockedDate) / (1000 * 60 * 60 * 24)) : 0;
-                    const daysRemaining = initialData?.daysUntilDeletable ?? Math.max(0, 14 - daysPassed);
-                    const isDeletable = accountStatus === 'INACTIVE' && daysRemaining === 0;
-
-                    return (
-                      <>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => setShowDeleteConfirm(true)}
-                          disabled={!isDeletable}
-                          style={{
-                            fontSize: '12.5px',
-                            fontWeight: 600,
-                            border: `1px solid ${isDeletable ? '#ef4444' : c.border}`,
-                            color: isDeletable ? '#ef4444' : c.fgSubtle,
-                            background: isDeletable ? 'rgba(239, 68, 68, 0.08)' : 'transparent',
-                            cursor: isDeletable ? 'pointer' : 'not-allowed',
-                            opacity: isDeletable ? 1 : 0.5,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            transition: 'all 0.2s',
-                          }}
-                          title={
-                            accountStatus === 'ACTIVE'
-                              ? 'Bạn phải khóa tài khoản trước khi thực hiện xóa'
-                              : !isDeletable
-                                ? `Cần chờ đủ 14 ngày kể từ khi khóa (còn ${daysRemaining} ngày nữa)`
-                                : 'Xóa vĩnh viễn tài khoản khỏi hệ thống và CSDL'
-                          }
-                        >
-
-                          <span>Xóa Vĩnh Viễn</span>
-                        </Button>
-                      </>
-                    );
-                  })()}
                 </div>
 
-                {/* Dòng cảnh báo điều kiện xóa & quy định lưu trữ 14 ngày */}
-                <div style={{ fontSize: '11.5px', lineHeight: '1.4' }}>
-                  {(() => {
-                    const lockedDate = initialData?.lockedAt ? new Date(initialData.lockedAt) : (initialData?.updatedAt ? new Date(initialData.updatedAt) : null);
-                    const daysPassed = lockedDate ? Math.floor((new Date() - lockedDate) / (1000 * 60 * 60 * 24)) : 0;
-                    const daysRemaining = initialData?.daysUntilDeletable ?? Math.max(0, 14 - daysPassed);
-
-                    if (accountStatus === 'ACTIVE') {
-                      return (
-                        <span style={{ color: '#f87171' }}>
-                          <strong>Điều kiện xóa:</strong> Tài khoản đang hoạt động nên nút Xóa bị vô hiệu hóa. Bạn cần bấm <strong>"Khóa Tài Khoản"</strong> trước khi có thể xóa.
-                        </span>
-                      );
-                    }
-                    if (daysRemaining > 0) {
-                      return (
-                        <span style={{ color: '#f59e0b' }}>
-                          <strong>Quy định lưu trữ 14 ngày:</strong> Tài khoản đã khóa được {daysPassed} ngày. Theo chính sách đối soát bảng công và tiền lương (bắt buộc áp dụng cho mọi cấp quản lý), tài khoản chỉ có thể xóa vĩnh viễn sau <strong>{daysRemaining} ngày</strong> nữa.
-                        </span>
-                      );
-                    }
-                    return (
-                      <span style={{ color: '#4ade80' }}>
-                        <strong>Đã đủ điều kiện:</strong> Tài khoản đã khóa đủ 14 ngày theo quy định lưu trữ. Bạn có thể thực hiện xóa vĩnh viễn tài khoản này khỏi hệ thống và CSDL.
-                      </span>
-                    );
-                  })()}
+                {/* Dòng ghi chú chính sách bảo toàn dữ liệu đối soát chuẩn Enterprise */}
+                <div style={{ fontSize: '11.5px', lineHeight: '1.4', color: c.fgSubtle }}>
+                  <span>
+                    <strong>Chính sách lưu trữ & đối soát:</strong> Hệ thống không hỗ trợ xóa tài khoản nhằm bảo đảm tính toàn vẹn dữ liệu phân ca, chấm công, tính lương và kiểm toán. Để cho nhân sự thôi việc hoặc ngừng phân ca, vui lòng sử dụng tính năng <strong>"Khóa Tài Khoản"</strong>.
+                  </span>
                 </div>
               </div>
             )}
@@ -1900,57 +1808,7 @@ export default function EmployeeFormModal({
         )}
       </Modal>
 
-      {/* ─── MODAL XÁC NHẬN XÓA TÀI KHOẢN (Chỉ khi tài khoản đã bị khóa) ─── */}
-      <Modal
-        open={showDeleteConfirm}
-        onClose={() => !isDeleting && setShowDeleteConfirm(false)}
-        title="Xác Nhận Xóa Vĩnh Viễn Tài Khoản"
-        sub={`Hành động này sẽ xóa hoàn toàn tài khoản #${initialData?.id} khỏi hệ thống.`}
-        width={480}
-        footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', width: '100%' }}>
-            <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
-              Hủy Bỏ
-            </Button>
-            <Button
-              variant="danger"
-              onClick={handleDeleteAccount}
-              disabled={isDeleting}
-              style={{ background: '#ef4444', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Icon name="trash" size={14} color="#fff" />
-              <span>{isDeleting ? 'Đang Xóa...' : 'Xác Nhận Xóa'}</span>
-            </Button>
-          </div>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13.5px', color: c.fg }}>
-          <div
-            style={{
-              padding: '12px 14px',
-              borderRadius: '8px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.25)',
-              color: '#fca5a5',
-              display: 'flex',
-              gap: '10px',
-              alignItems: 'flex-start',
-            }}
-          >
-            <Icon name="alert-triangle" size={18} color="#ef4444" />
-            <div>
-              <strong>Cảnh Báo Quan Trọng:</strong> Bạn đang chuẩn bị xóa tài khoản nhân sự{' '}
-              <strong style={{ color: '#fff' }}>{initialData?.fullName}</strong> (Mã NV:{' '}
-              <span style={{ color: '#f2ca50', fontWeight: 600 }}>{initialData?.employeeCode || `NV-${initialData?.id}`}</span>).
-              <div style={{ marginTop: '4px', fontSize: '12.5px', color: '#fca5a5' }}>
-                Tài khoản sau khi xóa sẽ không thể đăng nhập hoặc phân ca nữa. Thao tác này không thể hoàn tác.
-              </div>
-            </div>
-          </div>
 
-          <div>Bạn có chắc chắn muốn tiếp tục thực hiện xóa tài khoản này không?</div>
-        </div>
-      </Modal>
 
       {/* ─── MODAL XÁC NHẬN HỦY DỮ LIỆU ĐANG ĐIỀN DỞ (Dirty State Confirm) ─── */}
       <Modal
