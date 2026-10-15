@@ -49,9 +49,12 @@ export default function DispatchDetailModal({
     Boolean(currentStoreId) &&
     Number(dispatchItem?.toStoreId) === Number(currentStoreId);
 
-  const isPending = dispatchItem?.status === 'PENDING';
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isEndDatePassed = Boolean(dispatchItem?.endDate && dispatchItem.endDate < todayStr);
+  const isExpired = dispatchItem?.status === 'EXPIRED' || ((dispatchItem?.status === 'PENDING' || dispatchItem?.status === 'RECALLED') && isEndDatePassed);
+  const isPending = dispatchItem?.status === 'PENDING' && !isExpired;
   const isRecalled = dispatchItem?.status === 'RECALLED';
-  const canReview = isPending && (isSourceBranch || isOpsAdmin);
+  const canReview = isPending && (isSourceBranch || isOpsAdmin) && !isExpired;
 
   // Khởi tạo dữ liệu khi mở modal
   useEffect(() => {
@@ -118,6 +121,8 @@ export default function DispatchDetailModal({
         return <Badge tone="bad" dot>Đã từ chối</Badge>;
       case 'RECALLED':
         return <Badge tone="warn" dot>Đã thu hồi (Đang sửa)</Badge>;
+      case 'EXPIRED':
+        return <Badge tone="bad" dot>Đã quá hạn</Badge>;
       case 'PENDING':
       default:
         return <Badge tone="warn" dot>Chờ xét duyệt</Badge>;
@@ -229,7 +234,7 @@ export default function DispatchDetailModal({
               </span>
             ) : (
               <span style={{ fontSize: 12, color: c.fgFaint }}>
-                Trạng thái hiện tại: {getStatusBadge(dispatchItem.status)}
+                Trạng thái hiện tại: {getStatusBadge(isExpired ? 'EXPIRED' : dispatchItem.status)}
               </span>
             )}
           </div>
@@ -279,8 +284,31 @@ export default function DispatchDetailModal({
           </div>
         )}
 
+        {/* Cảnh báo nếu đơn đã quá hạn thời gian điều chuyển */}
+        {isExpired && (
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              color: '#f87171',
+              padding: '12px 14px',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span>⚠️</span>
+            <span>
+              Lệnh điều động này đã quá hạn thời gian điều chuyển (kết thúc ngày {formatDate(dispatchItem.endDate)}). Hệ thống đã tự động khóa và không cho phép phê duyệt nữa.
+            </span>
+          </div>
+        )}
+
         {/* Cảnh báo nếu đơn đã bị người gửi thu hồi để chỉnh sửa */}
-        {isRecalled && (
+        {isRecalled && !isExpired && (
           <div
             style={{
               background: 'rgba(245, 158, 11, 0.12)',
@@ -403,8 +431,8 @@ export default function DispatchDetailModal({
                 {dispatchItem.status === 'REJECTED'
                   ? 'Lý do từ chối phiếu'
                   : dispatchItem.status === 'PARTIAL'
-                  ? 'Phản hồi duyệt một phần'
-                  : 'Phản hồi / Ghi chú từ người duyệt'}
+                    ? 'Phản hồi duyệt một phần'
+                    : 'Phản hồi / Ghi chú từ người duyệt'}
               </div>
               <div
                 style={{
@@ -413,15 +441,14 @@ export default function DispatchDetailModal({
                     dispatchItem.status === 'REJECTED'
                       ? 'rgba(239, 68, 68, 0.08)'
                       : dispatchItem.status === 'PARTIAL'
-                      ? 'rgba(245, 158, 11, 0.08)'
-                      : c.bgRaised,
-                  border: `1px solid ${
-                    dispatchItem.status === 'REJECTED'
-                      ? 'rgba(239, 68, 68, 0.3)'
-                      : dispatchItem.status === 'PARTIAL'
+                        ? 'rgba(245, 158, 11, 0.08)'
+                        : c.bgRaised,
+                  border: `1px solid ${dispatchItem.status === 'REJECTED'
+                    ? 'rgba(239, 68, 68, 0.3)'
+                    : dispatchItem.status === 'PARTIAL'
                       ? 'rgba(245, 158, 11, 0.3)'
                       : c.borderSub
-                  }`,
+                    }`,
                   padding: '10px 12px',
                   borderRadius: 6,
                   fontSize: 12.5,
@@ -432,8 +459,8 @@ export default function DispatchDetailModal({
                   (dispatchItem.status === 'REJECTED'
                     ? 'Lệnh điều động đã bị từ chối.'
                     : dispatchItem.status === 'PARTIAL'
-                    ? 'Một số nhân sự được duyệt, một số bị từ chối. Vui lòng xem lý do cụ thể ở từng nhân sự bên dưới.'
-                    : 'Không có ghi chú xét duyệt bổ sung.')}
+                      ? 'Một số nhân sự được duyệt, một số bị từ chối. Vui lòng xem lý do cụ thể ở từng nhân sự bên dưới.'
+                      : 'Không có ghi chú xét duyệt bổ sung.')}
               </div>
             </div>
           )}
@@ -522,7 +549,7 @@ export default function DispatchDetailModal({
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          ✓ Duyệt
+                          Duyệt
                         </button>
                         <button
                           type="button"
@@ -538,7 +565,7 @@ export default function DispatchDetailModal({
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          ✕ Từ chối
+                          Từ chối
                         </button>
                       </div>
                     </div>
@@ -637,7 +664,7 @@ export default function DispatchDetailModal({
                         gap: 6,
                       }}
                     >
-                      <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>✕ Lý do từ chối:</span>
+                      <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Lý do từ chối:</span>
                       <span style={{ color: c.fg }}>{item.note || 'Không có lý do ghi chú.'}</span>
                     </div>
                   )}
