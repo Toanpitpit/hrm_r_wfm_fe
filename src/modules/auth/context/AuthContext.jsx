@@ -24,6 +24,7 @@ export const AuthProvider = ({ children }) => {
         const res = await authService.refreshToken();
         if (res?.success && res?.data?.token) {
           setAccessToken(res.data.token);
+          localStorage.setItem('accessToken', res.data.token);
           if (res.data.user) {
             setUser(res.data.user);
             localStorage.setItem('user', JSON.stringify(res.data.user));
@@ -33,12 +34,14 @@ export const AuthProvider = ({ children }) => {
           clearAccessToken();
           setUser(null);
           localStorage.removeItem('user');
+          localStorage.removeItem('accessToken');
           setIsAuthenticated(false);
         }
       } catch {
         clearAccessToken();
         setUser(null);
         localStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
         setIsAuthenticated(false);
       } finally {
         if (isMounted) {
@@ -56,6 +59,9 @@ export const AuthProvider = ({ children }) => {
 
   const loginSuccess = useCallback((token, userData) => {
     setAccessToken(token);
+    if (token) {
+      localStorage.setItem('accessToken', token);
+    }
     setUser(userData);
     setIsAuthenticated(true);
     if (userData) {
