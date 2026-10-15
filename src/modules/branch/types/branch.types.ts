@@ -165,7 +165,7 @@ export interface BranchStats {
 
 /**
  * Effective Quota Status DTO
- * Trả về từ GET /v1/headcount-requests/branch/{id}/status
+ * Trả về từ GET /branches/{id}/headcount-status
  * Công thức: EffectiveQuota = StaffCount > 0 ? StaffCount : TierQuota
  */
 export interface BranchHeadcountStatusDto {

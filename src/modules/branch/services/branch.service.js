@@ -7,7 +7,7 @@ import axios from 'axios';
  * ==============================================================================
  * Cung cấp các hàm API kết nối trực tiếp với Backend ASP.NET Core:
  * - BranchesController (/api/branches)
- * - KiosksController (/api/v1/kiosks hoặc /api/Kiosk)
+ * - KiosksController (/api/kiosks)
  * Đi kèm cơ chế tự động chứng thực tài khoản Operations Admin khi thao tác dữ liệu.
  */
 
@@ -53,11 +53,11 @@ const STORE_ENDPOINTS = {
 };
 
 const KIOSK_ADMIN_ENDPOINTS = {
-  LIST_ALL: '/Kiosk',
-  CREATE: '/Kiosk',
-  UPDATE_CONFIG: (id) => `/Kiosk/${id}/config`,
-  UPDATE_STATUS: (id) => `/Kiosk/${id}/status`,
-  DELETE: (id) => `/v1/kiosks/${id}`,
+  LIST_ALL: '/kiosks',
+  CREATE: '/kiosks',
+  UPDATE_CONFIG: (id) => `/kiosks/${id}`,
+  UPDATE_STATUS: (id) => `/kiosks/${id}/status`,
+  DELETE: (id) => `/kiosks/${id}`,
 };
 
 const STORAGE_KEY_BRANCHES = 'wfm_branch_master_data_v4';
@@ -460,13 +460,8 @@ export const updateBranch = async (storeId, payload) => {
       status: payload.status || 'ACTIVE',
     };
 
-    // Gửi yêu cầu PUT cập nhật chi nhánh tới Backend API (hỗ trợ cả 2 route)
-    let res;
-    try {
-      res = await apiClient.put(STORE_ENDPOINTS.UPDATE(storeId), updateBody);
-    } catch (putErr) {
-      res = await apiClient.put(`/v1/branches/${storeId}`, updateBody);
-    }
+    // Gửi yêu cầu PUT cập nhật chi nhánh tới Backend API (/api/branches/{id})
+    const res = await apiClient.put(STORE_ENDPOINTS.UPDATE(storeId), updateBody);
 
     // Nếu Backend phản hồi thành công (200 OK hoặc 204 No Content), tải lại danh sách mới nhất từ server
     if (res.status === 200 || res.status === 204) {
