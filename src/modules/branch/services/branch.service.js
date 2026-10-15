@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axiosInstance, { getAccessToken } from '@/config/axios.config';
 
 /**
  * ==============================================================================
@@ -11,35 +11,14 @@ import axios from 'axios';
  * Đi kèm cơ chế tự động chứng thực tài khoản Operations Admin khi thao tác dữ liệu.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api';
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 8000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
 /**
- * Lấy Bearer Token của người dùng hiện tại từ localStorage
+ * Lấy Bearer Token của người dùng hiện tại từ RAM hoặc localStorage
  */
 export const ensureAdminToken = async () => {
-  return localStorage.getItem('accessToken');
+  return getAccessToken() || localStorage.getItem('accessToken');
 };
 
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => Promise.reject(error)
-);
+const apiClient = axiosInstance;
 
 // Endpoints nội bộ của phân hệ Branch & Kiosk
 const STORE_ENDPOINTS = {

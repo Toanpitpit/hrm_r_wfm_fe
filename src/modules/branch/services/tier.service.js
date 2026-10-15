@@ -1,23 +1,7 @@
-import axios from 'axios';
+import axiosInstance, { getAccessToken } from '@/config/axios.config';
 import { getAllBranches, updateBranch, ensureAdminToken } from './branch.service';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api';
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 8000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+const apiClient = axiosInstance;
 
 /**
  * Metadata chính thức của 3 cấp phân loại Chi nhánh trong hệ thống RWFM Enterprise
