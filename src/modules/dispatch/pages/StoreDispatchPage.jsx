@@ -121,7 +121,7 @@ export default function StoreDispatchPage() {
   const todayStr = new Date().toISOString().split('T')[0];
 
   const pendingIncomingCount = dispatches.filter(
-    (d) => Number(d.fromStoreId) === Number(currentStoreId) && d.status === 'PENDING'
+    (d) => Number(d.fromStoreId) === Number(currentStoreId) && d.status === 'PENDING' && !(d.endDate && d.endDate < todayStr)
   ).length;
 
   const activeArrivingToday = dispatches.filter(
@@ -151,8 +151,11 @@ export default function StoreDispatchPage() {
       if (Number(d.toStoreId) !== Number(currentStoreId)) return false;
     }
 
+    const isOverdue = Boolean(d.endDate && d.endDate < todayStr);
+    const effectiveStatus = d.status === 'EXPIRED' || ((d.status === 'PENDING' || d.status === 'RECALLED') && isOverdue) ? 'EXPIRED' : d.status;
+
     // Lọc theo trạng thái
-    if (statusFilter !== 'ALL' && d.status !== statusFilter) {
+    if (statusFilter !== 'ALL' && effectiveStatus !== statusFilter) {
       return false;
     }
 
@@ -316,6 +319,7 @@ export default function StoreDispatchPage() {
                 options={[
                   { value: 'ALL', label: 'Tất cả trạng thái' },
                   { value: 'PENDING', label: 'Chờ xét duyệt' },
+                  { value: 'EXPIRED', label: 'Đã quá hạn' },
                   { value: 'RECALLED', label: 'Đã thu hồi (Đang sửa)' },
                   { value: 'APPROVED', label: 'Đã phê duyệt' },
                   { value: 'REJECTED', label: 'Đã từ chối' },

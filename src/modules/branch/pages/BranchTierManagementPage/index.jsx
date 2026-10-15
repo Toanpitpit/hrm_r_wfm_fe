@@ -115,10 +115,7 @@ export default function BranchTierManagementPage() {
     handleDeleteTier,
   } = useBranchTier();
 
-  const totalBranches = tierSummary.totalCount || rawBranches.length || 1;
-  const t1Percent = Math.round(((tierSummary.tier1Count || 0) / totalBranches) * 100) || 0;
-  const t2Percent = Math.round(((tierSummary.tier2Count || 0) / totalBranches) * 100) || 0;
-  const t3Percent = Math.round(((tierSummary.tier3Count || 0) / totalBranches) * 100) || 0;
+  const totalBranches = rawBranches.length || 1;
 
   const handleNavigate = (id) => {
     if (id === 'dashboard') navigate('/dashboard');
@@ -131,8 +128,8 @@ export default function BranchTierManagementPage() {
   const columns = [
     {
       key: 'branchCode',
-      label: 'MÃ CN',
-      width: '105px',
+      label: 'MÃ CHI NHÁNH',
+      width: '130px',
       render: (row) => (
         <span
           style={{
@@ -152,8 +149,8 @@ export default function BranchTierManagementPage() {
     },
     {
       key: 'branchTier',
-      label: 'PHÂN CẤP (TIER)',
-      width: '160px',
+      label: 'CẤP CHI NHÁNH',
+      width: '180px',
       render: (row) => {
         const matchedTier =
           row.matchedTier ||
@@ -167,36 +164,27 @@ export default function BranchTierManagementPage() {
           row.branchTierName ||
           (row.branchTier ? `Cấp ${row.branchTier}` : 'Chưa phân cấp');
 
-        const style = getTierStyle(matchedTier);
-
         return (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 700,
-                backgroundColor: style.bg,
-                border: `1px solid ${style.border}`,
-                color: style.color,
-                letterSpacing: '0.3px',
-              }}
-            >
-              <span
-                style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  backgroundColor: style.color,
-                }}
-              />
-              {displayName}
-            </span>
-          </div>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '160px',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 600,
+              backgroundColor: c.bgElev,
+              border: `1px solid ${c.border}`,
+              color: c.fg,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {displayName}
+          </span>
         );
       },
     },
@@ -347,10 +335,8 @@ export default function BranchTierManagementPage() {
     {
       key: 'actions',
       label: 'THAO TÁC',
-      width: '210px',
+      width: '140px',
       render: (row) => {
-        const staffCount = Number(row.currentStaffCount || 0);
-        const hasStaff = staffCount > 0;
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Button
@@ -364,30 +350,6 @@ export default function BranchTierManagementPage() {
             >
               <Icon name="settings" size={13} />
               <span>Đổi Phân Cấp</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={hasStaff}
-              onClick={() => {
-                setDeletingBranch(row);
-                setBranchDeleteModalOpen(true);
-              }}
-              title={
-                hasStaff
-                  ? `Chi nhánh đang có ${staffCount} nhân sự trực thuộc. Không thể xóa.`
-                  : 'Xóa chi nhánh này'
-              }
-              style={{
-                color: hasStaff ? '#64748b' : '#ef4444',
-                borderColor: hasStaff ? 'rgba(100, 116, 139, 0.3)' : 'rgba(239, 68, 68, 0.3)',
-                cursor: hasStaff ? 'not-allowed' : 'pointer',
-                opacity: hasStaff ? 0.5 : 1,
-              }}
-            >
-              <Icon name="trash" size={13} color={hasStaff ? '#64748b' : '#ef4444'} />
-              <span>Xóa</span>
             </Button>
           </div>
         );
@@ -458,9 +420,7 @@ export default function BranchTierManagementPage() {
         />
         {tiers && tiers.length > 0 ? (
           tiers.map((t, idx) => {
-            const style = getTierStyle(t, idx);
             const count = t.branchCount || t.branch_count || 0;
-            const percent = rawBranches.length > 0 ? Math.round((count / rawBranches.length) * 100) : 0;
             const tName = (t.tierName || t.name || `Cấp ${t.id}`).toUpperCase();
             const minS = t.minStaffCount ?? t.minStaff ?? 0;
             const maxS = t.maxStaffCount ?? t.maxStaff ?? 0;
@@ -468,10 +428,9 @@ export default function BranchTierManagementPage() {
               <StatCard
                 key={t.id || t.tier_id || idx}
                 label={tName}
-                value={loading ? '...' : `${count} CN`}
-                sub={`Chiếm ${percent}% • Chuẩn ${minS}-${maxS} nv`}
-                icon={idx === 0 ? 'award' : idx === 1 ? 'layers' : 'pin'}
-                color={style.color}
+                value={loading ? '...' : `${count} chi nhánh`}
+                sub={`Định mức: ${minS} - ${maxS} nhân sự`}
+                icon="layers"
               />
             );
           })
@@ -479,7 +438,7 @@ export default function BranchTierManagementPage() {
           <StatCard
             label="PHÂN CẤP CHI NHÁNH"
             value={`${tiers.length} Cấp`}
-            sub="Đang cấu hình trong hệ thống"
+            sub="Cấu hình danh mục Tier chuẩn"
             icon="layers"
           />
         )}
@@ -601,12 +560,13 @@ export default function BranchTierManagementPage() {
           </div>
 
           {/* Bảng Dữ Liệu Chi Nhánh */}
-          <DataTable
-            columns={columns}
+          <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <DataTable columns={columns}
             data={branches}
             loading={loading}
             emptyMessage="Không tìm thấy chi nhánh nào phù hợp với bộ lọc."
-          />
+            />
+          </div>
         </Panel>
       ) : (
         /* ============================================================================== */
@@ -698,15 +658,7 @@ export default function BranchTierManagementPage() {
       />
 
       {/* 6. Modal Xác Nhận Xóa Chi Nhánh */}
-      <BranchDeleteModal
-        open={branchDeleteModalOpen}
-        branch={deletingBranch}
-        onClose={() => {
-          setBranchDeleteModalOpen(false);
-          setDeletingBranch(null);
-        }}
-        onConfirm={handleDeleteBranch}
-      />
+      {/* BranchDeleteModal đã được loại bỏ */}
     </DashboardShell>
   );
 }

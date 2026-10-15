@@ -31,24 +31,26 @@ export default function HeadcountQuotaCard({
     const remaining = Math.max(0, standardQuota - cHeadcount);
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
         {!isReached ? (
           <span
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '5px',
-              padding: '3px 9px',
+              padding: '3px 8px',
               borderRadius: '9999px',
-              fontSize: '11.5px',
+              fontSize: '11px',
               fontWeight: 600,
               background: 'rgba(34, 197, 94, 0.12)',
               border: '1px solid rgba(34, 197, 94, 0.3)',
               color: '#22c55e',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
-            Còn trống {remaining} vị trí
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+            Còn {remaining} slot
           </span>
         ) : tier === 1 ? (
           <span
@@ -56,17 +58,19 @@ export default function HeadcountQuotaCard({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '5px',
-              padding: '3px 9px',
+              padding: '3px 8px',
               borderRadius: '9999px',
-              fontSize: '11.5px',
+              fontSize: '11px',
               fontWeight: 700,
               background: 'rgba(239, 68, 68, 0.16)',
               border: '1px solid rgba(239, 68, 68, 0.4)',
               color: '#ef4444',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }} />
-            Kịch trần tối đa (30/30)
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+            Kịch trần (30/30)
           </span>
         ) : (
           <span
@@ -74,17 +78,19 @@ export default function HeadcountQuotaCard({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '5px',
-              padding: '3px 9px',
+              padding: '3px 8px',
               borderRadius: '9999px',
-              fontSize: '11.5px',
+              fontSize: '11px',
               fontWeight: 600,
               background: 'rgba(239, 68, 68, 0.12)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
               color: '#ef4444',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }} />
-            Đạt trần định biên ({cHeadcount}/{standardQuota})
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+            Đạt trần ({cHeadcount}/{standardQuota})
           </span>
         )}
 
@@ -94,13 +100,15 @@ export default function HeadcountQuotaCard({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
-              padding: '2px 8px',
+              padding: '2px 7px',
               borderRadius: '9999px',
               fontSize: '10.5px',
               fontWeight: 600,
               background: 'rgba(59, 130, 246, 0.14)',
               border: '1px solid rgba(59, 130, 246, 0.35)',
               color: '#60a5fa',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
             title="Nhân sự từ chi nhánh khác chuyển sang hỗ trợ tạm thời (tách riêng, không tính vào định biên cơ hữu)"
           >
@@ -187,17 +195,34 @@ export default function HeadcountQuotaCard({
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '10px',
+                  justifyContent: 'space-between',
+                  minHeight: '136px',
+                  gap: '12px',
                   transition: 'all 0.2s ease',
                   boxShadow: isCardSelected ? '0 0 12px rgba(212, 175, 55, 0.2)' : 'none',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div style={{ fontSize: '13.5px', fontWeight: 700, color: c.fg }}>
+                {/* Header card: Tên chi nhánh + Tier + Badge */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: '13.5px',
+                        fontWeight: 700,
+                        color: c.fg,
+                        lineHeight: '1.35',
+                        minHeight: '37px',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        wordBreak: 'break-word',
+                      }}
+                      title={b.branchName}
+                    >
                       {b.branchName}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                       <span
                         style={{
                           fontSize: '11px',
@@ -212,8 +237,8 @@ export default function HeadcountQuotaCard({
                   {getStatusBadge(b)}
                 </div>
 
-                {/* Tiến độ mini */}
-                <div>
+                {/* Tiến độ mini (ghim sát đáy card để cân bằng hàng ngang) */}
+                <div style={{ marginTop: 'auto', paddingTop: '4px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       <span style={{ color: c.fgMuted }}>
@@ -222,13 +247,14 @@ export default function HeadcountQuotaCard({
                       {bDispatchedIn > 0 && (
                         <span
                           style={{
-                            fontSize: '10.5px',
-                            padding: '1px 6px',
+                            fontSize: '10px',
+                            padding: '1px 5px',
                             borderRadius: '4px',
                             background: 'rgba(59, 130, 246, 0.12)',
                             color: '#60a5fa',
                             fontWeight: 600,
                             border: '1px solid rgba(59, 130, 246, 0.25)',
+                            whiteSpace: 'nowrap',
                           }}
                           title={`Có ${bDispatchedIn} nhân sự điều động từ chi nhánh khác hỗ trợ (Tổng đang làm việc: ${bTotalWorking})`}
                         >
@@ -238,13 +264,14 @@ export default function HeadcountQuotaCard({
                       {bDispatchedOut > 0 && (
                         <span
                           style={{
-                            fontSize: '10.5px',
-                            padding: '1px 6px',
+                            fontSize: '10px',
+                            padding: '1px 5px',
                             borderRadius: '4px',
                             background: 'rgba(234, 179, 8, 0.12)',
                             color: '#fbbf24',
                             fontWeight: 600,
                             border: '1px solid rgba(234, 179, 8, 0.25)',
+                            whiteSpace: 'nowrap',
                           }}
                           title={`Có ${bDispatchedOut} nhân sự cơ hữu đang đi hỗ trợ chi nhánh khác`}
                         >
@@ -253,8 +280,8 @@ export default function HeadcountQuotaCard({
                       )}
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ color: bAvailable > 0 ? '#38bdf8' : '#ef4444', fontWeight: 600 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      <span style={{ color: bAvailable > 0 ? '#38bdf8' : '#ef4444', fontWeight: 600, whiteSpace: 'nowrap' }}>
                         {bAvailable > 0 ? `Còn ${bAvailable} slot` : 'Đủ định biên'}
                       </span>
                       {isFull && bTier > 1 && canManageSystem && onUpgradeTier && (
@@ -277,6 +304,7 @@ export default function HeadcountQuotaCard({
                             alignItems: 'center',
                             gap: '3px',
                             boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                            whiteSpace: 'nowrap',
                           }}
                           title={`Nâng lên Tier ${bTier === 3 ? 2 : 1} để mở rộng thêm định biên`}
                         >
@@ -300,11 +328,12 @@ export default function HeadcountQuotaCard({
                         width: `${bPercent}%`,
                         background:
                           bPercent >= 100
-                            ? '#ef4444'
+                            ? 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)'
                             : bPercent >= 80
-                              ? '#f59e0b'
-                              : '#22c55e',
+                              ? 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)'
+                              : 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)',
                         borderRadius: '9999px',
+                        transition: 'width 0.3s ease',
                       }}
                     />
                   </div>

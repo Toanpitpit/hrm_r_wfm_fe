@@ -120,7 +120,6 @@ export default function BranchManagementPage() {
       <PageHeader
         index="Operations Admin · Quản Trị Chi Nhánh"
         title="Quản Lý Danh Mục Chi Nhánh & Cấu Hình Kiosk"
-        subtitle="Quản trị danh mục chi nhánh, định vị tọa độ Point (GPS / Geofence), cấu hình an ninh mạng và cấp phát máy trạm Kiosk."
         actions={
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             {/* View Mode Toggle (Table / Map) */}
@@ -248,7 +247,6 @@ export default function BranchManagementPage() {
           }
           tone="neutral"
           icon="building"
-          subtext="Phân bố theo phân cấp Tier thực tế từ Database"
         />
       </div>
 
@@ -294,7 +292,7 @@ export default function BranchManagementPage() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '13px', color: c.fgSubtle }}>Cấp CN:</span>
+                <span style={{ fontSize: '13px', color: c.fgSubtle }}>Cấp chi nhánh:</span>
                 <Select
                   value={tierFilter}
                   onChange={setTierFilter}
@@ -302,14 +300,14 @@ export default function BranchManagementPage() {
                     { value: 'ALL', label: 'Tất cả cấp' },
                     ...(tiers && tiers.length > 0
                       ? tiers.map((t) => ({
-                          value: String(t.id || t.tier_id),
-                          label: t.tierName || t.tier_name || `Tier ${t.id}`,
-                        }))
+                        value: String(t.id || t.tier_id),
+                        label: t.tierName || t.tier_name || `Tier ${t.id}`,
+                      }))
                       : [
-                          { value: '1', label: 'Cấp 1' },
-                          { value: '2', label: 'Cấp 2' },
-                          { value: '3', label: 'Cấp 3' },
-                        ]),
+                        { value: '1', label: 'Cấp 1' },
+                        { value: '2', label: 'Cấp 2' },
+                        { value: '3', label: 'Cấp 3' },
+                      ]),
                   ]}
                 />
               </div>
@@ -357,10 +355,7 @@ export default function BranchManagementPage() {
                 setUnlockModalOpen(true);
               }
             }}
-            onDelete={(branch) => {
-              setDeletingBranch(branch);
-              setDeleteModalOpen(true);
-            }}
+            
           />
         </Panel>
       )}
@@ -426,23 +421,7 @@ export default function BranchManagementPage() {
       />
 
       {/* Modal Xác nhận Xóa chi nhánh */}
-      <BranchDeleteModal
-        open={deleteModalOpen}
-        branch={deletingBranch}
-        onClose={() => {
-          setDeleteModalOpen(false);
-          setDeletingBranch(null);
-        }}
-        onConfirm={async (storeId) => {
-          const res = await handleDeleteBranch(storeId);
-          if (res?.success) {
-            toast.success('Đã xóa chi nhánh thành công!');
-          } else {
-            toast.error(res?.error || 'Không thể xóa chi nhánh');
-          }
-          return res;
-        }}
-      />
+      {/* BranchDeleteModal đã được loại bỏ */}
 
     </DashboardShell>
   );

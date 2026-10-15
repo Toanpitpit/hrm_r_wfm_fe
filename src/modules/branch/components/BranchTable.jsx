@@ -172,7 +172,7 @@ export default function BranchTable({
   const columns = [
     {
       key: 'branchCode',
-      label: 'MÃ CN',
+      label: 'MÃ CHI NHÁNH',
       width: '110px',
       render: (row) => (
         <span
@@ -193,7 +193,7 @@ export default function BranchTable({
     },
     {
       key: 'branchTier',
-      label: 'CẤP CN',
+      label: 'CẤP CHI NHÁNH',
       width: '150px',
       render: (row) => {
         const matchedTier =
@@ -208,58 +208,25 @@ export default function BranchTable({
           (typeof row.tier === 'object' && row.tier?.tierName) ||
           row.branchTierName ||
           (row.branchTier ? `Cấp ${row.branchTier}` : 'Cấp 2');
-        const lower = tierName.toLowerCase();
-
-        let bg = 'rgba(59, 130, 246, 0.15)';
-        let border = 'rgba(59, 130, 246, 0.35)';
-        let color = '#60a5fa';
-
-        if (lower.includes('flagship') || lower.includes('tier 1') || lower.includes('cấp 1')) {
-          bg = 'rgba(245, 158, 11, 0.15)';
-          border = 'rgba(245, 158, 11, 0.35)';
-          color = '#f59e0b';
-        } else if (lower.includes('tiêu chuẩn') || lower.includes('tier 2') || lower.includes('cấp 2')) {
-          bg = 'rgba(59, 130, 246, 0.15)';
-          border = 'rgba(59, 130, 246, 0.35)';
-          color = '#60a5fa';
-        } else if (lower.includes('mini') || lower.includes('tier 3') || lower.includes('cấp 3')) {
-          bg = 'rgba(16, 185, 129, 0.15)';
-          border = 'rgba(16, 185, 129, 0.35)';
-          color = '#10b981';
-        } else if (lower.includes('tier 4') || lower.includes('cấp 4')) {
-          bg = 'rgba(168, 85, 247, 0.15)';
-          border = 'rgba(168, 85, 247, 0.35)';
-          color = '#a855f7';
-        } else if (lower.includes('tier 5') || lower.includes('cấp 5')) {
-          bg = 'rgba(236, 72, 153, 0.15)';
-          border = 'rgba(236, 72, 153, 0.35)';
-          color = '#ec4899';
-        }
-
         return (
           <span
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '3px 8px',
+              justifyContent: 'center',
+              width: '160px',
+              padding: '4px 10px',
               borderRadius: '6px',
               fontSize: '12px',
               fontWeight: 600,
-              backgroundColor: bg,
-              border: `1px solid ${border}`,
-              color: color,
+              backgroundColor: c.bgElev,
+              border: `1px solid ${c.border}`,
+              color: c.fg,
               whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
-            <span
-              style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: color,
-              }}
-            />
             {tierName}
           </span>
         );
@@ -350,9 +317,7 @@ export default function BranchTable({
       },
     },
     {
-      key: 'actions',
-      label: 'THAO TÁC',
-      width: '200px',
+      key: 'actions', label: 'THAO TÁC', width: '140px',
       render: (row) => {
         const isActive = (row.status || '').toUpperCase() === 'ACTIVE';
         const lockDisabled = isActionInProgress || (isActive && !hasLockPermission);
@@ -415,25 +380,7 @@ export default function BranchTable({
               <span>{isActive ? 'Khóa' : 'Mở'}</span>
             </Button>
 
-            {/* Nút Xóa Chi Nhánh */}
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={isActionInProgress}
-              onClick={() => onDelete && onDelete(row)}
-              style={{
-                color: '#ef4444',
-                opacity: isActionInProgress ? 0.6 : 1,
-                cursor: isActionInProgress ? 'not-allowed' : 'pointer',
-              }}
-              title="Xóa chi nhánh khỏi hệ thống"
-            >
-              <Icon
-                name="trash"
-                size={13}
-              />
-              <span>Xóa</span>
-            </Button>
+            {/* Nút Xóa chi nhánh đã loại bỏ theo quy định bảo toàn dữ liệu */}
           </div>
         );
       },
@@ -441,13 +388,15 @@ export default function BranchTable({
   ];
 
   return (
-    <DataTable
+    <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <DataTable
       columns={columns}
       data={branches}
       loading={loading}
       pageSize={10}
       pageSizeOptions={[5, 10, 20, 50]}
       emptyMessage="Chưa có chi nhánh nào được cấu hình trong hệ thống."
-    />
+      />
+    </div>
   );
 }
