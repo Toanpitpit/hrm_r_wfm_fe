@@ -2,7 +2,7 @@
 // Cung cấp token màu, typography, sidebar và dark/light theme chuẩn theo tông màu RWFM Mint/Teal SaaS hiện đại.
 
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { hexA } from '../utils/colorUtils';
 
 export const fonts = {
