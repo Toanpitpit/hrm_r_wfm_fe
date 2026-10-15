@@ -6,7 +6,7 @@ import axios from 'axios';
  * SERVICE: branch.service.js
  * ==============================================================================
  * Cung cấp các hàm API kết nối trực tiếp với Backend ASP.NET Core:
- * - BranchesController (/api/v1/branches hoặc /api/Stores)
+ * - BranchesController (/api/branches)
  * - KiosksController (/api/v1/kiosks hoặc /api/Kiosk)
  * Đi kèm cơ chế tự động chứng thực tài khoản Operations Admin khi thao tác dữ liệu.
  */
@@ -22,44 +22,14 @@ const apiClient = axios.create({
 });
 
 /**
- * Tự động đảm bảo có Bearer Token của Operations Admin khi gọi Backend
+ * Lấy Bearer Token của người dùng hiện tại từ localStorage
  */
 export const ensureAdminToken = async () => {
-  let token = localStorage.getItem('accessToken');
-  if (token) return token;
-
-  try {
-    const res = await axios.post(
-      `${API_BASE_URL.replace(/\/$/, '')}/Auth/login`,
-      {
-        username: 'ops.admin@rwfm.vn',
-        password: 'Password@123',
-      },
-      {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 5000,
-      }
-    );
-    const data = res.data?.data || res.data;
-    token = data?.token || data?.accessToken;
-    if (token) {
-      localStorage.setItem('accessToken', token);
-      if (data?.user) {
-        localStorage.setItem('user', JSON.stringify(data.user));
-      }
-      return token;
-    }
-  } catch (err) {
-    console.warn('[BranchService] Auto-login admin failed:', err.message);
-  }
-  return null;
+  return localStorage.getItem('accessToken');
 };
 
-apiClient.interceptors.request.use(async (config) => {
-  let token = localStorage.getItem('accessToken');
-  if (!token) {
-    token = await ensureAdminToken();
-  }
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('accessToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -68,30 +38,18 @@ apiClient.interceptors.request.use(async (config) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      localStorage.removeItem('accessToken');
-      const newToken = await ensureAdminToken();
-      if (newToken) {
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return apiClient(originalRequest);
-      }
-    }
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Endpoints nội bộ của phân hệ Branch & Kiosk
 const STORE_ENDPOINTS = {
-  LIST: '/Stores',
-  DETAIL: (id) => `/Stores/${id}`,
-  CREATE: '/Stores',
-  UPDATE: (id) => `/Stores/${id}`,
-  UPDATE_STATUS: (id) => `/Stores/${id}/status`,
-  UPGRADE_TIER: (id) => `/v1/branches/${id}/upgrade-tier`,
-  DELETE: (id) => `/Stores/${id}`,
+  LIST: '/branches',
+  DETAIL: (id) => `/branches/${id}`,
+  CREATE: '/branches',
+  UPDATE: (id) => `/branches/${id}`,
+  UPDATE_STATUS: (id) => `/branches/${id}/status`,
+  UPGRADE_TIER: (id) => `/branches/${id}/upgrade-tier`,
+  DELETE: (id) => `/branches/${id}`,
 };
 
 const KIOSK_ADMIN_ENDPOINTS = {

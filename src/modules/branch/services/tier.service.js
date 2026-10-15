@@ -11,11 +11,8 @@ const apiClient = axios.create({
   },
 });
 
-apiClient.interceptors.request.use(async (config) => {
-  let token = localStorage.getItem('accessToken');
-  if (!token) {
-    token = await ensureAdminToken();
-  }
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('accessToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -90,15 +87,13 @@ export const TIER_DEFINITIONS = [
 
 /**
  * 1. Lấy thống kê tổng hợp phân cấp chi nhánh từ Backend
- * Endpoint: GET /api/v1/branches/tier-summary hoặc /api/Stores/tier-summary
+ * Endpoint: GET /api/branches/tier-summary
  */
 export const getTierSummary = async () => {
   try {
     const endpoints = [
-      '/v1/branches/tier-summary',
-      '/Stores/tier-summary',
-      '/v1/branches/summary',
-      '/Stores/summary',
+      '/branches/tier-summary',
+      '/branches/summary',
     ];
 
     for (const ep of endpoints) {
