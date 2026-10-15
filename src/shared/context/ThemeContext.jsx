@@ -123,6 +123,7 @@ export function badgeToneMap(c) {
   const t = c.tones;
   return {
     ok: [t.ok, t.okDim], active: [t.ok, t.okDim], paid: [t.ok, t.okDim], approved: [t.ok, t.okDim],
+    good: [t.good || t.ok, t.goodDim || t.okDim],
     bad: [t.bad, t.badDim], banned: [t.bad, t.badDim], closed: [t.bad, t.badDim], rejected: [t.bad, t.badDim],
     warn: [t.warn, t.warnDim], pending: [t.warn, t.warnDim], maintenance: [t.warn, t.warnDim], paused: [t.warn, t.warnDim],
     info: [t.info, t.infoDim], refunded: [t.info, t.infoDim],

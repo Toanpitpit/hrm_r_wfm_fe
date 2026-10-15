@@ -207,7 +207,6 @@ export default function BranchFormModal({
               label="Mã Chi Nhánh"
               required
               error={errors.branchCode}
-              hint="VD: CH03, HCM01"
             >
               <input
                 type="text"
@@ -428,13 +427,9 @@ export default function BranchFormModal({
 
               <FormField
                 label="Bán Kính Geofence (m)"
-                hint="Vùng quét GPS cho phép"
               >
-                <input
-                  type="number"
-                  min="20"
-                  max="1000"
-                  step="10"
+                <input type="number" min="20" max="1000" step="10" placeholder="Bán kính GPS (20 - 1000m)"
+                  placeholder="100m (20 - 1000m)"
                   value={formData.radiusMeters}
                   onChange={(e) => {
                     const raw = e.target.value;

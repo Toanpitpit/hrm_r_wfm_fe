@@ -52,9 +52,9 @@ export default function ShiftTemplateTable({
     },
     {
       key: 'name',
-      label: 'TÊN KHUNG CA & MÔ TẢ',
+      label: 'TÊN KHUNG CA',
       render: (row) => (
-        <div>
+        <div title={row.description || undefined}>
           <div
             style={{
               fontWeight: 600,
@@ -97,18 +97,6 @@ export default function ShiftTemplateTable({
               </span>
             )}
           </div>
-          {row.description && (
-            <div
-              style={{
-                fontSize: '12px',
-                color: c.fgSubtle,
-                marginTop: '3px',
-                lineHeight: '1.4',
-              }}
-            >
-              {row.description}
-            </div>
-          )}
         </div>
       ),
     },
@@ -184,15 +172,11 @@ export default function ShiftTemplateTable({
         const paid = row.paidHours ?? row.workHours ?? 0;
         const night = row.nightHours ?? 0;
         return (
-          <div>
-            <div style={{ color: c.accent, fontWeight: 700, fontSize: '13px' }}>
-              {paid}h công
-            </div>
-            {night > 0 && (
-              <div style={{ fontSize: '11px', color: '#c084fc', marginTop: '1px' }}>
-                {night}h đêm phụ cấp
-              </div>
-            )}
+          <div
+            style={{ color: c.accent, fontWeight: 700, fontSize: '13px' }}
+            title={night > 0 ? `Bao gồm ${night}h ca đêm (phụ cấp)` : undefined}
+          >
+            {paid}h công
           </div>
         );
       },

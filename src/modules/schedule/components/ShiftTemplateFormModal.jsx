@@ -117,8 +117,8 @@ export default function ShiftTemplateFormModal({
           defaultBranchId
             ? String(defaultBranchId)
             : branches.length > 0
-            ? String(branches[0].id ?? branches[0].storeId ?? '')
-            : '';
+              ? String(branches[0].id ?? branches[0].storeId ?? '')
+              : '';
 
         setFormData({
           scope: initScope,
@@ -530,14 +530,14 @@ export default function ShiftTemplateFormModal({
       ? 'Chỉnh Sửa Ca Riêng Chi Nhánh'
       : 'Chỉnh Sửa Khung Ca Chung'
     : creationMode === 'BATCH'
-    ? formData.scope === 'BRANCH'
-      ? 'Thêm Nhiều Ca Riêng Cho Chi Nhánh'
-      : 'Thêm Nhiều Khung Ca Chung Toàn Chuỗi'
-    : formData.scope === 'BRANCH'
-    ? 'Thêm Ca Riêng Chi Nhánh'
-    : 'Tạo Khung Ca Chung Toàn Chuỗi';
+      ? formData.scope === 'BRANCH'
+        ? 'Thêm Nhiều Ca Riêng Cho Chi Nhánh'
+        : 'Thêm Nhiều Khung Ca Chung Toàn Chuỗi'
+      : formData.scope === 'BRANCH'
+        ? 'Thêm Ca Riêng Chi Nhánh'
+        : 'Tạo Khung Ca Chung Toàn Chuỗi';
 
-  const modalWidth = creationMode === 'BATCH' && !isEditing ? '820px' : '560px';
+  const modalWidth = creationMode === 'BATCH' && !isEditing ? '860px' : '620px';
 
   return (
     <Modal
@@ -642,8 +642,9 @@ export default function ShiftTemplateFormModal({
                     backgroundColor: creationMode === 'BATCH' ? (c.primary || '#0D9488') : 'transparent',
                     color: creationMode === 'BATCH' ? '#ffffff' : c.fgSubtle,
                     transition: 'all 0.15s ease',
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                   }}
                 >
@@ -653,7 +654,7 @@ export default function ShiftTemplateFormModal({
                     style={{
                       fontSize: '10px',
                       padding: '1px 6px',
-                      borderRadius: '10px',
+                      borderRadius: '4px',
                       backgroundColor:
                         creationMode === 'BATCH'
                           ? 'rgba(255, 255, 255, 0.25)'
@@ -677,15 +678,14 @@ export default function ShiftTemplateFormModal({
           {/* 1. Phạm vi & Chi nhánh (Dùng chung cho cả 2 chế độ) */}
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: formData.scope === 'BRANCH' ? '1fr 1.3fr' : '1fr',
+              display: 'flex',
+              flexDirection: 'column',
               gap: '12px',
             }}
           >
             <FormField
               label="Phạm Vi Áp Dụng"
               required
-              hint={isEditing ? 'Không thể đổi phạm vi sau khi tạo' : 'Áp dụng toàn chuỗi hoặc một chi nhánh cụ thể'}
             >
               <div
                 style={{
@@ -702,7 +702,7 @@ export default function ShiftTemplateFormModal({
                   onClick={() => setFormData({ ...formData, scope: 'GLOBAL', branchId: '' })}
                   style={{
                     flex: 1,
-                    padding: '7px 10px',
+                    padding: '8px 12px',
                     borderRadius: '6px',
                     fontSize: '13px',
                     fontWeight: 600,
@@ -724,13 +724,13 @@ export default function ShiftTemplateFormModal({
                       (defaultBranchId
                         ? String(defaultBranchId)
                         : branches.length > 0
-                        ? String(branches[0].id ?? branches[0].storeId ?? '')
-                        : '');
+                          ? String(branches[0].id ?? branches[0].storeId ?? '')
+                          : '');
                     setFormData({ ...formData, scope: 'BRANCH', branchId: fallbackBranch });
                   }}
                   style={{
                     flex: 1,
-                    padding: '7px 10px',
+                    padding: '8px 12px',
                     borderRadius: '6px',
                     fontSize: '13px',
                     fontWeight: 600,
@@ -751,7 +751,6 @@ export default function ShiftTemplateFormModal({
                 label="Chi Nhánh Áp Dụng"
                 required
                 error={clientErrors.branchId}
-                hint={isEditing ? 'Cố định chi nhánh đã chọn' : 'Chi nhánh sở hữu bộ ca riêng này'}
               >
                 <Select
                   value={String(formData.branchId || '')}
@@ -826,16 +825,16 @@ export default function ShiftTemplateFormModal({
                               autoType === 'Night'
                                 ? 'purple'
                                 : autoType === 'Afternoon'
-                                ? 'warning'
-                                : 'info'
+                                  ? 'warning'
+                                  : 'info'
                             }
                             size="sm"
                           >
                             {autoType === 'Night'
                               ? 'Ca Đêm'
                               : autoType === 'Afternoon'
-                              ? 'Ca Chiều'
-                              : 'Ca Sáng'}
+                                ? 'Ca Chiều'
+                                : 'Ca Sáng'}
                           </Badge>
                           <span style={{ fontSize: '12px', color: c.fgSubtle }}>
                             {paidH}h công chuẩn {isNight ? '• 🌙 Qua đêm' : ''}
@@ -871,10 +870,13 @@ export default function ShiftTemplateFormModal({
                           display: 'grid',
                           gridTemplateColumns: '1.4fr 1fr 1fr 0.8fr',
                           gap: '10px',
-                          alignItems: 'center',
+                          alignItems: 'start',
                         }}
                       >
                         <div>
+                          <div style={{ fontSize: '11px', color: c.fgSubtle, marginBottom: '4px', fontWeight: 500 }}>
+                            Tên khung ca
+                          </div>
                           <input
                             type="text"
                             value={shift.name}
@@ -884,6 +886,7 @@ export default function ShiftTemplateFormModal({
                             placeholder={`VD: Ca ${idx === 0 ? 'Sáng' : idx === 1 ? 'Chiều' : 'Đêm'}`}
                             style={{
                               width: '100%',
+                              boxSizing: 'border-box',
                               padding: '8px 10px',
                               borderRadius: '6px',
                               border: `1px solid ${c.border}`,
@@ -895,10 +898,10 @@ export default function ShiftTemplateFormModal({
                           />
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '11px', color: c.fgSubtle, whiteSpace: 'nowrap' }}>
-                            Từ:
-                          </span>
+                        <div>
+                          <div style={{ fontSize: '11px', color: c.fgSubtle, marginBottom: '4px', fontWeight: 500 }}>
+                            Giờ bắt đầu
+                          </div>
                           <input
                             type="time"
                             value={shift.startTime}
@@ -907,6 +910,7 @@ export default function ShiftTemplateFormModal({
                             }
                             style={{
                               width: '100%',
+                              boxSizing: 'border-box',
                               padding: '7px 8px',
                               borderRadius: '6px',
                               border: `1px solid ${c.border}`,
@@ -918,10 +922,10 @@ export default function ShiftTemplateFormModal({
                           />
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '11px', color: c.fgSubtle, whiteSpace: 'nowrap' }}>
-                            Đến:
-                          </span>
+                        <div>
+                          <div style={{ fontSize: '11px', color: c.fgSubtle, marginBottom: '4px', fontWeight: 500 }}>
+                            Giờ kết thúc
+                          </div>
                           <input
                             type="time"
                             value={shift.endTime}
@@ -930,6 +934,7 @@ export default function ShiftTemplateFormModal({
                             }
                             style={{
                               width: '100%',
+                              boxSizing: 'border-box',
                               padding: '7px 8px',
                               borderRadius: '6px',
                               border: `1px solid ${c.border}`,
@@ -941,18 +946,23 @@ export default function ShiftTemplateFormModal({
                           />
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <div>
+                          <div style={{ fontSize: '11px', color: c.fgSubtle, marginBottom: '4px', fontWeight: 500 }}>
+                            Nghỉ (phút)
+                          </div>
                           <input
                             type="number"
                             value={shift.breakDuration}
                             min="0"
                             max="240"
                             step="15"
+                            placeholder="0"
                             onChange={(e) =>
                               handleBatchShiftChange(shift.id, 'breakDuration', e.target.value)
                             }
                             style={{
                               width: '100%',
+                              boxSizing: 'border-box',
                               padding: '7px 8px',
                               borderRadius: '6px',
                               border: `1px solid ${c.border}`,
@@ -962,9 +972,6 @@ export default function ShiftTemplateFormModal({
                               outline: 'none',
                             }}
                           />
-                          <span style={{ fontSize: '11px', color: c.fgSubtle, whiteSpace: 'nowrap' }}>
-                            p nghỉ
-                          </span>
                         </div>
                       </div>
 
@@ -1008,8 +1015,8 @@ export default function ShiftTemplateFormModal({
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <Icon name="plus" size={15} />
-                  <span>+ Thêm Khung Ca Tiếp Theo Vào Danh Sách</span>
+                  <Icon name="plus" size={14} />
+                  <span>Thêm Khung Ca Tiếp Theo Vào Danh Sách</span>
                 </button>
               </div>
             </div>
@@ -1023,7 +1030,7 @@ export default function ShiftTemplateFormModal({
                 label="Tên Khung Ca"
                 required
                 error={clientErrors.name}
-                hint="Tên hiển thị khi xếp lịch (VD: Ca Sáng Tiêu Chuẩn, Ca Tối Sân Bay...)"
+                
               >
                 <input
                   type="text"
@@ -1116,62 +1123,32 @@ export default function ShiftTemplateFormModal({
                 </div>
               )}
 
-              {/* 4. Thời gian nghỉ & Kích hoạt */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1.2fr 1fr',
-                  gap: '12px',
-                  alignItems: 'center',
-                }}
+              {/* 4. Thời gian nghỉ */}
+              <FormField
+                label="Thời Gian Nghỉ (Phút)"
+                error={clientErrors.breakDuration}
               >
-                <FormField
-                  label="Thời Gian Nghỉ (Phút)"
-                  error={clientErrors.breakDuration}
-                  hint="Nghỉ giữa ca được trừ khỏi giờ công"
-                >
-                  <input
-                    type="number"
-                    min="0"
-                    max="240"
-                    step="15"
-                    value={formData.breakDuration}
-                    onChange={(e) => setFormData({ ...formData, breakDuration: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '9px 12px',
-                      borderRadius: '8px',
-                      border: `1px solid ${clientErrors.breakDuration ? '#ef4444' : c.border}`,
-                      backgroundColor: c.bgCard,
-                      color: c.fg,
-                      fontSize: '14px',
-                      outline: 'none',
-                    }}
-                  />
-                </FormField>
-
-                <div style={{ paddingTop: '16px' }}>
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      color: c.fg,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.isActive}
-                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                    />
-                    <span>Kích hoạt áp dụng khung ca</span>
-                  </label>
-                </div>
-              </div>
+                <input
+                  type="number"
+                  min="0"
+                  max="240"
+                  step="15"
+                  value={formData.breakDuration}
+                  onChange={(e) => setFormData({ ...formData, breakDuration: e.target.value })}
+                  placeholder="Thời gian nghỉ giữa ca (phút)"
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: `1px solid ${clientErrors.breakDuration ? '#ef4444' : c.border}`,
+                    backgroundColor: c.bgCard,
+                    color: c.fg,
+                    fontSize: '14px',
+                    outline: 'none',
+                  }}
+                />
+              </FormField>
 
               {/* 5. Khung Live Preview */}
               <div
@@ -1209,7 +1186,7 @@ export default function ShiftTemplateFormModal({
               {/* 6. Mã khung ca (Tùy chọn) */}
               <FormField
                 label="Mã Khung Ca (Tùy chọn)"
-                hint="Hệ thống tự động sinh mã nếu để trống"
+                
               >
                 <input
                   type="text"
@@ -1233,7 +1210,7 @@ export default function ShiftTemplateFormModal({
               {/* 7. Mô tả */}
               <FormField
                 label="Ghi Chú / Mô Tả"
-                hint="Ghi chú thêm về yêu cầu công việc hoặc phân công nhân sự"
+                
               >
                 <textarea
                   rows={2}
@@ -1311,8 +1288,8 @@ export default function ShiftTemplateFormModal({
                     isSelectedBranchLocked
                       ? 'Chi nhánh đang bị tạm khóa. Vui lòng mở khóa chi nhánh trước.'
                       : hasAnyBatchConflict
-                      ? 'Có ca bị trùng hoặc đè giờ. Vui lòng chỉnh sửa lại khung giờ.'
-                      : undefined
+                        ? 'Có ca bị trùng hoặc đè giờ. Vui lòng chỉnh sửa lại khung giờ.'
+                        : undefined
                   }
                   style={
                     hasAnyBatchConflict || isSelectedBranchLocked
@@ -1354,8 +1331,8 @@ export default function ShiftTemplateFormModal({
                       isSelectedBranchLocked
                         ? 'Chi nhánh đang bị tạm khóa. Vui lòng mở khóa chi nhánh trước khi thao tác.'
                         : overlappingShift
-                        ? overlappingShift.conflictMessage
-                        : undefined
+                          ? overlappingShift.conflictMessage
+                          : undefined
                     }
                     style={
                       overlappingShift || isSelectedBranchLocked
