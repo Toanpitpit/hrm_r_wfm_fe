@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import tierService, { TIER_DEFINITIONS } from '../services/tier.service';
-import { createBranch, updateBranch, deleteBranch } from '../services/branch.service';
+import { createBranch, updateBranch } from '../services/branch.service';
 import employeeService from '@/modules/employee/services/employee.service';
 import { useToast } from '@/components/ui/toast/ToastProvider';
 
@@ -33,11 +33,9 @@ export function useBranchTier() {
   const [selectedBranch, setSelectedBranch] = useState(null);
   const [updating, setUpdating] = useState(false);
 
-  // Modal State for Branch CRUD (Thêm / Sửa / Xóa Chi Nhánh)
+  // Modal State for Branch CRUD (Thêm / Sửa Chi Nhánh)
   const [branchFormModalOpen, setBranchFormModalOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState(null);
-  const [branchDeleteModalOpen, setBranchDeleteModalOpen] = useState(false);
-  const [deletingBranch, setDeletingBranch] = useState(null);
 
   // Modal State for Tier CRUD (Thêm / Sửa / Xóa Tier)
   const [tierFormModalOpen, setTierFormModalOpen] = useState(false);
@@ -260,21 +258,6 @@ export function useBranchTier() {
     }
   };
 
-  const handleDeleteBranch = async (storeId) => {
-    try {
-      await deleteBranch(storeId);
-      toast?.success?.('Đã xóa chi nhánh thành công!');
-      setBranchDeleteModalOpen(false);
-      setDeletingBranch(null);
-      await fetchData();
-      return { success: true };
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Không thể xóa chi nhánh';
-      toast?.error?.(msg);
-      return { success: false, error: msg };
-    }
-  };
-
   // ==========================================
   // TIER CRUD (Thêm, Sửa, Xóa Phân Cấp)
   // ==========================================
@@ -359,10 +342,6 @@ export function useBranchTier() {
     setBranchFormModalOpen,
     editingBranch,
     setEditingBranch,
-    branchDeleteModalOpen,
-    setBranchDeleteModalOpen,
-    deletingBranch,
-    setDeletingBranch,
     // Tier CRUD Modal
     tierFormModalOpen,
     setTierFormModalOpen,
@@ -379,7 +358,6 @@ export function useBranchTier() {
     handleQuickAdjust,
     handleCreateBranch,
     handleUpdateBranch,
-    handleDeleteBranch,
     handleCreateTier,
     handleUpdateTierDefinition,
     handleDeleteTier,

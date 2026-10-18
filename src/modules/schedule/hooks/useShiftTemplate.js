@@ -251,9 +251,9 @@ export function useShiftTemplate() {
       const details = err.response?.data?.details;
 
       if (errCode === 'NO_ACTIVE_CUSTOM_SHIFT' || err.response?.status === 400) {
-        toast.error(SHIFT_ERROR_MESSAGES.NO_ACTIVE_CUSTOM_SHIFT);
+        toast.error(err.response?.data?.message || SHIFT_ERROR_MESSAGES.NO_ACTIVE_CUSTOM_SHIFT);
       } else if (errCode === 'FUTURE_SCHEDULES_EXIST' || err.response?.status === 409) {
-        const count = details?.futureAssignmentCount || 14;
+        const count = err.response?.data?.futureAssignmentCount || details?.futureAssignmentCount || 14;
         setImpactModal({
           open: true,
           title: 'Xác Nhận Chuyển Đổi Chế Độ Khung Ca',

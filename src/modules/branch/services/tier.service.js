@@ -12,6 +12,9 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use(async (config) => {
+  if (config.url && config.url.startsWith('/') && !config.url.startsWith('/api')) {
+    config.url = config.url.slice(1);
+  }
   let token = localStorage.getItem('accessToken');
   if (!token) {
     token = await ensureAdminToken();
@@ -95,10 +98,10 @@ export const TIER_DEFINITIONS = [
 export const getTierSummary = async () => {
   try {
     const endpoints = [
+      '/branches/tier-summary',
+      '/branches/summary',
       '/v1/branches/tier-summary',
-      '/Stores/tier-summary',
       '/v1/branches/summary',
-      '/Stores/summary',
     ];
 
     for (const ep of endpoints) {

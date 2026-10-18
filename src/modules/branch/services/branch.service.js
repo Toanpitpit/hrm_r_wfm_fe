@@ -21,12 +21,34 @@ const apiClient = axios.create({
   },
 });
 
+export const isTokenValid = (token) => {
+  if (!token) return false;
+  try {
+    const base64Url = token.split('.')[1];
+    if (!base64Url) return false;
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const decoded = JSON.parse(jsonPayload);
+    return decoded.exp && decoded.exp * 1000 > Date.now() + 60000;
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Tự động đảm bảo có Bearer Token của Operations Admin khi gọi Backend
  */
 export const ensureAdminToken = async () => {
   let token = localStorage.getItem('accessToken');
-  if (token) return token;
+  if (token && isTokenValid(token)) {
+    return token;
+  }
+  localStorage.removeItem('accessToken');
 
   try {
     const res = await axios.post(
@@ -56,8 +78,11 @@ export const ensureAdminToken = async () => {
 };
 
 apiClient.interceptors.request.use(async (config) => {
+  if (config.url && config.url.startsWith('/') && !config.url.startsWith('/api')) {
+    config.url = config.url.slice(1);
+  }
   let token = localStorage.getItem('accessToken');
-  if (!token) {
+  if (!token || !isTokenValid(token)) {
     token = await ensureAdminToken();
   }
   if (token) {
@@ -83,23 +108,39 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Helper lay thong diep loi chi tiet tu backend (dac biet la ValidationProblemDetails RFC 7807)
+export const extractErrorMessage = (err, defaultMsg = 'Lỗi không xác định') => {
+  const resData = err.response?.data?.data || err.response?.data;
+  let msg = resData?.message || resData?.detail;
+  if (!msg && resData?.errors && typeof resData.errors === 'object') {
+    const fieldErrors = Object.values(resData.errors).flat().filter(Boolean);
+    if (fieldErrors.length > 0) {
+      msg = fieldErrors.join('; ');
+    }
+  }
+  if (!msg) {
+    msg = resData?.title || err.message || defaultMsg;
+  }
+  return msg;
+};
+
 // Endpoints nội bộ của phân hệ Branch & Kiosk
 const STORE_ENDPOINTS = {
-  LIST: '/Stores',
-  DETAIL: (id) => `/Stores/${id}`,
-  CREATE: '/Stores',
-  UPDATE: (id) => `/Stores/${id}`,
-  UPDATE_STATUS: (id) => `/Stores/${id}/status`,
-  UPGRADE_TIER: (id) => `/v1/branches/${id}/upgrade-tier`,
-  DELETE: (id) => `/Stores/${id}`,
+  LIST: 'branches',
+  DETAIL: (id) => `branches/${id}`,
+  CREATE: 'branches',
+  UPDATE: (id) => `branches/${id}`,
+  UPDATE_STATUS: (id) => `branches/${id}/status`,
+  UPGRADE_TIER: (id) => `branches/${id}/upgrade-tier`,
+  DELETE: (id) => `branches/${id}`,
 };
 
 const KIOSK_ADMIN_ENDPOINTS = {
-  LIST_ALL: '/Kiosk',
-  CREATE: '/Kiosk',
-  UPDATE_CONFIG: (id) => `/Kiosk/${id}/config`,
-  UPDATE_STATUS: (id) => `/Kiosk/${id}/status`,
-  DELETE: (id) => `/v1/kiosks/${id}`,
+  LIST_ALL: 'kiosks',
+  CREATE: (storeId) => `branches/${storeId}/kiosks`,
+  UPDATE_CONFIG: (id) => `kiosks/${id}`,
+  UPDATE_STATUS: (id) => `kiosks/${id}/status`,
+  DELETE: (id) => `kiosks/${id}`,
 };
 
 const STORAGE_KEY_BRANCHES = 'wfm_branch_master_data_v4';
@@ -399,6 +440,7 @@ export const createBranch = async (payload) => {
       geofenceRadiusMeters: radius,
       branchTier: tier,
       tier,
+      tierId: payload.tierId ? Number(payload.tierId) : undefined,
       staffCount: Number(payload.staffCount ?? 0),
       location: {
         type: 'Point',
@@ -414,7 +456,7 @@ export const createBranch = async (payload) => {
     }
   } catch (err) {
     console.warn('[BranchService] Backend create error:', err.response?.data || err.message);
-    throw new Error(err.response?.data?.message || err.response?.data?.title || err.message || 'Lỗi tạo chi nhánh từ máy chủ');
+    throw new Error(extractErrorMessage(err, 'Lỗi tạo chi nhánh từ máy chủ'));
   }
 
   const list = getLocalBranches();
@@ -648,9 +690,8 @@ export const deleteBranch = async (storeId) => {
     }
   } catch (err) {
     console.warn('[BranchService] Backend delete error:', err.response?.data || err.message);
-    if (err.response?.status === 400 || err.response?.status === 403) {
-      throw new Error(err.response?.data?.message || err.message || 'Không thể xóa chi nhánh trên máy chủ');
-    }
+    const msg = extractErrorMessage(err, 'Không thể xóa chi nhánh trên máy chủ');
+    throw new Error(msg);
   }
 
   const list = getLocalBranches();
@@ -662,7 +703,20 @@ export const deleteBranch = async (storeId) => {
 /**
  * 7. Lấy danh sách Kiosk toàn chuỗi (giám sát)
  */
-export const getAllKiosks = async () => [];
+export const getAllKiosks = async () => {
+  await ensureAdminToken();
+  try {
+    const res = await apiClient.get(KIOSK_ADMIN_ENDPOINTS.LIST_ALL);
+    const data = res.data?.data || res.data;
+    if (Array.isArray(data)) {
+      setLocalKiosks(data);
+      return data;
+    }
+  } catch (err) {
+    console.warn('[BranchService] Backend getAllKiosks error, fallback local:', err.message);
+  }
+  return getLocalKiosks();
+};
 
 /**
  * 8. Thêm mới máy Kiosk cho chi nhánh
@@ -670,19 +724,24 @@ export const getAllKiosks = async () => [];
 export const createKiosk = async (storeId, kioskData) => {
   await ensureAdminToken();
   try {
-    const res = await apiClient.post(KIOSK_ADMIN_ENDPOINTS.CREATE, {
-      storeId,
-      kioskName: kioskData.kioskName,
-      deviceIp: kioskData.deviceIp || null,
-      browserAgent: kioskData.browserAgent || null,
+    const res = await apiClient.post(KIOSK_ADMIN_ENDPOINTS.CREATE(storeId), {
+      deviceName: kioskData.deviceName || kioskData.kioskName || 'Kiosk mới',
+      kioskName: kioskData.kioskName || kioskData.deviceName || 'Kiosk mới',
+      ipWhitelist: kioskData.ipWhitelist || kioskData.deviceIp || null,
+      deviceIp: kioskData.deviceIp || kioskData.ipWhitelist || null,
+      userAgentPattern: kioskData.userAgentPattern || kioskData.browserAgent || null,
+      browserAgent: kioskData.browserAgent || kioskData.userAgentPattern || null,
     });
     const created = res.data?.data || res.data;
     if (created) {
       await getAllKiosks();
+      await getAllBranches();
       return created;
     }
   } catch (err) {
-    console.warn('[BranchService] Backend create kiosk error, fallback local:', err.message);
+    console.warn('[BranchService] Backend create kiosk error:', err.response?.data || err.message);
+    const msg = extractErrorMessage(err, 'Lỗi tạo trạm Kiosk từ máy chủ');
+    throw new Error(msg);
   }
 
   const kiosks = getLocalKiosks();
@@ -690,7 +749,7 @@ export const createKiosk = async (storeId, kioskData) => {
     kioskId: Date.now(),
     storeId,
     kioskCode: `KSK-${Date.now().toString().slice(-4)}`,
-    kioskName: kioskData.kioskName,
+    kioskName: kioskData.kioskName || 'Kiosk mới',
     deviceIp: kioskData.deviceIp || '192.168.1.50',
     browserAgent: kioskData.browserAgent || 'Chrome Enterprise Kiosk',
     status: 'ACTIVE',
@@ -710,11 +769,21 @@ export const updateKioskConfig = async (kioskId, config) => {
   try {
     const res = await apiClient.put(
       KIOSK_ADMIN_ENDPOINTS.UPDATE_CONFIG(kioskId),
-      config
+      {
+        deviceName: config.deviceName || config.kioskName,
+        kioskName: config.kioskName || config.deviceName,
+        ipWhitelist: config.ipWhitelist || config.deviceIp || null,
+        userAgentPattern: config.userAgentPattern || config.browserAgent || null,
+      }
     );
-    if (res.status === 200 || res.status === 204) return true;
+    if (res.status === 200 || res.status === 204) {
+      await getAllKiosks();
+      return res.data?.data || res.data || true;
+    }
   } catch (err) {
     console.warn('[BranchService] Backend update kiosk config error:', err.message);
+    const msg = extractErrorMessage(err, 'Lỗi cập nhật cấu hình Kiosk từ máy chủ');
+    throw new Error(msg);
   }
 
   const kiosks = getLocalKiosks();
@@ -731,16 +800,21 @@ export const updateKioskConfig = async (kioskId, config) => {
  * 10. Khóa / Mở khóa trạm Kiosk
  */
 export const toggleKioskLock = async (kioskId, currentStatus) => {
-  const nextStatus = currentStatus === 'ACTIVE' ? 'LOCKED' : 'ACTIVE';
+  const nextStatus = currentStatus === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
   await ensureAdminToken();
   try {
     const res = await apiClient.patch(
       KIOSK_ADMIN_ENDPOINTS.UPDATE_STATUS(kioskId),
       { status: nextStatus }
     );
-    if (res.status === 200 || res.status === 204) return nextStatus;
+    if (res.status === 200 || res.status === 204) {
+      await getAllKiosks();
+      return nextStatus;
+    }
   } catch (err) {
     console.warn('[BranchService] Backend toggle kiosk lock error:', err.message);
+    const msg = extractErrorMessage(err, 'Lỗi thay đổi trạng thái Kiosk từ máy chủ');
+    throw new Error(msg);
   }
 
   const kiosks = getLocalKiosks();
@@ -772,42 +846,10 @@ export const checkBranchLock = async (branchId) => {
     console.warn('[BranchService] Backend lock-check error or unavailable, using simulation:', err.message);
   }
 
-  // Giả lập thời gian phản hồi mạng để kiểm tra loading skeleton
-  await new Promise((resolve) => setTimeout(resolve, 600));
-
+  // Fallback an toàn ngoại tuyến (khi không kết nối được backend)
   const list = getLocalBranches();
-  const branch = list.find((b) => String(b.storeId) === String(branchId));
+  const branch = list.find((b) => String(b.storeId) === String(branchId) || String(b.id) === String(branchId));
 
-  // Giả lập điều kiện chặn (Blockers) cho chi nhánh CH02 nếu chưa được bấm "Đã xử lý xong"
-  const isSimulatedBlocker = branch?.branchCode === 'CH02' && !sessionStorage.getItem(`resolved_blocker_${branchId}`);
-  if (isSimulatedBlocker) {
-    return {
-      canLock: false,
-      blockers: [
-        {
-          code: 'ACTIVE_SHIFTS',
-          message: 'Có 3 ca làm việc đang diễn ra chưa được chốt giờ ra',
-          count: 3,
-          items: [
-            { id: 'SH-101', name: 'Ca sáng (06:00 - 14:00) - 2 nhân viên quầy' },
-            { id: 'SH-102', name: 'Ca gãy (10:00 - 15:00) - 1 nhân viên thu ngân' },
-            { id: 'SH-103', name: 'Ca chiều (13:00 - 21:00) - Đã check-in điểm danh' },
-          ],
-        },
-        {
-          code: 'PENDING_INVENTORY_AUDIT',
-          message: 'Tồn đọng 1 biên bản kiểm kê hàng hóa chưa hoàn tất duyệt',
-          count: 1,
-          items: [
-            { id: 'AUD-882', name: 'Biên bản kiểm kê kho định kỳ cuối tháng 9/2026' },
-          ],
-        },
-      ],
-      affectedEmployeeCount: 8,
-    };
-  }
-
-  // Trường hợp đủ điều kiện canLock = true
   return {
     canLock: true,
     blockers: [],
@@ -819,21 +861,7 @@ export const checkBranchLock = async (branchId) => {
  * 12. Thuc hien khoa chi nhanh
  * POST /api/branches/{id}/lock
  */
-// Helper lay thong diep loi chi tiet tu backend (dac biet la ValidationProblemDetails RFC 7807)
-const extractErrorMessage = (err, defaultMsg = 'Lỗi không xác định') => {
-  const resData = err.response?.data?.data || err.response?.data;
-  let msg = resData?.message || resData?.detail;
-  if (!msg && resData?.errors && typeof resData.errors === 'object') {
-    const fieldErrors = Object.values(resData.errors).flat().filter(Boolean);
-    if (fieldErrors.length > 0) {
-      msg = fieldErrors.join('; ');
-    }
-  }
-  if (!msg) {
-    msg = resData?.title || err.message || defaultMsg;
-  }
-  return msg;
-};
+
 
 export const lockBranch = async (branchId, payload) => {
   await ensureAdminToken();

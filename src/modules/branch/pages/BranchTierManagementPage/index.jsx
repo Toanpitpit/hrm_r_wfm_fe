@@ -18,7 +18,6 @@ import DataTable from '@/shared/components/ui/DataTable';
 // Hook & Subcomponents
 import { useBranchTier } from '../../hooks/useBranchTier';
 import ChangeTierModal from '../../components/ChangeTierModal';
-import BranchDeleteModal from '../../components/BranchDeleteModal';
 import { TierTable } from '../../components/TierTable';
 import { TierFormModal } from '../../components/TierFormModal';
 import { TierDeleteModal } from '../../components/TierDeleteModal';
@@ -91,10 +90,6 @@ export default function BranchTierManagementPage() {
     setBranchFormModalOpen,
     editingBranch,
     setEditingBranch,
-    branchDeleteModalOpen,
-    setBranchDeleteModalOpen,
-    deletingBranch,
-    setDeletingBranch,
     // Tier CRUD
     tierFormModalOpen,
     setTierFormModalOpen,
@@ -109,7 +104,6 @@ export default function BranchTierManagementPage() {
     handleUpdateTierAndQuota,
     handleCreateBranch,
     handleUpdateBranch,
-    handleDeleteBranch,
     handleCreateTier,
     handleUpdateTierDefinition,
     handleDeleteTier,
@@ -656,9 +650,6 @@ export default function BranchTierManagementPage() {
         }}
         onConfirm={handleDeleteTier}
       />
-
-      {/* 6. Modal Xác Nhận Xóa Chi Nhánh */}
-      {/* BranchDeleteModal đã được loại bỏ */}
     </DashboardShell>
   );
 }

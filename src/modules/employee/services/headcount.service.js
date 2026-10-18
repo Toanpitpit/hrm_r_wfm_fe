@@ -31,7 +31,7 @@ export const headcountService = {
    */
   async getBranchHeadcountStatus(branchId, branchTier = 2) {
     try {
-      const res = await axiosInstance.get(`v1/headcount-requests/branch/${branchId}/status`);
+      const res = await axiosInstance.get(`/branches/${branchId}/headcount-status`);
       const raw = res.data?.data || res.data;
 
       if (raw && (raw.currentHeadcount !== undefined || raw.CurrentHeadcount !== undefined || raw.standardQuota !== undefined)) {
@@ -234,7 +234,7 @@ export const headcountService = {
    */
   async upgradeBranchTier(branchId) {
     try {
-      const res = await axiosInstance.post(`v1/branches/${branchId}/upgrade-tier`);
+      const res = await axiosInstance.post(`/branches/${branchId}/upgrade-tier`);
       return {
         success: true,
         data: res.data?.data || res.data,

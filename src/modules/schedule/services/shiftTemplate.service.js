@@ -222,7 +222,7 @@ export const findOverlappingShift = (newShift, existingShifts = [], ignoreShiftI
     }
 
     // Chỉ kiểm tra những ca trong cùng phạm vi
-    const targetScope = newShift.scope || 'GLOBAL';
+    const targetScope = newShift.scope || (newShift.branchId ? 'BRANCH' : 'GLOBAL');
     const existingScope =
       existing.scope || (existing.branchId ? 'BRANCH' : 'GLOBAL');
 
@@ -230,11 +230,11 @@ export const findOverlappingShift = (newShift, existingShifts = [], ignoreShiftI
       continue;
     }
 
-    // Nếu là ca riêng theo chi nhánh, chỉ kiểm tra cùng branchId
+    // Nếu là ca riêng theo chi nhánh, bắt buộc cả 2 phải có branchId và cùng branchId
     if (targetScope === 'BRANCH') {
       const b1 = String(newShift.branchId || '');
       const b2 = String(existing.branchId || '');
-      if (b1 && b2 && b1 !== b2) {
+      if (!b1 || !b2 || b1 !== b2) {
         continue;
       }
     }
@@ -613,10 +613,10 @@ export const createShiftTemplate = async (payload) => {
   try {
     allCurrentShifts = await getShiftTemplates({ scope: body.scope, branchId: body.branchId });
   } catch (_) {
-    allCurrentShifts = getMockShifts();
+    allCurrentShifts = [];
   }
-  if (!Array.isArray(allCurrentShifts) || allCurrentShifts.length === 0) {
-    allCurrentShifts = getMockShifts();
+  if (!Array.isArray(allCurrentShifts)) {
+    allCurrentShifts = [];
   }
 
   const conflictingShift = findOverlappingShift(body, allCurrentShifts);
@@ -733,10 +733,10 @@ export const updateShiftTemplate = async (id, payload, confirm = false) => {
     try {
       allCurrentShifts = await getShiftTemplates({ scope: payload.scope, branchId: payload.branchId });
     } catch (_) {
-      allCurrentShifts = getMockShifts();
+      allCurrentShifts = [];
     }
-    if (!Array.isArray(allCurrentShifts) || allCurrentShifts.length === 0) {
-      allCurrentShifts = getMockShifts();
+    if (!Array.isArray(allCurrentShifts)) {
+      allCurrentShifts = [];
     }
 
     const conflictingShift = findOverlappingShift(
@@ -960,16 +960,7 @@ export const deleteShiftTemplate = async (id) => {
  */
 export const getBranches = async (params = {}) => {
   try {
-    let res;
-    try {
-      res = await apiClient.get('/branches', { params });
-    } catch (e) {
-      if (e.response?.status === 404) {
-        res = await apiClient.get('/Stores', { params });
-      } else {
-        throw e;
-      }
-    }
+    let res = await apiClient.get('/branches', { params });
 
     if (res && res.data) {
       const data = res.data.data || res.data;
@@ -1100,7 +1091,7 @@ export const updateBranchShiftMode = async (branchId, mode, confirm = false) => 
     const res = await apiClient.patch(`/branches/${branchId}/shift-mode`, { mode, confirm });
     if (res.data) return res.data.data || res.data;
   } catch (err) {
-    if (err.response?.status === 400 || err.response?.status === 409 || err.response?.status === 423) {
+    if (err.response) {
       throw err;
     }
     console.warn('[ShiftService] updateBranchShiftMode fallback mock:', err.message);
