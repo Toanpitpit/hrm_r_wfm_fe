@@ -16,6 +16,7 @@ export default function EmployeeFormModal({
   initialData = null, // null => Create mode, object => Edit mode
   roles = [],
   branches = [],
+  existingEmployees = [],
   canManageSystem = false, // True for Admin & Business Owner
   isBusinessOwner = false,
   isStoreManager = false,
@@ -50,13 +51,15 @@ export default function EmployeeFormModal({
   });
 
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Quản trị trạng thái tài khoản & Xóa tài khoản (khi Chỉnh sửa)
+  // Trạng thái xác nhận hủy khi form đang có dữ liệu dở dang (Dirty check)
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+
+  // Quản trị trạng thái tài khoản (khi Chỉnh sửa)
   const [accountStatus, setAccountStatus] = useState(initialData?.status || 'ACTIVE');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
   // Xác định quyền Chủ Doanh Nghiệp (Business Owner)
@@ -93,14 +96,151 @@ export default function EmployeeFormModal({
   const [importMessage, setImportMessage] = useState('');
   const [importStatus, setImportStatus] = useState('idle'); // 'idle' | 'success' | 'partial' | 'error'
 
+  // Kiểm tra xem form đã được nhập thông tin dở dang chưa (Đặt sau khi selectedFile đã được khai báo)
+  const isDirty = Boolean(
+    !isEdit && (
+      formData.fullName?.trim() ||
+      formData.email?.trim() ||
+      formData.phone?.trim() ||
+      formData.roleId ||
+      (!isStoreManager && formData.branchId) ||
+      (selectedFile && importStatus === 'idle')
+    )
+  );
+
   // Phân quyền chọn Vai trò:
+  // - Nếu là Cửa Hàng Trưởng (Store Manager): Không được cấp quyền tạo Cửa hàng trưởng hoặc tài khoản hệ thống
+  // - Nếu là Operations Admin / Business Owner: Được phép cấp quyền chọn Cửa hàng trưởng (STORE_MANAGER)
+  const isManagerUser = Boolean(isStoreManager || (!canManageSystem && !effectiveIsBusinessOwner));
+  const excludedRoles = isManagerUser
+    ? ['OPERATIONS_ADMIN', 'STORE_MANAGER', 'BUSINESS_OWNER', 'ADMIN']
+    : ['OPERATIONS_ADMIN', 'BUSINESS_OWNER', 'ADMIN'];
+
   const availableRoles = (roles.length > 0 ? roles : STORE_ROLES).filter((r) => {
-    return !['OPERATIONS_ADMIN', 'STORE_MANAGER', 'BUSINESS_OWNER'].includes(r.roleCode);
+    return !excludedRoles.includes(r.roleCode);
   });
 
-  // Reset form & import khi mở modal
+  const debounceTimerRef = useRef({});
+
+  // ─── Kiểm tra trùng lặp thời gian thực (Real-time duplicate check) ──────────
+  const checkCodeDuplicate = useCallback(async (code) => {
+    if (!code || isEdit) return;
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) return;
+
+    // 1. Kiểm tra nhanh trong danh sách local
+    const localMatch = existingEmployees?.find(
+      (e) => (e.employeeCode || '').trim().toUpperCase() === trimmed && (!isEdit || e.id !== initialData?.id)
+    );
+    if (localMatch) {
+      setErrors((prev) => ({
+        ...prev,
+        employeeCode: `Mã nhân viên "${trimmed}" đã tồn tại (${localMatch.fullName || 'Đã có trên hệ thống'}). Vui lòng đổi mã khác.`,
+      }));
+      return;
+    }
+
+    // 2. Tra cứu trực tiếp server database
+    try {
+      const res = await employeeService.checkDuplicate({ employeeCode: trimmed, excludeId: initialData?.id });
+      if (res?.isEmployeeCodeDuplicate) {
+        setErrors((prev) => ({
+          ...prev,
+          employeeCode: `Mã nhân viên "${trimmed}" đã tồn tại (${res.existingEmployeeName || 'Đã có trong hệ thống'}). Vui lòng đổi mã khác.`,
+        }));
+      } else {
+        setErrors((prev) => {
+          if (prev.employeeCode && prev.employeeCode.includes('đã tồn tại')) {
+            const { employeeCode: _, ...rest } = prev;
+            return rest;
+          }
+          return prev;
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, [existingEmployees, isEdit, initialData?.id]);
+
+  const checkEmailDuplicate = useCallback(async (email) => {
+    if (!email || isEdit) return;
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return;
+
+    const localMatch = existingEmployees?.find(
+      (e) => (e.email || '').trim().toLowerCase() === trimmed && (!isEdit || e.id !== initialData?.id)
+    );
+    if (localMatch) {
+      setErrors((prev) => ({
+        ...prev,
+        email: `Email "${trimmed}" đã được sử dụng (${localMatch.fullName || 'Đã có trong hệ thống'}).`,
+      }));
+      return;
+    }
+
+    try {
+      const res = await employeeService.checkDuplicate({ email: trimmed, excludeId: initialData?.id });
+      if (res?.isEmailDuplicate) {
+        setErrors((prev) => ({
+          ...prev,
+          email: `Email "${trimmed}" đã được sử dụng (${res.existingEmailOwnerName || 'Đã có trong hệ thống'}).`,
+        }));
+      }
+    } catch {
+      // ignore
+    }
+  }, [existingEmployees, isEdit, initialData?.id]);
+
+  const checkPhoneDuplicate = useCallback(async (phone) => {
+    if (!phone || isEdit) return;
+    const clean = phone.trim().replace(/\s/g, '');
+    if (!clean || !/^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(clean)) return;
+
+    const localMatch = existingEmployees?.find(
+      (e) => (e.phone || '').trim().replace(/\s/g, '') === clean && (!isEdit || e.id !== initialData?.id)
+    );
+    if (localMatch) {
+      setErrors((prev) => ({
+        ...prev,
+        phone: `Số điện thoại "${phone}" đã được sử dụng (${localMatch.fullName || 'Đã có trong hệ thống'}).`,
+      }));
+      return;
+    }
+
+    try {
+      const res = await employeeService.checkDuplicate({ phone: clean, excludeId: initialData?.id });
+      if (res?.isPhoneDuplicate) {
+        setErrors((prev) => ({
+          ...prev,
+          phone: `Số điện thoại "${phone}" đã được sử dụng (${res.existingPhoneOwnerName || 'Đã có trong hệ thống'}).`,
+        }));
+      }
+    } catch {
+      // ignore
+    }
+  }, [existingEmployees, isEdit, initialData?.id]);
+
+  const checkCodeDuplicateRef = useRef(checkCodeDuplicate);
   useEffect(() => {
-    if (isOpen) {
+    checkCodeDuplicateRef.current = checkCodeDuplicate;
+  }, [checkCodeDuplicate]);
+
+  const prevIsOpenRef = useRef(false);
+  const prevInitialDataIdRef = useRef(initialData?.id || null);
+
+  // Reset form & import khi mở modal hoặc khi chuyển đổi nhân viên cần sửa
+  useEffect(() => {
+    const isOpening = isOpen && !prevIsOpenRef.current;
+    const initialDataChanged = isOpen && (initialData?.id || null) !== prevInitialDataIdRef.current;
+
+    prevIsOpenRef.current = isOpen;
+    prevInitialDataIdRef.current = initialData?.id || null;
+
+    if (!isOpen) return;
+
+    // Chỉ thực hiện reset khi modal vừa mở lên hoặc đổi nhân viên edit
+    // Tuyệt đối không reset khi modal đang mở mà danh sách existingEmployees / stats cập nhật ngầm phía sau
+    if (isOpening || initialDataChanged) {
       setActiveTab('manual');
       setSelectedFile(null);
       setFileError('');
@@ -108,8 +248,8 @@ export default function EmployeeFormModal({
       setImportMessage('');
       setImportStatus('idle');
       setAccountStatus(initialData?.status || 'ACTIVE');
-      setShowDeleteConfirm(false);
-      setIsDeleting(false);
+      setShowDiscardConfirm(false);
+      setSubmitError('');
       setIsTogglingStatus(false);
 
       if (initialData) {
@@ -136,8 +276,9 @@ export default function EmployeeFormModal({
           ? branches.find((b) => String(b.id || b.storeId) === String(defaultBranchId))
           : null;
 
+        const initialCode = `NV-${Math.floor(1000 + Math.random() * 9000)}`;
         setFormData({
-          employeeCode: `NV-${Math.floor(1000 + Math.random() * 9000)}`,
+          employeeCode: initialCode,
           fullName: '',
           email: '',
           phone: '',
@@ -151,10 +292,11 @@ export default function EmployeeFormModal({
           password: `Rwfm@${Math.floor(100000 + Math.random() * 900000)}`,
         });
         setBranchQuota(null);
+        setTimeout(() => checkCodeDuplicateRef.current?.(initialCode), 150);
       }
       setErrors({});
     }
-  }, [initialData, isOpen, isStoreManager, currentStoreBranchId]);
+  }, [initialData, isOpen, isStoreManager, currentStoreBranchId, branches]);
 
   // Tải Effective Quota khi chọn chi nhánh (khi tạo mới)
   useEffect(() => {
@@ -175,6 +317,16 @@ export default function EmployeeFormModal({
         const quotaRes = await headcountService.getBranchHeadcountStatus(targetBranchId, tier);
         if (mounted && quotaRes.success) {
           setBranchQuota(quotaRes.data);
+          if (
+            formData.roleCode === 'STORE_MANAGER' &&
+            quotaRes.data?.hasActiveStoreManager &&
+            (!isEdit || initialData?.id !== quotaRes.data?.activeStoreManagerId)
+          ) {
+            setErrors((prevErr) => ({
+              ...prevErr,
+              roleId: `Chi nhánh "${quotaRes.data?.branchName || foundBranch?.name || ''}" hiện đã có Cửa hàng trưởng (${quotaRes.data?.activeStoreManagerName || 'CHT'}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`,
+            }));
+          }
         }
       } catch (err) {
         console.warn('Lỗi khi tải quota chi nhánh:', err);
@@ -230,6 +382,13 @@ export default function EmployeeFormModal({
   };
 
   const handleChange = (field, value) => {
+    let nextRoleCode = formData.roleCode;
+
+    if (field === 'roleId') {
+      const found = availableRoles.find((r) => String(r.id) === String(value));
+      nextRoleCode = found?.roleCode || '';
+    }
+
     setFormData((prev) => {
       const next = { ...prev, [field]: value };
       if (field === 'roleId') {
@@ -244,8 +403,36 @@ export default function EmployeeFormModal({
       }
       return next;
     });
+
+    if (submitError) {
+      setSubmitError('');
+    }
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: null }));
+    }
+
+    // Debounced real-time duplicate check
+    if (!isEdit) {
+      if (debounceTimerRef.current[field]) {
+        clearTimeout(debounceTimerRef.current[field]);
+      }
+      debounceTimerRef.current[field] = setTimeout(() => {
+        if (field === 'employeeCode') checkCodeDuplicate(value);
+        if (field === 'email') checkEmailDuplicate(value);
+        if (field === 'phone') checkPhoneDuplicate(value);
+      }, 350);
+    }
+
+    if (
+      field === 'roleId' &&
+      nextRoleCode === 'STORE_MANAGER' &&
+      branchQuota?.hasActiveStoreManager &&
+      (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
+    ) {
+      setErrors((prev) => ({
+        ...prev,
+        roleId: `Chi nhánh "${branchQuota.branchName || ''}" hiện đã có Cửa hàng trưởng (${branchQuota.activeStoreManagerName || 'CHT'}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`,
+      }));
     }
   };
 
@@ -273,53 +460,86 @@ export default function EmployeeFormModal({
     }
   };
 
-  // Xóa tài khoản nhân sự (Chỉ được xóa khi tài khoản đã bị khóa)
-  const handleDeleteAccount = async () => {
-    if (!initialData?.id) return;
-    if (accountStatus === 'ACTIVE') {
-      toast.error('Tài khoản đang hoạt động. Bạn phải khóa tài khoản trước khi thực hiện xóa!');
-      return;
-    }
-    setIsDeleting(true);
-    try {
-      const res = await employeeService.deleteEmployee(initialData.id);
-      if (res.success) {
-        toast.success(res.message || 'Đã xóa tài khoản nhân sự thành công!');
-        setShowDeleteConfirm(false);
-        onClose();
-        if (onDeleteSuccess) {
-          onDeleteSuccess(initialData.id);
-        }
-      } else {
-        toast.error(res.message || 'Không thể xóa tài khoản nhân sự.');
-      }
-    } catch (err) {
-      toast.error('Lỗi khi thực hiện xóa tài khoản.');
-    } finally {
-      setIsDeleting(false);
+
+
+  const handleSafeClose = () => {
+    if (isImporting || submitting) return;
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      onClose();
     }
   };
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.employeeCode.trim()) newErrors.employeeCode = 'Mã nhân viên là bắt buộc';
-    if (!formData.fullName.trim()) newErrors.fullName = 'Họ và tên là bắt buộc';
-    if (!formData.email.trim()) {
+    const code = (formData.employeeCode || '').trim().toUpperCase();
+    const name = (formData.fullName || '').trim();
+    const email = (formData.email || '').trim().toLowerCase();
+    const phone = (formData.phone || '').trim().replace(/\s/g, '');
+
+    // 1. Mã định danh nhân viên
+    if (!code) {
+      newErrors.employeeCode = 'Mã nhân viên là bắt buộc';
+    } else if (!/^[A-Z0-9_-]{3,20}$/.test(code)) {
+      newErrors.employeeCode = 'Mã nhân viên chỉ gồm chữ hoa, số và dấu gạch ngang (3-20 ký tự, VD: NV-6414)';
+    } else if (!isEdit && existingEmployees && existingEmployees.length > 0) {
+      const dupCode = existingEmployees.find(
+        (e) => (e.employeeCode || '').trim().toUpperCase() === code && (!isEdit || e.id !== initialData?.id)
+      );
+      if (dupCode) {
+        newErrors.employeeCode = `Mã nhân viên "${code}" đã tồn tại (${dupCode.fullName || 'Đã có trong hệ thống'}). Vui lòng chọn mã khác.`;
+      }
+    }
+
+    // 2. Họ và tên
+    if (!name) {
+      newErrors.fullName = 'Họ và tên là bắt buộc';
+    } else if (name.length < 2) {
+      newErrors.fullName = 'Họ và tên cần tối thiểu 2 ký tự';
+    }
+
+    // 3. Email
+    if (!email) {
       newErrors.email = 'Email là bắt buộc';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email không đúng định dạng';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = 'Email không đúng định dạng (VD: an.nguyen@rwfm.vn)';
+    } else if (!isEdit && existingEmployees && existingEmployees.length > 0) {
+      const dupEmail = existingEmployees.find(
+        (e) => (e.email || '').trim().toLowerCase() === email && (!isEdit || e.id !== initialData?.id)
+      );
+      if (dupEmail) {
+        newErrors.email = `Email "${formData.email}" đã được đăng ký bởi nhân viên (${dupEmail.fullName || 'Đã đăng ký'}).`;
+      }
     }
-    if (!formData.phone.trim()) {
+
+    // 4. Số điện thoại
+    if (!phone) {
       newErrors.phone = 'Số điện thoại là bắt buộc';
-    } else if (!/^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(formData.phone)) {
-      newErrors.phone = 'Số điện thoại Việt Nam không hợp lệ';
+    } else if (!/^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(phone)) {
+      newErrors.phone = 'Số điện thoại Việt Nam không hợp lệ (cần 10 chữ số, VD: 0912345678)';
+    } else if (!isEdit && existingEmployees && existingEmployees.length > 0) {
+      const dupPhone = existingEmployees.find(
+        (e) => (e.phone || '').trim().replace(/\s/g, '') === phone && (!isEdit || e.id !== initialData?.id)
+      );
+      if (dupPhone) {
+        newErrors.phone = `Số điện thoại "${formData.phone}" đã được sử dụng bởi nhân viên (${dupPhone.fullName || 'Đã đăng ký'}).`;
+      }
     }
-    if (!formData.roleId) newErrors.roleId = 'Vui lòng chọn vai trò';
-    if (!formData.branchId && !formData.homeBranchId) newErrors.branchId = 'Vui lòng chọn chi nhánh';
+
+    // 5. Vai trò
+    if (!formData.roleId) newErrors.roleId = 'Vui lòng chọn vai trò cho nhân sự';
+
+    // 6. Chi nhánh
+    if (!formData.branchId && !formData.homeBranchId) newErrors.branchId = 'Vui lòng chọn chi nhánh công tác';
 
     // Ràng buộc duy nhất 1 Cửa hàng trưởng trên mỗi chi nhánh
-    if (formData.roleCode === 'STORE_MANAGER' && branchQuota?.hasActiveStoreManager && (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)) {
-      newErrors.roleId = `Chi nhánh này đã có Cửa hàng trưởng (${branchQuota.activeStoreManagerName || ''}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`;
+    if (
+      formData.roleCode === 'STORE_MANAGER' &&
+      branchQuota?.hasActiveStoreManager &&
+      (!isEdit || initialData?.id !== branchQuota?.activeStoreManagerId)
+    ) {
+      newErrors.roleId = `Chi nhánh "${branchQuota.branchName || ''}" hiện đã có Cửa hàng trưởng (${branchQuota.activeStoreManagerName || 'CHT'}). Mỗi chi nhánh chỉ được phép có tối đa 1 Cửa hàng trưởng.`;
     }
 
     if (!isEdit && (!formData.password || formData.password.length < 6)) {
@@ -332,14 +552,46 @@ export default function EmployeeFormModal({
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
+    setSubmitError('');
     if (!validate()) return;
 
     setSubmitting(true);
     try {
-      await onSubmit(formData, isEdit);
-      onClose();
+      const result = await onSubmit(formData, isEdit);
+      const isSuccess = result === true || (typeof result === 'object' && result?.success === true);
+      if (isSuccess) {
+        onClose();
+      } else {
+        const errorMsg = result?.message || (typeof result === 'string' ? result : 'Khai báo nhân sự không thành công. Vui lòng kiểm tra lại thông tin.');
+        setSubmitError(errorMsg);
+
+        // Highlight matching field
+        const lowerMsg = errorMsg.toLowerCase();
+        const fieldErrors = {};
+
+        if (lowerMsg.includes('mã nhân viên') || lowerMsg.includes('mã nv') || lowerMsg.includes('employeecode')) {
+          fieldErrors.employeeCode = errorMsg;
+        }
+        if (lowerMsg.includes('email')) {
+          fieldErrors.email = errorMsg;
+        }
+        if (lowerMsg.includes('số điện thoại') || lowerMsg.includes('sđt') || lowerMsg.includes('phone')) {
+          fieldErrors.phone = errorMsg;
+        }
+        if (lowerMsg.includes('cửa hàng trưởng') || lowerMsg.includes('vai trò') || lowerMsg.includes('role')) {
+          fieldErrors.roleId = errorMsg;
+        }
+        if (lowerMsg.includes('định biên') || lowerMsg.includes('chi nhánh') || lowerMsg.includes('branch')) {
+          fieldErrors.branchId = errorMsg;
+        }
+
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...fieldErrors }));
+        }
+      }
     } catch (err) {
       console.error('Submit employee error:', err);
+      setSubmitError(err.message || 'Lỗi hệ thống khi gửi dữ liệu khai báo.');
     } finally {
       setSubmitting(false);
     }
@@ -554,14 +806,15 @@ export default function EmployeeFormModal({
     <>
       <Modal
         open={isOpen}
-        onClose={isImporting ? undefined : onClose}
+        closeOnOutsideClick={false}
+        onClose={isImporting ? undefined : handleSafeClose}
         title={title}
         sub={sub}
         width={activeTab === 'bulk' ? 720 : 680}
         footer={
           activeTab === 'bulk' ? (
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', width: '100%', gap: '10px' }}>
-              <Button variant="ghost" onClick={onClose} disabled={isImporting}>
+              <Button variant="ghost" onClick={handleSafeClose} disabled={isImporting}>
                 {importStatus !== 'idle' ? 'Đóng' : 'Hủy Bỏ'}
               </Button>
               {importStatus !== 'success' && (
@@ -593,7 +846,7 @@ export default function EmployeeFormModal({
                 <div />
               )}
               <div style={{ display: 'flex', gap: '10px' }}>
-                <Button variant="ghost" onClick={onClose} disabled={submitting}>
+                <Button variant="ghost" onClick={handleSafeClose} disabled={submitting}>
                   {isEdit ? 'Đóng' : 'Hủy Bỏ'}
                 </Button>
                 {!isEdit && (
@@ -669,7 +922,6 @@ export default function EmployeeFormModal({
                 boxShadow: activeTab === 'bulk' ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
               }}
             >
-              <Icon name="table-import" size={15} color={activeTab === 'bulk' ? '#fff' : c.fgMuted} />
               <span>Import Nhân Sự Hàng Loạt (Excel/CSV)</span>
             </button>
           </div>
@@ -678,36 +930,85 @@ export default function EmployeeFormModal({
         {/* ─── TAB 1: FORM KHAI BÁO THỦ CÔNG ─── */}
         {activeTab === 'manual' && (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Banner Welcome Email */}
-            {!isEdit && (
+            {/* Banner Thông Báo Lỗi Ràng Buộc / Trùng Lặp */}
+            {submitError && (
               <div
                 style={{
                   padding: '12px 14px',
-                  background: 'rgba(34, 197, 94, 0.08)',
-                  border: '1px solid rgba(34, 197, 94, 0.25)',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
                   borderRadius: '8px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '10px',
-                  fontSize: '12.5px',
-                  color: '#86efac',
+                  fontSize: '13px',
+                  color: '#f87171',
+                  fontWeight: 600,
+                  animation: 'lx-fade-in .15s ease',
                 }}
               >
-                <Icon name="check" size={16} color="#22c55e" />
-                <span>
-                  <strong>Tự Động Gửi Welcome Email:</strong> Sau khi khai báo, Backend sẽ tự động gửi thư chào mừng HTML chuyên nghiệp tới Email nhân sự kèm Mã NV, Mật khẩu khởi tạo và đường link đăng nhập.
-                </span>
+                <Icon name="warning" size={18} color="#ef4444" />
+                <span style={{ flex: 1, lineHeight: '1.4' }}>{submitError}</span>
+                <button
+                  type="button"
+                  onClick={() => setSubmitError('')}
+                  title="Đóng thông báo"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#f87171',
+                    cursor: 'pointer',
+                    display: 'grid',
+                    placeItems: 'center',
+                    padding: '2px',
+                  }}
+                >
+                  <Icon name="x" size={14} />
+                </button>
               </div>
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               {/* Mã nhân viên */}
-              <Field label="Mã Định Danh Nhân Viên" required error={errors.employeeCode}>
+              <Field
+                label="Mã Định Danh Nhân Viên"
+                required
+                error={errors.employeeCode}
+                hint={
+                  !isEdit && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newCode = `NV-${Math.floor(1000 + Math.random() * 9000)}`;
+                        handleChange('employeeCode', newCode);
+                        checkCodeDuplicate(newCode);
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: c.accent,
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        padding: 0,
+                      }}
+                    >
+                      <Icon name="refresh" size={11} />
+                      <span>Sinh mã khác</span>
+                    </button>
+                  )
+                }
+              >
                 <TextInput
                   value={formData.employeeCode}
                   onChange={(e) => handleChange('employeeCode', e.target.value.toUpperCase())}
+                  onBlur={() => checkCodeDuplicate(formData.employeeCode)}
                   placeholder="VD: NV-001 hoặc SM-001"
                   disabled={isEdit}
+                  error={Boolean(errors.employeeCode)}
                 />
               </Field>
 
@@ -718,6 +1019,7 @@ export default function EmployeeFormModal({
                   onChange={(e) => handleChange('fullName', e.target.value)}
                   placeholder="VD: Nguyễn Văn An"
                   disabled={isEdit}
+                  error={Boolean(errors.fullName)}
                 />
               </Field>
             </div>
@@ -729,8 +1031,10 @@ export default function EmployeeFormModal({
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
+                  onBlur={() => checkEmailDuplicate(formData.email)}
                   placeholder="VD: an.nguyen@rwfm.vn"
                   disabled={isEdit}
+                  error={Boolean(errors.email)}
                 />
               </Field>
 
@@ -739,8 +1043,10 @@ export default function EmployeeFormModal({
                 <TextInput
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
+                  onBlur={() => checkPhoneDuplicate(formData.phone)}
                   placeholder="VD: 0912345678"
                   disabled={isEdit}
+                  error={Boolean(errors.phone)}
                 />
               </Field>
             </div>
@@ -749,6 +1055,8 @@ export default function EmployeeFormModal({
               {/* Vai trò (Role) */}
               <Field
                 label="Vai Trò Cửa Hàng"
+                required
+                error={errors.roleId}
               >
                 <select
                   value={formData.roleId}
@@ -779,7 +1087,7 @@ export default function EmployeeFormModal({
                       return (
                         <option key={r.id} value={String(r.id)} disabled={isAlreadyTaken}>
                           {r.roleName} ({r.roleCode})
-                          {isAlreadyTaken ? ` — (Đã có: ${branchQuota?.activeStoreManagerName || 'CHT'})` : ''}
+                          {isAlreadyTaken ? ` — (Đã có CHT: ${branchQuota?.activeStoreManagerName || 'Đã có'})` : ''}
                         </option>
                       );
                     })}
@@ -864,6 +1172,35 @@ export default function EmployeeFormModal({
                     >
                       Tier {branchQuota.branchTier} (Chuẩn {branchQuota.standardQuota})
                     </span>
+                    {branchQuota.hasActiveStoreManager ? (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: '#f59e0b',
+                          background: 'rgba(245, 158, 11, 0.12)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                        }}
+                      >
+                        CHT: {branchQuota.activeStoreManagerName}
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: '#38bdf8',
+                          background: 'rgba(56, 189, 248, 0.12)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                        }}
+                      >
+                        Trống CHT
+                      </span>
+                    )}
                     {branchQuota.inactiveCount > 0 && (
                       <span style={{ fontSize: '11.5px', color: c.fgSubtle }}>
                         Đã nghỉ: {branchQuota.inactiveCount}
@@ -875,7 +1212,7 @@ export default function EmployeeFormModal({
                 {/* Thông tin slot hoặc Cơ chế Nâng Tier khi kịch biên */}
                 {!isQuotaReached ? (
                   <div style={{ fontSize: '12px', color: '#86efac' }}>
-                    ✓ Chi nhánh còn trống{' '}
+                    Chi nhánh còn trống{' '}
                     <strong>{branchQuota.standardQuota - (branchQuota.officialHeadcount ?? branchQuota.currentHeadcount)}</strong> vị trí theo định biên chuẩn.
                   </div>
                 ) : (
@@ -891,11 +1228,11 @@ export default function EmployeeFormModal({
                     <div style={{ fontSize: '12px', color: '#fca5a5' }}>
                       {branchQuota.canUpgradeTier ? (
                         <span>
-                          ⚠️ Đã đạt trần Tier {branchQuota.branchTier}. Bạn có thể nâng chi nhánh lên{' '}
+                          Đã đạt trần Tier {branchQuota.branchTier}. Bạn có thể nâng chi nhánh lên{' '}
                           <strong>Tier {branchQuota.branchTier - 1}</strong> để tuyển thêm.
                         </span>
                       ) : (
-                        <span>❌ Chi nhánh đã đạt kịch trần cao nhất Tier 1 (30 nhân sự). Không thể tuyển thêm!</span>
+                        <span> Chi nhánh đã đạt kịch trần cao nhất Tier 1 (30 nhân sự). Không thể tuyển thêm!</span>
                       )}
                     </div>
 
@@ -913,7 +1250,7 @@ export default function EmployeeFormModal({
                           fontWeight: 700,
                         }}
                       >
-                        {upgradingTier ? 'Đang Nâng Tier...' : `⚡ Nâng Lên Tier ${branchQuota.branchTier - 1}`}
+                        {upgradingTier ? 'Đang Nâng Tier...' : ` Nâng Lên Tier ${branchQuota.branchTier - 1}`}
                       </Button>
                     )}
                   </div>
@@ -1052,76 +1389,13 @@ export default function EmployeeFormModal({
                     <span>Reset Mật Khẩu</span>
                   </Button>
 
-                  {/* Nút Xóa Tài Khoản: Bắt buộc đã khóa và đủ thời gian chờ 14 ngày (áp dụng tuyệt đối cho mọi tài khoản) */}
-                  {(() => {
-                    const lockedDate = initialData?.lockedAt ? new Date(initialData.lockedAt) : (initialData?.updatedAt ? new Date(initialData.updatedAt) : null);
-                    const daysPassed = lockedDate ? Math.floor((new Date() - lockedDate) / (1000 * 60 * 60 * 24)) : 0;
-                    const daysRemaining = initialData?.daysUntilDeletable ?? Math.max(0, 14 - daysPassed);
-                    const isDeletable = accountStatus === 'INACTIVE' && daysRemaining === 0;
-
-                    return (
-                      <>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => setShowDeleteConfirm(true)}
-                          disabled={!isDeletable}
-                          style={{
-                            fontSize: '12.5px',
-                            fontWeight: 600,
-                            border: `1px solid ${isDeletable ? '#ef4444' : c.border}`,
-                            color: isDeletable ? '#ef4444' : c.fgSubtle,
-                            background: isDeletable ? 'rgba(239, 68, 68, 0.08)' : 'transparent',
-                            cursor: isDeletable ? 'pointer' : 'not-allowed',
-                            opacity: isDeletable ? 1 : 0.5,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            transition: 'all 0.2s',
-                          }}
-                          title={
-                            accountStatus === 'ACTIVE'
-                              ? 'Bạn phải khóa tài khoản trước khi thực hiện xóa'
-                              : !isDeletable
-                                ? `Cần chờ đủ 14 ngày kể từ khi khóa (còn ${daysRemaining} ngày nữa)`
-                                : 'Xóa vĩnh viễn tài khoản khỏi hệ thống và CSDL'
-                          }
-                        >
-
-                          <span>Xóa Vĩnh Viễn</span>
-                        </Button>
-                      </>
-                    );
-                  })()}
                 </div>
 
-                {/* Dòng cảnh báo điều kiện xóa & quy định lưu trữ 14 ngày */}
-                <div style={{ fontSize: '11.5px', lineHeight: '1.4' }}>
-                  {(() => {
-                    const lockedDate = initialData?.lockedAt ? new Date(initialData.lockedAt) : (initialData?.updatedAt ? new Date(initialData.updatedAt) : null);
-                    const daysPassed = lockedDate ? Math.floor((new Date() - lockedDate) / (1000 * 60 * 60 * 24)) : 0;
-                    const daysRemaining = initialData?.daysUntilDeletable ?? Math.max(0, 14 - daysPassed);
-
-                    if (accountStatus === 'ACTIVE') {
-                      return (
-                        <span style={{ color: '#f87171' }}>
-                          <strong>Điều kiện xóa:</strong> Tài khoản đang hoạt động nên nút Xóa bị vô hiệu hóa. Bạn cần bấm <strong>"Khóa Tài Khoản"</strong> trước khi có thể xóa.
-                        </span>
-                      );
-                    }
-                    if (daysRemaining > 0) {
-                      return (
-                        <span style={{ color: '#f59e0b' }}>
-                          <strong>Quy định lưu trữ 14 ngày:</strong> Tài khoản đã khóa được {daysPassed} ngày. Theo chính sách đối soát bảng công và tiền lương (bắt buộc áp dụng cho mọi cấp quản lý), tài khoản chỉ có thể xóa vĩnh viễn sau <strong>{daysRemaining} ngày</strong> nữa.
-                        </span>
-                      );
-                    }
-                    return (
-                      <span style={{ color: '#4ade80' }}>
-                        ✅ <strong>Đã đủ điều kiện:</strong> Tài khoản đã khóa đủ 14 ngày theo quy định lưu trữ. Bạn có thể thực hiện xóa vĩnh viễn tài khoản này khỏi hệ thống và CSDL.
-                      </span>
-                    );
-                  })()}
+                {/* Dòng ghi chú chính sách bảo toàn dữ liệu đối soát chuẩn Enterprise */}
+                <div style={{ fontSize: '11.5px', lineHeight: '1.4', color: c.fgSubtle }}>
+                  <span>
+                    <strong>Chính sách lưu trữ & đối soát:</strong> Hệ thống không hỗ trợ xóa tài khoản nhằm bảo đảm tính toàn vẹn dữ liệu phân ca, chấm công, tính lương và kiểm toán. Để cho nhân sự thôi việc hoặc ngừng phân ca, vui lòng sử dụng tính năng <strong>"Khóa Tài Khoản"</strong>.
+                  </span>
                 </div>
               </div>
             )}
@@ -1534,55 +1808,43 @@ export default function EmployeeFormModal({
         )}
       </Modal>
 
-      {/* ─── MODAL XÁC NHẬN XÓA TÀI KHOẢN (Chỉ khi tài khoản đã bị khóa) ─── */}
+
+
+      {/* ─── MODAL XÁC NHẬN HỦY DỮ LIỆU ĐANG ĐIỀN DỞ (Dirty State Confirm) ─── */}
       <Modal
-        open={showDeleteConfirm}
-        onClose={() => !isDeleting && setShowDeleteConfirm(false)}
-        title="Xác Nhận Xóa Vĩnh Viễn Tài Khoản"
-        sub={`Hành động này sẽ xóa hoàn toàn tài khoản #${initialData?.id} khỏi hệ thống.`}
-        width={480}
+        open={showDiscardConfirm}
+        closeOnOutsideClick={false}
+        onClose={() => setShowDiscardConfirm(false)}
+        title="Xác Nhận Hủy Thao Tác"
+        sub="Bạn đang có các trường thông tin hồ sơ nhân sự chưa được lưu."
+        width={460}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', width: '100%' }}>
-            <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
-              Hủy Bỏ
+            <Button variant="ghost" onClick={() => setShowDiscardConfirm(false)}>
+              Tiếp Tục Điền
             </Button>
             <Button
               variant="danger"
-              onClick={handleDeleteAccount}
-              disabled={isDeleting}
-              style={{ background: '#ef4444', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}
+              onClick={() => {
+                setShowDiscardConfirm(false);
+                onClose();
+              }}
+              style={{
+                background: '#ef4444',
+                color: '#fff',
+                borderColor: '#dc2626',
+              }}
             >
-              <Icon name="trash" size={14} color="#fff" />
-              <span>{isDeleting ? 'Đang Xóa...' : 'Xác Nhận Xóa'}</span>
+              Hủy Bỏ & Thoát
             </Button>
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13.5px', color: c.fg }}>
-          <div
-            style={{
-              padding: '12px 14px',
-              borderRadius: '8px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.25)',
-              color: '#fca5a5',
-              display: 'flex',
-              gap: '10px',
-              alignItems: 'flex-start',
-            }}
-          >
-            <Icon name="alert-triangle" size={18} color="#ef4444" />
-            <div>
-              <strong>Cảnh Báo Quan Trọng:</strong> Bạn đang chuẩn bị xóa tài khoản nhân sự{' '}
-              <strong style={{ color: '#fff' }}>{initialData?.fullName}</strong> (Mã NV:{' '}
-              <span style={{ color: '#f2ca50', fontWeight: 600 }}>{initialData?.employeeCode || `NV-${initialData?.id}`}</span>).
-              <div style={{ marginTop: '4px', fontSize: '12.5px', color: '#fca5a5' }}>
-                Tài khoản sau khi xóa sẽ không thể đăng nhập hoặc phân ca nữa. Thao tác này không thể hoàn tác.
-              </div>
-            </div>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '6px 0' }}>
 
-          <div>Bạn có chắc chắn muốn tiếp tục thực hiện xóa tài khoản này không?</div>
+          <div style={{ fontSize: '13.5px', lineHeight: '1.5', color: c.fg }}>
+            Nếu thoát lúc này, toàn bộ dữ liệu bạn vừa nhập vào form sẽ <strong>bị mất</strong>. Bạn có chắc chắn muốn hủy bỏ và đóng cửa sổ này không?
+          </div>
         </div>
       </Modal>
     </>

@@ -7,8 +7,7 @@ import fileService, { getFileIconName } from '@/shared/services/file.service';
  * SERVICE: headcount.service.js
  * ==============================================================================
  * Đồng bộ với BranchesController (.NET 8) sau khi loại bỏ luồng đề xuất cũ:
- * - GET /v1/headcount-requests/branch/:branchId/status  (alias route — tương thích ngược)
- * - GET /v1/branches/:id/headcount-status               (route mới)
+ * - GET /branches/:id/headcount-status
  *
  * Cơ chế Effective Quota:
  *   EffectiveQuota = branch.StaffCount > 0 ? branch.StaffCount : TierQuota
@@ -25,13 +24,13 @@ export const HEADCOUNT_TIER_QUOTAS = {
 export const headcountService = {
   /**
    * 1. Lấy thông tin định biên hiệu dụng của chi nhánh
-   *    GET /v1/headcount-requests/branch/{branchId}/status  (alias tương thích ngược)
+   *    GET /branches/{branchId}/headcount-status
    *    Trả về: standardQuota, staffCount, effectiveQuota, currentHeadcount,
    *            availableQuotaSlots, isQuotaReached, canCreateDirectly
    */
   async getBranchHeadcountStatus(branchId, branchTier = 2) {
     try {
-      const res = await axiosInstance.get(`/branches/${branchId}/headcount-status`);
+      const res = await axiosInstance.get(`branches/${branchId}/headcount-status`);
       const raw = res.data?.data || res.data;
 
       if (raw && (raw.currentHeadcount !== undefined || raw.CurrentHeadcount !== undefined || raw.standardQuota !== undefined)) {
@@ -234,7 +233,7 @@ export const headcountService = {
    */
   async upgradeBranchTier(branchId) {
     try {
-      const res = await axiosInstance.post(`/branches/${branchId}/upgrade-tier`);
+      const res = await axiosInstance.post(`branches/${branchId}/upgrade-tier`);
       return {
         success: true,
         data: res.data?.data || res.data,

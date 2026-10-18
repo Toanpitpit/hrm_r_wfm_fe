@@ -1,4 +1,5 @@
 import axiosInstance from '@/config/axios.config';
+import { API_ENDPOINTS } from '@/shared/constants/api.constants';
 
 export const attendanceService = {
   /**
@@ -6,7 +7,7 @@ export const attendanceService = {
    */
   requestOtp: async (latitude, longitude, type = 'CHECK_IN') => {
     try {
-      const response = await axiosInstance.post('attendance/request-otp', {
+      const response = await axiosInstance.post(API_ENDPOINTS.ATTENDANCE.REQUEST_OTP, {
         latitude,
         longitude,
         type,
@@ -20,9 +21,10 @@ export const attendanceService = {
   /**
    * Lấy danh sách quân số theo dõi trực tiếp thời gian thực (Live Roster)
    */
-  getLiveRoster: async (storeId) => {
+  getLiveRoster: async (storeId, date = null) => {
     try {
-      const response = await axiosInstance.get(`attendance/live-roster?storeId=${storeId}`);
+      const endpoint = API_ENDPOINTS.ATTENDANCE.LIVE_ROSTER(storeId, date);
+      const response = await axiosInstance.get(endpoint);
       return response.data;
     } catch (error) {
       return error.response?.data || { success: false, message: 'Không thể lấy dữ liệu quân số.' };
@@ -30,32 +32,41 @@ export const attendanceService = {
   },
 
   /**
-   * Gắn cờ nghi ngờ gian lận / vắng mặt cho ca trực
+   * Lấy lịch sử danh sách bản ghi điểm danh trong ngày của chi nhánh cửa hàng
    */
-  flagFraud: async (attendanceId, reason) => {
+  getHistory: async (storeId, date = null) => {
     try {
-      const response = await axiosInstance.post('attendance/flag-fraud', {
-        attendanceId,
-        reason,
-      });
+      const endpoint = API_ENDPOINTS.ATTENDANCE.HISTORY(storeId, date);
+      const response = await axiosInstance.get(endpoint);
       return response.data;
     } catch (error) {
-      return error.response?.data || { success: false, message: 'Không thể thực hiện báo cáo gian lận.' };
+      return error.response?.data || { success: false, message: 'Không thể lấy lịch sử điểm danh.' };
     }
   },
 
   /**
-   * Phân xử khiếu nại (Store Manager duyệt/khôi phục giờ công)
+   * Lấy lịch làm việc cá nhân theo tuần (Calendar View)
    */
-  resolveFraud: async (attendanceId, isApproved) => {
+  getMyWeeklySchedule: async (weekStart) => {
     try {
-      const response = await axiosInstance.post('attendance/resolve-fraud', {
-        attendanceId,
-        isApproved,
-      });
+      const endpoint = API_ENDPOINTS.ATTENDANCE.MY_WEEKLY_SCHEDULE(weekStart);
+      const response = await axiosInstance.get(endpoint);
       return response.data;
     } catch (error) {
-      return error.response?.data || { success: false, message: 'Không thể phân xử khiếu nại.' };
+      return error.response?.data || { success: false, message: 'Không thể tải lịch làm việc cá nhân.' };
+    }
+  },
+
+  /**
+   * Lấy lịch sử và thống kê chấm công cá nhân theo tháng
+   */
+  getMyAttendanceHistory: async (month, year) => {
+    try {
+      const endpoint = API_ENDPOINTS.ATTENDANCE.MY_ATTENDANCE_HISTORY(month, year);
+      const response = await axiosInstance.get(endpoint);
+      return response.data;
+    } catch (error) {
+      return error.response?.data || { success: false, message: 'Không thể tải lịch sử chấm công.' };
     }
   },
 };

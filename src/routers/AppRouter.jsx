@@ -6,12 +6,13 @@ import { useAuthContext } from '@/modules/auth/context/AuthContext';
 const LoginPage = lazy(() => import('@/modules/auth/pages/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('@/modules/auth/pages/ForgotPasswordPage'));
 const DashboardPage = lazy(() => import('@/modules/dashboard/pages/DashboardPage'));
-const KioskCodePage = lazy(() => import('@/modules/kiosk/pages/KioskCodePage'));
+const KioskCodePage = lazy(() => import('@/modules/kiosk-activation/pages/KioskCodePage'));
 const BranchManagementPage = lazy(() => import('@/modules/branch/pages/BranchManagementPage'));
 const BranchTierManagementPage = lazy(() => import('@/modules/branch/pages/BranchTierManagementPage'));
 const ShiftMasterPage = lazy(() => import('@/modules/schedule/pages/ShiftMasterPage'));
 const WeeklySchedulePage = lazy(() => import('@/modules/schedule/pages/WeeklySchedulePage'));
 const LiveRosterDashboardPage = lazy(() => import('@/modules/attendance/pages/LiveRosterDashboardPage'));
+const MonthlyAttendancePage = lazy(() => import('@/modules/attendance/pages/MonthlyAttendancePage'));
 const AttendanceOtpPage = lazy(() => import('@/modules/attendance/pages/AttendanceOtpPage'));
 const MyCalendarPage = lazy(() => import('@/modules/attendance/pages/MyCalendarPage'));
 const AttendanceHistoryPage = lazy(() => import('@/modules/attendance/pages/AttendanceHistoryPage'));
@@ -194,6 +195,9 @@ const AppRouter = () => {
           {/* ═══════════════ STORE MANAGER & SCHEDULES ═══════════════ */}
           <Route path="/store-manager/schedules" element={<AuthenticatedRoute><WeeklySchedulePage /></AuthenticatedRoute>} />
           <Route path="/store-manager/live-roster" element={<AuthenticatedRoute><LiveRosterDashboardPage /></AuthenticatedRoute>} />
+          <Route path="/store-manager/monthly-attendance" element={<AuthenticatedRoute><MonthlyAttendancePage /></AuthenticatedRoute>} />
+          <Route path="/store-manager/attendance" element={<Navigate to="/store-manager/monthly-attendance" replace />} />
+          <Route path="/monthly-attendance" element={<Navigate to="/store-manager/monthly-attendance" replace />} />
           <Route path="/live-roster" element={<Navigate to="/store-manager/live-roster" replace />} />
           <Route path="/schedule" element={<Navigate to="/store-manager/schedules" replace />} />
           <Route path="/shifts" element={<Navigate to="/store-manager/schedules" replace />} />

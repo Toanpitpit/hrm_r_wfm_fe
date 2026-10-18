@@ -31,7 +31,6 @@ export default function EmployeeTable({
   onEdit,
   onResetPassword,
   onToggleStatus,
-  onDelete,
   canManageSystem = false, // True for Admin & Business Owner
 }) {
   const { c, fonts } = useAdminTheme();

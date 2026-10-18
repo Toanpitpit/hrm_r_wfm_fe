@@ -43,10 +43,7 @@ axiosInstance.interceptors.request.use(
     if (config.url && config.url.startsWith('/') && !config.url.startsWith('/api')) {
       config.url = config.url.slice(1);
     }
-    let token = getAccessToken();
-    if (!token) {
-      token = localStorage.getItem('accessToken');
-    }
+    const token = getAccessToken() || localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

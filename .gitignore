@@ -26,3 +26,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+docs/PROJECT_OPERATIONAL_WORKFLOWS_OVERVIEW.md
+docs/SWIMLANE_AND_OVERALL_FUNCTIONALITIES_SPEC.md
+docs/images/

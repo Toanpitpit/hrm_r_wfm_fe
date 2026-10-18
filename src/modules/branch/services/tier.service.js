@@ -1,29 +1,7 @@
-import axios from 'axios';
+import axiosInstance, { getAccessToken } from '@/config/axios.config';
 import { getAllBranches, updateBranch, ensureAdminToken } from './branch.service';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api';
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 8000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-apiClient.interceptors.request.use(async (config) => {
-  if (config.url && config.url.startsWith('/') && !config.url.startsWith('/api')) {
-    config.url = config.url.slice(1);
-  }
-  let token = localStorage.getItem('accessToken');
-  if (!token) {
-    token = await ensureAdminToken();
-  }
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+const apiClient = axiosInstance;
 
 /**
  * Metadata chính thức của 3 cấp phân loại Chi nhánh trong hệ thống RWFM Enterprise
@@ -93,15 +71,13 @@ export const TIER_DEFINITIONS = [
 
 /**
  * 1. Lấy thống kê tổng hợp phân cấp chi nhánh từ Backend
- * Endpoint: GET /api/v1/branches/tier-summary hoặc /api/Stores/tier-summary
+ * Endpoint: GET /api/branches/tier-summary
  */
 export const getTierSummary = async () => {
   try {
     const endpoints = [
       '/branches/tier-summary',
       '/branches/summary',
-      '/v1/branches/tier-summary',
-      '/v1/branches/summary',
     ];
 
     for (const ep of endpoints) {

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axiosInstance, { getAccessToken } from '@/config/axios.config';
 
 /**
  * ==============================================================================
@@ -6,107 +6,19 @@ import axios from 'axios';
  * SERVICE: branch.service.js
  * ==============================================================================
  * Cung cấp các hàm API kết nối trực tiếp với Backend ASP.NET Core:
- * - BranchesController (/api/v1/branches hoặc /api/Stores)
- * - KiosksController (/api/v1/kiosks hoặc /api/Kiosk)
+ * - BranchesController (/api/branches)
+ * - KiosksController (/api/kiosks)
  * Đi kèm cơ chế tự động chứng thực tài khoản Operations Admin khi thao tác dữ liệu.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api';
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 8000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-export const isTokenValid = (token) => {
-  if (!token) return false;
-  try {
-    const base64Url = token.split('.')[1];
-    if (!base64Url) return false;
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    const decoded = JSON.parse(jsonPayload);
-    return decoded.exp && decoded.exp * 1000 > Date.now() + 60000;
-  } catch {
-    return false;
-  }
-};
-
 /**
- * Tự động đảm bảo có Bearer Token của Operations Admin khi gọi Backend
+ * Lấy Bearer Token của người dùng hiện tại từ RAM hoặc localStorage
  */
 export const ensureAdminToken = async () => {
-  let token = localStorage.getItem('accessToken');
-  if (token && isTokenValid(token)) {
-    return token;
-  }
-  localStorage.removeItem('accessToken');
-
-  try {
-    const res = await axios.post(
-      `${API_BASE_URL.replace(/\/$/, '')}/Auth/login`,
-      {
-        username: 'ops.admin@rwfm.vn',
-        password: 'Password@123',
-      },
-      {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 5000,
-      }
-    );
-    const data = res.data?.data || res.data;
-    token = data?.token || data?.accessToken;
-    if (token) {
-      localStorage.setItem('accessToken', token);
-      if (data?.user) {
-        localStorage.setItem('user', JSON.stringify(data.user));
-      }
-      return token;
-    }
-  } catch (err) {
-    console.warn('[BranchService] Auto-login admin failed:', err.message);
-  }
-  return null;
+  return getAccessToken() || localStorage.getItem('accessToken');
 };
 
-apiClient.interceptors.request.use(async (config) => {
-  if (config.url && config.url.startsWith('/') && !config.url.startsWith('/api')) {
-    config.url = config.url.slice(1);
-  }
-  let token = localStorage.getItem('accessToken');
-  if (!token || !isTokenValid(token)) {
-    token = await ensureAdminToken();
-  }
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      localStorage.removeItem('accessToken');
-      const newToken = await ensureAdminToken();
-      if (newToken) {
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return apiClient(originalRequest);
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+const apiClient = axiosInstance;
 
 // Helper lay thong diep loi chi tiet tu backend (dac biet la ValidationProblemDetails RFC 7807)
 export const extractErrorMessage = (err, defaultMsg = 'Lỗi không xác định') => {
@@ -126,21 +38,21 @@ export const extractErrorMessage = (err, defaultMsg = 'Lỗi không xác định
 
 // Endpoints nội bộ của phân hệ Branch & Kiosk
 const STORE_ENDPOINTS = {
-  LIST: 'branches',
-  DETAIL: (id) => `branches/${id}`,
-  CREATE: 'branches',
-  UPDATE: (id) => `branches/${id}`,
-  UPDATE_STATUS: (id) => `branches/${id}/status`,
-  UPGRADE_TIER: (id) => `branches/${id}/upgrade-tier`,
-  DELETE: (id) => `branches/${id}`,
+  LIST: '/branches',
+  DETAIL: (id) => `/branches/${id}`,
+  CREATE: '/branches',
+  UPDATE: (id) => `/branches/${id}`,
+  UPDATE_STATUS: (id) => `/branches/${id}/status`,
+  UPGRADE_TIER: (id) => `/branches/${id}/upgrade-tier`,
+  DELETE: (id) => `/branches/${id}`,
 };
 
 const KIOSK_ADMIN_ENDPOINTS = {
-  LIST_ALL: 'kiosks',
-  CREATE: (storeId) => `branches/${storeId}/kiosks`,
-  UPDATE_CONFIG: (id) => `kiosks/${id}`,
-  UPDATE_STATUS: (id) => `kiosks/${id}/status`,
-  DELETE: (id) => `kiosks/${id}`,
+  LIST_ALL: '/kiosks',
+  CREATE: (storeId) => `/branches/${storeId}/kiosks`,
+  UPDATE_CONFIG: (id) => `/kiosks/${id}`,
+  UPDATE_STATUS: (id) => `/kiosks/${id}/status`,
+  DELETE: (id) => `/kiosks/${id}`,
 };
 
 const STORAGE_KEY_BRANCHES = 'wfm_branch_master_data_v4';
@@ -544,13 +456,8 @@ export const updateBranch = async (storeId, payload) => {
       status: payload.status || 'ACTIVE',
     };
 
-    // Gửi yêu cầu PUT cập nhật chi nhánh tới Backend API (hỗ trợ cả 2 route)
-    let res;
-    try {
-      res = await apiClient.put(STORE_ENDPOINTS.UPDATE(storeId), updateBody);
-    } catch (putErr) {
-      res = await apiClient.put(`/v1/branches/${storeId}`, updateBody);
-    }
+    // Gửi yêu cầu PUT cập nhật chi nhánh tới Backend API (/api/branches/{id})
+    const res = await apiClient.put(STORE_ENDPOINTS.UPDATE(storeId), updateBody);
 
     // Nếu Backend phản hồi thành công (200 OK hoặc 204 No Content), tải lại danh sách mới nhất từ server
     if (res.status === 200 || res.status === 204) {

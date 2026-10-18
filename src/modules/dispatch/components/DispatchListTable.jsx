@@ -11,6 +11,7 @@ export default function DispatchListTable({
   currentStoreId,
   onReview,
   onEdit,
+  onRecall,
   onDelete,
   onViewDetail,
   emptyText = 'Chưa có lệnh điều động nhân sự nào.',
@@ -33,6 +34,10 @@ export default function DispatchListTable({
         return <Badge tone="info" dot>Duyệt một phần</Badge>;
       case 'REJECTED':
         return <Badge tone="bad" dot>Đã từ chối</Badge>;
+      case 'RECALLED':
+        return <Badge tone="warn" dot>Đã thu hồi (Đang sửa)</Badge>;
+      case 'EXPIRED':
+        return <Badge tone="bad" dot>Đã quá hạn</Badge>;
       case 'PENDING':
       default:
         return <Badge tone="warn" dot>Chờ xét duyệt</Badge>;
@@ -99,10 +104,16 @@ export default function DispatchListTable({
         </thead>
         <tbody>
           {displayDispatches.map((item) => {
-            const isSource = currentStoreId && Number(item.fromStoreId) === Number(currentStoreId);
-            const isTarget = currentStoreId && Number(item.toStoreId) === Number(currentStoreId);
-            const canReview = isSource && item.status === 'PENDING';
-            const canModify = isTarget && item.status === 'PENDING';
+            const isSource = Boolean(currentStoreId) && Number(item.fromStoreId) === Number(currentStoreId);
+            const isTarget = Boolean(currentStoreId) && Number(item.toStoreId) === Number(currentStoreId);
+            const todayStr = new Date().toISOString().split('T')[0];
+            const isOverdue = Boolean(item.endDate && item.endDate < todayStr);
+            const isExpired = item.status === 'EXPIRED' || ((item.status === 'PENDING' || item.status === 'RECALLED') && isOverdue);
+            const effectiveStatus = isExpired ? 'EXPIRED' : item.status;
+            const isPending = effectiveStatus === 'PENDING';
+            const isRecalled = effectiveStatus === 'RECALLED';
+            const canReview = isSource && isPending && !isExpired;
+            const canModify = isTarget && (isPending || isRecalled || isExpired);
 
             return (
               <tr
@@ -142,31 +153,8 @@ export default function DispatchListTable({
                           Đoàn điều động
                         </span>
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4, maxWidth: 260 }}>
-                        {item.employees.map((emp) => {
-                          const isAppr = emp.status === 'APPROVED';
-                          const isRej = emp.status === 'REJECTED';
-                          const dotColor = isAppr ? '#10b981' : isRej ? '#ef4444' : '#f59e0b';
-                          return (
-                            <span
-                              key={emp.employeeId || emp.id}
-                              style={{
-                                fontSize: 11,
-                                background: c.bgElev,
-                                border: `1px solid ${c.borderSub}`,
-                                borderRadius: 4,
-                                padding: '1px 6px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                              }}
-                              title={`${emp.employeeName} (${emp.positionName || 'Nhân viên'}) - ${emp.status || 'Chờ duyệt'}`}
-                            >
-                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor }} />
-                              {emp.employeeName}
-                            </span>
-                          );
-                        })}
+                      <div style={{ fontSize: 11.5, color: c.fgFaint, marginTop: 3 }}>
+                        Bấm xem chi tiết để xem danh sách
                       </div>
                     </div>
                   ) : (
@@ -233,7 +221,7 @@ export default function DispatchListTable({
 
                 {/* Trạng thái */}
                 <td style={tdStyle(c)}>
-                  {getStatusBadge(item.status)}
+                  {getStatusBadge(effectiveStatus)}
                 </td>
 
                 {/* Người lập / duyệt */}
@@ -251,15 +239,30 @@ export default function DispatchListTable({
                 {/* Thao tác */}
                 <td style={{ ...tdStyle(c), textAlign: 'right' }}>
                   <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                    {canModify && onEdit && (
+
+
+                    {isTarget && isPending && onRecall && (
                       <Button
                         size="sm"
                         kind="ghost"
-                        onClick={() => onEdit(item)}
+                        onClick={() => onRecall(item)}
+                        title="Thu hồi đơn tạm thời để chỉnh sửa nội dung"
                       >
-                        Sửa
+                        Thu Hồi
                       </Button>
                     )}
+
+                    {isTarget && isRecalled && onEdit && (
+                      <Button
+                        size="sm"
+                        kind="primary"
+                        onClick={() => onEdit(item)}
+                        title="Chỉnh sửa nội dung và gửi lại cho bên đối tác"
+                      >
+                        Sửa & Gửi Lại
+                      </Button>
+                    )}
+
                     {canModify && onDelete && (
                       <Button
                         size="sm"
@@ -269,6 +272,7 @@ export default function DispatchListTable({
                         Hủy
                       </Button>
                     )}
+
                     {onViewDetail && (
                       <Button
                         size="sm"

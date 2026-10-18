@@ -19,8 +19,9 @@ import axiosInstance from '@/config/axios.config';
  * ==============================================================================
  */
 
-// 4 vai trò nhân sự cửa hàng chuẩn hóa
+// 5 vai trò nhân sự cửa hàng chuẩn hóa
 export const STORE_ROLES = [
+  { id: 3, roleCode: 'STORE_MANAGER', roleName: 'Cửa Hàng Trưởng', description: 'Quản lý vận hành chi nhánh & phân bổ nhân sự' },
   { id: 4, roleCode: 'SHIFT_LEADER', roleName: 'Trưởng Ca Trực', description: 'Điều hành ca trực, giám sát điểm danh tại chỗ' },
   { id: 5, roleCode: 'CASHIER', roleName: 'Nhân Viên Thu Ngân', description: 'Trực thu ngân, điểm danh và bán hàng' },
   { id: 6, roleCode: 'SALES_STAFF', roleName: 'Nhân Viên Bán Hàng', description: 'Tư vấn bán hàng và sắp xếp quầy kệ' },
@@ -162,7 +163,7 @@ export const employeeService = {
       const data = res.data?.data || res.data;
       if (Array.isArray(data) && data.length > 0) {
         const filtered = data.filter(
-          (r) => !['BUSINESS_OWNER', 'OPERATIONS_ADMIN', 'STORE_MANAGER'].includes(r.roleCode)
+          (r) => !['BUSINESS_OWNER', 'OPERATIONS_ADMIN'].includes(r.roleCode)
         );
         if (filtered.length > 0) return filtered;
       }
@@ -186,7 +187,7 @@ export const employeeService = {
 
     // Fallback: Thử gọi BranchesController hoặc trả về danh sách mẫu
     try {
-      const res2 = await axiosInstance.get('v1/branches');
+      const res2 = await axiosInstance.get('branches');
       const data2 = res2.data?.data || res2.data;
       if (Array.isArray(data2) && data2.length > 0) return data2;
     } catch {
@@ -252,6 +253,62 @@ export const employeeService = {
         },
       },
     };
+  },
+
+  /**
+   * 2b. Kiểm tra trùng lặp thông tin nhân sự (Mã NV, Email, SĐT) trong thời gian thực
+   */
+  async checkDuplicate(params = {}) {
+    try {
+      const res = await axiosInstance.get('Users/check-duplicate', { params });
+      if (res.data?.success) {
+        return res.data?.data || res.data;
+      }
+    } catch {
+      // Endpoint fallback nếu API chưa chạy
+    }
+
+    try {
+      // Fallback: Tìm qua danh sách nhân sự hiện hành
+      const target = (params.employeeCode || params.email || params.phone || '').trim();
+      if (target) {
+        const res = await axiosInstance.get('Users/employees', { params: { search: target } });
+        const list = res.data?.data || res.data || [];
+        const items = Array.isArray(list) ? list : (list.items || []);
+
+        if (params.employeeCode) {
+          const match = items.find(
+            (e) => (e.employeeCode || '').trim().toUpperCase() === params.employeeCode.trim().toUpperCase() &&
+                   (!params.excludeId || String(e.id) !== String(params.excludeId))
+          );
+          if (match) {
+            return { isEmployeeCodeDuplicate: true, existingEmployeeName: match.fullName };
+          }
+        }
+        if (params.email) {
+          const match = items.find(
+            (e) => (e.email || '').trim().toLowerCase() === params.email.trim().toLowerCase() &&
+                   (!params.excludeId || String(e.id) !== String(params.excludeId))
+          );
+          if (match) {
+            return { isEmailDuplicate: true, existingEmailOwnerName: match.fullName };
+          }
+        }
+        if (params.phone) {
+          const cleanP = params.phone.trim().replace(/\s/g, '');
+          const match = items.find(
+            (e) => (e.phone || '').trim().replace(/\s/g, '') === cleanP &&
+                   (!params.excludeId || String(e.id) !== String(params.excludeId))
+          );
+          if (match) {
+            return { isPhoneDuplicate: true, existingPhoneOwnerName: match.fullName };
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Fallback search duplicate error:', err);
+    }
+    return { isEmployeeCodeDuplicate: false, isEmailDuplicate: false, isPhoneDuplicate: false };
   },
 
   /**
@@ -325,7 +382,7 @@ export const employeeService = {
   },
 
   /**
-   * 5. Khai báo nhân sự mới (POST /api/v1/users/employees & POST /api/Users/employees)
+   * 5. Khai báo nhân sự mới (POST /api/Users/employees)
    * Phân quyền RBAC nghiêm ngặt: Chỉ OPERATIONS_ADMIN và ADMIN hệ thống.
    * Thẩm định định biên chi nhánh (BranchTier Quotas) và bù trừ lùi chỉ tiêu ImportRequestId.
    */
@@ -347,18 +404,7 @@ export const employeeService = {
     };
 
     try {
-      // Ưu tiên gọi chuẩn RESTful v1
-      let res;
-      try {
-        res = await axiosInstance.post('v1/users/employees', formattedPayload);
-      } catch (err1) {
-        if (err1.response?.status === 404) {
-          // Thử alias Users/employees
-          res = await axiosInstance.post('Users/employees', formattedPayload);
-        } else {
-          throw err1;
-        }
-      }
+      const res = await axiosInstance.post('Users/employees', formattedPayload);
 
       const created = res.data?.data || res.data;
       return {
@@ -369,19 +415,19 @@ export const employeeService = {
     } catch (err) {
       const status = err.response?.status;
       const msg = err.response?.data?.message || err.response?.data?.title || err.message;
-      if (status === 403) {
+      if (err.response) {
+        if (status === 403) {
+          return {
+            success: false,
+            message: msg || 'Từ chối quyền truy cập (403): Chỉ Quản trị vận hành (Operations Admin) mới có quyền tạo nhân sự.',
+          };
+        }
         return {
           success: false,
-          message: 'Từ chối quyền truy cập (403): Chỉ Quản trị vận hành (Operations Admin) mới có quyền tạo nhân sự.',
+          message: msg || `Lỗi từ máy chủ (${status}): Vui lòng kiểm tra lại thông tin hồ sơ nhân viên.`,
         };
       }
-      if (status === 400) {
-        return {
-          success: false,
-          message: msg || 'Yêu cầu không hợp lệ (400): Vui lòng kiểm tra lại thông tin hoặc định biên chi nhánh.',
-        };
-      }
-      console.warn('[EmployeeService] Backend createEmployee error, saving locally:', msg);
+      console.warn('[EmployeeService] Backend createEmployee network error, saving locally:', msg);
     }
 
     // Fallback lưu cục bộ
@@ -481,8 +527,8 @@ export const employeeService = {
       };
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
-      if (err.response?.status === 400 || err.response?.status === 403) {
-        return { success: false, message: msg };
+      if (err.response) {
+        return { success: false, message: msg || 'Cấp tài khoản Cửa hàng trưởng thất bại.' };
       }
       console.warn('[EmployeeService] Backend createStoreManager error:', msg);
     }
@@ -591,7 +637,7 @@ export const employeeService = {
   },
 
   /**
-   * 10. Tải file mẫu import nhân sự (GET /api/v1/users/employees/import-template)
+   * 10. Tải file mẫu import nhân sự (GET /api/Users/employees/import-template)
    * Backend dùng ClosedXML sinh file .xlsx 2 sheet: Danh_Sach_Nhan_Su + Huong_Dan_Va_Danh_Muc.
    * Dùng Blob URL để tải file, không redirect — tránh lỗi corrupt file.
    * @returns {{ success, message, fileName }}
@@ -600,7 +646,7 @@ export const employeeService = {
     let blobUrl = null;
     const safeCount = Math.max(1, Math.min(Number(count) || 5, 500));
     try {
-      const res = await axiosInstance.get(`v1/users/employees/import-template?count=${safeCount}`, {
+      const res = await axiosInstance.get(`Users/employees/import-template?count=${safeCount}`, {
         responseType: 'blob',
         timeout: 30000,
       });
@@ -667,7 +713,7 @@ export const employeeService = {
   },
 
   /**
-   * 11. Import nhân sự hàng loạt (POST /api/v1/users/employees/import)
+   * 11. Import nhân sự hàng loạt (POST /api/Users/employees/import)
    * Chỉ OPERATIONS_ADMIN và ADMIN mới có quyền gọi API này.
    *
    * @param {{ file, defaultBranchId?, importRequestId?, expansionReason? }} params
@@ -717,7 +763,7 @@ export const employeeService = {
     }
 
     try {
-      const res = await axiosInstance.post('v1/users/employees/import', formData, {
+      const res = await axiosInstance.post('Users/employees/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000, // 2 phút cho batch lớn
       });
@@ -787,7 +833,7 @@ export const employeeService = {
         sourceFileName,
       };
 
-      const res = await axiosInstance.post('v1/users/employees/export-errors', payload, {
+      const res = await axiosInstance.post('Users/employees/export-errors', payload, {
         responseType: 'blob',
       });
 

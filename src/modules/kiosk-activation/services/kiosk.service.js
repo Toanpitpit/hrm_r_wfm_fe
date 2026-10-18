@@ -2,7 +2,8 @@ import axiosInstance from '@/config/axios.config';
 import { API_ENDPOINTS } from '@/shared/constants/api.constants';
 
 /**
- * Service quản lý các yêu cầu Kiosk dành cho Store Manager.
+ * Service quản lý các yêu cầu kích hoạt Kiosk dành cho Store Manager / OpsAdmin.
+ * Tương ứng với KioskAuthController (api/kiosk-auth) và KiosksController (api/kiosks).
  */
 
 /**
@@ -11,7 +12,7 @@ import { API_ENDPOINTS } from '@/shared/constants/api.constants';
  * @returns {Promise<Object>} Dữ liệu trả về từ backend (chứa activationCode, expiresAt...)
  */
 export const createKioskCode = async ({ storeId, kioskName }) => {
-  const response = await axiosInstance.post(API_ENDPOINTS.KIOSK.CREATE_CODE, {
+  const response = await axiosInstance.post(API_ENDPOINTS.KIOSK_AUTH.CREATE_CODE, {
     storeId: Number(storeId),
     kioskName: kioskName ? kioskName.trim() : 'Trạm Kiosk Mới',
   });
@@ -24,7 +25,7 @@ export const createKioskCode = async ({ storeId, kioskName }) => {
  * @returns {Promise<Object>} Danh sách các trạm Kiosk từ backend
  */
 export const getStoreKiosks = async (storeId) => {
-  const response = await axiosInstance.get(API_ENDPOINTS.KIOSK.GET_BY_STORE(storeId));
+  const response = await axiosInstance.get(API_ENDPOINTS.KIOSKS.GET_BY_STORE(storeId));
   return response.data;
 };
 
@@ -34,7 +35,7 @@ export const getStoreKiosks = async (storeId) => {
  * @returns {Promise<Object>} ApiResponse từ backend
  */
 export const deactivateKiosk = async (kioskId) => {
-  const response = await axiosInstance.delete(API_ENDPOINTS.KIOSK.DEACTIVATE(kioskId));
+  const response = await axiosInstance.delete(API_ENDPOINTS.KIOSKS.DEACTIVATE(kioskId));
   return response.data;
 };
 

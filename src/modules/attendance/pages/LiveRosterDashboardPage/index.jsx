@@ -48,28 +48,109 @@ export const LiveRosterDashboardPage = ({ storeId = null }) => {
     errorMsg,
     selectedPhoto,
     setSelectedPhoto,
-    flagModal,
-    setFlagModal,
-    fraudReason,
-    setFraudReason,
-    actionLoading,
     fetchRoster,
-    handleFlagFraudSubmit,
-    handleResolveFraud,
   } = useLiveRoster(effectiveStoreId);
 
-  const renderStatusBadge = (status) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sessionFilter, setSessionFilter] = useState('ALL');
+  const [punctualityFilter, setPunctualityFilter] = useState('ALL');
+  const [sortBy, setSortBy] = useState('CHECK_IN_DESC');
+
+  const renderSessionStatusBadge = (status) => {
     switch (status) {
       case 'PRESENT':
-        return <Badge tone="good" dot>ĐÃ CÓ MẶT</Badge>;
+        return <Badge tone="good" dot>ĐANG CÓ MẶT</Badge>;
       case 'COMPLETED':
-        return <Badge tone="info" dot>ĐÃ HOÀN THÀNH CA</Badge>;
-      case 'FRAUD_FLAGGED':
-        return <Badge tone="bad" dot>GẮN CỜ VI PHẠM</Badge>;
+        return <Badge tone="info" dot>ĐÃ HOÀN THÀNH</Badge>;
+      case 'PENDING':
+        return <Badge tone="warn" dot>CHỜ XÁC THỰC</Badge>;
       default:
         return <Badge tone="neutral" dot>CHƯA CÓ MẶT</Badge>;
     }
   };
+
+  const renderCheckInStatusBadge = (status, isLate) => {
+    if (!status && !isLate) {
+      return <span style={{ color: c.fgSubtle, fontSize: 12, fontStyle: 'italic' }}>Chưa vào ca</span>;
+    }
+    switch (status) {
+      case 'ON_TIME':
+        return <Badge tone="ok">Đúng Giờ</Badge>;
+      case 'LATE':
+        return <Badge tone="warn">Đi Muộn</Badge>;
+      case 'EARLY':
+        return <Badge tone="info">Đến Sớm</Badge>;
+      case 'PENDING':
+        return <Badge tone="pending">Chờ Ảnh</Badge>;
+      default:
+        return isLate ? <Badge tone="warn">Đi Muộn</Badge> : <Badge tone="ok">Đúng Giờ</Badge>;
+    }
+  };
+
+  const renderCheckOutStatusBadge = (status, checkOutTime) => {
+    if (!checkOutTime && !status) {
+      return <span style={{ color: c.fgSubtle, fontSize: 12, fontStyle: 'italic' }}>Chưa ra ca</span>;
+    }
+    switch (status) {
+      case 'ON_TIME':
+        return <Badge tone="ok">Đúng Giờ</Badge>;
+      case 'EARLY_LEAVE':
+        return <Badge tone="bad">Về Sớm</Badge>;
+      case 'LATE_LEAVE':
+        return <Badge tone="purple">Ra Muộn</Badge>;
+      case 'PENDING':
+        return <Badge tone="pending">Chờ Ảnh</Badge>;
+      default:
+        return checkOutTime ? <Badge tone="ok">Đã Ra Ca</Badge> : <span style={{ color: c.fgSubtle, fontSize: 12, fontStyle: 'italic' }}>Chưa ra ca</span>;
+    }
+  };
+
+  const filteredAndSortedRoster = React.useMemo(() => {
+    let list = [...(roster || [])];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(item =>
+        (item.fullName || '').toLowerCase().includes(q) ||
+        (item.employeeCode || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (sessionFilter !== 'ALL') {
+      list = list.filter(item => (item.status || 'ABSENT') === sessionFilter);
+    }
+
+    if (punctualityFilter === 'LATE') {
+      list = list.filter(item => item.checkInStatus === 'LATE' || item.isLate);
+    } else if (punctualityFilter === 'EARLY_LEAVE') {
+      list = list.filter(item => item.checkOutStatus === 'EARLY_LEAVE');
+    } else if (punctualityFilter === 'ON_TIME') {
+      list = list.filter(item => item.checkInStatus === 'ON_TIME' && item.checkOutStatus !== 'EARLY_LEAVE');
+    }
+
+    list.sort((a, b) => {
+      if (sortBy === 'ISSUE_FIRST') {
+        const aIssue = (a.checkInStatus === 'LATE' || a.checkOutStatus === 'EARLY_LEAVE' || a.isLate) ? 1 : 0;
+        const bIssue = (b.checkInStatus === 'LATE' || b.checkOutStatus === 'EARLY_LEAVE' || b.isLate) ? 1 : 0;
+        if (bIssue !== aIssue) return bIssue - aIssue;
+        return (b.checkInTime || '').localeCompare(a.checkInTime || '');
+      }
+      if (sortBy === 'NAME_ASC') {
+        return (a.fullName || '').localeCompare(b.fullName || '', 'vi');
+      }
+      if (sortBy === 'CHECK_IN_ASC') {
+        if (!a.checkInTime) return 1;
+        if (!b.checkInTime) return -1;
+        return new Date(a.checkInTime) - new Date(b.checkInTime);
+      }
+      // CHECK_IN_DESC (default)
+      if (!a.checkInTime) return 1;
+      if (!b.checkInTime) return -1;
+      return new Date(b.checkInTime) - new Date(a.checkInTime);
+    });
+
+    return list;
+  }, [roster, searchQuery, sessionFilter, punctualityFilter, sortBy]);
 
   const columns = [
     {
@@ -148,6 +229,21 @@ export const LiveRosterDashboardPage = ({ storeId = null }) => {
       ),
     },
     {
+      title: 'Vào Ca',
+      key: 'checkInStatus',
+      render: (item) => renderCheckInStatusBadge(item.checkInStatus, item.isLate),
+    },
+    {
+      title: 'Ra Ca',
+      key: 'checkOutStatus',
+      render: (item) => renderCheckOutStatusBadge(item.checkOutStatus, item.checkOutTime),
+    },
+    {
+      title: 'Trạng Thái Ca',
+      key: 'status',
+      render: (item) => renderSessionStatusBadge(item.status),
+    },
+    {
       title: 'Ảnh Kiosk S3',
       render: (item) => (
         <div style={{ display: 'flex', gap: 6 }}>
@@ -189,49 +285,6 @@ export const LiveRosterDashboardPage = ({ storeId = null }) => {
         </div>
       ),
     },
-    {
-      title: 'Trạng Thái',
-      render: (item) => renderStatusBadge(item.status),
-    },
-    {
-      title: 'Thao Tác Giám Sát',
-      align: 'right',
-      render: (item) => (
-        <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end' }}>
-          {item.attendanceId && !item.isFraudFlagged && (
-            <Button
-              size="sm"
-              kind="danger"
-              icon="alert-triangle"
-              onClick={() => setFlagModal({ attendanceId: item.attendanceId, name: item.fullName })}
-            >
-              Gắn Cờ Vi Phạm
-            </Button>
-          )}
-
-          {item.isFraudFlagged && (
-            <>
-              <Button
-                size="sm"
-                kind="success"
-                loading={actionLoading}
-                onClick={() => handleResolveFraud(item.attendanceId, true)}
-              >
-                Khôi Phục
-              </Button>
-              <Button
-                size="sm"
-                kind="ghost"
-                loading={actionLoading}
-                onClick={() => handleResolveFraud(item.attendanceId, false)}
-              >
-                Bác Bỏ
-              </Button>
-            </>
-          )}
-        </div>
-      ),
-    },
   ];
 
   return (
@@ -259,7 +312,7 @@ export const LiveRosterDashboardPage = ({ storeId = null }) => {
       <PageHeader
         index="Store Manager · Bảng Quân Số Trực Tiếp"
         title="Bảng Quân Số Trực Tiếp"
-        desc="Theo dõi nhân sự thực tế có mặt theo thời gian thực và đối soát ảnh chụp Kiosk S3."
+        desc="Theo dõi quân số theo thời gian thực: vòng đời ca (Có mặt / Hoàn thành) và đối soát chuyên cần vào/ra ca chính xác."
         actions={
           <Button kind="primary" onClick={fetchRoster} loading={loading} icon="refresh">
             Làm Mới (15s)
@@ -287,12 +340,129 @@ export const LiveRosterDashboardPage = ({ storeId = null }) => {
         </div>
       )}
 
-      <Panel title="Danh Sách Quân Số & Trạng Thái Có Mặt Tại Cửa Hàng">
+      {/* Toolbar: Tìm kiếm, Lọc trạng thái ca, Lọc chuyên cần và Sắp xếp */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          marginBottom: 16,
+          backgroundColor: c.bgCard,
+          padding: '12px 16px',
+          borderRadius: 8,
+          border: `1px solid ${c.border}`,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 1 }}>
+          {/* Search box */}
+          <div style={{ position: 'relative', minWidth: 220 }}>
+            <input
+              type="text"
+              placeholder="Tìm theo tên hoặc mã nhân viên..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '7px 12px',
+                fontSize: 13,
+                borderRadius: 6,
+                border: `1px solid ${c.border}`,
+                backgroundColor: c.bgElev,
+                color: c.fg,
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          {/* Session Lifecycle Filter Pills */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: c.fgSubtle, fontWeight: 600 }}>Phiên:</span>
+            {[
+              { id: 'ALL', label: 'Tất Cả' },
+              { id: 'PRESENT', label: 'Có Mặt' },
+              { id: 'COMPLETED', label: 'Đã Xong' },
+              { id: 'ABSENT', label: 'Chưa Đến' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setSessionFilter(f.id)}
+                style={{
+                  padding: '5px 11px',
+                  borderRadius: 16,
+                  border: sessionFilter === f.id ? `1px solid ${c.accent}` : `1px solid ${c.border}`,
+                  backgroundColor: sessionFilter === f.id ? c.accent : c.bgElev,
+                  color: sessionFilter === f.id ? '#FFF' : c.fg,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Punctuality Filter Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 12, color: c.fgSubtle, fontWeight: 600 }}>Chuyên cần:</span>
+            <select
+              value={punctualityFilter}
+              onChange={(e) => setPunctualityFilter(e.target.value)}
+              style={{
+                padding: '6px 10px',
+                fontSize: 12.5,
+                borderRadius: 6,
+                border: `1px solid ${c.border}`,
+                backgroundColor: c.bgElev,
+                color: c.fg,
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="ALL">Tất cả chuyên cần</option>
+              <option value="LATE">Chỉ Đi Muộn</option>
+              <option value="EARLY_LEAVE">Chỉ Về Sớm</option>
+              <option value="ON_TIME">Chỉ Đúng Giờ</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Sort Dropdown */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 12, color: c.fgSubtle, fontWeight: 600 }}>Sắp xếp:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={{
+              padding: '6px 12px',
+              fontSize: 12.5,
+              fontWeight: 600,
+              borderRadius: 6,
+              border: `1px solid ${c.border}`,
+              backgroundColor: c.bgElev,
+              color: c.fg,
+              outline: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="CHECK_IN_DESC">Vào ca mới nhất</option>
+            <option value="CHECK_IN_ASC">Vào ca sớm nhất</option>
+            <option value="ISSUE_FIRST">⚠️ Ưu tiên Đi muộn / Về sớm</option>
+            <option value="NAME_ASC">Họ tên nhân viên (A-Z)</option>
+          </select>
+        </div>
+      </div>
+
+      <Panel title={`Quân Số Chi Nhánh (${filteredAndSortedRoster.length} lượt phân bổ)`}>
         <DataTable
           columns={columns}
-          data={roster}
+          data={filteredAndSortedRoster}
           loading={loading}
-          emptyMessage="Không có phân công ca trực nào cho cửa hàng hôm nay."
+          emptyMessage="Không có nhân viên nào phù hợp với bộ lọc hiện tại."
         />
       </Panel>
 
@@ -372,86 +542,6 @@ export const LiveRosterDashboardPage = ({ storeId = null }) => {
         </div>
       )}
 
-      {/* Modal Gắn Cờ Gian Lận */}
-      {flagModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(4px)',
-            display: 'grid',
-            placeItems: 'center',
-            padding: 16,
-          }}
-        >
-          <form
-            onSubmit={handleFlagFraudSubmit}
-            style={{
-              backgroundColor: c.bgCard,
-              border: `1px solid ${c.border}`,
-              borderRadius: 14,
-              padding: 24,
-              maxWidth: 460,
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 16,
-              boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-            }}
-          >
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: c.tones?.bad || '#EF4444', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
-              <Icon name="alert-triangle" size={20} color={c.tones?.bad || '#EF4444'} />
-              <span>Gắn Cờ Vi Phạm / Vắng Mặt</span>
-            </h3>
-            <p style={{ fontSize: 13, color: c.fgSubtle, margin: 0 }}>
-              Nhân viên: <strong style={{ color: c.fg }}>{flagModal.name}</strong>
-            </p>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: c.fgSubtle, textTransform: 'uppercase', marginBottom: 6 }}>
-                Lý do gắn cờ vi phạm:
-              </label>
-              <textarea
-                required
-                rows="3"
-                value={fraudReason}
-                onChange={(e) => setFraudReason(e.target.value)}
-                placeholder="VD: Đã check-in trên hệ thống nhưng thực tế vắng mặt tại quầy..."
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  backgroundColor: c.bgRaised,
-                  border: `1px solid ${c.border}`,
-                  borderRadius: 8,
-                  color: c.fg,
-                  fontSize: 13,
-                  outline: 'none',
-                  fontFamily: fonts?.body || 'inherit',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8 }}>
-              <Button
-                kind="ghost"
-                type="button"
-                onClick={() => setFlagModal(null)}
-              >
-                Hủy Bỏ
-              </Button>
-              <Button
-                kind="danger"
-                type="submit"
-                loading={actionLoading}
-              >
-                Xác Nhận Gắn Cờ
-              </Button>
-            </div>
-          </form>
-        </div>
-      )}
     </DashboardShell>
   );
 };

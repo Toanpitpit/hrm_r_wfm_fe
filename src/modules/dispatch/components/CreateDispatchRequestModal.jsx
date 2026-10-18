@@ -32,10 +32,24 @@ export default function CreateDispatchRequestModal({
   // UI status
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [quotaInfo, setQuotaInfo] = useState(null);
+  const [loadingQuota, setLoadingQuota] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const todayStr = new Date().toISOString().split('T')[0];
+
+  const getDurationDays = (start, end) => {
+    if (!start || !end) return 0;
+    const s = new Date(start);
+    const e = new Date(end);
+    const diffTime = e.getTime() - s.getTime();
+    if (diffTime < 0) return 0;
+    return Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  };
+
+  const durationDays = getDurationDays(startDate, endDate);
+  const isDurationExceeded = durationDays > 30;
 
   // Khi mở modal: nạp dữ liệu chỉnh sửa hoặc khởi tạo form
   useEffect(() => {
@@ -105,11 +119,56 @@ export default function CreateDispatchRequestModal({
     loadEmployees();
   }, [partnerStoreId]);
 
+  // Tải thông tin định biên an toàn của chi nhánh đối tác (40% tổng quân số)
+  useEffect(() => {
+    if (!partnerStoreId) {
+      setQuotaInfo(null);
+      return;
+    }
+
+    const loadQuota = async () => {
+      setLoadingQuota(true);
+      try {
+        const res = await dispatchService.getBranchDispatchQuota(
+          partnerStoreId,
+          startDate,
+          endDate,
+          editItem?.dispatchId
+        );
+        if (res?.success && res?.data) {
+          setQuotaInfo(res.data);
+        } else {
+          setQuotaInfo(null);
+        }
+      } catch (err) {
+        console.warn('Lỗi khi tải hạn mức an toàn của chi nhánh:', err);
+        setQuotaInfo(null);
+      } finally {
+        setLoadingQuota(false);
+      }
+    };
+    loadQuota();
+  }, [partnerStoreId, startDate, endDate, editItem?.dispatchId]);
+
+  // Tính hạn mức an toàn tối đa cho phép (Ưu tiên quotaInfo từ server, fallback 40% tổng quân số chi nhánh hỗ trợ)
+  const effectiveMaxQuota = quotaInfo
+    ? quotaInfo.availableDispatchQuota
+    : (employees.length > 0 ? Math.floor(employees.length * 0.4) : null);
+
   const toggleEmployee = (empIdStr) => {
     setSelectedEmployeeIds((prev) => {
       if (prev.includes(empIdStr)) {
+        setErrorMessage('');
         return prev.filter((id) => id !== empIdStr);
       } else {
+        if (effectiveMaxQuota !== null && prev.length >= effectiveMaxQuota) {
+          const partnerName = selectedPartnerBranch?.name || selectedPartnerBranch?.branchName || 'hỗ trợ';
+          setErrorMessage(
+            `Chi nhánh ${partnerName} chỉ còn lại ${effectiveMaxQuota} nhân sự khả dụng. Việc điều động quá số lượng này sẽ làm gián đoạn vận hành của chi nhánh hỗ trợ.`
+          );
+          return prev;
+        }
+        setErrorMessage('');
         return [...prev, empIdStr];
       }
     });
@@ -117,12 +176,22 @@ export default function CreateDispatchRequestModal({
 
   const handleSelectAll = () => {
     const allFilteredIds = filteredEmployees.map((e) => String(e.id || e.userId));
-    const merged = Array.from(new Set([...selectedEmployeeIds, ...allFilteredIds]));
-    setSelectedEmployeeIds(merged);
+    const limit = effectiveMaxQuota !== null ? effectiveMaxQuota : allFilteredIds.length;
+    if (effectiveMaxQuota !== null && allFilteredIds.length > limit) {
+      const partnerName = selectedPartnerBranch?.name || selectedPartnerBranch?.branchName || 'hỗ trợ';
+      setErrorMessage(
+        `Chi nhánh ${partnerName} chỉ còn lại ${limit} nhân sự khả dụng. Việc điều động quá số lượng này sẽ làm gián đoạn vận hành của chi nhánh hỗ trợ.`
+      );
+    } else {
+      setErrorMessage('');
+    }
+    const sliced = allFilteredIds.slice(0, Math.max(0, limit));
+    setSelectedEmployeeIds(sliced);
   };
 
   const handleDeselectAll = () => {
     setSelectedEmployeeIds([]);
+    setErrorMessage('');
   };
 
   const handleSubmit = async (e) => {
@@ -145,8 +214,19 @@ export default function CreateDispatchRequestModal({
       setErrorMessage('Ngày kết thúc không được nhỏ hơn ngày bắt đầu.');
       return;
     }
+    if (durationDays > 30) {
+      setErrorMessage(`Thời hạn điều động tạm thời không được vượt quá 30 ngày (Khoảng thời gian bạn chọn: ${durationDays} ngày).`);
+      return;
+    }
     if (startDate < todayStr && !editItem) {
       setErrorMessage('Thời gian điều động không thể trong quá khứ.');
+      return;
+    }
+    if (effectiveMaxQuota !== null && selectedEmployeeIds.length > effectiveMaxQuota) {
+      const partnerName = selectedPartnerBranch?.name || selectedPartnerBranch?.branchName || 'hỗ trợ';
+      setErrorMessage(
+        `Chi nhánh ${partnerName} chỉ còn lại ${effectiveMaxQuota} nhân sự khả dụng. Việc điều động quá số lượng này sẽ làm gián đoạn vận hành của chi nhánh hỗ trợ.`
+      );
       return;
     }
     if (!reason || !reason.trim()) {
@@ -216,12 +296,16 @@ export default function CreateDispatchRequestModal({
       onClose={onClose}
       title={
         editItem
-          ? 'Chỉnh Sửa Yêu Cầu Xin Chi Viện'
+          ? (editItem.status === 'RECALLED'
+              ? 'Chỉnh Sửa & Gửi Lại Yêu Cầu Xin Chi Viện'
+              : 'Chỉnh Sửa Yêu Cầu Xin Chi Viện')
           : 'Tạo Yêu Cầu Xin Chi Viện Nhân Sự'
       }
       sub={
         editItem
-          ? `Cập nhật thông tin phiếu xin chi viện đang chờ duyệt (#${editItem.dispatchId})`
+          ? (editItem.status === 'RECALLED'
+              ? `Cập nhật thông tin phiếu đã thu hồi (#${editItem.dispatchId}) và gửi lại cho cơ sở đối tác xét duyệt`
+              : `Cập nhật thông tin phiếu xin chi viện (#${editItem.dispatchId})`)
           : `Gửi phiếu đề nghị mượn nhân sự từ chi nhánh đối tác về cơ sở "${currentStoreName}"`
       }
       width={720}
@@ -240,12 +324,24 @@ export default function CreateDispatchRequestModal({
             <Button kind="ghost" onClick={onClose} disabled={submitting}>
               Hủy Bỏ
             </Button>
-            <Button kind="primary" onClick={handleSubmit} disabled={submitting || loadingBranches || selectedEmployeeIds.length === 0 || !reason.trim()}>
+            <Button
+              kind="primary"
+              onClick={handleSubmit}
+              disabled={
+                submitting ||
+                loadingBranches ||
+                selectedEmployeeIds.length === 0 ||
+                !reason.trim() ||
+                isDurationExceeded ||
+                (effectiveMaxQuota !== null && effectiveMaxQuota === 0) ||
+                (effectiveMaxQuota !== null && selectedEmployeeIds.length > effectiveMaxQuota)
+              }
+            >
               {submitting
                 ? 'Đang Lưu...'
                 : editItem
-                ? 'Lưu Thay Đổi'
-                : `Gửi Đề Nghị (${selectedEmployeeIds.length} nhân sự)`}
+                  ? (editItem.status === 'RECALLED' ? 'Lưu & Gửi Lại Đơn' : 'Lưu Thay Đổi')
+                  : `Gửi Đề Nghị (${selectedEmployeeIds.length} nhân sự)`}
             </Button>
           </div>
         </div>
@@ -315,6 +411,80 @@ export default function CreateDispatchRequestModal({
             disabled={loadingBranches || submitting}
           />
         </div>
+
+        {/* Thẻ hiển thị định biên an toàn chi nhánh cho mượn (40% tổng quân số) */}
+        {partnerStoreId && (
+          <div
+            style={{
+              background: loadingQuota
+                ? c.bgElev
+                : quotaInfo && quotaInfo.availableDispatchQuota === 0
+                  ? 'rgba(239, 68, 68, 0.08)'
+                  : 'rgba(59, 130, 246, 0.06)',
+              border: `1px solid ${loadingQuota
+                ? c.borderSub
+                : quotaInfo && quotaInfo.availableDispatchQuota === 0
+                  ? 'rgba(239, 68, 68, 0.35)'
+                  : 'rgba(59, 130, 246, 0.25)'
+                }`,
+              borderRadius: 8,
+              padding: '12px 14px',
+              fontSize: 12.5,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: 700, color: c.fg, display: 'flex', alignItems: 'center', gap: 6 }}>
+
+                <span>Định biên an toàn chi nhánh hỗ trợ ({selectedPartnerBranch?.name || selectedPartnerBranch?.branchName || 'Cơ sở hỗ trợ'})</span>
+              </div>
+              {quotaInfo && (
+                <span
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    background:
+                      quotaInfo.availableDispatchQuota > 0
+                        ? 'rgba(16, 185, 129, 0.15)'
+                        : 'rgba(239, 68, 68, 0.15)',
+                    color: quotaInfo.availableDispatchQuota > 0 ? '#10b981' : '#ef4444',
+                  }}
+                >
+                  Còn khả dụng: {quotaInfo.availableDispatchQuota} nhân sự
+                </span>
+              )}
+            </div>
+
+            {loadingQuota ? (
+              <div style={{ color: c.fgFaint, fontSize: 12 }}>Đang kiểm tra quân số an toàn của chi nhánh...</div>
+            ) : quotaInfo ? (
+              <>
+                <div style={{ display: 'flex', gap: 16, color: c.fgMuted, flexWrap: 'wrap', fontSize: 12 }}>
+                  <span>
+                    Tổng quân số: <strong style={{ color: c.fg }}>{quotaInfo.totalHeadcount}</strong>
+                  </span>
+                  <span>
+                    Đang đi chi viện: <strong style={{ color: '#f59e0b' }}>{quotaInfo.currentlyDispatchedCount}</strong>
+                  </span>
+                  <span>
+                    Hạn mức tối đa (40%): <strong style={{ color: c.fg }}>{quotaInfo.maxAllowedDispatchCount}</strong>
+                  </span>
+                </div>
+                {quotaInfo.availableDispatchQuota === 0 && (
+                  <div style={{ color: '#ef4444', fontWeight: 600, fontSize: 12, marginTop: 2 }}>
+                    Chi nhánh {selectedPartnerBranch?.name || selectedPartnerBranch?.branchName || 'này'} chỉ còn lại 0 nhân sự khả dụng. Việc điều động quá số lượng này sẽ làm gián đoạn vận hành của chi nhánh hỗ trợ.
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ color: c.fgFaint, fontSize: 12 }}>Chưa có dữ liệu định biên.</div>
+            )}
+          </div>
+        )}
 
         {/* Chọn nhiều nhân sự đề xuất xin mượn (Multi-select) */}
         <div>
@@ -468,7 +638,7 @@ export default function CreateDispatchRequestModal({
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => {}} // Đã xử lý ở thẻ cha onClick
+                          onChange={() => { }} // Đã xử lý ở thẻ cha onClick
                           style={{ cursor: 'pointer', accentColor: c.accent }}
                         />
                         <div
@@ -605,7 +775,7 @@ export default function CreateDispatchRequestModal({
               style={{
                 width: '100%',
                 background: c.bgRaised,
-                border: `1px solid ${c.border}`,
+                border: `1px solid ${isDurationExceeded ? '#ef4444' : c.border}`,
                 borderRadius: 6,
                 color: c.fg,
                 fontSize: 13.5,
@@ -616,6 +786,32 @@ export default function CreateDispatchRequestModal({
             />
           </div>
         </div>
+
+        {/* Thông tin số ngày điều động & Cảnh báo trần 30 ngày */}
+        {startDate && endDate && (
+          <div
+            style={{
+              marginTop: -6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: 12,
+              padding: '6px 10px',
+              borderRadius: 6,
+              background: isDurationExceeded ? 'rgba(239, 68, 68, 0.1)' : 'rgba(212, 175, 55, 0.08)',
+              border: `1px solid ${isDurationExceeded ? 'rgba(239, 68, 68, 0.3)' : 'rgba(212, 175, 55, 0.25)'}`,
+            }}
+          >
+            <span style={{ color: isDurationExceeded ? '#ef4444' : c.fgMuted }}>
+              Thời lượng điều động: <strong style={{ color: isDurationExceeded ? '#ef4444' : c.accent }}>{durationDays} ngày</strong> (Giới hạn tối đa: 30 ngày)
+            </span>
+            {isDurationExceeded && (
+              <span style={{ color: '#ef4444', fontWeight: 700 }}>
+                Vượt quá 30 ngày cho phép
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Lý do / Nội dung chi viện */}
         <div>

@@ -1,4 +1,5 @@
 import axiosInstance from '@/config/axios.config';
+import { API_ENDPOINTS } from '@/shared/constants/api.constants';
 
 /**
  * ==============================================================================
@@ -6,11 +7,16 @@ import axiosInstance from '@/config/axios.config';
  * SERVICE: dispatch.service.js
  * ==============================================================================
  * Đồng bộ với DispatchController (.NET 8):
- * - POST /Dispatch/request         : Tạo phiếu đề nghị chi viện nhân sự liên chi nhánh
- * - POST /Dispatch/review          : Phê duyệt / từ chối đề nghị chi viện & chỉ định nhân sự
- * - GET  /Dispatch/store/:storeId  : Danh sách lệnh điều động theo chi nhánh (2 chiều)
- * - GET  /Dispatch/all             : Danh sách lệnh điều động toàn hệ thống (hỗ trợ lọc)
- * - GET  /Dispatch/network-metrics : Báo cáo ma trận điều chuyển & tổng giờ công chi viện
+ * - POST   /api/dispatches/request         : Tạo phiếu đề nghị chi viện nhân sự liên chi nhánh
+ * - PUT    /api/dispatches/request/:id     : Chỉnh sửa phiếu đề nghị chi viện
+ * - POST   /api/dispatches/recall/:id      : Thu hồi đơn đề nghị chi viện
+ * - DELETE /api/dispatches/request/:id     : Hủy và xóa đơn đề nghị chi viện
+ * - POST   /api/dispatches/review          : Phê duyệt / từ chối đề nghị chi viện & chỉ định nhân sự
+ * - GET    /api/dispatches/store/:storeId  : Danh sách lệnh điều động theo chi nhánh (2 chiều)
+ * - GET    /api/dispatches/all             : Danh sách lệnh điều động toàn hệ thống (hỗ trợ lọc)
+ * - GET    /api/dispatches/network-metrics : Báo cáo ma trận điều chuyển & tổng giờ công chi viện
+ * - GET    /api/dispatches/branch-employees/:branchId : Danh sách nhân sự chi viện
+ * - GET    /api/dispatches/branch-quota/:branchId     : Định biên an toàn 40%
  * ==============================================================================
  */
 
@@ -29,7 +35,7 @@ const dispatchService = {
       employeeIds: empIds,
       employeeId: empIds.length > 0 ? empIds[0] : (data.employeeId ? Number(data.employeeId) : undefined),
     };
-    const response = await axiosInstance.post('/Dispatch/request', payload);
+    const response = await axiosInstance.post(API_ENDPOINTS.DISPATCH.REQUEST, payload);
     return response.data;
   },
 
@@ -48,17 +54,28 @@ const dispatchService = {
       employeeIds: empIds,
       employeeId: empIds.length > 0 ? empIds[0] : (data.employeeId ? Number(data.employeeId) : undefined),
     };
-    const response = await axiosInstance.put(`/Dispatch/request/${id}`, payload);
+    const response = await axiosInstance.put(API_ENDPOINTS.DISPATCH.UPDATE(id), payload);
     return response.data;
   },
 
   /**
-   * Hủy và xóa phiếu đề nghị chi viện nhân sự khi còn chờ duyệt (PENDING)
+   * Thu hồi phiếu đề nghị chi viện nhân sự khi còn chờ duyệt để chỉnh sửa (RECALLED)
+   * @param {number|string} id - DispatchId
+   * @param {string} [reason] - Lý do thu hồi
+   * @returns {Promise<Object>} ApiResponse<DispatchRecordDto>
+   */
+  recallDispatchRequest: async (id, reason) => {
+    const response = await axiosInstance.post(API_ENDPOINTS.DISPATCH.RECALL(id), { reason });
+    return response.data;
+  },
+
+  /**
+   * Hủy và xóa phiếu đề nghị chi viện nhân sự khi còn chờ duyệt (PENDING) hoặc đã thu hồi (RECALLED)
    * @param {number|string} id - DispatchId
    * @returns {Promise<Object>} ApiResponse<bool>
    */
   deleteDispatchRequest: async (id) => {
-    const response = await axiosInstance.delete(`/Dispatch/request/${id}`);
+    const response = await axiosInstance.delete(API_ENDPOINTS.DISPATCH.DELETE(id));
     return response.data;
   },
 
@@ -68,7 +85,7 @@ const dispatchService = {
    * @returns {Promise<Object>} ApiResponse<bool>
    */
   reviewDispatchRequest: async (data) => {
-    const response = await axiosInstance.post('/Dispatch/review', data);
+    const response = await axiosInstance.post(API_ENDPOINTS.DISPATCH.REVIEW, data);
     return response.data;
   },
 
@@ -78,7 +95,7 @@ const dispatchService = {
    * @returns {Promise<Object>} ApiResponse<List<DispatchRecordDto>>
    */
   getStoreDispatches: async (storeId) => {
-    const response = await axiosInstance.get(`/Dispatch/store/${storeId}`);
+    const response = await axiosInstance.get(API_ENDPOINTS.DISPATCH.STORE_DISPATCHES(storeId));
     return response.data;
   },
 
@@ -88,7 +105,7 @@ const dispatchService = {
    * @returns {Promise<Object>} ApiResponse<List<DispatchRecordDto>>
    */
   getAllDispatches: async (params = {}) => {
-    const response = await axiosInstance.get('/Dispatch/all', { params });
+    const response = await axiosInstance.get(API_ENDPOINTS.DISPATCH.ALL, { params });
     return response.data;
   },
 
@@ -98,7 +115,7 @@ const dispatchService = {
    * @returns {Promise<Object>} ApiResponse<DispatchNetworkMetricsDto>
    */
   getNetworkMetrics: async (params = {}) => {
-    const response = await axiosInstance.get('/Dispatch/network-metrics', { params });
+    const response = await axiosInstance.get(API_ENDPOINTS.DISPATCH.NETWORK_METRICS, { params });
     return response.data;
   },
 
@@ -108,7 +125,7 @@ const dispatchService = {
    */
   getActiveBranches: async () => {
     try {
-      const response = await axiosInstance.get('/Users/branches');
+      const response = await axiosInstance.get(API_ENDPOINTS.BRANCHES.LIST);
       if (response.data?.success && Array.isArray(response.data.data)) {
         return response.data.data;
       }
@@ -126,7 +143,7 @@ const dispatchService = {
    */
   getEmployeesByBranch: async (branchId) => {
     if (!branchId) return [];
-    // Tiêu chí kiểm tra để loại trừ Cửa hàng trưởng khỏi diện điều động
+
     const isStoreManager = (emp) => {
       const pos = String(emp.positionName || emp.roleName || '').toLowerCase();
       const code = String(emp.employeeCode || '').toUpperCase();
@@ -140,30 +157,33 @@ const dispatchService = {
     };
 
     try {
-      // 1. Gọi endpoint chuyên biệt cho điều động nhân sự liên chi nhánh
-      const response = await axiosInstance.get(`/Dispatch/branch-employees/${branchId}`, {
-        params: { storeId: Number(branchId) }
-      });
+      const response = await axiosInstance.get(API_ENDPOINTS.DISPATCH.BRANCH_EMPLOYEES(branchId));
       const data = response.data?.data || response.data;
       if (Array.isArray(data)) {
         return data.filter((emp) => !isStoreManager(emp));
       }
     } catch (err) {
-      console.warn('Endpoint /Dispatch/branch-employees fallback sang alias /kiosk/attendance/search-employees:', err.message);
-      try {
-        // 2. Alias tương thích ngược
-        const altRes = await axiosInstance.get('/kiosk/attendance/search-employees', {
-          params: { storeId: Number(branchId) }
-        });
-        const altData = altRes.data?.data || altRes.data;
-        if (Array.isArray(altData)) {
-          return altData.filter((emp) => !isStoreManager(emp));
-        }
-      } catch (e) {
-        console.error('Lỗi khi tải danh sách nhân sự chi nhánh chi viện:', e.message);
-      }
+      console.error('Lỗi khi tải danh sách nhân sự chi nhánh chi viện:', err.message);
     }
     return [];
+  },
+
+  /**
+   * Tra cứu định biên an toàn và số lượng nhân sự khả dụng cho điều động của chi nhánh cho mượn (SourceBranch).
+   * @param {number|string} branchId
+   * @param {string} [startDate]
+   * @param {string} [endDate]
+   * @param {number|string} [excludeDispatchId]
+   * @returns {Promise<Object>} ApiResponse<BranchDispatchQuotaStatusDto>
+   */
+  getBranchDispatchQuota: async (branchId, startDate, endDate, excludeDispatchId) => {
+    if (!branchId) return null;
+    const params = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (excludeDispatchId) params.excludeDispatchId = excludeDispatchId;
+    const response = await axiosInstance.get(API_ENDPOINTS.DISPATCH.BRANCH_QUOTA(branchId), { params });
+    return response.data;
   },
 };
 

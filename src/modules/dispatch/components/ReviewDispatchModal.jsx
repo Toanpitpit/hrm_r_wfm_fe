@@ -6,6 +6,7 @@ import dispatchService from '../services/dispatch.service';
 /**
  * Modal: Xét duyệt và chỉ định nhân sự điều động
  * Hỗ trợ duyệt hoặc từ chối từng nhân sự riêng biệt trong phiếu điều động nhiều người.
+ * Ràng buộc 2: Bảo vệ Quân số An toàn của Chi nhánh Cho Mượn (Ngưỡng 40%)
  */
 export default function ReviewDispatchModal({
   open,
@@ -20,46 +21,126 @@ export default function ReviewDispatchModal({
   const [itemsToReview, setItemsToReview] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [quotaInfo, setQuotaInfo] = useState(null);
+  const [loadingQuota, setLoadingQuota] = useState(false);
+
+  const fromStoreId = dispatchItem?.fromStoreId || dispatchItem?.sourceBranchId;
+  const fromBranchName = dispatchItem?.fromStoreName || dispatchItem?.sourceBranchName || 'hỗ trợ';
+
+  // Tải thông tin định biên an toàn 40% của chi nhánh cho mượn
+  useEffect(() => {
+    if (!open || !dispatchItem || !fromStoreId) {
+      setQuotaInfo(null);
+      return;
+    }
+
+    const loadQuota = async () => {
+      setLoadingQuota(true);
+      try {
+        const res = await dispatchService.getBranchDispatchQuota(
+          fromStoreId,
+          dispatchItem.startDate,
+          dispatchItem.endDate,
+          dispatchItem.dispatchId || dispatchItem.id
+        );
+        if (res?.success && res?.data) {
+          setQuotaInfo(res.data);
+        } else {
+          setQuotaInfo(null);
+        }
+      } catch (err) {
+        console.warn('Lỗi khi tải hạn mức an toàn của chi nhánh cho mượn:', err);
+        setQuotaInfo(null);
+      } finally {
+        setLoadingQuota(false);
+      }
+    };
+
+    loadQuota();
+  }, [open, dispatchItem, fromStoreId]);
 
   useEffect(() => {
     if (open && dispatchItem) {
       setApprovalNotes('');
       setErrorMessage('');
 
-      // Khởi tạo danh sách nhân sự cần xét duyệt
+      let rawEmployees = [];
       if (dispatchItem.employees && Array.isArray(dispatchItem.employees) && dispatchItem.employees.length > 0) {
-        setItemsToReview(
-          dispatchItem.employees.map((emp) => ({
-            employeeId: emp.employeeId,
-            employeeName: emp.employeeName,
-            employeeCode: emp.employeeCode,
-            positionName: emp.positionName || 'Nhân viên',
-            isApproved: true, // Mặc định duyệt
-            note: '',
-          }))
-        );
-      } else {
-        // Fallback phiếu cũ
-        setItemsToReview([
+        rawEmployees = dispatchItem.employees;
+      } else if (dispatchItem.employeeId || dispatchItem.userId) {
+        rawEmployees = [
           {
             employeeId: dispatchItem.employeeId || dispatchItem.userId,
             employeeName: dispatchItem.employeeName,
             employeeCode: dispatchItem.employeeCode,
             positionName: dispatchItem.positionName || 'Nhân viên',
-            isApproved: true,
-            note: '',
           },
-        ]);
+        ];
       }
+
+      setItemsToReview(
+        rawEmployees.map((emp) => ({
+          employeeId: emp.employeeId,
+          employeeName: emp.employeeName,
+          employeeCode: emp.employeeCode,
+          positionName: emp.positionName || 'Nhân viên',
+          isApproved: true,
+          note: '',
+        }))
+      );
     }
   }, [open, dispatchItem]);
 
+  // Khi quotaInfo được tải về, nếu số lượng đang chọn duyệt vượt quá quota khả dụng, tự động giới hạn lại
+  useEffect(() => {
+    if (quotaInfo && itemsToReview.length > 0) {
+      const availableQuota = quotaInfo.availableDispatchQuota;
+      const currentlyApproved = itemsToReview.filter((i) => i.isApproved);
+      if (currentlyApproved.length > availableQuota) {
+        let approvedCount = 0;
+        setItemsToReview((prev) =>
+          prev.map((item) => {
+            if (item.isApproved) {
+              if (approvedCount < availableQuota) {
+                approvedCount++;
+                return item;
+              } else {
+                return {
+                  ...item,
+                  isApproved: false,
+                  note: item.note || 'Vượt quá hạn ngạch an toàn 40% quân số của chi nhánh.',
+                };
+              }
+            }
+            return item;
+          })
+        );
+        setErrorMessage(
+          `Chi nhánh ${fromBranchName} chỉ còn lại ${availableQuota} nhân sự khả dụng. Việc điều động quá số lượng này sẽ làm gián đoạn vận hành của chi nhánh hỗ trợ.`
+        );
+      }
+    }
+  }, [quotaInfo]);
+
   if (!dispatchItem) return null;
 
+  const availableQuota = quotaInfo ? quotaInfo.availableDispatchQuota : 999;
+
   const toggleEmployeeApproval = (empId, approved) => {
+    setErrorMessage('');
+    if (approved) {
+      const currentApprovedCount = itemsToReview.filter((item) => item.isApproved && item.employeeId !== empId).length;
+      if (quotaInfo && currentApprovedCount >= quotaInfo.availableDispatchQuota) {
+        setErrorMessage(
+          `Chi nhánh ${fromBranchName} chỉ còn lại ${quotaInfo.availableDispatchQuota} nhân sự khả dụng. Việc điều động quá số lượng này sẽ làm gián đoạn vận hành của chi nhánh hỗ trợ.`
+        );
+        return;
+      }
+    }
+
     setItemsToReview((prev) =>
       prev.map((item) =>
-        item.employeeId === empId ? { ...item, isApproved: approved } : item
+        item.employeeId === empId ? { ...item, isApproved: approved, note: approved ? '' : item.note } : item
       )
     );
   };
@@ -73,13 +154,48 @@ export default function ReviewDispatchModal({
   };
 
   const setAllApproval = (approved) => {
-    setItemsToReview((prev) =>
-      prev.map((item) => ({ ...item, isApproved: approved }))
-    );
+    setErrorMessage('');
+    if (approved && quotaInfo && itemsToReview.length > quotaInfo.availableDispatchQuota) {
+      const limit = quotaInfo.availableDispatchQuota;
+      let count = 0;
+      setItemsToReview((prev) =>
+        prev.map((item) => {
+          if (count < limit) {
+            count++;
+            return { ...item, isApproved: true, note: '' };
+          } else {
+            return {
+              ...item,
+              isApproved: false,
+              note: item.note || 'Vượt quá hạn ngạch an toàn 40% quân số của chi nhánh.',
+            };
+          }
+        })
+      );
+      setErrorMessage(
+        `Chi nhánh ${fromBranchName} chỉ còn lại ${limit} nhân sự khả dụng. Việc điều động quá số lượng này sẽ làm gián đoạn vận hành của chi nhánh hỗ trợ.`
+      );
+    } else {
+      setItemsToReview((prev) =>
+        prev.map((item) => ({ ...item, isApproved: approved, note: approved ? '' : item.note }))
+      );
+    }
   };
+
+  const approvedCount = itemsToReview.filter((item) => item.isApproved).length;
+  const rejectedCount = itemsToReview.length - approvedCount;
+  const isOverQuota = quotaInfo && approvedCount > quotaInfo.availableDispatchQuota;
 
   const handleAction = async () => {
     setErrorMessage('');
+
+    if (quotaInfo && approvedCount > quotaInfo.availableDispatchQuota) {
+      setErrorMessage(
+        `Chi nhánh ${fromBranchName} chỉ còn lại ${quotaInfo.availableDispatchQuota} nhân sự khả dụng. Việc điều động quá số lượng này sẽ làm gián đoạn vận hành của chi nhánh hỗ trợ.`
+      );
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -108,20 +224,22 @@ export default function ReviewDispatchModal({
     }
   };
 
-  const approvedCount = itemsToReview.filter((item) => item.isApproved).length;
-  const rejectedCount = itemsToReview.length - approvedCount;
-
   return (
     <Modal
       open={open}
       onClose={onClose}
       title="Xét Duyệt Yêu Cầu Điều Động Nhân Sự"
       sub={`Cơ sở đề nghị mượn: ${dispatchItem.toStoreName || 'Chi nhánh đối tác'}`}
-      width={680}
+      width={720}
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <div style={{ fontSize: 13, color: c.fgMuted }}>
             Sẽ duyệt <strong style={{ color: '#34d399' }}>{approvedCount}</strong> người, từ chối <strong style={{ color: '#f87171' }}>{rejectedCount}</strong> người
+            {quotaInfo && (
+              <span style={{ marginLeft: 8, fontSize: 12, color: isOverQuota ? '#f87171' : c.fgFaint }}>
+                (Tối đa cho phép: <strong>{quotaInfo.availableDispatchQuota}</strong>)
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <Button kind="ghost" onClick={onClose} disabled={submitting}>
@@ -130,7 +248,7 @@ export default function ReviewDispatchModal({
             <Button
               kind="primary"
               onClick={handleAction}
-              disabled={submitting || itemsToReview.length === 0}
+              disabled={submitting || itemsToReview.length === 0 || isOverQuota}
             >
               {submitting ? 'Đang Lưu Kết Quả...' : 'Xác Nhận & Lưu Kết Quả Duyệt'}
             </Button>
@@ -214,6 +332,56 @@ export default function ReviewDispatchModal({
             </div>
           </div>
         </div>
+
+        {/* Thẻ định biên an toàn quân số của chi nhánh hỗ trợ (Ngưỡng 40%) */}
+        {quotaInfo && (
+          <div
+            style={{
+              background: isOverQuota ? 'rgba(239, 68, 68, 0.08)' : 'rgba(59, 130, 246, 0.08)',
+              border: `1px solid ${isOverQuota ? 'rgba(239, 68, 68, 0.35)' : 'rgba(59, 130, 246, 0.25)'}`,
+              borderRadius: 8,
+              padding: '12px 14px',
+              fontSize: 12.5,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ fontWeight: 700, color: isOverQuota ? '#f87171' : c.accent, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>🛡️ Quân số an toàn của cơ sở hỗ trợ ({quotaInfo.branchName})</span>
+                <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: isOverQuota ? '#ef4444' : '#3b82f6', color: '#fff' }}>
+                  Ngưỡng tối đa 40%
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: c.fgMuted }}>
+                Khả dụng duyệt: <strong style={{ color: isOverQuota ? '#f87171' : '#34d399', fontSize: 14 }}>{quotaInfo.availableDispatchQuota}</strong> / {quotaInfo.maxAllowedDispatchCount} người
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, textAlign: 'center' }}>
+              <div style={{ background: c.bgRaised, padding: '6px 8px', borderRadius: 6, border: `1px solid ${c.border}` }}>
+                <div style={{ fontSize: 11, color: c.fgFaint }}>Tổng quân số</div>
+                <div style={{ fontWeight: 700, color: c.fg, fontSize: 13, marginTop: 2 }}>{quotaInfo.totalHeadcount}</div>
+              </div>
+              <div style={{ background: c.bgRaised, padding: '6px 8px', borderRadius: 6, border: `1px solid ${c.border}` }}>
+                <div style={{ fontSize: 11, color: c.fgFaint }}>Đang chi viện</div>
+                <div style={{ fontWeight: 700, color: '#f59e0b', fontSize: 13, marginTop: 2 }}>{quotaInfo.currentlyDispatchedCount}</div>
+              </div>
+              <div style={{ background: c.bgRaised, padding: '6px 8px', borderRadius: 6, border: `1px solid ${c.border}` }}>
+                <div style={{ fontSize: 11, color: c.fgFaint }}>Hạn ngạch (40%)</div>
+                <div style={{ fontWeight: 700, color: c.accent, fontSize: 13, marginTop: 2 }}>{quotaInfo.maxAllowedDispatchCount}</div>
+              </div>
+              <div style={{ background: isOverQuota ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', padding: '6px 8px', borderRadius: 6, border: `1px solid ${isOverQuota ? '#ef4444' : '#10b981'}` }}>
+                <div style={{ fontSize: 11, color: isOverQuota ? '#f87171' : '#34d399' }}>Được duyệt thêm</div>
+                <div style={{ fontWeight: 700, color: isOverQuota ? '#f87171' : '#34d399', fontSize: 13, marginTop: 2 }}>{quotaInfo.availableDispatchQuota}</div>
+              </div>
+            </div>
+
+            {isOverQuota && (
+              <div style={{ marginTop: 8, color: '#f87171', fontWeight: 600, fontSize: 12 }}>
+                ⚠️ Cảnh báo: Số lượng nhân sự chọn duyệt ({approvedCount}) vượt quá hạn ngạch an toàn ({quotaInfo.availableDispatchQuota}). Vui lòng từ chối bớt nhân sự trước khi lưu.
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Danh sách nhân sự cần xét duyệt kèm nút duyệt/từ chối từng người */}
         <div>
