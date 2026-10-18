@@ -530,7 +530,18 @@ export const getShiftTemplateStats = async () => {
  */
 export const getShiftTemplates = async (params = {}) => {
   try {
-    const res = await apiClient.get('/shift-templates', { params });
+    const cleanParams = {};
+    if (params.scope) cleanParams.scope = params.scope;
+    if (params.branchId != null && params.branchId !== '' && String(params.branchId) !== 'null') {
+      cleanParams.branchId = Number(params.branchId);
+    }
+    if (params.type && params.type !== 'ALL') cleanParams.type = params.type;
+    if (params.isActive !== undefined && params.isActive !== '') cleanParams.isActive = params.isActive;
+    if (params.q) cleanParams.q = params.q;
+    if (params.page) cleanParams.page = params.page;
+    if (params.pageSize) cleanParams.pageSize = params.pageSize;
+
+    const res = await apiClient.get('/shift-templates', { params: cleanParams });
     if (res && res.data) {
       const data = res.data.data || res.data;
       const list = Array.isArray(data) ? data : data.items || [];
@@ -602,7 +613,11 @@ export const createShiftTemplate = async (payload) => {
   // Kiểm tra chống trùng giờ & đè ca (overlapping & duplicate time shifts)
   let allCurrentShifts = [];
   try {
-    allCurrentShifts = await getShiftTemplates({ scope: body.scope, branchId: body.branchId });
+    const queryParams = { scope: body.scope };
+    if (body.scope === 'BRANCH' && body.branchId) {
+      queryParams.branchId = body.branchId;
+    }
+    allCurrentShifts = await getShiftTemplates(queryParams);
   } catch (_) {
     allCurrentShifts = [];
   }
@@ -625,6 +640,7 @@ export const createShiftTemplate = async (payload) => {
     const res = await apiClient.post('/shift-templates', body);
     if (res && res.data) {
       backendResult = res.data.data || res.data;
+      if (backendResult) return backendResult;
     }
   } catch (err) {
     // Nếu là lỗi nghiệp vụ xác thực từ server (400 dữ liệu sai, 409 xung đột, 423 chi nhánh bị khóa)
@@ -920,12 +936,8 @@ export const getBranches = async (params = {}) => {
       const data = res.data.data || res.data;
       const rawList = Array.isArray(data) ? data : data.items || [];
       if (rawList.length > 0) {
-        const shifts = getMockShifts();
         return rawList.map((b) => {
           const bId = b.id ?? b.storeId;
-          const activeCustomCount = shifts.filter(
-            (s) => String(s.branchId) === String(bId) && s.isActive
-          ).length;
           return {
             ...b,
             id: bId,
@@ -933,7 +945,7 @@ export const getBranches = async (params = {}) => {
             name: b.name || b.branchName || `Chi nhánh ${bId}`,
             code: b.code || b.branchCode || `CN_${bId}`,
             shiftMode: b.shiftMode || 'GLOBAL',
-            activeCustomShiftCount: b.activeCustomShiftCount ?? activeCustomCount,
+            activeCustomShiftCount: b.activeCustomShiftCount ?? 0,
             isLocked: Boolean(b.isLocked || b.status === 'LOCKED'),
           };
         });

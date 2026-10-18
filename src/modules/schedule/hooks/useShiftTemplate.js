@@ -504,6 +504,7 @@ export function useShiftTemplate() {
     formModalOpen,
     setFormModalOpen,
     editingShift,
+    setEditingShift,
     handleOpenCreateModal,
     handleOpenEditModal,
     handleCreateShift,

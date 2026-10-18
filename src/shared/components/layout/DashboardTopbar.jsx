@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/toast/ToastProvider';
 import { useAuthContext } from '@/modules/auth/context/AuthContext';
 import ProfileModal from './ProfileModal';
 import ChangePasswordModal from './ChangePasswordModal';
+import authService from '@/modules/auth/services/auth.service';
 
 export default function DashboardTopbar({
   page,

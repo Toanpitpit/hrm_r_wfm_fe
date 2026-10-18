@@ -63,6 +63,7 @@ export default function ShiftMasterPage() {
     formModalOpen,
     setFormModalOpen,
     editingShift,
+    setEditingShift,
     handleOpenCreateModal,
     handleOpenEditModal,
     handleCreateShift,

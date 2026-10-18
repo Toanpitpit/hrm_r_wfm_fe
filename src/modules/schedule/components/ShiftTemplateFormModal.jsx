@@ -12,6 +12,7 @@ import {
   checkIsOvernight,
   findOverlappingShift,
   isShiftsOverlapping,
+  getBranchCustomShifts,
 } from '../services/shiftTemplate.service';
 
 /**
@@ -90,8 +91,18 @@ export default function ShiftTemplateFormModal({
   const [clientErrors, setClientErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [fetchedBranchShifts, setFetchedBranchShifts] = useState([]);
 
-  // Nạp dữ liệu khi mở Modal
+  // Tự động tải danh sách ca riêng của chi nhánh khi người dùng chọn phạm vi BRANCH
+  useEffect(() => {
+    if (open && formData.scope === 'BRANCH' && formData.branchId) {
+      getBranchCustomShifts(formData.branchId)
+        .then((data) => setFetchedBranchShifts(Array.isArray(data) ? data : []))
+        .catch(() => setFetchedBranchShifts([]));
+    } else {
+      setFetchedBranchShifts([]);
+    }
+  }, [open, formData.scope, formData.branchId]);
   useEffect(() => {
     if (open) {
       setServerError('');
@@ -182,6 +193,10 @@ export default function ShiftTemplateFormModal({
       // Nếu chưa chọn chi nhánh thì không thể kiểm tra trùng ca của chi nhánh
       if (!branchIdStr) return [];
 
+      if (fetchedBranchShifts.length > 0) {
+        return fetchedBranchShifts;
+      }
+
       const listFromCustom = (customShifts || []).filter(
         (s) => String(s.branchId) === branchIdStr
       );
@@ -195,7 +210,7 @@ export default function ShiftTemplateFormModal({
       }
       return [];
     }
-  }, [formData.scope, formData.branchId, allGlobalShifts, customShifts, existingShifts]);
+  }, [formData.scope, formData.branchId, allGlobalShifts, customShifts, existingShifts, fetchedBranchShifts]);
 
   // Kiểm tra Realtime xem ca hiện tại trong Single mode có bị trùng giờ hoặc đè lên ca nào không
   const overlappingShift = React.useMemo(() => {
