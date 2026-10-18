@@ -20,6 +20,7 @@ export const NAV_ITEMS_BY_ROLE = {
   STORE_MANAGER: [
     { type: 'group', label: 'OVERVIEW' },
     { id: 'weekly-schedules', label: 'Phân Ca Tuần', icon: 'calendar', path: '/store-manager/schedules' },
+    { id: 'monthly-attendance', label: 'Bảng Chấm Công Tháng', icon: 'clock', path: '/store-manager/monthly-attendance' },
     { type: 'group', label: 'QUẢN LÝ NHÂN SỰ & KIOSK' },
     { id: 'employees', label: 'Nhân Sự & Định Biên Chi Nhánh', icon: 'users', path: '/employees' },
     { id: 'shift-requests', label: 'Duyệt Đơn Đổi Ca', icon: 'calendar', path: '/employee/shift-requests' },
