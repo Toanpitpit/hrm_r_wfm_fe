@@ -22,7 +22,6 @@ import BranchMapView from '../../components/BranchMapView';
 import BranchFormModal from '../../components/BranchFormModal';
 import BranchLockModal from '../../components/BranchLockModal';
 import UnlockModal from '../../components/UnlockModal';
-import BranchDeleteModal from '../../components/BranchDeleteModal';
 
 /**
  * ==============================================================================
@@ -31,7 +30,7 @@ import BranchDeleteModal from '../../components/BranchDeleteModal';
  * PAGE: BranchManagementPage (index.jsx)
  * ==============================================================================
  * Tính năng chính:
- * 1. Thêm / sửa / khóa / mở khóa / xóa chi nhánh toàn hệ thống kèm lý do lưu vết kiểm toán (Audit Log)
+ * 1. Thêm / sửa / khóa / mở khóa chi nhánh toàn hệ thống kèm lý do lưu vết kiểm toán (Audit Log)
  * 2. Thiết lập tọa độ Point (Latitude / Longitude) & Bán kính Geofence chấm công GPS
  * 3. Tích hợp Bản đồ Leaflet tương tác trực quan hiển thị vị trí toàn chuỗi cơ sở
  */
@@ -67,17 +66,12 @@ export default function BranchManagementPage() {
     setUnlockModalOpen,
     unlockingBranch,
     setUnlockingBranch,
-    deleteModalOpen,
-    setDeleteModalOpen,
-    deletingBranch,
-    setDeletingBranch,
     isActionInProgress,
     // Handlers
     handleCreateBranch,
     handleUpdateBranch,
     handleLockSuccess,
     handleUnlockSuccess,
-    handleDeleteBranch,
   } = useBranch();
 
   // Navigation menu
@@ -355,7 +349,6 @@ export default function BranchManagementPage() {
                 setUnlockModalOpen(true);
               }
             }}
-            
           />
         </Panel>
       )}
@@ -419,9 +412,6 @@ export default function BranchManagementPage() {
           handleUnlockSuccess();
         }}
       />
-
-      {/* Modal Xác nhận Xóa chi nhánh */}
-      {/* BranchDeleteModal đã được loại bỏ */}
 
     </DashboardShell>
   );

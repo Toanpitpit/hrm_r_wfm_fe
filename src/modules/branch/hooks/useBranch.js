@@ -30,9 +30,6 @@ export function useBranch() {
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
   const [unlockingBranch, setUnlockingBranch] = useState(null);
 
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deletingBranch, setDeletingBranch] = useState(null);
-
   const [isActionInProgress, setIsActionInProgress] = useState(false);
 
   // Tải danh sách chi nhánh và phân cấp
@@ -207,22 +204,6 @@ export function useBranch() {
     }
   };
 
-  // Thao tác Xóa chi nhánh
-  const handleDeleteBranch = async (storeId) => {
-    try {
-      setIsActionInProgress(true);
-      await branchService.deleteBranch(storeId);
-      await fetchData();
-      setDeleteModalOpen(false);
-      setDeletingBranch(null);
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err.message };
-    } finally {
-      setIsActionInProgress(false);
-    }
-  };
-
   return {
     branches: filteredBranches,
     allBranches: branches,
@@ -249,10 +230,6 @@ export function useBranch() {
     setUnlockModalOpen,
     unlockingBranch,
     setUnlockingBranch,
-    deleteModalOpen,
-    setDeleteModalOpen,
-    deletingBranch,
-    setDeletingBranch,
     isActionInProgress,
     setIsActionInProgress,
     // Handlers
@@ -262,7 +239,6 @@ export function useBranch() {
     handleToggleBranchStatus,
     handleLockSuccess,
     handleUnlockSuccess,
-    handleDeleteBranch,
   };
 }
 

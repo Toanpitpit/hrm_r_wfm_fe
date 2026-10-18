@@ -141,7 +141,6 @@ export default function BranchTable({
   onLock,
   onUnlock,
   onToggleLock,
-  onDelete,
 }) {
   const { c } = useAdminTheme();
 
@@ -379,8 +378,6 @@ export default function BranchTable({
               />
               <span>{isActive ? 'Khóa' : 'Mở'}</span>
             </Button>
-
-            {/* Nút Xóa chi nhánh đã loại bỏ theo quy định bảo toàn dữ liệu */}
           </div>
         );
       },

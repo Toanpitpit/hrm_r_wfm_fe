@@ -169,7 +169,7 @@ export default function ShiftTemplateFormModal({
   const targetShifts = React.useMemo(() => {
     if (formData.scope === 'GLOBAL') {
       if (Array.isArray(allGlobalShifts) && allGlobalShifts.length > 0) {
-        return allGlobalShifts;
+        return allGlobalShifts.filter((s) => (s.scope || (s.branchId ? 'BRANCH' : 'GLOBAL')) === 'GLOBAL');
       }
       if (Array.isArray(existingShifts) && existingShifts.length > 0) {
         return existingShifts.filter(
@@ -179,15 +179,18 @@ export default function ShiftTemplateFormModal({
       return [];
     } else {
       const branchIdStr = String(formData.branchId || '');
+      // Nếu chưa chọn chi nhánh thì không thể kiểm tra trùng ca của chi nhánh
+      if (!branchIdStr) return [];
+
       const listFromCustom = (customShifts || []).filter(
-        (s) => !branchIdStr || String(s.branchId) === branchIdStr
+        (s) => String(s.branchId) === branchIdStr
       );
       if (listFromCustom.length > 0) return listFromCustom;
       if (Array.isArray(existingShifts) && existingShifts.length > 0) {
         return existingShifts.filter(
           (s) =>
             (s.scope || (s.branchId ? 'BRANCH' : 'GLOBAL')) === 'BRANCH' &&
-            (!branchIdStr || String(s.branchId) === branchIdStr)
+            String(s.branchId) === branchIdStr
         );
       }
       return [];

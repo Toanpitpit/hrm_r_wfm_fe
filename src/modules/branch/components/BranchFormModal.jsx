@@ -428,7 +428,11 @@ export default function BranchFormModal({
               <FormField
                 label="Bán Kính Geofence (m)"
               >
-                <input type="number" min="20" max="1000" step="10" placeholder="Bán kính GPS (20 - 1000m)"
+                <input
+                  type="number"
+                  min="20"
+                  max="1000"
+                  step="10"
                   placeholder="100m (20 - 1000m)"
                   value={formData.radiusMeters}
                   onChange={(e) => {
