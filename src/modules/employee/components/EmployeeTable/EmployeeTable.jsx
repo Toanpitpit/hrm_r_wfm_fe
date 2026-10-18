@@ -32,17 +32,60 @@ export default function EmployeeTable({
   onResetPassword,
   onToggleStatus,
   canManageSystem = false, // True for Admin & Business Owner
+  newEmployeeIds = [],
 }) {
   const { c, fonts } = useAdminTheme();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Kiểm tra nhân sự mới được thêm
+  const checkIsNewEmployee = (emp) => {
+    if (!emp) return false;
+    if (emp.isNew) return true;
+    const strId = String(emp.id || '');
+    const code = (emp.employeeCode || '').trim().toUpperCase();
+    if (newEmployeeIds && newEmployeeIds.length > 0) {
+      if (
+        newEmployeeIds.some((item) => {
+          const val = typeof item === 'object' ? String(item.id || item.code || '') : String(item);
+          return val === strId || (code && val.toUpperCase() === code);
+        })
+      ) {
+        return true;
+      }
+    }
+    // Không đánh dấu NEW cho các tài khoản seed mặc định ban đầu của hệ thống
+    const numId = Number(emp.id);
+    const isSeeded = numId > 0 && numId <= 61;
+    if (isSeeded) return false;
+
+    if (emp.createdAt) {
+      const createdTime = new Date(emp.createdAt).getTime();
+      if (!isNaN(createdTime)) {
+        const diffHours = (Date.now() - createdTime) / (1000 * 60 * 60);
+        if (diffHours >= 0 && diffHours < 48) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
 
   // Reset page when dataset changes
   useEffect(() => {
     setPage(1);
   }, [employees.length]);
 
-  const displayEmployees = employees.slice((page - 1) * pageSize, page * pageSize);
+  // Sắp xếp: Ưu tiên nhân sự NEW lên đầu bảng để quản trị viên thấy ngay
+  const sortedEmployees = [...employees].sort((a, b) => {
+    const aNew = checkIsNewEmployee(a);
+    const bNew = checkIsNewEmployee(b);
+    if (aNew && !bNew) return -1;
+    if (!aNew && bNew) return 1;
+    return 0;
+  });
+
+  const displayEmployees = sortedEmployees.slice((page - 1) * pageSize, page * pageSize);
 
   // Chỉ hiển thị khung loading toàn màn hình ở lần tải đầu tiên khi chưa có dữ liệu
   if (initialLoading && employees.length === 0) {
@@ -119,6 +162,11 @@ export default function EmployeeTable({
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
         }
+        @keyframes badgePulse {
+          0% { transform: scale(1); box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4); }
+          50% { transform: scale(1.06); box-shadow: 0 3px 10px rgba(16, 185, 129, 0.65); }
+          100% { transform: scale(1); box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4); }
+        }
       `}</style>
 
       {/* Thanh loading thanh mảnh chạy mượt trên đỉnh bảng khi đang search/filter */}
@@ -180,6 +228,7 @@ export default function EmployeeTable({
         <tbody>
           {displayEmployees.map((emp, index) => {
             const isInactive = emp.status === 'INACTIVE';
+            const isNew = checkIsNewEmployee(emp);
             const roleBadge = ROLE_BADGE_MAP[emp.roleCode] || {
               label: emp.roleName || emp.roleCode || 'Nhân Viên',
               variant: 'secondary',
@@ -194,12 +243,14 @@ export default function EmployeeTable({
                   borderBottom: `1px solid ${c.border}`,
                   transition: 'background 0.15s ease',
                   opacity: isInactive ? 0.7 : 1,
+                  background: isNew ? 'rgba(16, 185, 129, 0.05)' : 'transparent',
+                  borderLeft: isNew ? '3px solid #10b981' : '3px solid transparent',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = c.bgCard;
+                  e.currentTarget.style.background = isNew ? 'rgba(16, 185, 129, 0.12)' : c.bgCard;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.background = isNew ? 'rgba(16, 185, 129, 0.05)' : 'transparent';
                 }}
               >
                 {/* Họ tên & Avatar */}
@@ -210,22 +261,61 @@ export default function EmployeeTable({
                         width: '36px',
                         height: '36px',
                         borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #3a2e15, #1f1b14)',
-                        border: `1px solid ${c.accent}`,
-                        color: c.accent,
+                        background: isNew
+                          ? 'linear-gradient(135deg, #064e3b, #022c22)'
+                          : 'linear-gradient(135deg, #3a2e15, #1f1b14)',
+                        border: `1px solid ${isNew ? '#10b981' : c.accent}`,
+                        color: isNew ? '#34d399' : c.accent,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: 700,
                         fontSize: '14px',
                         flexShrink: 0,
+                        boxShadow: isNew ? '0 0 10px rgba(16, 185, 129, 0.3)' : 'none',
                       }}
                     >
                       {avatarLetter}
                     </div>
                     <div>
-                      <div style={{ fontWeight: 600, color: c.fg }}>
-                        {emp.fullName || 'Chưa đặt tên'}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: 600, color: c.fg }}>
+                          {emp.fullName || 'Chưa đặt tên'}
+                        </span>
+                        {isNew && (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '2px 7px',
+                              fontSize: '10px',
+                              fontWeight: 800,
+                              letterSpacing: '0.6px',
+                              borderRadius: '6px',
+                              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                              color: '#ffffff',
+                              boxShadow: '0 2px 6px rgba(16, 185, 129, 0.45)',
+                              textTransform: 'uppercase',
+                              lineHeight: '12px',
+                              flexShrink: 0,
+                              border: '1px solid rgba(255, 255, 255, 0.25)',
+                              animation: 'badgePulse 2s infinite ease-in-out',
+                            }}
+                            title="Nhân viên mới được thêm vào hệ thống"
+                          >
+                            <span
+                              style={{
+                                width: '4px',
+                                height: '4px',
+                                borderRadius: '50%',
+                                background: '#ffffff',
+                                boxShadow: '0 0 3px #ffffff',
+                              }}
+                            />
+                            NEW
+                          </span>
+                        )}
                       </div>
                       <div style={{ fontSize: '11.5px', color: c.fgSubtle, marginTop: '2px' }}>
                         ID #{emp.id}

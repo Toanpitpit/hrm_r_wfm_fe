@@ -743,10 +743,10 @@ export default function EmployeeFormModal({
           setImportStatus('error');
         } else if (result.isPartialSuccess) {
           setImportStatus('partial');
-          onImportSuccess?.();
+          onImportSuccess?.(result.data?.successEmployees);
         } else if (result.success) {
           setImportStatus('success');
-          onImportSuccess?.();
+          onImportSuccess?.(result.data?.successEmployees);
         }
       } else {
         setImportStatus('error');

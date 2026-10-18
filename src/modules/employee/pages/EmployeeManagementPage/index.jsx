@@ -51,8 +51,40 @@ export default function EmployeeManagementPage() {
   const isBusinessOwner = userRole === 'BUSINESS_OWNER' || userRole.includes('OWNER');
   const isStoreManager = userRole === 'STORE_MANAGER' || userRole.includes('MANAGER') || roleName.toLowerCase().includes('quản lý');
 
+  // Khóa lưu trữ nhận diện nhân sự mới tạo (lưu trong 7 ngày)
+  const NEW_EMPLOYEES_STORAGE_KEY = 'wfm_new_employees_cache';
+
+  const getInitialNewEmployees = () => {
+    try {
+      const raw = localStorage.getItem(NEW_EMPLOYEES_STORAGE_KEY);
+      if (!raw) return [];
+      const list = JSON.parse(raw);
+      const now = Date.now();
+      return list.filter((item) => item.time && now - item.time < 7 * 24 * 60 * 60 * 1000);
+    } catch {
+      return [];
+    }
+  };
+
   // 2. Dữ liệu trạng thái
   const [employees, setEmployees] = useState([]);
+  const [newEmployeeIds, setNewEmployeeIds] = useState(getInitialNewEmployees);
+
+  const markEmployeeAsNew = (identifier) => {
+    if (!identifier) return;
+    const str = String(identifier).trim();
+    setNewEmployeeIds((prev) => {
+      if (prev.some((x) => x.id === str)) return prev;
+      const updated = [{ id: str, time: Date.now() }, ...prev];
+      try {
+        localStorage.setItem(NEW_EMPLOYEES_STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Cannot persist new employee ID:', e);
+      }
+      return updated;
+    });
+  };
+
   const [roles, setRoles] = useState(STORE_ROLES);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -293,6 +325,10 @@ export default function EmployeeManagementPage() {
         const res = await employeeService.createStoreManager(formData);
         if (res.success) {
           toast.success(res.message || 'Cấp tài khoản Cửa hàng trưởng thành công!');
+          if (res.data?.id) markEmployeeAsNew(res.data.id);
+          if (res.data?.employeeCode || formData.employeeCode) {
+            markEmployeeAsNew(res.data?.employeeCode || formData.employeeCode);
+          }
           fetchEmployees();
           fetchStats();
           fetchHeadcountData();
@@ -305,6 +341,10 @@ export default function EmployeeManagementPage() {
         const res = await employeeService.createEmployee(formData);
         if (res.success) {
           toast.success(res.message || 'Khai báo thành công! Welcome Email đã được gửi.');
+          if (res.data?.id) markEmployeeAsNew(res.data.id);
+          if (res.data?.employeeCode || formData.employeeCode) {
+            markEmployeeAsNew(res.data?.employeeCode || formData.employeeCode);
+          }
           fetchEmployees();
           fetchStats();
           fetchHeadcountData();
@@ -545,6 +585,7 @@ export default function EmployeeManagementPage() {
             onResetPassword={handleOpenResetModal}
             onToggleStatus={handleOpenToggleModal}
             canManageSystem={canManageSystem}
+            newEmployeeIds={newEmployeeIds}
           />
         </div>
       </Panel>
@@ -554,7 +595,13 @@ export default function EmployeeManagementPage() {
         isOpen={formModalOpen}
         onClose={() => setFormModalOpen(false)}
         onSubmit={handleFormSubmit}
-        onImportSuccess={() => {
+        onImportSuccess={(importedList) => {
+          if (Array.isArray(importedList)) {
+            importedList.forEach((item) => {
+              if (item?.id) markEmployeeAsNew(item.id);
+              if (item?.employeeCode) markEmployeeAsNew(item.employeeCode);
+            });
+          }
           fetchEmployees();
           fetchStats();
           fetchHeadcountData();
@@ -591,6 +638,7 @@ export default function EmployeeManagementPage() {
         onClose={() => setDetailModalOpen(false)}
         employee={selectedEmployee}
         canManageSystem={canManageSystem}
+        newEmployeeIds={newEmployeeIds}
       />
 
       {/* Modal: Đặt lại mật khẩu (Admin / Owner only) */}

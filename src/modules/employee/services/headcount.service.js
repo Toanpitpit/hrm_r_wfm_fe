@@ -38,10 +38,23 @@ export const headcountService = {
         const resolvedTier = Number(
           raw.branchTier ?? raw.BranchTier ?? raw.branchTierValue ?? raw.BranchTierValue ?? branchTier
         );
+        
+        // Đọc quota tùy chỉnh từ localStorage (nếu có từ phân cấp chi nhánh)
+        let customQuota = null;
+        try {
+          const map = JSON.parse(localStorage.getItem('wfm_branch_custom_quotas_v1') || '{}');
+          if (map[branchId] != null && Number(map[branchId]) > 0) {
+            customQuota = Number(map[branchId]);
+          }
+        } catch {}
+
+        const backendQuota = Number(raw.effectiveQuota ?? raw.EffectiveQuota ?? raw.staffCount ?? raw.StaffCount ?? 0);
+        const fallbackQuota = raw.standardQuota ?? raw.StandardQuota ?? HEADCOUNT_TIER_QUOTAS[resolvedTier] ?? 15;
         const standardQuota = Number(
-          raw.standardQuota ?? raw.StandardQuota ?? HEADCOUNT_TIER_QUOTAS[resolvedTier] ?? 15
+          customQuota ||
+          (backendQuota > 0 ? backendQuota : null) ||
+          fallbackQuota
         );
-        // Định biên theo Tier là cố định: Tier 1 = 30, Tier 2 = 15, Tier 3 = 8
         const effectiveQuota = standardQuota;
         const currentHeadcount = Number(raw.currentHeadcount ?? raw.CurrentHeadcount ?? 0);
         const officialHeadcount = Number(raw.officialHeadcount ?? raw.OfficialHeadcount ?? currentHeadcount);
@@ -50,20 +63,12 @@ export const headcountService = {
         const actualWorkingCount = Number(raw.actualWorkingCount ?? raw.ActualWorkingCount ?? (currentHeadcount + dispatchedInCount));
 
         const availableQuotaSlots = Number(
-          (raw.availableQuotaSlots != null && raw.availableQuotaSlots >= 0) ? raw.availableQuotaSlots :
-          (raw.AvailableQuotaSlots != null && raw.AvailableQuotaSlots >= 0) ? raw.AvailableQuotaSlots :
-          Math.max(0, effectiveQuota - officialHeadcount)
+          (raw.availableQuotaSlots != null && raw.availableQuotaSlots >= 0 && !customQuota)
+            ? raw.availableQuotaSlots
+            : Math.max(0, effectiveQuota - officialHeadcount)
         );
-        const isQuotaReached = raw.isQuotaReached != null
-          ? Boolean(raw.isQuotaReached)
-          : raw.IsQuotaReached != null
-          ? Boolean(raw.IsQuotaReached)
-          : (officialHeadcount >= effectiveQuota);
-        const canCreateDirectly = raw.canCreateDirectly != null
-          ? Boolean(raw.canCreateDirectly)
-          : raw.CanCreateDirectly != null
-          ? Boolean(raw.CanCreateDirectly)
-          : (officialHeadcount < effectiveQuota);
+        const isQuotaReached = officialHeadcount >= effectiveQuota;
+        const canCreateDirectly = officialHeadcount < effectiveQuota;
         const inactiveCount = Number(raw.inactiveCount ?? raw.InactiveCount ?? 0);
 
         const canUpgradeTier = raw.canUpgradeTier != null
@@ -83,7 +88,7 @@ export const headcountService = {
             branchId: Number(branchId),
             branchTier: resolvedTier,
             standardQuota,
-            staffCount: 0,
+            staffCount: backendQuota > 0 ? backendQuota : standardQuota,
             effectiveQuota,
             currentHeadcount: officialHeadcount,
             officialHeadcount,
@@ -201,23 +206,45 @@ export const headcountService = {
    * 2. Lấy thông tin định biên cho toàn bộ danh sách chi nhánh
    */
   async getAllBranchesHeadcountStatus(branchList = []) {
+    let customQuotasMap = {};
+    try {
+      customQuotasMap = JSON.parse(localStorage.getItem('wfm_branch_custom_quotas_v1') || '{}');
+    } catch {}
+
     const list = branchList.length > 0 ? branchList : [
-      { id: 1, storeId: 1, name: 'Chi nhánh Cầu Giấy (Flagship)', branchTier: 1 },
-      { id: 2, storeId: 2, name: 'Chi nhánh Lê Văn Việt', branchTier: 2 },
-      { id: 3, storeId: 3, name: 'Chi nhánh Hoàn Kiếm', branchTier: 2 },
+      { id: 1, storeId: 1, name: 'Cửa hàng Tiện lợi Chi nhánh Cầu Giấy', branchTier: 1 },
+      { id: 2, storeId: 2, name: 'Cửa hàng Tiện lợi Chi nhánh Lê Văn Việt', branchTier: 1 },
+      { id: 3, storeId: 3, name: 'Cửa hàng Tiện lợi Chi nhánh Hoàn Kiếm', branchTier: 2 },
+      { id: 4, storeId: 4, name: 'Siêu Thị FPT', branchTier: 2 },
     ];
 
     try {
       const results = await Promise.all(
         list.map(async (b) => {
-          const bId = b.id || b.storeId;
-          const tier = b.branchTier || b.tier || (bId === 1 ? 1 : 2);
+          const bId = Number(b.id || b.storeId);
+          const tier = Number(b.branchTier || b.tier || (bId === 1 || bId === 2 ? 1 : 2));
           const res = await this.getBranchHeadcountStatus(bId, tier);
+          const quotaFromMap = customQuotasMap[bId] ? Number(customQuotasMap[bId]) : null;
+          const quotaFromBranch = Number(b.staffCount || b.targetStaffCount || 0);
+
+          let finalStatus = res.success ? { ...res.data } : {};
+          const finalQuota = quotaFromMap || (quotaFromBranch > 0 ? quotaFromBranch : null) || finalStatus.effectiveQuota || finalStatus.standardQuota;
+          if (finalQuota) {
+            const official = Number(finalStatus.officialHeadcount ?? finalStatus.currentHeadcount ?? 0);
+            finalStatus.standardQuota = finalQuota;
+            finalStatus.effectiveQuota = finalQuota;
+            finalStatus.staffCount = finalQuota;
+            finalStatus.availableQuotaSlots = Math.max(0, finalQuota - official);
+            finalStatus.isQuotaReached = official >= finalQuota;
+            finalStatus.isStandardQuotaReached = official >= finalQuota;
+            finalStatus.canCreateDirectly = official < finalQuota;
+          }
+
           return {
             branchId: Number(bId),
             branchName: b.name || `Chi nhánh #${bId}`,
             branchTier: tier,
-            ...(res.success ? res.data : {}),
+            ...finalStatus,
           };
         })
       );
