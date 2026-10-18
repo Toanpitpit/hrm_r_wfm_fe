@@ -338,9 +338,15 @@ export const employeeService = {
       const res = await axiosInstance.get('Users/employees', { params, ...options });
       const data = res.data?.data || res.data;
       if (Array.isArray(data)) {
+        if (!params.branchId && !params.roleCode && !params.search && data.length > 5) {
+          saveLocalEmployees(data);
+        }
         return { success: true, data };
       }
       if (data?.items && Array.isArray(data.items)) {
+        if (!params.branchId && !params.roleCode && !params.search && data.items.length > 5) {
+          saveLocalEmployees(data.items);
+        }
         return { success: true, data: data.items, total: data.total };
       }
     } catch (err) {

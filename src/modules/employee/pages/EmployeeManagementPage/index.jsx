@@ -253,7 +253,7 @@ export default function EmployeeManagementPage() {
       ];
 
       if (!isStoreManager) {
-        promises.push(headcountService.getAllBranchesHeadcountStatus(branches));
+        promises.push(headcountService.getAllBranchesHeadcountStatus(branches, employees));
       }
 
       const [quotaRes, allBranchesRes] = await Promise.all(promises);
@@ -269,7 +269,7 @@ export default function EmployeeManagementPage() {
     } finally {
       setLoadingQuota(false);
     }
-  }, [isStoreManager, currentBranchId, branchFilter, branches]);
+  }, [isStoreManager, currentBranchId, branchFilter, branches, employees]);
 
   useEffect(() => {
     fetchHeadcountData();

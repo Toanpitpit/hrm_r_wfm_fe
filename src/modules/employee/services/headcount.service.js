@@ -31,10 +31,19 @@ export const headcountService = {
    */
   async getBranchHeadcountStatus(branchId, branchTier = 2) {
     try {
-      const res = await axiosInstance.get(`v1/headcount-requests/branch/${branchId}/status`);
+      let res;
+      try {
+        res = await axiosInstance.get(`branches/${branchId}/headcount-status`);
+      } catch (err1) {
+        try {
+          res = await axiosInstance.get(`v1/branches/${branchId}/headcount-status`);
+        } catch (err2) {
+          res = await axiosInstance.get(`v1/headcount-requests/branch/${branchId}/status`);
+        }
+      }
       const raw = res.data?.data || res.data;
 
-      if (raw && (raw.currentHeadcount !== undefined || raw.CurrentHeadcount !== undefined || raw.standardQuota !== undefined)) {
+      if (raw && (raw.currentHeadcount !== undefined || raw.CurrentHeadcount !== undefined || raw.officialHeadcount !== undefined || raw.OfficialHeadcount !== undefined || raw.standardQuota !== undefined)) {
         const resolvedTier = Number(
           raw.branchTier ?? raw.BranchTier ?? raw.branchTierValue ?? raw.BranchTierValue ?? branchTier
         );
@@ -56,8 +65,8 @@ export const headcountService = {
           fallbackQuota
         );
         const effectiveQuota = standardQuota;
-        const currentHeadcount = Number(raw.currentHeadcount ?? raw.CurrentHeadcount ?? 0);
-        const officialHeadcount = Number(raw.officialHeadcount ?? raw.OfficialHeadcount ?? currentHeadcount);
+        const officialHeadcount = Number(raw.officialHeadcount ?? raw.OfficialHeadcount ?? raw.currentHeadcount ?? raw.CurrentHeadcount ?? 0);
+        const currentHeadcount = officialHeadcount;
         const dispatchedInCount = Number(raw.dispatchedInCount ?? raw.DispatchedInCount ?? 0);
         const dispatchedOutCount = Number(raw.dispatchedOutCount ?? raw.DispatchedOutCount ?? 0);
         const actualWorkingCount = Number(raw.actualWorkingCount ?? raw.ActualWorkingCount ?? (currentHeadcount + dispatchedInCount));
@@ -205,7 +214,7 @@ export const headcountService = {
   /**
    * 2. Lấy thông tin định biên cho toàn bộ danh sách chi nhánh
    */
-  async getAllBranchesHeadcountStatus(branchList = []) {
+  async getAllBranchesHeadcountStatus(branchList = [], activeEmployeesList = []) {
     let customQuotasMap = {};
     try {
       customQuotasMap = JSON.parse(localStorage.getItem('wfm_branch_custom_quotas_v1') || '{}');
@@ -218,6 +227,29 @@ export const headcountService = {
       { id: 4, storeId: 4, name: 'Siêu Thị FPT', branchTier: 2 },
     ];
 
+    // Tạo bản đồ số lượng nhân viên thực tế từ activeEmployeesList (hoặc localStorage cache)
+    const empCountByBranch = {};
+    const empSource = Array.isArray(activeEmployeesList) && activeEmployeesList.length > 0
+      ? activeEmployeesList
+      : (() => {
+          try {
+            return JSON.parse(localStorage.getItem('wfm_employees_data_v2') || '[]');
+          } catch {
+            return [];
+          }
+        })();
+
+    if (Array.isArray(empSource) && empSource.length > 0) {
+      empSource.forEach((e) => {
+        if (e.status !== 'INACTIVE') {
+          const bId = Number(e.homeBranchId || e.branchId);
+          if (bId) {
+            empCountByBranch[bId] = (empCountByBranch[bId] || 0) + 1;
+          }
+        }
+      });
+    }
+
     try {
       const results = await Promise.all(
         list.map(async (b) => {
@@ -228,12 +260,22 @@ export const headcountService = {
           const quotaFromBranch = Number(b.staffCount || b.targetStaffCount || 0);
 
           let finalStatus = res.success ? { ...res.data } : {};
+
+          // Ưu tiên số liệu backend, nếu backend không trả hoặc lỗi thì dùng danh sách nhân sự thực tế
+          let official = Number(finalStatus.officialHeadcount ?? finalStatus.currentHeadcount ?? 0);
+          if (official === 0 && empCountByBranch[bId] !== undefined) {
+            official = empCountByBranch[bId];
+          } else if (empCountByBranch[bId] !== undefined && !res.success) {
+            official = empCountByBranch[bId];
+          }
+
           const finalQuota = quotaFromMap || (quotaFromBranch > 0 ? quotaFromBranch : null) || finalStatus.effectiveQuota || finalStatus.standardQuota;
           if (finalQuota) {
-            const official = Number(finalStatus.officialHeadcount ?? finalStatus.currentHeadcount ?? 0);
             finalStatus.standardQuota = finalQuota;
             finalStatus.effectiveQuota = finalQuota;
             finalStatus.staffCount = finalQuota;
+            finalStatus.officialHeadcount = official;
+            finalStatus.currentHeadcount = official;
             finalStatus.availableQuotaSlots = Math.max(0, finalQuota - official);
             finalStatus.isQuotaReached = official >= finalQuota;
             finalStatus.isStandardQuotaReached = official >= finalQuota;
@@ -245,6 +287,8 @@ export const headcountService = {
             branchName: b.name || `Chi nhánh #${bId}`,
             branchTier: tier,
             ...finalStatus,
+            officialHeadcount: official,
+            currentHeadcount: official,
           };
         })
       );
