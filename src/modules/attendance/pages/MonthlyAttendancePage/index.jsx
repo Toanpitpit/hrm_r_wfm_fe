@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '@/config/axios.config';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
@@ -14,6 +14,7 @@ import DataTable from '@/shared/components/ui/DataTable';
 import StatCard from '@/shared/components/ui/StatCard';
 import Select from '@/shared/components/ui/Select';
 import SearchInput from '@/shared/components/ui/SearchInput';
+import ProgressBar from '@/shared/components/ui/ProgressBar';
 import { getNavItemsForRole } from '@/shared/constants/navigation.config';
 import AttendanceDetailModal from './AttendanceDetailModal';
 
@@ -48,13 +49,19 @@ export const MonthlyAttendancePage = () => {
     else if (id === 'dispatches') navigate('/store-manager/dispatches');
   };
 
-  // States
+  // States chọn tháng & năm
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
 
+  // Chế độ xem: 'EMPLOYEES' (Mặc định: Danh sách nhân viên) hoặc 'SHIFTS' (Nhật ký từng ca)
+  const [viewMode, setViewMode] = useState('EMPLOYEES');
+
+  // Bộ lọc & Tìm kiếm
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [attendanceFilter, setAttendanceFilter] = useState('ALL');
+
+  // Dữ liệu từ API
   const [records, setRecords] = useState([]);
   const [summary, setSummary] = useState(null);
   const [branchName, setBranchName] = useState('');
@@ -62,33 +69,85 @@ export const MonthlyAttendancePage = () => {
   const [exporting, setExporting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Selected Record for Detail Modal
+  // Cache dữ liệu tháng trong RAM để chuyển tháng SIÊU MƯỢT, 0ms, không giật màn hình
+  const attendanceCache = useRef({});
+  const isInitialMount = useRef(true);
+
+  // Lưu ID nhân viên được chọn thay vì object rời để đồng bộ phản ứng khi đổi tháng
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [selectedRecord, setSelectedRecord] = useState(null);
 
-  // Month options for template Select component
+  // Month options (Tháng 1 -> 12)
   const monthOptions = useMemo(
     () => Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Tháng ${i + 1}` })),
     []
   );
 
-  // Year options for template Select component
+  // Year options
   const yearOptions = useMemo(
     () => [2024, 2025, 2026, 2027].map((y) => ({ value: y, label: `Năm ${y}` })),
     []
   );
 
-  // Fetch monthly data
-  const fetchMonthlyAttendance = async () => {
-    setLoading(true);
+  // Số ngày tối đa trong tháng đang chọn
+  const totalDaysInSelectedMonth = useMemo(() => {
+    return new Date(year, month, 0).getDate();
+  }, [year, month]);
+
+  // Tải trước dữ liệu các tháng lân cận ngầm (silent prefetch)
+  const prefetchAdjacentMonths = async (currentM, currentY) => {
+    const prevM = currentM === 1 ? 12 : currentM - 1;
+    const prevY = currentM === 1 ? currentY - 1 : currentY;
+    const nextM = currentM === 12 ? 1 : currentM + 1;
+    const nextY = currentM === 12 ? currentY + 1 : currentY;
+
+    [ [prevM, prevY], [nextM, nextY] ].forEach(async ([m, y]) => {
+      const k = `${m}_${y}`;
+      if (!attendanceCache.current[k]) {
+        try {
+          const res = await axiosInstance.get(`/v1/store-manager/attendance/monthly?month=${m}&year=${y}`);
+          if (res.data?.success && res.data?.data) {
+            attendanceCache.current[k] = res.data.data;
+          }
+        } catch {
+          // prefetch ngầm, không báo lỗi
+        }
+      }
+    });
+  };
+
+  // Gọi API tải dữ liệu điểm danh tháng (Tối ưu Cache, không reload gây giật bảng)
+  const fetchMonthlyAttendance = async (targetMonth = month, targetYear = year) => {
+    const cacheKey = `${targetMonth}_${targetYear}`;
+
+    // 1. Nếu đã có trong RAM Cache: Lập tức cập nhật ngay trong 0ms, KHÔNG loading, KHÔNG giật màn hình!
+    if (attendanceCache.current[cacheKey]) {
+      const cached = attendanceCache.current[cacheKey];
+      setRecords(cached.records || []);
+      setSummary(cached.summary || null);
+      setBranchName(cached.branchName || '');
+      setLoading(false);
+      return;
+    }
+
+    // 2. Chỉ hiển thị loading skeleton khi mở trang lần đầu tiên và chưa có dữ liệu
+    if (isInitialMount.current || records.length === 0) {
+      setLoading(true);
+    }
     setErrorMsg('');
+
     try {
       const res = await axiosInstance.get(
-        `/v1/store-manager/attendance/monthly?month=${month}&year=${year}`
+        `/v1/store-manager/attendance/monthly?month=${targetMonth}&year=${targetYear}`
       );
       if (res.data?.success && res.data?.data) {
+        attendanceCache.current[cacheKey] = res.data.data;
         setRecords(res.data.data.records || []);
         setSummary(res.data.data.summary || null);
         setBranchName(res.data.data.branchName || '');
+
+        // Tự động tải trước tháng trước & tháng sau vào cache ngầm
+        prefetchAdjacentMonths(targetMonth, targetYear);
       } else {
         setErrorMsg(res.data?.message || 'Không thể tải dữ liệu điểm danh.');
       }
@@ -96,14 +155,15 @@ export const MonthlyAttendancePage = () => {
       setErrorMsg(err.response?.data?.message || 'Lỗi kết nối khi tải bảng điểm danh.');
     } finally {
       setLoading(false);
+      isInitialMount.current = false;
     }
   };
 
   useEffect(() => {
-    fetchMonthlyAttendance();
+    fetchMonthlyAttendance(month, year);
   }, [month, year]);
 
-  // Export Excel
+  // Xuất file Excel
   const handleExportExcel = async () => {
     setExporting(true);
     try {
@@ -126,39 +186,132 @@ export const MonthlyAttendancePage = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       alert('Xuất file Excel thất bại. Vui lòng thử lại sau.');
     } finally {
       setExporting(false);
     }
   };
 
-  // Filtered records
-  const filteredRecords = useMemo(() => {
-    return records.filter((r) => {
-      // Keyword search
+  // ==================== TỔNG HỢP DANH SÁCH NHÂN VIÊN ====================
+  const employeesData = useMemo(() => {
+    const map = new Map();
+
+    records.forEach((r) => {
+      const empId = r.employeeId;
+      if (!map.has(empId)) {
+        map.set(empId, {
+          employeeId: empId,
+          employeeCode: r.employeeCode,
+          fullName: r.fullName,
+          roleName: r.shiftName ? `${r.shiftName} (Gán ca)` : 'Nhân sự',
+          records: [],
+          recordsByDate: {},
+        });
+      }
+
+      const emp = map.get(empId);
+      emp.records.push(r);
+
+      if (!emp.recordsByDate[r.shiftDate]) {
+        emp.recordsByDate[r.shiftDate] = [];
+      }
+      emp.recordsByDate[r.shiftDate].push(r);
+    });
+
+    return Array.from(map.values()).map((emp) => {
+      const workedDaysSet = new Set();
+      const absentDaysSet = new Set();
+      let totalHours = 0;
+      let onTimeShifts = 0;
+      let lateShifts = 0;
+      let earlyLeaveShifts = 0;
+      let absentShifts = 0;
+
+      emp.records.forEach((r) => {
+        totalHours += r.actualWorkHours || 0;
+        if (r.checkInStatus === 'ON_TIME') onTimeShifts++;
+        if (r.checkInStatus === 'LATE') lateShifts++;
+        if (r.checkOutStatus === 'EARLY_LEAVE') earlyLeaveShifts++;
+        if (r.overallStatus === 'ABSENT') absentShifts++;
+
+        const isAttended =
+          !!r.checkInTime ||
+          ['ON_TIME', 'LATE', 'EARLY', 'VIOLATION', 'PRESENT', 'IN_PROGRESS', 'COMPLETED'].includes(
+            r.overallStatus
+          );
+
+        if (isAttended) {
+          workedDaysSet.add(r.shiftDate);
+        } else if (r.overallStatus === 'ABSENT') {
+          absentDaysSet.add(r.shiftDate);
+        }
+      });
+
+      const workingDays = workedDaysSet.size;
+      const offDays = Math.max(0, totalDaysInSelectedMonth - workingDays);
+      const workPercentage = ((workingDays / totalDaysInSelectedMonth) * 100).toFixed(1);
+      const offPercentage = ((offDays / totalDaysInSelectedMonth) * 100).toFixed(1);
+
+      return {
+        ...emp,
+        workingDays,
+        offDays,
+        totalDaysInMonth: totalDaysInSelectedMonth,
+        workPercentage: Number(workPercentage),
+        offPercentage: Number(offPercentage),
+        totalWorkHours: Math.round(totalHours * 10) / 10,
+        onTimeShifts,
+        lateShifts,
+        earlyLeaveShifts,
+        absentShifts,
+        totalShifts: emp.records.length,
+      };
+    });
+  }, [records, totalDaysInSelectedMonth]);
+
+  // Nhân viên đang chọn mở modal (Tự động cập nhật số liệu khi tháng thay đổi)
+  const selectedEmployee = useMemo(() => {
+    if (!selectedEmployeeId) return null;
+    return employeesData.find((e) => e.employeeId === selectedEmployeeId) || null;
+  }, [employeesData, selectedEmployeeId]);
+
+  // Bộ lọc nhân viên theo thanh tìm kiếm và tỷ lệ đi làm
+  const filteredEmployees = useMemo(() => {
+    return employeesData.filter((emp) => {
       const matchKeyword =
+        !searchKeyword ||
+        emp.fullName?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        emp.employeeCode?.toLowerCase().includes(searchKeyword.toLowerCase());
+
+      let matchRate = true;
+      if (attendanceFilter === 'HIGH') {
+        matchRate = emp.workPercentage >= 90;
+      } else if (attendanceFilter === 'MEDIUM') {
+        matchRate = emp.workPercentage >= 70 && emp.workPercentage < 90;
+      } else if (attendanceFilter === 'LOW') {
+        matchRate = emp.workPercentage < 70;
+      } else if (attendanceFilter === 'HAS_ABSENT') {
+        matchRate = emp.absentShifts > 0;
+      }
+
+      return matchKeyword && matchRate;
+    });
+  }, [employeesData, searchKeyword, attendanceFilter]);
+
+  // Danh sách ca lọc theo từ khóa (cho chế độ xem từng ca)
+  const filteredShiftRecords = useMemo(() => {
+    return records.filter((r) => {
+      return (
         !searchKeyword ||
         r.fullName?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
         r.employeeCode?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-        r.shiftName?.toLowerCase().includes(searchKeyword.toLowerCase());
-
-      // Status filter
-      let matchStatus = true;
-      if (statusFilter === 'ON_TIME') {
-        matchStatus = r.checkInStatus === 'ON_TIME';
-      } else if (statusFilter === 'LATE') {
-        matchStatus = r.checkInStatus === 'LATE';
-      } else if (statusFilter === 'EARLY_LEAVE') {
-        matchStatus = r.checkOutStatus === 'EARLY_LEAVE';
-      } else if (statusFilter === 'ABSENT') {
-        matchStatus = r.overallStatus === 'ABSENT';
-      }
-
-      return matchKeyword && matchStatus;
+        r.shiftName?.toLowerCase().includes(searchKeyword.toLowerCase())
+      );
     });
-  }, [records, searchKeyword, statusFilter]);
+  }, [records, searchKeyword]);
 
+  // Badge trạng thái cho từng ca
   const renderStatusBadge = (status) => {
     switch (status) {
       case 'ON_TIME':
@@ -181,7 +334,8 @@ export const MonthlyAttendancePage = () => {
     }
   };
 
-  const columns = [
+  // ==================== CỘT BẢNG NHÂN VIÊN ====================
+  const employeeColumns = [
     {
       title: 'Nhân Viên',
       key: 'fullName',
@@ -191,8 +345,8 @@ export const MonthlyAttendancePage = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div
               style={{
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 borderRadius: '50%',
                 background: 'linear-gradient(135deg, #0D9488 0%, #14B8A6 100%)',
                 color: '#FFF',
@@ -200,8 +354,9 @@ export const MonthlyAttendancePage = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 700,
-                fontSize: 14,
+                fontSize: 14.5,
                 flexShrink: 0,
+                boxShadow: '0 2px 8px rgba(13, 148, 136, 0.25)',
               }}
             >
               {avatarLetter}
@@ -215,6 +370,92 @@ export const MonthlyAttendancePage = () => {
           </div>
         );
       },
+    },
+    {
+      title: 'Đi Làm Trong Tháng',
+      key: 'workingRatio',
+      render: (item) => (
+        <div style={{ minWidth: 170 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontWeight: 700, fontSize: 13.5, color: '#10B981', fontFamily: fonts?.mono || 'monospace' }}>
+              {item.workPercentage}%
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: c.fg, fontFamily: fonts?.mono || 'monospace' }}>
+              ({item.workingDays}/{item.totalDaysInMonth} ngày)
+            </span>
+          </div>
+          <ProgressBar value={item.workPercentage} color="#10B981" h={6} />
+          <div style={{ fontSize: 11, color: c.fgSubtle, marginTop: 4 }}>
+            {item.totalWorkHours}h làm việc thực tế
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Nghỉ Làm Trong Tháng',
+      key: 'offRatio',
+      render: (item) => (
+        <div style={{ minWidth: 170 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontWeight: 700, fontSize: 13.5, color: '#EF4444', fontFamily: fonts?.mono || 'monospace' }}>
+              {item.offPercentage}%
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: c.fg, fontFamily: fonts?.mono || 'monospace' }}>
+              ({item.offDays}/{item.totalDaysInMonth} ngày)
+            </span>
+          </div>
+          <ProgressBar value={item.offPercentage} color="#EF4444" h={6} />
+          <div style={{ fontSize: 11, color: c.fgSubtle, marginTop: 4 }}>
+            {item.offDays} ngày nghỉ{item.absentShifts > 0 ? ` • ${item.absentShifts} ca vắng` : ''}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Tổng Hợp Ca Làm',
+      key: 'shiftStats',
+      render: (item) => (
+        <div>
+          <div style={{ fontWeight: 600, color: c.fg, fontSize: 13 }}>
+            {item.totalShifts} ca được xếp
+          </div>
+          <div style={{ fontSize: 11.5, color: c.fgSubtle, marginTop: 2 }}>
+            <span style={{ color: '#10B981', fontWeight: 600 }}>{item.onTimeShifts} đúng giờ</span>
+            {item.lateShifts > 0 && <span style={{ color: '#EF4444', marginLeft: 6 }}>• {item.lateShifts} muộn</span>}
+            {item.earlyLeaveShifts > 0 && <span style={{ color: '#F59E0B', marginLeft: 6 }}>• {item.earlyLeaveShifts} sớm</span>}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Thao Tác',
+      key: 'actions',
+      render: (item) => (
+        <Button
+          kind="primary"
+          size="sm"
+          onClick={() => setSelectedEmployeeId(item.employeeId)}
+          icon="calendar"
+        >
+          Chi Tiết
+        </Button>
+      ),
+    },
+  ];
+
+  // Cột bảng nhật ký từng ca
+  const shiftColumns = [
+    {
+      title: 'Nhân Viên',
+      key: 'fullName',
+      render: (item) => (
+        <div>
+          <div style={{ fontWeight: 600, color: c.fg }}>{item.fullName}</div>
+          <div style={{ fontSize: 11.5, color: c.fgSubtle, fontFamily: fonts?.mono || 'monospace' }}>
+            {item.employeeCode}
+          </div>
+        </div>
+      ),
     },
     {
       title: 'Ngày & Ca Làm',
@@ -231,52 +472,34 @@ export const MonthlyAttendancePage = () => {
     {
       title: 'Giờ Check-in',
       key: 'checkInTime',
-      render: (item) => {
-        if (!item.checkInTime) {
-          return (
-            <span style={{ fontFamily: fonts?.mono || 'monospace', color: c.fgFaint, fontSize: 13 }}>
-              --:--
-            </span>
-          );
-        }
-        return (
-          <div>
-            <div style={{ fontFamily: fonts?.mono || 'monospace', fontWeight: 600, color: c.fg, fontSize: 13 }}>
-              {new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </div>
-            {item.lateMinutes > 0 && (
-              <span style={{ fontSize: 11, color: '#EF4444', fontWeight: 500 }}>
-                Muộn {item.lateMinutes}p
-              </span>
-            )}
+      render: (item) => (
+        <div>
+          <div style={{ fontFamily: fonts?.mono || 'monospace', fontWeight: 600, color: c.fg }}>
+            {item.checkInTime ? new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
           </div>
-        );
-      },
+          {item.lateMinutes > 0 && (
+            <span style={{ fontSize: 11, color: '#EF4444', fontWeight: 500 }}>
+              Muộn {item.lateMinutes}p
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       title: 'Giờ Check-out',
       key: 'checkOutTime',
-      render: (item) => {
-        if (!item.checkOutTime) {
-          return (
-            <span style={{ fontFamily: fonts?.mono || 'monospace', color: c.fgFaint, fontSize: 13 }}>
-              --:--
-            </span>
-          );
-        }
-        return (
-          <div>
-            <div style={{ fontFamily: fonts?.mono || 'monospace', fontWeight: 600, color: c.fg, fontSize: 13 }}>
-              {new Date(item.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </div>
-            {item.earlyLeaveMinutes > 0 && (
-              <span style={{ fontSize: 11, color: '#F59E0B', fontWeight: 500 }}>
-                Về sớm {item.earlyLeaveMinutes}p
-              </span>
-            )}
+      render: (item) => (
+        <div>
+          <div style={{ fontFamily: fonts?.mono || 'monospace', fontWeight: 600, color: c.fg }}>
+            {item.checkOutTime ? new Date(item.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
           </div>
-        );
-      },
+          {item.earlyLeaveMinutes > 0 && (
+            <span style={{ fontSize: 11, color: '#F59E0B', fontWeight: 500 }}>
+              Về sớm {item.earlyLeaveMinutes}p
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       title: 'Tổng Giờ',
@@ -299,10 +522,13 @@ export const MonthlyAttendancePage = () => {
         <Button
           kind="soft"
           size="sm"
-          onClick={() => setSelectedRecord(item)}
+          onClick={() => {
+            setSelectedEmployeeId(item.employeeId);
+            setSelectedRecord(item);
+          }}
           icon="eye"
         >
-          Chi tiết
+          Chi Tiết
         </Button>
       ),
     },
@@ -331,11 +557,11 @@ export const MonthlyAttendancePage = () => {
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {/* Header trang chuẩn template Apex / RWFM */}
+        {/* Header trang chuẩn hệ thống */}
         <PageHeader
-          index="Store Manager · Quản Lý Chấm Công"
-          title="Bảng Chấm Công & Điểm Danh Tháng"
-          desc={`Theo dõi, đối soát dữ liệu điểm danh và xuất báo cáo công tại ${branchName || 'Chi nhánh'}`}
+          index="Store Manager · Bảng Chấm Công & Điểm Danh"
+          title="Bảng Chấm Công Tháng Của Quản Lý"
+          desc={`Theo dõi tỷ lệ chuyên cần, ngày đi làm, ngày nghỉ và hình ảnh đối soát tại ${branchName || 'Chi nhánh'}`}
           actions={
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Select
@@ -363,47 +589,56 @@ export const MonthlyAttendancePage = () => {
           }
         />
 
-        {/* 4 Thẻ StatCard chuẩn Apex Dashboard */}
-        {summary && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-              gap: 16,
-            }}
-          >
-            <StatCard
-              label="TỔNG SỐ CA"
-              value={summary.totalShifts}
-              subtitle={`Tổng giờ làm: ${summary.totalWorkHours}h`}
-              icon="clock"
-              tone="neutral"
-            />
-            <StatCard
-              label="ĐÚNG GIỜ"
-              value={summary.onTimeCount}
-              subtitle={`Tỷ lệ: ${summary.totalShifts > 0 ? Math.round((summary.onTimeCount / summary.totalShifts) * 100) : 0}%`}
-              icon="checkCircle"
-              tone="good"
-            />
-            <StatCard
-              label="ĐI MUỘN / VỀ SỚM"
-              value={summary.lateCount + summary.earlyLeaveCount}
-              subtitle={`Muộn: ${summary.lateCount} | Về sớm: ${summary.earlyLeaveCount}`}
-              icon="alertTriangle"
-              tone="warn"
-            />
-            <StatCard
-              label="VẮNG MẶT (NGHỈ)"
-              value={summary.absentCount}
-              subtitle="Ca không điểm danh"
-              icon="x"
-              tone="bad"
-            />
-          </div>
-        )}
+        {/* 4 Thẻ StatCard Thống Kê Tổng Quan */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+            gap: 16,
+          }}
+        >
+          <StatCard
+            label="TỔNG SỐ NHÂN VIÊN"
+            value={employeesData.length}
+            subtitle={`Tổng số ca trong tháng: ${records.length}`}
+            icon="users"
+            tone="neutral"
+          />
+          <StatCard
+            label="ĐI LÀM TRUNG BÌNH"
+            value={
+              employeesData.length > 0
+                ? `${Math.round(
+                    employeesData.reduce((acc, curr) => acc + curr.workPercentage, 0) /
+                      employeesData.length
+                  )}%`
+                : '0%'
+            }
+            subtitle={`Chu kỳ: Tháng ${month}/${year}`}
+            icon="checkCircle"
+            tone="good"
+          />
+          <StatCard
+            label="ĐÚNG GIỜ"
+            value={summary ? summary.onTimeCount : 0}
+            subtitle={`Tỷ lệ: ${
+              summary && summary.totalShifts > 0
+                ? Math.round((summary.onTimeCount / summary.totalShifts) * 100)
+                : 0
+            }%`}
+            icon="clock"
+            tone="good"
+          />
+          <StatCard
+            label="ĐI MUỘN / VỀ SỚM"
+            value={summary ? summary.lateCount + summary.earlyLeaveCount : 0}
+            subtitle={`Muộn: ${summary ? summary.lateCount : 0} | Sớm: ${summary ? summary.earlyLeaveCount : 0}`}
+            icon="alertTriangle"
+            tone="warn"
+          />
+        </div>
 
-        {/* Thanh công cụ tìm kiếm và lọc trạng thái dùng component template */}
+        {/* Thanh công cụ tìm kiếm, lọc và chuyển đổi tab xem */}
         <Panel style={{ padding: '14px 20px' }}>
           <div
             style={{
@@ -411,40 +646,69 @@ export const MonthlyAttendancePage = () => {
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
-              gap: 12,
+              gap: 14,
             }}
           >
-            <SearchInput
-              placeholder="Tìm theo tên nhân viên, mã NV hoặc ca..."
-              value={searchKeyword}
-              onChange={setSearchKeyword}
-              width={320}
-            />
+            {/* Tabs chuyển đổi chế độ xem */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: c.bgElev, padding: 4, borderRadius: 10, border: `1px solid ${c.border}` }}>
+              <Button
+                kind={viewMode === 'EMPLOYEES' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('EMPLOYEES')}
+                icon="users"
+              >
+                Tổng Hợp Theo Nhân Viên ({employeesData.length})
+              </Button>
+              <Button
+                kind={viewMode === 'SHIFTS' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('SHIFTS')}
+                icon="table"
+              >
+                Nhật Ký Từng Ca ({records.length})
+              </Button>
+            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12.5, color: c.fgSubtle, fontWeight: 500 }}>Lọc trạng thái:</span>
-              {[
-                { id: 'ALL', label: 'Tất cả' },
-                { id: 'ON_TIME', label: 'Đúng giờ' },
-                { id: 'LATE', label: 'Đi muộn' },
-                { id: 'EARLY_LEAVE', label: 'Về sớm' },
-                { id: 'ABSENT', label: 'Vắng mặt' },
-              ].map((tab) => (
-                <Button
-                  key={tab.id}
-                  kind={statusFilter === tab.id ? 'primary' : 'soft'}
-                  size="sm"
-                  onClick={() => setStatusFilter(tab.id)}
-                >
-                  {tab.label}
-                </Button>
-              ))}
+            {/* Tìm kiếm & Lọc */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <SearchInput
+                placeholder="Tìm nhân viên theo tên hoặc mã NV..."
+                value={searchKeyword}
+                onChange={setSearchKeyword}
+                width={280}
+              />
+
+              {viewMode === 'EMPLOYEES' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {[
+                    { id: 'ALL', label: 'Tất cả' },
+                    { id: 'HIGH', label: '≥ 90% Đi làm' },
+                    { id: 'MEDIUM', label: '70% - 89%' },
+                    { id: 'LOW', label: '< 70%' },
+                  ].map((tab) => (
+                    <Button
+                      key={tab.id}
+                      kind={attendanceFilter === tab.id ? 'primary' : 'soft'}
+                      size="sm"
+                      onClick={() => setAttendanceFilter(tab.id)}
+                    >
+                      {tab.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </Panel>
 
-        {/* Bảng dữ liệu điểm danh */}
-        <Panel title="Danh Sách Nhật Ký Điểm Danh Tháng">
+        {/* Bảng Dữ Liệu Chấm Công Tháng */}
+        <Panel
+          title={
+            viewMode === 'EMPLOYEES'
+              ? `Danh Sách Chuyên Cần Nhân Viên Trong Tháng ${month}/${year}`
+              : `Nhật Ký Điểm Danh Chi Tiết Từng Ca Trong Tháng ${month}/${year}`
+          }
+        >
           {errorMsg ? (
             <div
               style={{
@@ -462,21 +726,39 @@ export const MonthlyAttendancePage = () => {
               <Icon name="alert-triangle" size={18} />
               <span>{errorMsg}</span>
             </div>
+          ) : viewMode === 'EMPLOYEES' ? (
+            <DataTable
+              columns={employeeColumns}
+              data={filteredEmployees}
+              loading={loading}
+              emptyMessage="Không có nhân viên nào trong danh sách chấm công tháng này."
+            />
           ) : (
             <DataTable
-              columns={columns}
-              data={filteredRecords}
+              columns={shiftColumns}
+              data={filteredShiftRecords}
               loading={loading}
               emptyMessage="Không có dữ liệu điểm danh nào trong tháng này."
             />
           )}
         </Panel>
 
-        {/* Modal Chi tiết điểm danh & Xem ảnh */}
-        {selectedRecord && (
+        {/* Modal Bảng Tháng (Tích Xanh / Tích Đỏ) & Chi Tiết Check-in / Check-out + Ảnh */}
+        {(selectedEmployee || selectedRecord) && (
           <AttendanceDetailModal
+            employee={selectedEmployee}
             record={selectedRecord}
-            onClose={() => setSelectedRecord(null)}
+            month={month}
+            year={year}
+            branchName={branchName}
+            onClose={() => {
+              setSelectedEmployeeId(null);
+              setSelectedRecord(null);
+            }}
+            onMonthChange={(newM, newY) => {
+              setMonth(newM);
+              setYear(newY);
+            }}
           />
         )}
       </div>

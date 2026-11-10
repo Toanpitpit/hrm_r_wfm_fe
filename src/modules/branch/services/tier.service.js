@@ -1,5 +1,5 @@
-import axiosInstance, { getAccessToken } from '@/config/axios.config';
-import { getAllBranches, updateBranch, ensureAdminToken } from './branch.service';
+import axiosInstance from '@/config/axios.config';
+import { getAllBranches, updateBranch } from './branch.service';
 
 const apiClient = axiosInstance;
 

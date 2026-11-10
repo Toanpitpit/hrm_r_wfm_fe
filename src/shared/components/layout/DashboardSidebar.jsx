@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../ui/Icon';
 import { useAdminTheme } from '../../context/ThemeContext';
 import { getNavItemsForRole } from '../../constants/navigation.config';
+import { useToast } from '@/components/ui/toast/ToastProvider';
 import { useAuthContext } from '@/modules/auth/context/AuthContext';
 
 export default function DashboardSidebar({
@@ -20,6 +21,7 @@ export default function DashboardSidebar({
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuthContext();
+  const toast = useToast();
   const { c, fonts, sidebarCollapsed: collapsed, setSidebarCollapsed, isMobile, mobileSidebarOpen, setMobileSidebarOpen } = useAdminTheme();
   const sb = c.sidebar;
   const width = isMobile ? 280 : (collapsed ? 72 : 252);
@@ -51,7 +53,7 @@ export default function DashboardSidebar({
         await logout();
       } catch (err) {
         console.error('Sidebar logout error:', err);
-        window.location.href = '/login';
+        toast.error('Chưa đăng xuất được. Vui lòng thử lại.');
       }
     }
   };
