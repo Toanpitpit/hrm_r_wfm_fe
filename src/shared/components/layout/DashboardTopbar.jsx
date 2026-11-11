@@ -112,11 +112,10 @@ export default function DashboardTopbar({
   // Handle Logout
   const handleLogout = async () => {
     try {
-      toast.success('Đang đăng xuất khỏi hệ thống...');
       await logout();
     } catch (err) {
       console.error('Logout error:', err);
-      window.location.href = '/login';
+      toast.error('Chưa đăng xuất được. Vui lòng thử lại.');
     }
   };
 
