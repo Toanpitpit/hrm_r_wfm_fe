@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 import DashboardShell from '@/shared/components/layout/DashboardShell';
 import DashboardSidebar from '@/shared/components/layout/DashboardSidebar';
 import DashboardTopbar from '@/shared/components/layout/DashboardTopbar';

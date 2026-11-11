@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import useAuth from '../../hooks/useAuth';
 import { useAuthContext } from '../../context/AuthContext';
-import { useToast } from '../../../../components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 import styles from './LoginPage.module.css';
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../ui/Icon';
 import Badge from '../ui/Badge';
 import { useAdminTheme } from '../../context/ThemeContext';
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 import { useAuthContext } from '@/modules/auth/context/AuthContext';
 import ProfileModal from './ProfileModal';
 import ChangePasswordModal from './ChangePasswordModal';

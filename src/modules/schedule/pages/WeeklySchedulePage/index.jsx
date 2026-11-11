@@ -25,7 +25,7 @@ import PublishScheduleModal from '../../components/PublishScheduleModal';
 import AutoScheduleModal from '../../components/AutoScheduleModal';
 import ShiftSwapReviewModal from '../../components/ShiftSwapReviewModal';
 
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 
 import styles from './WeeklySchedulePage.module.css';
 

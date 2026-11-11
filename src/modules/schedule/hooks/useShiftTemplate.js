@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import shiftTemplateService from '../services/shiftTemplate.service';
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 import { SHIFT_ERROR_MESSAGES } from '../constants/shift.constants';
 
 /**

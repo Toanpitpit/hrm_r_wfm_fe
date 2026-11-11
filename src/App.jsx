@@ -7,7 +7,7 @@
  */
 
 import AppRouter from './routers/AppRouter';
-import { ToastProvider } from './components/ui/toast/ToastProvider';
+import { ToastProvider } from '@/shared/components/ui/ToastProvider';
 import { AdminThemeProvider } from './shared/context/ThemeContext';
 import { AuthProvider } from './modules/auth/context/AuthContext';
 import ErrorBoundary from './shared/components/ErrorBoundary';
