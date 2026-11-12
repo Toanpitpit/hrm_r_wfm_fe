@@ -787,7 +787,12 @@ export const employeeService = {
         message = `Import thất bại: Tất cả ${failureCount} dòng đều có lỗi. Vui lòng kiểm tra và thử lại.`;
       }
 
-      return { success: successCount > 0, data: result, message, isPartialSuccess: successCount > 0 && failureCount > 0 };
+      return {
+        success: successCount > 0,
+        data: result,
+        message: res.data?.message || message,
+        isPartialSuccess: successCount > 0 && failureCount > 0,
+      };
     } catch (err) {
       const status = err.response?.status;
       const errData = err.response?.data;
