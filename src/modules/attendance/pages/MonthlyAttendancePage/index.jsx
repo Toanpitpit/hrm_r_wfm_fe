@@ -540,7 +540,6 @@ export const MonthlyAttendancePage = () => {
         <DashboardSidebar
           activeId="monthly-attendance"
           onNavigate={handleSidebarNavigate}
-          brandName="RWFM Console"
           tagline="Quản Trị Nhân Sự"
           roleSubtitle={roleName}
           navGroups={navItems}

@@ -226,9 +226,9 @@ export default function LoginPage() {
       <div className={styles.heroPanel}>
         <div className={styles.heroCenteredBrand}>
           <div className={styles.heroLogoBadge}>
-            <img src="/logo.png" alt="RWFM Logo" />
+            <img src="/logo.png" alt="Logo RWFM Enterprise" />
           </div>
-          <div className={styles.heroBrandName}>WorkPilot System</div>
+          <div className={styles.heroBrandName}>RWFM Enterprise</div>
         </div>
       </div>
 
@@ -238,7 +238,7 @@ export default function LoginPage() {
           {/* Mobile logo & Title */}
           <div className={styles.mobileBrand}>
             <div className={styles.mobileLogoBadge}>
-              <img src="/logo.png" alt="RWFM Logo" />
+              <img src="/logo.png" alt="Logo RWFM Enterprise" />
             </div>
             <h2 className={styles.formTitle}>Đăng nhập hệ thống</h2>
           </div>

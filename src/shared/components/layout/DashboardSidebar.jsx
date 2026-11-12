@@ -193,7 +193,7 @@ export default function DashboardSidebar({
         >
           <img
             src="/logo.png"
-            alt="RWFM Logo"
+            alt="Logo RWFM Enterprise"
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
         </div>

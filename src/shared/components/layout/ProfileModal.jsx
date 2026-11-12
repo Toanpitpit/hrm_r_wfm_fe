@@ -101,7 +101,7 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdated }) {
       isOpen={isOpen}
       onClose={onClose}
       title="Thông Tin Hồ Sơ Cá Nhân"
-      sub="Xem và quản lý thông tin tài khoản nhân sự trong hệ thống RWFM"
+      sub="Xem và quản lý thông tin tài khoản nhân sự trong hệ thống RWFM Enterprise"
       width={520}
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, width: '100%' }}>
