@@ -22,7 +22,6 @@ import BranchMapView from '../../components/BranchMapView';
 import BranchFormModal from '../../components/BranchFormModal';
 import BranchLockModal from '../../components/BranchLockModal';
 import UnlockModal from '../../components/UnlockModal';
-import BranchDeleteModal from '../../components/BranchDeleteModal';
 
 /**
  * ==============================================================================
@@ -31,7 +30,7 @@ import BranchDeleteModal from '../../components/BranchDeleteModal';
  * PAGE: BranchManagementPage (index.jsx)
  * ==============================================================================
  * Tính năng chính:
- * 1. Thêm / sửa / khóa / mở khóa / xóa chi nhánh toàn hệ thống kèm lý do lưu vết kiểm toán (Audit Log)
+ * 1. Thêm / sửa / khóa / mở khóa chi nhánh toàn hệ thống kèm lý do lưu vết kiểm toán (Audit Log)
  * 2. Thiết lập tọa độ Point (Latitude / Longitude) & Bán kính Geofence chấm công GPS
  * 3. Tích hợp Bản đồ Leaflet tương tác trực quan hiển thị vị trí toàn chuỗi cơ sở
  */
@@ -67,17 +66,12 @@ export default function BranchManagementPage() {
     setUnlockModalOpen,
     unlockingBranch,
     setUnlockingBranch,
-    deleteModalOpen,
-    setDeleteModalOpen,
-    deletingBranch,
-    setDeletingBranch,
     isActionInProgress,
     // Handlers
     handleCreateBranch,
     handleUpdateBranch,
     handleLockSuccess,
     handleUnlockSuccess,
-    handleDeleteBranch,
   } = useBranch();
 
   // Navigation menu
@@ -120,7 +114,6 @@ export default function BranchManagementPage() {
       <PageHeader
         index="Operations Admin · Quản Trị Chi Nhánh"
         title="Quản Lý Danh Mục Chi Nhánh & Cấu Hình Kiosk"
-        subtitle="Quản trị danh mục chi nhánh, định vị tọa độ Point (GPS / Geofence), cấu hình an ninh mạng và cấp phát máy trạm Kiosk."
         actions={
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             {/* View Mode Toggle (Table / Map) */}
@@ -248,7 +241,6 @@ export default function BranchManagementPage() {
           }
           tone="neutral"
           icon="building"
-          subtext="Phân bố theo phân cấp Tier thực tế từ Database"
         />
       </div>
 
@@ -294,7 +286,7 @@ export default function BranchManagementPage() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '13px', color: c.fgSubtle }}>Cấp CN:</span>
+                <span style={{ fontSize: '13px', color: c.fgSubtle }}>Cấp chi nhánh:</span>
                 <Select
                   value={tierFilter}
                   onChange={setTierFilter}
@@ -302,14 +294,14 @@ export default function BranchManagementPage() {
                     { value: 'ALL', label: 'Tất cả cấp' },
                     ...(tiers && tiers.length > 0
                       ? tiers.map((t) => ({
-                          value: String(t.id || t.tier_id),
-                          label: t.tierName || t.tier_name || `Tier ${t.id}`,
-                        }))
+                        value: String(t.id || t.tier_id),
+                        label: t.tierName || t.tier_name || `Tier ${t.id}`,
+                      }))
                       : [
-                          { value: '1', label: 'Cấp 1' },
-                          { value: '2', label: 'Cấp 2' },
-                          { value: '3', label: 'Cấp 3' },
-                        ]),
+                        { value: '1', label: 'Cấp 1' },
+                        { value: '2', label: 'Cấp 2' },
+                        { value: '3', label: 'Cấp 3' },
+                      ]),
                   ]}
                 />
               </div>
@@ -356,10 +348,6 @@ export default function BranchManagementPage() {
                 setUnlockingBranch(branch);
                 setUnlockModalOpen(true);
               }
-            }}
-            onDelete={(branch) => {
-              setDeletingBranch(branch);
-              setDeleteModalOpen(true);
             }}
           />
         </Panel>
@@ -422,25 +410,6 @@ export default function BranchManagementPage() {
         onSuccess={(unlockedBranch) => {
           toast.success(`Đã mở khóa chi nhánh "${unlockedBranch.name}" hoạt động trở lại!`);
           handleUnlockSuccess();
-        }}
-      />
-
-      {/* Modal Xác nhận Xóa chi nhánh */}
-      <BranchDeleteModal
-        open={deleteModalOpen}
-        branch={deletingBranch}
-        onClose={() => {
-          setDeleteModalOpen(false);
-          setDeletingBranch(null);
-        }}
-        onConfirm={async (storeId) => {
-          const res = await handleDeleteBranch(storeId);
-          if (res?.success) {
-            toast.success('Đã xóa chi nhánh thành công!');
-          } else {
-            toast.error(res?.error || 'Không thể xóa chi nhánh');
-          }
-          return res;
         }}
       />
 

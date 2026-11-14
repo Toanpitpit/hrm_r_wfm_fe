@@ -1,83 +1,50 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/auth.service';
-import { setAccessToken, clearAccessToken } from '@/config/axios.config';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => authService.getUser());
-  const [isAuthenticated, setIsAuthenticated] = useState(() => !!authService.getUser());
-  // Chỉ bật loading nếu trước đó đã có session cần phục hồi
-  const [isInitializing, setIsInitializing] = useState(() => !!authService.getUser());
+  const [user, setUser] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  // Silent refresh khi ứng dụng khởi chạy lần đầu hoặc khi người dùng F5 / mở lại trình duyệt
+  const loginSuccess = useCallback((userData) => {
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+  }, []);
+
   useEffect(() => {
-    if (!authService.getUser()) {
-      setIsInitializing(false);
-      return;
-    }
+    const request = new AbortController();
 
-    let isMounted = true;
+    // Remove credentials left by previous frontend versions.
+    ['accessToken', 'refreshToken', 'token'].forEach(key => localStorage.removeItem(key));
 
-    const initAuth = async () => {
+    const restoreSession = async () => {
       try {
-        const res = await authService.refreshToken();
-        if (res?.success && res?.data?.token) {
-          setAccessToken(res.data.token);
-          if (res.data.user) {
-            setUser(res.data.user);
-            localStorage.setItem('user', JSON.stringify(res.data.user));
-          }
-          setIsAuthenticated(true);
-        } else {
-          clearAccessToken();
-          setUser(null);
-          localStorage.removeItem('user');
-          setIsAuthenticated(false);
+        const result = await authService.getSession(request.signal);
+        if (!request.signal.aborted && result.success && result.data) {
+          loginSuccess(result.data);
         }
       } catch {
-        clearAccessToken();
-        setUser(null);
-        localStorage.removeItem('user');
-        setIsAuthenticated(false);
+        if (!request.signal.aborted) {
+          localStorage.removeItem('user');
+        }
       } finally {
-        if (isMounted) {
+        if (!request.signal.aborted) {
           setIsInitializing(false);
         }
       }
     };
 
-    initAuth();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const loginSuccess = useCallback((token, userData) => {
-    setAccessToken(token);
-    setUser(userData);
-    setIsAuthenticated(true);
-    if (userData) {
-      localStorage.setItem('user', JSON.stringify(userData));
-    }
-  }, []);
+    restoreSession();
+    return () => request.abort();
+  }, [loginSuccess]);
 
   const logout = useCallback(async () => {
-    try {
-      await authService.logout();
-    } catch (err) {
-      console.warn('Backend logout warning:', err);
-    } finally {
-      clearAccessToken();
-      setUser(null);
-      setIsAuthenticated(false);
-      localStorage.removeItem('user');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('token');
-      sessionStorage.clear();
-      window.location.href = '/login';
-    }
+    await authService.logout();
+    localStorage.removeItem('user');
+    setUser(null);
+    sessionStorage.clear();
+    window.location.href = '/login';
   }, []);
 
   return (
@@ -85,7 +52,7 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         setUser,
-        isAuthenticated,
+        isAuthenticated: !!user,
         isInitializing,
         loginSuccess,
         logout,

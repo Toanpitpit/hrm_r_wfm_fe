@@ -118,7 +118,7 @@ export default function ShiftMasterPage() {
       <PageHeader
         index="Operations Admin · Khung Ca Chuẩn"
         title="Bộ Khung Ca Mẫu Toàn Hệ Thống"
-        subtitle="Mỗi chi nhánh áp dụng bộ ca chung của chuỗi hoặc bộ ca riêng độc lập để phục vụ xếp lịch chính xác."
+
         actions={
           isOperationsAdmin ? (
             <Button variant="primary" onClick={handleOpenCreateModal}>
@@ -349,8 +349,8 @@ export default function ShiftMasterPage() {
             </div>
 
             {/* Bảng danh sách ca chung */}
-            <ShiftTemplateTable
-              shifts={globalShifts}
+            <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <ShiftTemplateTable shifts={globalShifts}
               loading={globalLoading}
               isOperationsAdmin={isOperationsAdmin}
               onEdit={handleOpenEditModal}
@@ -358,6 +358,7 @@ export default function ShiftMasterPage() {
               onDelete={handleOpenDeleteModal}
               emptyMessage="Chưa có khung ca chung nào phù hợp với bộ lọc."
             />
+          </div>
           </Panel>
         </div>
       )}

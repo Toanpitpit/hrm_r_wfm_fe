@@ -21,7 +21,7 @@ export default function DashboardTopbar({
   const navigate = useNavigate();
   const toast = useToast();
   const { logout } = useAuthContext();
-  const { c, fonts, theme, setTheme } = useAdminTheme();
+  const { c, fonts, theme, setTheme, isMobile, setMobileSidebarOpen, sidebarCollapsed, setSidebarCollapsed } = useAdminTheme();
 
   // Dropdown & Modal States
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -92,7 +92,7 @@ export default function DashboardTopbar({
       setNotifications([
         {
           id: 'sys-welcome',
-          title: 'Chào mừng đến hệ thống RWFM',
+          title: 'Chào mừng đến hệ thống RWFM Enterprise',
           message: 'Tất cả thông báo thay đổi lịch phân ca, đổi ca và điều động sẽ hiển thị tại đây.',
           type: 'INFO',
           createdAt: new Date().toISOString(),
@@ -112,11 +112,10 @@ export default function DashboardTopbar({
   // Handle Logout
   const handleLogout = async () => {
     try {
-      toast.success('Đang đăng xuất khỏi hệ thống...');
       await logout();
     } catch (err) {
       console.error('Logout error:', err);
-      window.location.href = '/login';
+      toast.error('Chưa đăng xuất được. Vui lòng thử lại.');
     }
   };
 
@@ -146,15 +145,40 @@ export default function DashboardTopbar({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 28px',
+          padding: isMobile ? '0 14px' : '0 28px',
           position: 'sticky',
           top: 0,
           zIndex: 50,
           transition: 'background-color 0.25s ease, border-color 0.25s ease',
         }}
       >
-        {/* Left: Back Button + Breadcrumbs / Page Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Left: Hamburger Toggle + Back Button + Breadcrumbs / Page Title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
+          {/* Mobile / Collapsed Hamburger Menu Button */}
+          {(isMobile || sidebarCollapsed) && (
+            <button
+              type="button"
+              onClick={() => isMobile ? setMobileSidebarOpen(true) : setSidebarCollapsed(false)}
+              title="Mở thanh điều hướng"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 8,
+                background: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : c.bgElev,
+                border: `1px solid ${c.border}`,
+                color: c.fg,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              <Icon name="menu" size={18} />
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => navigate(-1)}

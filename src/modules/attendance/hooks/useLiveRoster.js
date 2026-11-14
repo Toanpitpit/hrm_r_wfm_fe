@@ -17,11 +17,8 @@ export const useLiveRoster = (initialStoreId = null) => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Modal states
+  // Modal xem ảnh chụp xác thực tại Kiosk
   const [selectedPhoto, setSelectedPhoto] = useState(null); // { url, title, name }
-  const [flagModal, setFlagModal] = useState(null); // { attendanceId, name }
-  const [fraudReason, setFraudReason] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchRoster = async () => {
     if (!storeId) return;
@@ -43,48 +40,9 @@ export const useLiveRoster = (initialStoreId = null) => {
 
   useEffect(() => {
     fetchRoster();
-    const interval = setInterval(fetchRoster, 15000); // Autorefresh every 15s
+    const interval = setInterval(fetchRoster, 15000); // Tự động làm mới mỗi 15 giây
     return () => clearInterval(interval);
   }, [storeId]);
-
-  const handleFlagFraudSubmit = async (e) => {
-    e.preventDefault();
-    if (!flagModal || !fraudReason.trim()) return;
-
-    setActionLoading(true);
-    const res = await attendanceService.flagFraud(flagModal.attendanceId, fraudReason.trim());
-    setActionLoading(false);
-
-    if (res.success) {
-      setFlagModal(null);
-      setFraudReason('');
-      fetchRoster();
-    } else {
-      alert(res.message || ATTENDANCE_MESSAGES.FLAG_FRAUD_FAILED);
-    }
-  };
-
-  const handleResolveFraud = async (attendanceId, isApproved) => {
-    if (
-      !window.confirm(
-        isApproved
-          ? ATTENDANCE_MESSAGES.CONFIRM_RESTORE_SHIFT
-          : ATTENDANCE_MESSAGES.CONFIRM_REJECT_CLAIM
-      )
-    ) {
-      return;
-    }
-
-    setActionLoading(true);
-    const res = await attendanceService.resolveFraud(attendanceId, isApproved);
-    setActionLoading(false);
-
-    if (res.success) {
-      fetchRoster();
-    } else {
-      alert(res.message || ATTENDANCE_MESSAGES.RESOLVE_FRAUD_FAILED);
-    }
-  };
 
   return {
     roster,
@@ -92,14 +50,7 @@ export const useLiveRoster = (initialStoreId = null) => {
     errorMsg,
     selectedPhoto,
     setSelectedPhoto,
-    flagModal,
-    setFlagModal,
-    fraudReason,
-    setFraudReason,
-    actionLoading,
     fetchRoster,
-    handleFlagFraudSubmit,
-    handleResolveFraud,
   };
 };
 

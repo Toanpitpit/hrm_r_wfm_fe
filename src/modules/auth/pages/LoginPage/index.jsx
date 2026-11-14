@@ -170,10 +170,9 @@ export default function LoginPage() {
     }
   };
 
-  // Tự động chuyển hướng nếu người dùng đã đăng nhập hoặc silent refresh thành công
+  // Tự động chuyển hướng nếu người dùng đã đăng nhập hoặc đã khôi phục phiên
   useEffect(() => {
-    const hasStoredUser = !!localStorage.getItem('user');
-    if (!isInitializing && authUser && isAuthenticated && hasStoredUser) {
+    if (!isInitializing && authUser && isAuthenticated) {
       redirectUserByRole(authUser);
     }
   }, [authUser, isAuthenticated, isInitializing]);
@@ -188,7 +187,7 @@ export default function LoginPage() {
     }
     const result = await handleLogin(formData.username.trim(), formData.password);
     if (result.success) {
-      loginSuccess(result.token, result.user);
+      loginSuccess(result.user);
       toast.success('Đăng nhập thành công!');
       redirectUserByRole(result.user);
     } else {
@@ -206,7 +205,7 @@ export default function LoginPage() {
         }
         const result = await handleGoogleLogin(token);
         if (result?.success) {
-          loginSuccess(result.token, result.user);
+          loginSuccess(result.user);
           toast.success('Đăng nhập Google thành công!');
           redirectUserByRole(result.user);
         } else {
@@ -227,9 +226,9 @@ export default function LoginPage() {
       <div className={styles.heroPanel}>
         <div className={styles.heroCenteredBrand}>
           <div className={styles.heroLogoBadge}>
-            <img src="/logo.png" alt="RWFM Logo" />
+            <img src="/logo.png" alt="Logo RWFM Enterprise" />
           </div>
-          <div className={styles.heroBrandName}>WorkPilot System</div>
+          <div className={styles.heroBrandName}>RWFM Enterprise</div>
         </div>
       </div>
 
@@ -239,7 +238,7 @@ export default function LoginPage() {
           {/* Mobile logo & Title */}
           <div className={styles.mobileBrand}>
             <div className={styles.mobileLogoBadge}>
-              <img src="/logo.png" alt="RWFM Logo" />
+              <img src="/logo.png" alt="Logo RWFM Enterprise" />
             </div>
             <h2 className={styles.formTitle}>Đăng nhập hệ thống</h2>
           </div>
@@ -259,7 +258,7 @@ export default function LoginPage() {
                   value={formData.username}
                   onChange={handleChange}
                   placeholder="name@company.com"
-                  disabled={isLoading}
+                  disabled={isLoading || isInitializing}
                   icon={<MailIcon />}
                   error={fieldErrors.username}
                 />
@@ -282,7 +281,7 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Nhập mật khẩu của bạn"
-                  disabled={isLoading}
+                  disabled={isLoading || isInitializing}
                   icon={<LockIcon />}
                   error={fieldErrors.password}
                   rightEl={
@@ -312,7 +311,7 @@ export default function LoginPage() {
               </div>
 
               {/* Submit Button */}
-              <button type="submit" disabled={isLoading} className={styles.submitBtn}>
+              <button type="submit" disabled={isLoading || isInitializing} className={styles.submitBtn}>
                 {isLoading ? (
                   <>
                     <span className={styles.spinner} />

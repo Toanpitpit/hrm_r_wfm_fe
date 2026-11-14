@@ -274,7 +274,7 @@ export default function ChangeTierModal({
                 </span>
               </div>
               <div style={{ fontSize: '12px', color: c.fgSubtle, marginTop: '4px' }}>
-                📍 {branch.address || 'Chưa cập nhật địa chỉ'}
+                {branch.address || 'Chưa cập nhật địa chỉ'}
               </div>
             </div>
 

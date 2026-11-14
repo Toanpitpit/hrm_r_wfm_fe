@@ -2,7 +2,7 @@
 // Cung cấp token màu, typography, sidebar và dark/light theme chuẩn theo tông màu RWFM Mint/Teal SaaS hiện đại.
 
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { hexA } from '../utils/colorUtils';
 
 export const fonts = {
@@ -123,6 +123,7 @@ export function badgeToneMap(c) {
   const t = c.tones;
   return {
     ok: [t.ok, t.okDim], active: [t.ok, t.okDim], paid: [t.ok, t.okDim], approved: [t.ok, t.okDim],
+    good: [t.good || t.ok, t.goodDim || t.okDim],
     bad: [t.bad, t.badDim], banned: [t.bad, t.badDim], closed: [t.bad, t.badDim], rejected: [t.bad, t.badDim],
     warn: [t.warn, t.warnDim], pending: [t.warn, t.warnDim], maintenance: [t.warn, t.warnDim], paused: [t.warn, t.warnDim],
     info: [t.info, t.infoDim], refunded: [t.info, t.infoDim],
@@ -155,6 +156,20 @@ export function AdminThemeProvider({ children, defaultTheme = 'light', defaultAc
   const [accent, setAccent] = useState(defaultAccent);
   const [density, setDensity] = useState('regular');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1024);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setMobileSidebarOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const value = useMemo(() => {
     const isLight = theme === 'light';
@@ -182,8 +197,10 @@ export function AdminThemeProvider({ children, defaultTheme = 'light', defaultAc
       accent, setAccent,
       density, setDensity,
       sidebarCollapsed, setSidebarCollapsed,
+      isMobile,
+      mobileSidebarOpen, setMobileSidebarOpen,
     };
-  }, [theme, accent, density, sidebarCollapsed]);
+  }, [theme, accent, density, sidebarCollapsed, isMobile, mobileSidebarOpen]);
 
   return <AdminThemeContext.Provider value={value}>{children}</AdminThemeContext.Provider>;
 }

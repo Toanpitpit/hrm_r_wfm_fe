@@ -37,7 +37,7 @@ export default function UploadHeadcountModal({
     try {
       // Tải template từ backend (ClosedXML, 2 sheet)
       const { default: axiosInstance } = await import('@/config/axios.config');
-      const res = await axiosInstance.get('v1/headcount-requests/template', {
+      const res = await axiosInstance.get('headcount-requests/template', {
         responseType: 'blob',
         timeout: 15000,
       });

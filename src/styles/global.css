@@ -113,3 +113,87 @@ a:hover {
 .import-error-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(239, 68, 68, 0.8);
 }
+
+/* ==================== GLOBAL RESPONSIVE RULES ==================== */
+/* Mượt mà khi cuộn cảm ứng trên điện thoại / tablet */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Đảm bảo hình ảnh và media không vượt quá màn hình */
+img, svg, video, canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Responsive Table Wrapper */
+.responsive-table,
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Tablet Breakpoint (max-width: 1024px) */
+@media (max-width: 1024px) {
+  .stat-grid-responsive {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Mobile Breakpoint (max-width: 768px) */
+@media (max-width: 768px) {
+  /* Tự động chuyển các Form 2 cột sang 1 cột trên Mobile để không bị bóp nghẹt chữ */
+  .grid-2-col,
+  .form-grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Grid thống kê chuyển thành 1 cột hoặc 2 cột mini */
+  .stat-grid-responsive {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Toolbar bộ lọc tự động xuống dòng linh hoạt */
+  .filter-toolbar-responsive {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .filter-toolbar-responsive > * {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Nút bấm trên header trang tự động co giãn */
+  .page-header-actions {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .page-header-actions > * {
+    flex: 1 1 auto !important;
+  }
+}
+
+/* Small Mobile Breakpoint (max-width: 640px) */
+@media (max-width: 640px) {
+  /* Modal ôm sát màn hình điện thoại với khoảng đệm an toàn */
+  .lx-modal-overlay {
+    padding: 10px !important;
+  }
+
+  .lx-modal-dialog {
+    max-width: calc(100vw - 20px) !important;
+    max-height: calc(100vh - 20px) !important;
+    border-radius: 14px !important;
+  }
+
+  /* Thu nhỏ kích thước tiêu đề trên điện thoại */
+  h1 { font-size: 20px !important; }
+  h2 { font-size: 18px !important; }
+  h3 { font-size: 16px !important; }
+}

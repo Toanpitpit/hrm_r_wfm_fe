@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import authService from '../services/auth.service';
-import { setAccessToken } from '@/config/axios.config';
 
 /**
  * Hook quản lý logic đăng nhập và state (loading, error) cho module Auth
@@ -18,13 +17,7 @@ const useAuth = () => {
     try {
       const response = await authService.login({ username, password });
       if (response.success) {
-        const { token, user } = response.data;
-        // BẢO MẬT: Lưu Access Token trong RAM (Memory) - KHÔNG LƯU vào localStorage!
-        setAccessToken(token);
-        if (user) {
-          localStorage.setItem('user', JSON.stringify(user));
-        }
-        return { success: true, user };
+        return { success: true, user: response.data };
       }
 
       return { success: false, message: response.message };
@@ -114,13 +107,7 @@ const useAuth = () => {
     try {
       const response = await authService.googleLogin(idToken);
       if (response.success) {
-        const { token, user } = response.data;
-        // BẢO MẬT: Lưu Access Token trong RAM (Memory)
-        setAccessToken(token);
-        if (user) {
-          localStorage.setItem('user', JSON.stringify(user));
-        }
-        return { success: true, user };
+        return { success: true, user: response.data };
       }
 
       return { success: false, message: response.message };

@@ -198,8 +198,7 @@ export default function BranchMapPicker({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: '12px', color: c.fgSubtle, display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Icon name="map" size={14} color={c.accent} />
+        <div style={{ fontSize: '12px', color: c.fgSubtle, display: 'flex', alignItems: 'center' }}>
           <span>Click hoặc kéo ghim để chọn tọa độ chính xác:</span>
         </div>
 

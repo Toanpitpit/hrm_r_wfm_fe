@@ -1,9 +1,12 @@
-﻿import React from 'react';
+import React from 'react';
 
 /**
- * Component hiển thị Badge Phân cấp Chi nhánh (Tier 1 Flagship, Tier 2 Tiêu chuẩn, Tier 3 Nhỏ...)
+ * Component hiển thị Badge Phân cấp Chi nhánh chuẩn hóa
+ * - Cố định chiều rộng (min-width: 130px) và căn giữa để không thụt thò
+ * - Không viết tắt "CN" (ghi rõ Cấp chi nhánh)
+ * - Màu trung tính đồng nhất, sang trọng
  */
-export const BranchTierBadge = ({ tier, tierName, className = '' }) => {
+export const BranchTierBadge = ({ tier, tierName, className = '', style = {} }) => {
   let name = tierName || '';
   let id = null;
 
@@ -15,35 +18,41 @@ export const BranchTierBadge = ({ tier, tierName, className = '' }) => {
   }
 
   if (!name) {
-    if (id === 1) name = 'Tier 1 - Flagship';
-    else if (id === 2) name = 'Tier 2 - Tiêu chuẩn';
-    else if (id === 3) name = 'Tier 3';
-    else name = `Tier ${id || 'Chưa phân cấp'}`;
+    if (id === 1) name = 'Cấp 1 - Flagship';
+    else if (id === 2) name = 'Cấp 2 - Tiêu chuẩn';
+    else if (id === 3) name = 'Cấp 3';
+    else name = `Cấp ${id || 'Chưa phân cấp'}`;
   }
 
-  const isTier1 = name.toLowerCase().includes('tier 1') || name.toLowerCase().includes('flagship') || id === 1;
-  const isTier2 = name.toLowerCase().includes('tier 2') || name.toLowerCase().includes('tiêu chuẩn') || id === 2;
-  const isTier3 = name.toLowerCase().includes('tier 3') || id === 3;
-  const isTier4 = name.toLowerCase().includes('tier 4') || id === 4;
-
-  let badgeStyle = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-
-  if (isTier1) {
-    badgeStyle = 'bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.15)]';
-  } else if (isTier2) {
-    badgeStyle = 'bg-blue-500/15 text-blue-300 border-blue-500/30 shadow-[0_0_12px_rgba(59,130,246,0.15)]';
-  } else if (isTier3) {
-    badgeStyle = 'bg-slate-500/15 text-slate-300 border-slate-500/30';
-  } else if (isTier4) {
-    badgeStyle = 'bg-purple-500/15 text-purple-300 border-purple-500/30 shadow-[0_0_12px_rgba(168,85,247,0.15)]';
+  // Chuẩn hóa tên: không viết tắt CN -> Cấp chi nhánh
+  if (name.includes('CN')) {
+    name = name.replace(/\bCN\b/g, 'Chi nhánh');
   }
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${badgeStyle} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold border ${className}`}
+      style={{
+        minWidth: '130px',
+        backgroundColor: 'rgba(148, 163, 184, 0.08)',
+        borderColor: 'rgba(148, 163, 184, 0.25)',
+        color: 'var(--color-fg, #e2e8f0)',
+        letterSpacing: '0.2px',
+        textAlign: 'center',
+        boxSizing: 'border-box',
+        ...style,
+      }}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-      {name}
+      <span
+        style={{
+          width: '6px',
+          height: '6px',
+          borderRadius: '50%',
+          backgroundColor: '#38bdf8',
+          flexShrink: 0,
+        }}
+      />
+      <span>{name}</span>
     </span>
   );
 };

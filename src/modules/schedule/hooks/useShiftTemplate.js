@@ -11,7 +11,7 @@ import { SHIFT_ERROR_MESSAGES } from '../constants/shift.constants';
  */
 export function useShiftTemplate() {
   const toast = useToast();
-  
+
   const user = useMemo(() => {
     try {
       const raw = localStorage.getItem('user');
@@ -74,12 +74,19 @@ export function useShiftTemplate() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('ALL'); // ALL | Morning | Afternoon | Night | Other | ACTIVE | OVERNIGHT
 
+  // Ref lưu các ID ca đã xóa trong session để tránh việc backend trả về lại khi refetch
+  const deletedShiftIdsRef = useRef(new Set());
+
   const fetchGlobalShifts = useCallback(async () => {
     try {
       setGlobalLoading(true);
       setGlobalError(null);
       const data = await shiftTemplateService.getShiftTemplates({ scope: 'GLOBAL' });
-      setGlobalShifts(data || []);
+      const activeList = (data || []).filter((s) => {
+        const sId = String(s.id ?? s.shiftId ?? s.templateId ?? s.shiftTemplateId ?? '');
+        return !deletedShiftIdsRef.current.has(sId);
+      });
+      setGlobalShifts(activeList);
     } catch (err) {
       setGlobalError(err.message || 'Không thể tải danh sách khung ca chung');
     } finally {
@@ -244,9 +251,9 @@ export function useShiftTemplate() {
       const details = err.response?.data?.details;
 
       if (errCode === 'NO_ACTIVE_CUSTOM_SHIFT' || err.response?.status === 400) {
-        toast.error(SHIFT_ERROR_MESSAGES.NO_ACTIVE_CUSTOM_SHIFT);
+        toast.error(err.response?.data?.message || SHIFT_ERROR_MESSAGES.NO_ACTIVE_CUSTOM_SHIFT);
       } else if (errCode === 'FUTURE_SCHEDULES_EXIST' || err.response?.status === 409) {
-        const count = details?.futureAssignmentCount || 14;
+        const count = err.response?.data?.futureAssignmentCount || details?.futureAssignmentCount || 14;
         setImpactModal({
           open: true,
           title: 'Xác Nhận Chuyển Đổi Chế Độ Khung Ca',
@@ -421,6 +428,9 @@ export function useShiftTemplate() {
 
   const handleDeleteShift = async (shiftId) => {
     try {
+      if (shiftId) {
+        deletedShiftIdsRef.current.add(String(shiftId));
+      }
       await shiftTemplateService.deleteShiftTemplate(shiftId);
       toast.success('Đã xóa khung ca mẫu thành công!');
 

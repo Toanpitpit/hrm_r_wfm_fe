@@ -1,7 +1,7 @@
 import { useAdminTheme } from '../../context/ThemeContext';
 
 export default function DashboardShell({ sidebar, topbar, children }) {
-  const { c, fonts } = useAdminTheme();
+  const { c, fonts, isMobile } = useAdminTheme();
 
   return (
     <div
@@ -30,7 +30,7 @@ export default function DashboardShell({ sidebar, topbar, children }) {
       >
         {topbar}
 
-        <main style={{ flex: 1, overflowY: 'auto', padding: '24px 28px 40px' }}>
+        <main style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 14px 32px' : '24px 28px 40px' }}>
           {children}
         </main>
       </div>

@@ -222,7 +222,7 @@ export const findOverlappingShift = (newShift, existingShifts = [], ignoreShiftI
     }
 
     // Chỉ kiểm tra những ca trong cùng phạm vi
-    const targetScope = newShift.scope || 'GLOBAL';
+    const targetScope = newShift.scope || (newShift.branchId ? 'BRANCH' : 'GLOBAL');
     const existingScope =
       existing.scope || (existing.branchId ? 'BRANCH' : 'GLOBAL');
 
@@ -230,11 +230,11 @@ export const findOverlappingShift = (newShift, existingShifts = [], ignoreShiftI
       continue;
     }
 
-    // Nếu là ca riêng theo chi nhánh, chỉ kiểm tra cùng branchId
+    // Nếu là ca riêng theo chi nhánh, bắt buộc cả 2 phải có branchId và cùng branchId
     if (targetScope === 'BRANCH') {
       const b1 = String(newShift.branchId || '');
       const b2 = String(existing.branchId || '');
-      if (b1 && b2 && b1 !== b2) {
+      if (!b1 || !b2 || b1 !== b2) {
         continue;
       }
     }
@@ -530,20 +530,11 @@ export const getShiftTemplateStats = async () => {
  */
 export const getShiftTemplates = async (params = {}) => {
   try {
-    let res;
-    try {
-      res = await apiClient.get('/shift-templates', { params });
-    } catch (e) {
-      if (e.response?.status === 404) {
-        res = await apiClient.get('/shifts/templates', { params });
-      } else {
-        throw e;
-      }
-    }
+    const res = await apiClient.get('/shift-templates', { params });
     if (res && res.data) {
       const data = res.data.data || res.data;
       const list = Array.isArray(data) ? data : data.items || [];
-      if (list.length > 0) return list;
+      return list;
     }
   } catch (err) {
     console.warn('[ShiftService] getShiftTemplates fallback mock:', err.message);
@@ -613,10 +604,10 @@ export const createShiftTemplate = async (payload) => {
   try {
     allCurrentShifts = await getShiftTemplates({ scope: body.scope, branchId: body.branchId });
   } catch (_) {
-    allCurrentShifts = getMockShifts();
+    allCurrentShifts = [];
   }
-  if (!Array.isArray(allCurrentShifts) || allCurrentShifts.length === 0) {
-    allCurrentShifts = getMockShifts();
+  if (!Array.isArray(allCurrentShifts)) {
+    allCurrentShifts = [];
   }
 
   const conflictingShift = findOverlappingShift(body, allCurrentShifts);
@@ -631,16 +622,7 @@ export const createShiftTemplate = async (payload) => {
 
   let backendResult = null;
   try {
-    let res;
-    try {
-      res = await apiClient.post('/shift-templates', body);
-    } catch (e1) {
-      if (e1.response?.status === 404) {
-        res = await apiClient.post('/shifts/templates', body);
-      } else {
-        throw e1;
-      }
-    }
+    const res = await apiClient.post('/shift-templates', body);
     if (res && res.data) {
       backendResult = res.data.data || res.data;
     }
@@ -733,10 +715,10 @@ export const updateShiftTemplate = async (id, payload, confirm = false) => {
     try {
       allCurrentShifts = await getShiftTemplates({ scope: payload.scope, branchId: payload.branchId });
     } catch (_) {
-      allCurrentShifts = getMockShifts();
+      allCurrentShifts = [];
     }
-    if (!Array.isArray(allCurrentShifts) || allCurrentShifts.length === 0) {
-      allCurrentShifts = getMockShifts();
+    if (!Array.isArray(allCurrentShifts)) {
+      allCurrentShifts = [];
     }
 
     const conflictingShift = findOverlappingShift(
@@ -761,20 +743,9 @@ export const updateShiftTemplate = async (id, payload, confirm = false) => {
   }
 
   try {
-    let res;
-    try {
-      res = await apiClient.put(`/shift-templates/${id}`, payload, {
-        params: { confirm },
-      });
-    } catch (e) {
-      if (e.response?.status === 404) {
-        res = await apiClient.put(`/shifts/templates/${id}`, payload, {
-          params: { confirm },
-        });
-      } else {
-        throw e;
-      }
-    }
+    const res = await apiClient.put(`/shift-templates/${id}`, payload, {
+      params: { confirm },
+    });
     if (res && res.data) return res.data.data || res.data;
   } catch (err) {
     if (
@@ -892,40 +863,32 @@ export const toggleShiftActive = async (id, isActive, confirm = false) => {
  */
 export const deleteShiftTemplate = async (id) => {
   try {
-    let res;
-    try {
-      res = await apiClient.delete(`/shift-templates/${id}`);
-    } catch (e1) {
-      if (e1.response?.status === 404 || e1.response?.status === 405) {
-        try {
-          res = await apiClient.delete(`/shifts/templates/${id}`);
-        } catch (e2) {
-          if (e2.response?.status === 404 || e2.response?.status === 405) {
-            res = await apiClient.delete(`/ShiftTemplates/${id}`);
-          } else {
-            throw e2;
-          }
-        }
-      } else {
-        throw e1;
-      }
-    }
+    const res = await apiClient.delete(`/shift-templates/${id}`);
     if (res && res.data) {
       // Backend phản hồi xóa thành công
     }
   } catch (err) {
-    if (err.response?.status === 400 || err.response?.status === 409) {
+    // Nếu Backend phản hồi mã lỗi (400, 401, 403, 409, 500,...), phải ném lỗi ra ngoài
+    // để giao diện thông báo lỗi thật cho người dùng, tránh việc báo xóa thành công ảo khi DB chưa xóa
+    if (err.response) {
       throw err;
     }
-    console.warn('[ShiftService] DELETE fallback mock:', err.message);
+    console.warn('[ShiftService] DELETE fallback mock (Network Error / Server Offline):', err.message);
   }
 
   // Cập nhật và lưu vào Mock Storage
   const shifts = getMockShifts();
-  const deletedShift = shifts.find((s) => String(s.id) === String(id) || String(s.shiftId) === String(id));
-  const remainingShifts = shifts.filter(
-    (s) => String(s.id) !== String(id) && String(s.shiftId) !== String(id)
-  );
+  const idStr = String(id).toLowerCase();
+  const deletedShift = shifts.find((s) => {
+    const sId = String(s.id ?? s.shiftId ?? s.templateId ?? s.shiftTemplateId ?? '').toLowerCase();
+    const sCode = String(s.templateCode ?? s.code ?? '').toLowerCase();
+    return sId === idStr || sCode === idStr;
+  });
+  const remainingShifts = shifts.filter((s) => {
+    const sId = String(s.id ?? s.shiftId ?? s.templateId ?? s.shiftTemplateId ?? '').toLowerCase();
+    const sCode = String(s.templateCode ?? s.code ?? '').toLowerCase();
+    return sId !== idStr && sCode !== idStr;
+  });
   setMockShifts(remainingShifts);
 
   // Nếu là ca riêng chi nhánh, cập nhật lại số lượng ca của chi nhánh
@@ -951,16 +914,7 @@ export const deleteShiftTemplate = async (id) => {
  */
 export const getBranches = async (params = {}) => {
   try {
-    let res;
-    try {
-      res = await apiClient.get('/branches', { params });
-    } catch (e) {
-      if (e.response?.status === 404) {
-        res = await apiClient.get('/Stores', { params });
-      } else {
-        throw e;
-      }
-    }
+    const res = await apiClient.get('/branches', { params });
 
     if (res && res.data) {
       const data = res.data.data || res.data;
@@ -1091,7 +1045,7 @@ export const updateBranchShiftMode = async (branchId, mode, confirm = false) => 
     const res = await apiClient.patch(`/branches/${branchId}/shift-mode`, { mode, confirm });
     if (res.data) return res.data.data || res.data;
   } catch (err) {
-    if (err.response?.status === 400 || err.response?.status === 409 || err.response?.status === 423) {
+    if (err.response) {
       throw err;
     }
     console.warn('[ShiftService] updateBranchShiftMode fallback mock:', err.message);

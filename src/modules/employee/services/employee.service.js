@@ -407,7 +407,7 @@ export const employeeService = {
   },
 
   /**
-   * 5. Khai báo nhân sự mới (POST /api/v1/users/employees & POST /api/Users/employees)
+   * 5. Khai báo nhân sự mới (POST /api/Users/employees)
    * Phân quyền RBAC nghiêm ngặt: Chỉ OPERATIONS_ADMIN và ADMIN hệ thống.
    * Thẩm định định biên chi nhánh (BranchTier Quotas) và bù trừ lùi chỉ tiêu ImportRequestId.
    */
@@ -429,18 +429,7 @@ export const employeeService = {
     };
 
     try {
-      // Ưu tiên gọi chuẩn RESTful v1
-      let res;
-      try {
-        res = await axiosInstance.post('v1/users/employees', formattedPayload);
-      } catch (err1) {
-        if (err1.response?.status === 404) {
-          // Thử alias Users/employees
-          res = await axiosInstance.post('Users/employees', formattedPayload);
-        } else {
-          throw err1;
-        }
-      }
+      const res = await axiosInstance.post('Users/employees', formattedPayload);
 
       const created = res.data?.data || res.data;
       return {
@@ -673,7 +662,7 @@ export const employeeService = {
   },
 
   /**
-   * 10. Tải file mẫu import nhân sự (GET /api/v1/users/employees/import-template)
+   * 10. Tải file mẫu import nhân sự (GET /api/Users/employees/import-template)
    * Backend dùng ClosedXML sinh file .xlsx 2 sheet: Danh_Sach_Nhan_Su + Huong_Dan_Va_Danh_Muc.
    * Dùng Blob URL để tải file, không redirect — tránh lỗi corrupt file.
    * @returns {{ success, message, fileName }}
@@ -682,7 +671,7 @@ export const employeeService = {
     let blobUrl = null;
     const safeCount = Math.max(1, Math.min(Number(count) || 5, 500));
     try {
-      const res = await axiosInstance.get(`v1/users/employees/import-template?count=${safeCount}`, {
+      const res = await axiosInstance.get(`Users/employees/import-template?count=${safeCount}`, {
         responseType: 'blob',
         timeout: 30000,
       });
@@ -749,7 +738,7 @@ export const employeeService = {
   },
 
   /**
-   * 11. Import nhân sự hàng loạt (POST /api/v1/users/employees/import)
+   * 11. Import nhân sự hàng loạt (POST /api/Users/employees/import)
    * Chỉ OPERATIONS_ADMIN và ADMIN mới có quyền gọi API này.
    *
    * @param {{ file, defaultBranchId?, importRequestId?, expansionReason? }} params
@@ -799,7 +788,7 @@ export const employeeService = {
     }
 
     try {
-      const res = await axiosInstance.post('v1/users/employees/import', formData, {
+      const res = await axiosInstance.post('Users/employees/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000, // 2 phút cho batch lớn
       });
@@ -823,7 +812,12 @@ export const employeeService = {
         message = `Import thất bại: Tất cả ${failureCount} dòng đều có lỗi. Vui lòng kiểm tra và thử lại.`;
       }
 
-      return { success: successCount > 0, data: result, message, isPartialSuccess: successCount > 0 && failureCount > 0 };
+      return {
+        success: successCount > 0,
+        data: result,
+        message: res.data?.message || message,
+        isPartialSuccess: successCount > 0 && failureCount > 0,
+      };
     } catch (err) {
       const status = err.response?.status;
       const errData = err.response?.data;
@@ -869,7 +863,7 @@ export const employeeService = {
         sourceFileName,
       };
 
-      const res = await axiosInstance.post('v1/users/employees/export-errors', payload, {
+      const res = await axiosInstance.post('Users/employees/export-errors', payload, {
         responseType: 'blob',
       });
 
