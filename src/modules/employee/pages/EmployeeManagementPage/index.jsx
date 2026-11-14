@@ -449,9 +449,9 @@ export default function EmployeeManagementPage() {
 
   // 7. Số liệu thống kê nhanh trên cùng: LUÔN HIỂN THỊ TỔNG TOÀN CHUỖI (hoặc chi nhánh nếu là Store Manager)
   // Cố định không phụ thuộc vào việc người dùng đang lọc chi nhánh nào ở bảng bên dưới
-  const totalEmployees = statsData?.totalEmployees || 61;
-  const activeCount = statsData?.activeCount || 60;
-  const inactiveCount = statsData?.inactiveCount || 1;
+  const totalEmployees = statsData?.totalEmployees ?? 61;
+  const activeCount = statsData?.activeCount ?? 61;
+  const inactiveCount = statsData?.inactiveCount ?? 0;
   const roleStats = statsData?.roleStats || {
     shiftLeader: 9,
     cashier: 20,
