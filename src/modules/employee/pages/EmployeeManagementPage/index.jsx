@@ -274,14 +274,12 @@ export default function EmployeeManagementPage() {
 
   // 4b. Tải thống kê nhân sự toàn hệ thống (GET /api/Users/employees/stats)
   // Luôn lấy dữ liệu TỔNG TẤT CẢ CHI NHÁNH trong chuỗi (hoặc chi nhánh nếu là Store Manager).
-  // Độc lập hoàn toàn với thanh tìm kiếm và bộ lọc bên dưới, không phụ thuộc search hay branchFilter.
+  // Độc lập hoàn toàn với thanh tìm kiếm và bộ lọc chi nhánh bên dưới để phần trên luôn hiển thị tổng toàn chuỗi.
   const fetchStats = useCallback(async () => {
     try {
       const params = {};
       if (isStoreManager) {
         params.branchId = currentBranchId;
-      } else if (branchFilter) {
-        params.branchId = branchFilter;
       }
       const res = await employeeService.getEmployeeStats(params);
       if (res.success && res.data) {
@@ -290,7 +288,7 @@ export default function EmployeeManagementPage() {
     } catch (err) {
       console.warn('Lỗi khi tải thống kê nhân sự:', err);
     }
-  }, [isStoreManager, currentBranchId, branchFilter]);
+  }, [isStoreManager, currentBranchId]);
 
   useEffect(() => {
     fetchStats();
@@ -449,81 +447,18 @@ export default function EmployeeManagementPage() {
     setContractTypeFilter('');
   };
 
-  // 7. Số liệu thống kê: Tự động đồng bộ chuẩn xác theo chi nhánh đang chọn hoặc toàn chuỗi
-  const selectedBranchQuota = useMemo(() => {
-    if (!branchFilter) return null;
-    return allBranchesQuota.find((b) => String(b.branchId || b.id || b.storeId) === String(branchFilter)) || null;
-  }, [branchFilter, allBranchesQuota]);
-
-  const totalEmployees = useMemo(() => {
-    if (branchFilter) {
-      if (statsData?.totalEmployees && statsData.totalEmployees < 60) {
-        return statsData.totalEmployees;
-      }
-      if (selectedBranchQuota?.officialHeadcount != null) {
-        const inactive = Number(selectedBranchQuota.inactiveCount || 0);
-        return Number(selectedBranchQuota.officialHeadcount) + inactive;
-      }
-      const branchEmps = employees.filter((e) => String(e.homeBranchId || e.branchId) === String(branchFilter));
-      if (branchEmps.length > 0) return branchEmps.length;
-      return employees.length > 0 && employees.length < 60 ? employees.length : 20;
-    }
-    return statsData?.totalEmployees || 61;
-  }, [branchFilter, statsData, selectedBranchQuota, employees]);
-
-  const activeCount = useMemo(() => {
-    if (branchFilter) {
-      if (statsData?.totalEmployees < 60 && statsData?.activeCount != null) {
-        return statsData.activeCount;
-      }
-      if (selectedBranchQuota?.officialHeadcount != null) {
-        return Number(selectedBranchQuota.officialHeadcount);
-      }
-      const branchEmps = employees.filter((e) => String(e.homeBranchId || e.branchId) === String(branchFilter));
-      const activeList = branchEmps.filter((e) => e.status !== 'INACTIVE');
-      if (activeList.length > 0) return activeList.length;
-      return 20;
-    }
-    return statsData?.activeCount || 60;
-  }, [branchFilter, statsData, selectedBranchQuota, employees]);
-
-  const inactiveCount = useMemo(() => {
-    if (branchFilter) {
-      if (statsData?.totalEmployees < 60 && statsData?.inactiveCount != null) {
-        return statsData.inactiveCount;
-      }
-      if (selectedBranchQuota?.inactiveCount != null) {
-        return Number(selectedBranchQuota.inactiveCount);
-      }
-      const branchEmps = employees.filter((e) => String(e.homeBranchId || e.branchId) === String(branchFilter));
-      return branchEmps.filter((e) => e.status === 'INACTIVE').length;
-    }
-    return statsData?.inactiveCount || 1;
-  }, [branchFilter, statsData, selectedBranchQuota, employees]);
-
-  const roleStats = useMemo(() => {
-    if (branchFilter) {
-      if (statsData?.totalEmployees < 60 && statsData?.roleStats) {
-        return statsData.roleStats;
-      }
-      const branchEmps = employees.filter((e) => String(e.homeBranchId || e.branchId) === String(branchFilter));
-      const targetList = branchEmps.length > 0 ? branchEmps : employees;
-      return {
-        shiftLeader: targetList.filter((e) => e.roleCode === 'SHIFT_LEADER').length,
-        cashier: targetList.filter((e) => e.roleCode === 'CASHIER').length,
-        sales: targetList.filter((e) => e.roleCode === 'SALES_STAFF').length,
-        security: targetList.filter((e) => e.roleCode === 'SECURITY_GUARD' || e.roleCode === 'SECURITY').length,
-        manager: targetList.filter((e) => e.roleCode === 'STORE_MANAGER').length,
-      };
-    }
-    return statsData?.roleStats || {
-      shiftLeader: 9,
-      cashier: 20,
-      sales: 20,
-      security: 9,
-      manager: 3,
-    };
-  }, [branchFilter, statsData, employees]);
+  // 7. Số liệu thống kê nhanh trên cùng: LUÔN HIỂN THỊ TỔNG TOÀN CHUỖI (hoặc chi nhánh nếu là Store Manager)
+  // Cố định không phụ thuộc vào việc người dùng đang lọc chi nhánh nào ở bảng bên dưới
+  const totalEmployees = statsData?.totalEmployees || 61;
+  const activeCount = statsData?.activeCount || 60;
+  const inactiveCount = statsData?.inactiveCount || 1;
+  const roleStats = statsData?.roleStats || {
+    shiftLeader: 9,
+    cashier: 20,
+    sales: 20,
+    security: 9,
+    manager: 3,
+  };
 
   const handleUpgradeBranchTier = async (branchId) => {
     try {
@@ -642,36 +577,28 @@ export default function EmployeeManagementPage() {
       >
         <StatCard
           icon="users"
-          title={
-            activeBranchName
-              ? `Tổng Nhân Sự (${activeBranchShortName})`
-              : (isStoreManager ? 'Tổng Nhân Sự Chi Nhánh' : 'Tổng Nhân Sự Toàn Chuỗi')
-          }
+          title={isStoreManager ? 'Tổng Nhân Sự Chi Nhánh' : 'Tổng Nhân Sự Toàn Chuỗi'}
           value={totalEmployees}
           color="var(--color-primary, #0D9488)"
-          subtitle={
-            activeBranchName
-              ? `${roleStats.cashier || 0} Thu ngân • ${roleStats.sales || 0} Bán hàng (${activeBranchShortName})`
-              : `${roleStats.cashier || 0} Thu ngân • ${roleStats.sales || 0} Bán hàng (Toàn chuỗi)`
-          }
+          subtitle={`${roleStats.cashier || 0} Thu ngân • ${roleStats.sales || 0} Bán hàng (Toàn chuỗi)`}
         />
         <StatCard
           icon="check"
-          title={activeBranchName ? `Đang Hoạt Động (${activeBranchShortName})` : 'Đang Hoạt Động (Active)'}
+          title="Đang Hoạt Động (Active)"
           value={activeCount}
           color="#22c55e"
-          subtitle={activeBranchName ? `Tính vào định biên của ${activeBranchShortName}` : 'Tính vào hạn mức định biên chuỗi'}
+          subtitle="Tính vào hạn mức định biên chuỗi"
         />
         <StatCard
           icon="lock"
           title="Đã Nghỉ / Tạm Khóa"
           value={inactiveCount}
           color="#ef4444"
-          subtitle={activeBranchName ? `Hồ sơ tạm khóa tại ${activeBranchShortName}` : 'Tự động bù đắp dôi dư Quota'}
+          subtitle="Tự động bù đắp dôi dư Quota"
         />
         <StatCard
           icon="calendar"
-          title={activeBranchName ? `Điều Hành & An Ninh (${activeBranchShortName})` : 'Điều Hành & An Ninh'}
+          title="Điều Hành & An Ninh"
           value={`${(roleStats.manager || 0) + (roleStats.shiftLeader || 0) + (roleStats.security || 0)}`}
           color="#3b82f6"
           subtitle={
