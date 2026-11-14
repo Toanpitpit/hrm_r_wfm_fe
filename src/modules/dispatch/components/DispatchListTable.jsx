@@ -239,40 +239,6 @@ export default function DispatchListTable({
                 {/* Thao tác */}
                 <td style={{ ...tdStyle(c), textAlign: 'right' }}>
                   <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-
-
-                    {isTarget && isPending && onRecall && (
-                      <Button
-                        size="sm"
-                        kind="ghost"
-                        onClick={() => onRecall(item)}
-                        title="Thu hồi đơn tạm thời để chỉnh sửa nội dung"
-                      >
-                        Thu Hồi
-                      </Button>
-                    )}
-
-                    {isTarget && isRecalled && onEdit && (
-                      <Button
-                        size="sm"
-                        kind="primary"
-                        onClick={() => onEdit(item)}
-                        title="Chỉnh sửa nội dung và gửi lại cho bên đối tác"
-                      >
-                        Sửa & Gửi Lại
-                      </Button>
-                    )}
-
-                    {canModify && onDelete && (
-                      <Button
-                        size="sm"
-                        kind="danger"
-                        onClick={() => onDelete(item)}
-                      >
-                        Hủy
-                      </Button>
-                    )}
-
                     {onViewDetail && (
                       <Button
                         size="sm"
