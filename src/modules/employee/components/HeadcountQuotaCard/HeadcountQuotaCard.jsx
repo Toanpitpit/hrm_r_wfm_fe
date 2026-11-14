@@ -158,6 +158,7 @@ export default function HeadcountQuotaCard({
           }}
         >
           {allBranchesQuota.map((b) => {
+            const bId = b.branchId || b.id || b.storeId;
             const bTier = b.branchTier || 2;
             const bStandardQuota = Number(
               b.effectiveQuota ||
@@ -172,18 +173,19 @@ export default function HeadcountQuotaCard({
             const bTotalWorking = Number(b.actualWorkingCount ?? (bActive - bDispatchedOut + bDispatchedIn));
             const bPercent = Math.min(100, Math.round((bActive / bStandardQuota) * 100));
             const bAvailable = b.availableQuotaSlots ?? Math.max(0, bStandardQuota - bActive);
-            const isCardSelected = String(selectedBranchId) === String(b.branchId);
+            const isCardSelected = String(selectedBranchId) === String(bId);
             const isFull = bActive >= bStandardQuota;
 
             return (
               <div
-                key={b.branchId}
-                onClick={() => onSelectBranch && onSelectBranch(String(b.branchId))}
+                key={bId}
+                onClick={() => onSelectBranch && onSelectBranch(isCardSelected ? '' : String(bId))}
+                title={isCardSelected ? `Đang lọc theo ${b.branchName} (Bấm lại để xem toàn bộ chuỗi)` : `Bấm để xem số liệu chi tiết ${b.branchName}`}
                 style={{
                   padding: '14px 16px',
                   borderRadius: '10px',
-                  background: isCardSelected ? 'rgba(212, 175, 55, 0.08)' : c.bgCard,
-                  border: `1.5px solid ${isCardSelected ? c.accent : c.border}`,
+                  background: isCardSelected ? 'rgba(13, 148, 136, 0.12)' : c.bgCard,
+                  border: `2px solid ${isCardSelected ? 'var(--color-primary, #0D9488)' : c.border}`,
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
@@ -191,7 +193,8 @@ export default function HeadcountQuotaCard({
                   minHeight: '136px',
                   gap: '12px',
                   transition: 'all 0.2s ease',
-                  boxShadow: isCardSelected ? '0 0 12px rgba(212, 175, 55, 0.2)' : 'none',
+                  boxShadow: isCardSelected ? '0 0 16px rgba(13, 148, 136, 0.25)' : 'none',
+                  position: 'relative',
                 }}
               >
                 {/* Header card: Tên chi nhánh + Tier + Badge */}
@@ -201,7 +204,7 @@ export default function HeadcountQuotaCard({
                       style={{
                         fontSize: '13.5px',
                         fontWeight: 700,
-                        color: c.fg,
+                        color: isCardSelected ? 'var(--color-primary, #0D9488)' : c.fg,
                         lineHeight: '1.35',
                         minHeight: '37px',
                         display: '-webkit-box',

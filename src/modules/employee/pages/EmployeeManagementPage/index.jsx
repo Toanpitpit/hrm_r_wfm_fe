@@ -495,6 +495,14 @@ export default function EmployeeManagementPage() {
   };
 
   // Xác định tên chi nhánh hiển thị cho Quota Card
+  const selectedBranchObj = branches.find((b) => String(b.id || b.storeId) === String(branchFilter));
+  const activeBranchName = isStoreManager
+    ? currentBranchName
+    : (selectedBranchObj?.name || (branchFilter ? `Chi nhánh #${branchFilter}` : null));
+  const activeBranchShortName = activeBranchName
+    ? activeBranchName.replace(/Cửa hàng Tiện lợi Chi nhánh\s*/i, 'CN ')
+    : '';
+
   const displayBranch = isStoreManager
     ? currentBranchName
     : branchFilter
@@ -570,28 +578,36 @@ export default function EmployeeManagementPage() {
       >
         <StatCard
           icon="users"
-          title={isStoreManager ? 'Tổng Nhân Sự Chi Nhánh' : 'Tổng Nhân Sự Toàn Chuỗi'}
+          title={
+            activeBranchName
+              ? `Tổng Nhân Sự (${activeBranchShortName})`
+              : (isStoreManager ? 'Tổng Nhân Sự Chi Nhánh' : 'Tổng Nhân Sự Toàn Chuỗi')
+          }
           value={totalEmployees}
           color="var(--color-primary, #0D9488)"
-          subtitle={`${roleStats.cashier || 0} Thu ngân • ${roleStats.sales || 0} Bán hàng`}
+          subtitle={
+            activeBranchName
+              ? `${roleStats.cashier || 0} Thu ngân • ${roleStats.sales || 0} Bán hàng (${activeBranchShortName})`
+              : `${roleStats.cashier || 0} Thu ngân • ${roleStats.sales || 0} Bán hàng (Toàn chuỗi)`
+          }
         />
         <StatCard
           icon="check"
-          title="Đang Hoạt Động (Active)"
+          title={activeBranchName ? `Đang Hoạt Động (${activeBranchShortName})` : 'Đang Hoạt Động (Active)'}
           value={activeCount}
           color="#22c55e"
-          subtitle="Tính vào hạn mức định biên"
+          subtitle={activeBranchName ? `Tính vào định biên của ${activeBranchShortName}` : 'Tính vào hạn mức định biên chuỗi'}
         />
         <StatCard
           icon="lock"
           title="Đã Nghỉ / Tạm Khóa"
           value={inactiveCount}
           color="#ef4444"
-          subtitle="Tự động bù đắp dôi dư Quota"
+          subtitle={activeBranchName ? `Hồ sơ tạm khóa tại ${activeBranchShortName}` : 'Tự động bù đắp dôi dư Quota'}
         />
         <StatCard
           icon="calendar"
-          title="Điều Hành & An Ninh"
+          title={activeBranchName ? `Điều Hành & An Ninh (${activeBranchShortName})` : 'Điều Hành & An Ninh'}
           value={`${(roleStats.manager || 0) + (roleStats.shiftLeader || 0) + (roleStats.security || 0)}`}
           color="#3b82f6"
           subtitle={
