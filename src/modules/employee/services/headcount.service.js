@@ -47,19 +47,13 @@ export const headcountService = {
           raw.branchTier ?? raw.BranchTier ?? raw.branchTierValue ?? raw.BranchTierValue ?? branchTier
         );
         
-        // Đọc quota tùy chỉnh từ localStorage (nếu có từ phân cấp chi nhánh)
-        let customQuota = null;
         try {
-          const map = JSON.parse(localStorage.getItem('wfm_branch_custom_quotas_v1') || '{}');
-          if (map[branchId] != null && Number(map[branchId]) > 0) {
-            customQuota = Number(map[branchId]);
-          }
+          localStorage.removeItem('wfm_branch_custom_quotas_v1');
         } catch {}
 
         const backendQuota = Number(raw.effectiveQuota ?? raw.EffectiveQuota ?? raw.staffCount ?? raw.StaffCount ?? 0);
-        const fallbackQuota = raw.standardQuota ?? raw.StandardQuota ?? HEADCOUNT_TIER_QUOTAS[resolvedTier] ?? 15;
+        const fallbackQuota = raw.standardQuota ?? raw.StandardQuota ?? HEADCOUNT_TIER_QUOTAS[resolvedTier] ?? (resolvedTier === 1 ? 30 : resolvedTier === 3 ? 8 : 15);
         const standardQuota = Number(
-          customQuota ||
           (backendQuota > 0 ? backendQuota : null) ||
           fallbackQuota
         );
@@ -255,8 +249,6 @@ export const headcountService = {
           const bId = Number(b.id || b.storeId);
           const tier = Number(b.branchTier || b.tier || (bId === 1 || bId === 2 ? 1 : 2));
           const res = await this.getBranchHeadcountStatus(bId, tier);
-          const quotaFromMap = customQuotasMap[bId] ? Number(customQuotasMap[bId]) : null;
-          const quotaFromBranch = Number(b.staffCount || b.targetStaffCount || 0);
 
           let finalStatus = res.success ? { ...res.data } : {};
 
@@ -268,7 +260,8 @@ export const headcountService = {
             official = empCountByBranch[bId];
           }
 
-          const finalQuota = quotaFromMap || (quotaFromBranch > 0 ? quotaFromBranch : null) || finalStatus.effectiveQuota || finalStatus.standardQuota;
+          const fallbackTierQuota = tier === 1 ? 30 : tier === 3 ? 8 : 15;
+          const finalQuota = Number(finalStatus.effectiveQuota || finalStatus.standardQuota || fallbackTierQuota);
           if (finalQuota) {
             finalStatus.standardQuota = finalQuota;
             finalStatus.effectiveQuota = finalQuota;

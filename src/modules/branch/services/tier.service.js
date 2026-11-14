@@ -13,7 +13,7 @@ export const TIER_DEFINITIONS = [
     shortName: 'Cấp 1 - Flagship',
     code: 'TIER_1',
     minStaff: 20,
-    maxStaff: 35,
+    maxStaff: 30,
     standardQuota: 30,
     defaultGeofence: 200,
     color: '#f59e0b',
@@ -25,7 +25,7 @@ export const TIER_DEFINITIONS = [
     conditions:
       'Diện tích sàn > 250m², doanh thu mục tiêu > 500tr/tháng, tối thiểu 20 nhân sự trực ca.',
     benefits:
-      'Được trang bị 2-4 máy Kiosk iPad, ưu tiên tiếp nhận nhân sự điều động tăng cường vào ca cao điểm, định biên trần 35 nhân sự, phê duyệt nhanh các đề xuất tăng ca.',
+      'Được trang bị 2-4 máy Kiosk iPad, ưu tiên tiếp nhận nhân sự điều động tăng cường vào ca cao điểm, định biên trần 30 nhân sự, phê duyệt nhanh các đề xuất tăng ca.',
   },
   {
     tier: 2,
@@ -33,7 +33,7 @@ export const TIER_DEFINITIONS = [
     shortName: 'Cấp 2 - Tiêu Chuẩn',
     code: 'TIER_2',
     minStaff: 10,
-    maxStaff: 19,
+    maxStaff: 15,
     standardQuota: 15,
     defaultGeofence: 150,
     color: '#3b82f6',
@@ -43,9 +43,9 @@ export const TIER_DEFINITIONS = [
     description:
       'Cửa hàng mô hình chuẩn trên các tuyến phố đông dân cư. Hoạt động 2-3 ca linh hoạt với 1-2 trạm điểm danh Kiosk.',
     conditions:
-      'Diện tích sàn 100m² - 250m², doanh thu mục tiêu 200tr - 500tr/tháng, nhân sự từ 10 - 19 người.',
+      'Diện tích sàn 100m² - 250m², doanh thu mục tiêu 200tr - 500tr/tháng, nhân sự từ 10 - 15 người.',
     benefits:
-      'Được cấp 1-2 máy Kiosk, định biên 15-19 nhân sự, tự động lập lịch phân ca tối ưu công chuẩn 8 tiếng/ngày.',
+      'Được cấp 1-2 máy Kiosk, định biên 15 nhân sự, tự động lập lịch phân ca tối ưu công chuẩn 8 tiếng/ngày.',
   },
   {
     tier: 3,
@@ -53,7 +53,7 @@ export const TIER_DEFINITIONS = [
     shortName: 'Cấp 3 - Mini',
     code: 'TIER_3',
     minStaff: 4,
-    maxStaff: 9,
+    maxStaff: 8,
     standardQuota: 8,
     defaultGeofence: 80,
     color: '#10b981',
@@ -117,31 +117,17 @@ export const getTierSummary = async () => {
 const STORAGE_KEY_CUSTOM_QUOTAS = 'wfm_branch_custom_quotas_v1';
 
 export const getCustomQuotasMap = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_QUOTAS);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    // ignore
-  }
-  return {
-    1: 30, // CH01: Flagship 30
-    2: 15, // CH02: Standard 15
-    3: 8,  // CH03: Mini 8
-    4: 30, // C001: Flagship 30
-  };
+  return {};
 };
 
 export const setCustomQuotasMap = (map) => {
-  localStorage.setItem(STORAGE_KEY_CUSTOM_QUOTAS, JSON.stringify(map));
+  // no-op: always sync with backend
 };
 
 export const getBranchQuota = (storeId, tier) => {
-  const map = getCustomQuotasMap();
-  const id = Number(storeId);
-  if (map[id] !== undefined) return Number(map[id]);
   const t = Number(tier || 2);
   const def = TIER_DEFINITIONS.find((td) => td.tier === t);
-  return def ? def.standardQuota : 15;
+  return def ? def.standardQuota : (t === 1 ? 30 : t === 3 ? 8 : 15);
 };
 
 /**
