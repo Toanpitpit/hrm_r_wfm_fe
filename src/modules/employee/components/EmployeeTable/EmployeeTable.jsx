@@ -27,6 +27,8 @@ export default function EmployeeTable({
   employees = [],
   loading = false,
   initialLoading = false,
+  newlyCreatedId = null,
+  newlyDeclaredMap = {},
   onViewDetail,
   onEdit,
   onResetPassword,
@@ -63,7 +65,7 @@ export default function EmployeeTable({
       const createdTime = new Date(emp.createdAt).getTime();
       if (!isNaN(createdTime)) {
         const diffHours = (Date.now() - createdTime) / (1000 * 60 * 60);
-        if (diffHours >= 0 && diffHours < 48) {
+        if (diffHours >= 0 && diffHours < 72) {
           return true;
         }
       }
@@ -241,7 +243,7 @@ export default function EmployeeTable({
                 key={emp.id || index}
                 style={{
                   borderBottom: `1px solid ${c.border}`,
-                  transition: 'background 0.15s ease',
+                  transition: 'background 0.25s ease',
                   opacity: isInactive ? 0.7 : 1,
                   background: isNew ? 'rgba(16, 185, 129, 0.05)' : 'transparent',
                   borderLeft: isNew ? '3px solid #10b981' : '3px solid transparent',
@@ -302,7 +304,7 @@ export default function EmployeeTable({
                               border: '1px solid rgba(255, 255, 255, 0.25)',
                               animation: 'badgePulse 2s infinite ease-in-out',
                             }}
-                            title="Nhân viên mới được thêm vào hệ thống"
+                            title="Nhân viên mới được thêm vào hệ thống (thời hạn 3 ngày)"
                           >
                             <span
                               style={{

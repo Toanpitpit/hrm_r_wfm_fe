@@ -446,7 +446,7 @@ export const employeeService = {
       return {
         success: true,
         data: created,
-        message: 'Khai báo hồ sơ nhân sự thành công! Welcome Email kèm thông tin đăng nhập đã được tự động gửi tới email nhân sự.',
+        message: res.data?.message || 'Khai báo hồ sơ nhân sự thành công!',
       };
     } catch (err) {
       const status = err.response?.status;
@@ -559,7 +559,7 @@ export const employeeService = {
       return {
         success: true,
         data: res.data?.data || res.data,
-        message: 'Cấp tài khoản Cửa hàng trưởng thành công! Welcome Email đã được gửi.',
+        message: res.data?.message || 'Cấp tài khoản Cửa hàng trưởng thành công!',
       };
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
