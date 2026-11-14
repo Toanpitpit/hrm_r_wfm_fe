@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { useToast } from '@/shared/components/ui/ToastProvider';
 import styles from '../LoginPage/LoginPage.module.css';
+import recoveryStyles from './ForgotPasswordPage.module.css';
 
 // ─── SVG Icons ─────────────────────────────────────────────────────────────
 
@@ -260,7 +261,7 @@ export default function ForgotPasswordPage() {
       <div className={styles.heroPanel}>
         <div className={styles.heroCenteredBrand}>
           <div className={styles.heroLogoBadge}>
-            <img src="/logo.png" alt="RWFM Enterprise Logo" />
+            <img src="/logo.png" alt="Logo RWFM Enterprise" />
           </div>
           <div className={styles.heroBrandName}>RWFM Enterprise</div>
         </div>
@@ -269,58 +270,37 @@ export default function ForgotPasswordPage() {
       {/* ── Cột phải: Form Khôi Phục Mật Khẩu ───────────────────────── */}
       <div className={styles.formPanel}>
         <div className={styles.formContainer} style={{ maxWidth: 460 }}>
-          {/* Mobile Logo Brand */}
-          <div className={styles.mobileBrand}>
-            <div className={styles.mobileLogoBadge}>
-              <img src="/logo.png" alt="RWFM Logo" />
+          <header className={recoveryStyles.header}>
+            <div className={`${styles.mobileLogoBadge} ${recoveryStyles.headerLogo}`}>
+              <img src="/logo.png" alt="Logo RWFM Enterprise" />
             </div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', margin: 0 }}>
-              RWFM Enterprise
-            </h2>
-          </div>
-
-          {/* Form Header */}
-          <div style={{ marginBottom: 20, textAlign: 'center' }}>
-            <h1 className={styles.formTitle} style={{ fontSize: 24 }}>
-              Khôi phục mật khẩu
-            </h1>
-            <p style={{ fontSize: 13.5, color: '#64748B', marginTop: 6 }}>
-              {step === 1 && 'Nhập email tài khoản để nhận mã xác thực OTP.'}
-              {step === 2 && `Mã xác thực đã được gửi tới ${email}`}
-              {step === 3 && 'Tạo mật khẩu mới bảo mật cho tài khoản của bạn.'}
-              {step === 4 && 'Mật khẩu đã được cập nhật thành công.'}
-            </p>
-          </div>
+            <div>
+              <h1 className={styles.formTitle} style={{ fontSize: 24 }}>
+                Khôi phục mật khẩu
+              </h1>
+              {step > 1 && (
+                <p className={recoveryStyles.description}>
+                  {step === 2 && `Mã xác thực đã được gửi tới ${email}`}
+                  {step === 3 && 'Tạo mật khẩu mới bảo mật cho tài khoản của bạn.'}
+                  {step === 4 && 'Mật khẩu đã được cập nhật thành công.'}
+                </p>
+              )}
+            </div>
+          </header>
 
           {/* Main Card */}
           <div className={styles.loginCard} style={{ padding: '28px 24px' }}>
             {/* Stepper Header (Steps 1-3) */}
             {step <= 3 && (
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24, padding: '0 8px' }}>
+              <div className={recoveryStyles.stepper}>
                 {[
                   { n: 1, label: 'Email' },
                   { n: 2, label: 'Xác thực OTP' },
                   { n: 3, label: 'Mật khẩu' },
-                ].map((s, i) => (
-                  <div key={s.n} style={{ display: 'flex', alignItems: 'center', flex: i < 2 ? 1 : 0 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                      <div style={stepDot(step >= s.n)}>{s.n}</div>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: step >= s.n ? '#10B981' : '#94A3B8' }}>
-                        {s.label}
-                      </span>
-                    </div>
-                    {i < 2 && (
-                      <div
-                        style={{
-                          flex: 1,
-                          height: 2,
-                          background: step > s.n ? '#10B981' : '#E2E8F0',
-                          margin: '0 8px',
-                          marginBottom: 18,
-                          transition: 'background .2s ease',
-                        }}
-                      />
-                    )}
+                ].map((s) => (
+                  <div key={s.n} className={recoveryStyles.step} data-complete={step > s.n}>
+                    <div style={stepDot(step >= s.n)}>{s.n}</div>
+                    <span style={{ color: step >= s.n ? '#10B981' : '#94A3B8' }}>{s.label}</span>
                   </div>
                 ))}
               </div>

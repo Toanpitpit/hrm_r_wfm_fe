@@ -18,6 +18,9 @@ export default function DispatchDetailModal({
   onClose,
   dispatchItem,
   currentStoreId,
+  onRecall,
+  onDelete,
+  onEdit,
   onSuccess,
 }) {
   const { c, fonts } = useAdminTheme();
@@ -55,6 +58,9 @@ export default function DispatchDetailModal({
   const isPending = dispatchItem?.status === 'PENDING' && !isExpired;
   const isRecalled = dispatchItem?.status === 'RECALLED';
   const canReview = isPending && (isSourceBranch || isOpsAdmin) && !isExpired;
+  const canRecall = (isTargetBranch || isOpsAdmin) && isPending && Boolean(onRecall);
+  const canCancel = (isTargetBranch || isOpsAdmin) && (isPending || isRecalled || isExpired) && Boolean(onDelete);
+  const canEdit = (isTargetBranch || isOpsAdmin) && isRecalled && Boolean(onEdit);
 
   // Khởi tạo dữ liệu khi mở modal
   useEffect(() => {
@@ -238,10 +244,53 @@ export default function DispatchDetailModal({
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <Button kind="ghost" onClick={onClose} disabled={submitting}>
               Đóng
             </Button>
+
+            {/* Các thao tác của bên gửi đề nghị (Đơn đã gửi đi) */}
+            {canRecall && (
+              <Button
+                kind="soft"
+                onClick={() => {
+                  onClose();
+                  if (onRecall) onRecall(dispatchItem);
+                }}
+                disabled={submitting}
+                title="Thu hồi đơn tạm thời để chỉnh sửa nội dung"
+              >
+                Thu Hồi Đơn
+              </Button>
+            )}
+
+            {canEdit && (
+              <Button
+                kind="primary"
+                onClick={() => {
+                  onClose();
+                  if (onEdit) onEdit(dispatchItem);
+                }}
+                disabled={submitting}
+                title="Chỉnh sửa nội dung và gửi lại cho bên đối tác"
+              >
+                Sửa & Gửi Lại
+              </Button>
+            )}
+
+            {canCancel && (
+              <Button
+                kind="danger"
+                onClick={() => {
+                  onClose();
+                  if (onDelete) onDelete(dispatchItem);
+                }}
+                disabled={submitting}
+                title="Hủy và xóa hoàn toàn phiếu yêu cầu này"
+              >
+                Hủy Đơn
+              </Button>
+            )}
 
             {canReview && (
               <>

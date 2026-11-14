@@ -386,6 +386,13 @@ export default function StoreDispatchPage() {
           onClose={() => setDetailItem(null)}
           dispatchItem={detailItem}
           currentStoreId={currentStoreId}
+          onRecall={handleRecallDispatch}
+          onDelete={handleDeleteDispatch}
+          onEdit={(item) => {
+            setDetailItem(null);
+            setEditItem(item);
+            setIsCreateModalOpen(true);
+          }}
           onSuccess={(isApproved) => {
             showToast(
               isApproved

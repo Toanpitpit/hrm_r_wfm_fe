@@ -92,7 +92,7 @@ export default function DashboardTopbar({
       setNotifications([
         {
           id: 'sys-welcome',
-          title: 'Chào mừng đến hệ thống RWFM',
+          title: 'Chào mừng đến hệ thống RWFM Enterprise',
           message: 'Tất cả thông báo thay đổi lịch phân ca, đổi ca và điều động sẽ hiển thị tại đây.',
           type: 'INFO',
           createdAt: new Date().toISOString(),
