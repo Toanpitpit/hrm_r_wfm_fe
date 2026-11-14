@@ -177,11 +177,6 @@ export const employeeService = {
    * 2. Lấy danh mục chi nhánh active cho dropdown (GET /api/Users/branches)
    */
   async getBranches() {
-    let customQuotasMap = {};
-    try {
-      customQuotasMap = JSON.parse(localStorage.getItem('wfm_branch_custom_quotas_v1') || '{}');
-    } catch {}
-
     let list = [];
     try {
       const res = await axiosInstance.get('Users/branches');
@@ -203,19 +198,21 @@ export const employeeService = {
 
     if (list.length === 0) {
       list = [
-        { id: 1, storeId: 1, name: 'Cửa hàng Tiện lợi Chi nhánh Cầu Giấy', address: '123 Cầu Giấy, Hà Nội', branchTier: 1 },
+        { id: 1, storeId: 1, name: 'Cửa hàng Tiện lợi Chi nhánh Cầu Giấy', address: '123 Cầu Giấy, Hà Nội', branchTier: 2 },
         { id: 2, storeId: 2, name: 'Cửa hàng Tiện lợi Chi nhánh Lê Văn Việt', address: '456 Lê Văn Việt, TP. Thủ Đức', branchTier: 1 },
-        { id: 3, storeId: 3, name: 'Cửa hàng Tiện lợi Chi nhánh Hoàn Kiếm', address: '78 Hàng Bài, Hoàn Kiếm', branchTier: 2 },
+        { id: 3, storeId: 3, name: 'Cửa hàng Tiện lợi Chi nhánh Hoàn Kiếm', address: '78 Hàng Bài, Hoàn Kiếm', branchTier: 1 },
       ];
     }
 
     return list.map((b) => {
-      const bId = Number(b.id || b.storeId);
-      const customQuota = customQuotasMap[bId];
+      const tier = Number(b.branchTier || b.tier || 2);
+      const standardTierQuota = tier === 1 ? 30 : tier === 3 ? 8 : 15;
+      const validStaffCount = Number(b.staffCount || b.targetStaffCount || 0);
       return {
         ...b,
-        staffCount: customQuota || b.staffCount || b.targetStaffCount,
-        effectiveQuota: customQuota || b.effectiveQuota || b.staffCount,
+        branchTier: tier,
+        staffCount: validStaffCount > 0 ? validStaffCount : standardTierQuota,
+        effectiveQuota: validStaffCount > 0 ? validStaffCount : standardTierQuota,
       };
     });
   },
