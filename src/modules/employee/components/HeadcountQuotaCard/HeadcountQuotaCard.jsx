@@ -134,18 +134,18 @@ export default function HeadcountQuotaCard({
               type="button"
               onClick={() => onSelectBranch('')}
               style={{
-                background: !selectedBranchId ? c.accent : 'transparent',
-                color: !selectedBranchId ? '#000000' : c.fgSubtle,
-                border: `1px solid ${!selectedBranchId ? c.accent : c.border}`,
-                padding: '4px 10px',
+                background: !selectedBranchId ? 'var(--color-primary, #0D9488)' : 'transparent',
+                color: !selectedBranchId ? '#ffffff' : c.fgSubtle,
+                border: `1px solid ${!selectedBranchId ? 'var(--color-primary, #0D9488)' : c.border}`,
+                padding: '5px 12px',
                 borderRadius: '6px',
-                fontSize: '11.5px',
+                fontSize: '12px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
               }}
             >
-              Xem Toàn Bộ Chuỗi
+              Xem Toàn Bộ Chuỗi {!selectedBranchId && '(61)'}
             </button>
           )}
         </div>
@@ -229,7 +229,24 @@ export default function HeadcountQuotaCard({
                       </span>
                     </div>
                   </div>
-                  {getStatusBadge(b)}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                    {isCardSelected && (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          background: 'var(--color-primary, #0D9488)',
+                          color: '#ffffff',
+                          fontWeight: 700,
+                          boxShadow: '0 1px 4px rgba(13, 148, 136, 0.4)',
+                        }}
+                      >
+                        ✓ Đang lọc
+                      </span>
+                    )}
+                    {getStatusBadge(b)}
+                  </div>
                 </div>
 
                 {/* Tiến độ mini (ghim sát đáy card để cân bằng hàng ngang) */}
