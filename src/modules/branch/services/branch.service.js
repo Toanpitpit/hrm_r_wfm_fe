@@ -1,4 +1,4 @@
-import axiosInstance from '@/config/axios.config';
+import axiosInstance, { getAccessToken } from '@/config/axios.config';
 
 /**
  * ==============================================================================
@@ -10,6 +10,13 @@ import axiosInstance from '@/config/axios.config';
  * - KiosksController (/api/kiosks)
  * Đi kèm cơ chế tự động chứng thực tài khoản Operations Admin khi thao tác dữ liệu.
  */
+
+/**
+ * Lấy Bearer Token của người dùng hiện tại từ RAM hoặc localStorage
+ */
+export const ensureAdminToken = async () => {
+  return getAccessToken() || localStorage.getItem('accessToken');
+};
 
 const apiClient = axiosInstance;
 
@@ -330,6 +337,7 @@ export const createBranch = async (payload) => {
   const radius = Number(rawRadius || 100);
   const tier = Number(payload.branchTier || payload.tier || 2);
 
+  await ensureAdminToken();
 
   try {
     const res = await apiClient.post(STORE_ENDPOINTS.CREATE, {
@@ -429,6 +437,7 @@ export const updateBranch = async (storeId, payload) => {
     : (payload.targetStaffCount !== undefined ? Number(payload.targetStaffCount) : undefined);
 
   // Đảm bảo có token xác thực quyền Admin trước khi gọi API
+  await ensureAdminToken();
 
   try {
     const updateBody = {
@@ -516,6 +525,7 @@ export const updateBranch = async (storeId, payload) => {
  * 4b. Nâng cấp phân cấp Tier chi nhánh khi đạt kịch biên (Tier 3 -> Tier 2 -> Tier 1)
  */
 export const upgradeBranchTier = async (storeId) => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.post(STORE_ENDPOINTS.UPGRADE_TIER(storeId));
     await getAllBranches();
@@ -532,6 +542,7 @@ export const upgradeBranchTier = async (storeId) => {
  */
 export const updateBranchStatus = async (storeId, status, reason = '') => {
   // Đảm bảo token Admin hợp lệ
+  await ensureAdminToken();
 
   try {
     // Gửi PATCH request đổi trạng thái (ACTIVE / LOCKED) kèm lý do phục vụ Audit Log
@@ -570,6 +581,7 @@ export const updateBranchStatus = async (storeId, status, reason = '') => {
  * 6. Xóa chi nhánh khỏi hệ thống
  */
 export const deleteBranch = async (storeId) => {
+  await ensureAdminToken();
   const idStr = String(storeId);
   try {
     let res;
@@ -605,6 +617,7 @@ export const deleteBranch = async (storeId) => {
  * 7. Lấy danh sách Kiosk toàn chuỗi (giám sát)
  */
 export const getAllKiosks = async () => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.get(KIOSK_ADMIN_ENDPOINTS.LIST_ALL);
     const data = res.data?.data || res.data;
@@ -622,6 +635,7 @@ export const getAllKiosks = async () => {
  * 8. Thêm mới máy Kiosk cho chi nhánh
  */
 export const createKiosk = async (storeId, kioskData) => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.post(KIOSK_ADMIN_ENDPOINTS.CREATE(storeId), {
       deviceName: kioskData.deviceName || kioskData.kioskName || 'Kiosk mới',
@@ -664,6 +678,7 @@ export const createKiosk = async (storeId, kioskData) => {
  * 9. Cập nhật cấu hình trạm Kiosk cụ thể
  */
 export const updateKioskConfig = async (kioskId, config) => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.put(
       KIOSK_ADMIN_ENDPOINTS.UPDATE_CONFIG(kioskId),
@@ -699,6 +714,7 @@ export const updateKioskConfig = async (kioskId, config) => {
  */
 export const toggleKioskLock = async (kioskId, currentStatus) => {
   const nextStatus = currentStatus === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
+  await ensureAdminToken();
   try {
     const res = await apiClient.patch(
       KIOSK_ADMIN_ENDPOINTS.UPDATE_STATUS(kioskId),
@@ -729,6 +745,7 @@ export const toggleKioskLock = async (kioskId, currentStatus) => {
  * GET /api/branches/{id}/lock-check
  */
 export const checkBranchLock = async (branchId) => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.get(`/branches/${branchId}/lock-check`);
     const data = res.data?.data || res.data;
@@ -785,6 +802,7 @@ export const syncBranchLockStateToStorage = (branchId, isLocked, reason = null) 
  * POST /api/branches/{id}/lock
  */
 export const lockBranch = async (branchId, payload) => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.post(`/branches/${branchId}/lock`, {
       reason: payload.reason,
@@ -828,6 +846,7 @@ export const lockBranch = async (branchId, payload) => {
  * POST /api/branches/{id}/unlock
  */
 export const unlockBranch = async (branchId, payload = {}) => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.post(`/branches/${branchId}/unlock`, {
       reason: payload.reason || '',
