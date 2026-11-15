@@ -185,7 +185,7 @@ export default function LoginPage() {
       toast.warning('Vui lòng điền đầy đủ thông tin đăng nhập.');
       return;
     }
-    const result = await handleLogin(formData.username.trim(), formData.password);
+    const result = await handleLogin(formData.username.trim(), formData.password, rememberMe);
     if (result.success) {
       loginSuccess(result.user);
       toast.success('Đăng nhập thành công!');
@@ -203,7 +203,7 @@ export default function LoginPage() {
           toast.error('Không nhận được mã xác thực Google.');
           return;
         }
-        const result = await handleGoogleLogin(token);
+        const result = await handleGoogleLogin(token, rememberMe);
         if (result?.success) {
           loginSuccess(result.user);
           toast.success('Đăng nhập Google thành công!');

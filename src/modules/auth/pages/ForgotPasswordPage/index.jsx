@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { useToast } from '../../../../components/ui/toast/ToastProvider';
@@ -102,26 +102,24 @@ export default function ForgotPasswordPage() {
 
   // Countdown timer cho OTP
   const [countdown, setCountdown] = useState(OTP_INITIAL_SECONDS);
-  const timerRef = useRef(null);
+  const [otpExpiresAt, setOtpExpiresAt] = useState(null);
+
+  const restartOtpCountdown = () => {
+    setCountdown(OTP_INITIAL_SECONDS);
+    setOtpExpiresAt(Date.now() + OTP_INITIAL_SECONDS * 1000);
+  };
 
   useEffect(() => {
-    if (step === 2) {
-      setCountdown(OTP_INITIAL_SECONDS);
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [step]);
+    if (step !== 2 || otpExpiresAt === null) return;
+
+    const timerId = setInterval(() => {
+      const secondsLeft = Math.max(0, Math.ceil((otpExpiresAt - Date.now()) / 1000));
+      setCountdown(secondsLeft);
+      if (secondsLeft === 0) clearInterval(timerId);
+    }, 1000);
+
+    return () => clearInterval(timerId);
+  }, [step, otpExpiresAt]);
 
   const formatCountdown = (secs) => {
     const m = Math.floor(secs / 60);
@@ -146,6 +144,7 @@ export default function ForgotPasswordPage() {
     const res = await handleForgotPassword(email.trim());
     if (res.success) {
       toast.success('Mã xác thực OTP đã được gửi đến email của bạn!');
+      restartOtpCountdown();
       setStep(2);
     } else {
       toast.error(res.message || 'Không thể gửi mã OTP. Vui lòng thử lại.');
@@ -158,7 +157,7 @@ export default function ForgotPasswordPage() {
     const res = await handleForgotPassword(email.trim());
     if (res.success) {
       toast.success('Đã gửi lại mã xác thực OTP mới.');
-      setCountdown(OTP_INITIAL_SECONDS);
+      restartOtpCountdown();
       setOtpCode('');
     } else {
       toast.error(res.message || 'Lỗi khi gửi lại mã OTP.');
