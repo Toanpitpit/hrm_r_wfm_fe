@@ -54,49 +54,109 @@ export function useBranch() {
     fetchData();
   }, [fetchData]);
 
-  // Thống kê tổng hợp
+  // Thống kê tổng hợp phân cấp chi nhánh động từ Database
   const stats = useMemo(() => {
     const totalBranches = branches.length;
     const activeBranches = branches.filter((b) => (b.status || '').toUpperCase() === 'ACTIVE').length;
     const lockedBranches = totalBranches - activeBranches;
 
-    let t1Count = 0;
-    let t2Count = 0;
-    let t3Count = 0;
-    let t4Count = 0;
-    let t5Count = 0;
-    let otherCount = 0;
+    const TIER_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#a855f7', '#ec4899', '#06b6d4', '#eab308', '#6366f1'];
 
+    // Sắp xếp tiers theo số tự nhiên (ví dụ: Tier 1, Tier 2, Tier 4, Tier 5)
+    const sortedTiers = [...(tiers || [])].sort((a, b) => {
+      const numA = parseInt((a.tierName || a.name || '').match(/\d+/)?.[0] || a.id || 0, 10);
+      const numB = parseInt((b.tierName || b.name || '').match(/\d+/)?.[0] || b.id || 0, 10);
+      return numA - numB;
+    });
+
+    const tierMap = new Map();
+    sortedTiers.forEach((t, idx) => {
+      const id = Number(t.id || t.tier_id);
+      const name = t.tierName || t.name || `Tier ${id}`;
+      const numMatch = name.match(/\d+/);
+      const shortCode = numMatch ? `T${numMatch[0]}` : (name.length <= 4 ? name.toUpperCase() : `T${id}`);
+
+      let color = TIER_COLORS[idx % TIER_COLORS.length];
+      const lower = name.toLowerCase();
+      if (lower.includes('tier 1') || lower.includes('cấp 1') || lower.includes('flagship')) color = '#f59e0b';
+      else if (lower.includes('tier 2') || lower.includes('cấp 2') || lower.includes('tiêu chuẩn')) color = '#3b82f6';
+      else if (lower.includes('tier 3') || lower.includes('cấp 3') || lower.includes('mini')) color = '#10b981';
+      else if (lower.includes('tier 4') || lower.includes('cấp 4')) color = '#a855f7';
+      else if (lower.includes('tier 5') || lower.includes('cấp 5')) color = '#ec4899';
+
+      tierMap.set(id, {
+        id,
+        name,
+        shortCode,
+        color,
+        count: 0,
+      });
+    });
+
+    // Nếu API tiers chưa tải xong hoặc rỗng, mặc định T1, T2, T3
+    if (tierMap.size === 0) {
+      [1, 2, 3].forEach((num, idx) => {
+        tierMap.set(num, {
+          id: num,
+          name: `Tier ${num}`,
+          shortCode: `T${num}`,
+          color: TIER_COLORS[idx],
+          count: 0,
+        });
+      });
+    }
+
+    let otherCount = 0;
     branches.forEach((b) => {
       const tId = Number(b.tierId || b.tier?.id || b.tier_id || 0);
-      const matchedTier = (tiers || []).find((t) => Number(t.id || t.tier_id) === tId) || b.tierObj || b.tier;
-      const tName = (matchedTier?.tierName || matchedTier?.name || b.branchTierName || '').toLowerCase();
-      const numBranchTier = Number(b.branchTier ?? b.tier);
 
-      if (numBranchTier === 1 || tId === 1 || tId === 6 || tName.includes('tier 1') || tName.includes('cấp 1') || tName.includes('flagship')) {
-        t1Count++;
-      } else if (numBranchTier === 2 || tId === 2 || tId === 7 || tName.includes('tier 2') || tName.includes('cấp 2') || tName.includes('tiêu chuẩn') || tName.includes('standard')) {
-        t2Count++;
-      } else if (numBranchTier === 3 || tId === 3 || tName.includes('tier 3') || tName.includes('cấp 3') || tName.includes('mini') || tName.includes('compact')) {
-        t3Count++;
-      } else if (numBranchTier === 4 || tId === 4 || tId === 9 || tName.includes('tier 4') || tName.includes('cấp 4')) {
-        t4Count++;
-      } else if (numBranchTier === 5 || tId === 5 || tId === 10 || tName.includes('tier 5') || tName.includes('cấp 5')) {
-        t5Count++;
-      } else {
-        otherCount++;
+      // 1. Khớp trực tiếp theo TierId
+      if (tId && tierMap.has(tId)) {
+        tierMap.get(tId).count++;
+        return;
       }
+
+      // 2. Khớp theo tên Tier của đối tượng đính kèm
+      const matchedTierObj = (tiers || []).find((t) => Number(t.id || t.tier_id) === tId) || b.tierObj || b.tier;
+      const tName = (matchedTierObj?.tierName || matchedTierObj?.name || b.branchTierName || '').toLowerCase();
+      const numFromTName = parseInt(tName.match(/\d+/)?.[0] || '0', 10);
+      if (numFromTName > 0) {
+        const found = Array.from(tierMap.values()).find(
+          (item) => item.shortCode === `T${numFromTName}` || item.name.toLowerCase().includes(`tier ${numFromTName}`)
+        );
+        if (found) {
+          found.count++;
+          return;
+        }
+      }
+
+      // 3. Fallback theo số branchTier cũ
+      const numBranchTier = Number(b.branchTier ?? b.tier);
+      if (numBranchTier > 0) {
+        const found = Array.from(tierMap.values()).find(
+          (item) => item.shortCode === `T${numBranchTier}` || item.name.toLowerCase().includes(`tier ${numBranchTier}`)
+        );
+        if (found) {
+          found.count++;
+          return;
+        }
+      }
+
+      otherCount++;
     });
+
+    const tierBreakdown = Array.from(tierMap.values());
 
     return {
       totalBranches,
       activeBranches,
       lockedBranches,
-      tier1Count: t1Count,
-      tier2Count: t2Count,
-      tier3Count: t3Count,
-      tier4Count: t4Count,
-      tier5Count: t5Count,
+      tierBreakdown,
+      tier1Count: tierBreakdown.find((t) => t.shortCode === 'T1')?.count || 0,
+      tier2Count: tierBreakdown.find((t) => t.shortCode === 'T2')?.count || 0,
+      tier3Count: tierBreakdown.find((t) => t.shortCode === 'T3')?.count || 0,
+      tier4Count: tierBreakdown.find((t) => t.shortCode === 'T4')?.count || 0,
+      tier5Count: tierBreakdown.find((t) => t.shortCode === 'T5')?.count || 0,
       otherTierCount: otherCount,
     };
   }, [branches, tiers]);

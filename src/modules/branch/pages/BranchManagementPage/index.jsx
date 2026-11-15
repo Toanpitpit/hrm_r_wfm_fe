@@ -223,18 +223,33 @@ export default function BranchManagementPage() {
         <StatCard
           label="PHÂN CẤP CHI NHÁNH"
           value={
-            <div style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '-0.2px', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-              <span style={{ color: '#f59e0b' }}>T1: {stats.tier1Count || 0}</span>
-              <span style={{ color: c.fgFaint }}>|</span>
-              <span style={{ color: '#60a5fa' }}>T2: {stats.tier2Count || 0}</span>
-              <span style={{ color: c.fgFaint }}>|</span>
-              <span style={{ color: '#10b981' }}>T3: {stats.tier3Count || 0}</span>
-              {(stats.tier4Count > 0 || stats.tier5Count > 0) && (
+            <div
+              style={{
+                fontSize: '15px',
+                fontWeight: 700,
+                letterSpacing: '-0.2px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                flexWrap: 'wrap',
+              }}
+            >
+              {stats.tierBreakdown && stats.tierBreakdown.length > 0 ? (
+                stats.tierBreakdown.map((item, idx) => (
+                  <React.Fragment key={item.id || item.shortCode || idx}>
+                    {idx > 0 && <span style={{ color: c.fgFaint }}>|</span>}
+                    <span style={{ color: item.color }}>
+                      {item.shortCode}: {item.count}
+                    </span>
+                  </React.Fragment>
+                ))
+              ) : (
                 <>
+                  <span style={{ color: '#f59e0b' }}>T1: {stats.tier1Count || 0}</span>
                   <span style={{ color: c.fgFaint }}>|</span>
-                  <span style={{ color: '#a855f7' }}>T4: {stats.tier4Count || 0}</span>
+                  <span style={{ color: '#60a5fa' }}>T2: {stats.tier2Count || 0}</span>
                   <span style={{ color: c.fgFaint }}>|</span>
-                  <span style={{ color: '#ec4899' }}>T5: {stats.tier5Count || 0}</span>
+                  <span style={{ color: '#10b981' }}>T3: {stats.tier3Count || 0}</span>
                 </>
               )}
             </div>
