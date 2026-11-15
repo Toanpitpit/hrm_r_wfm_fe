@@ -11,11 +11,11 @@ const useAuth = () => {
   /**
    * Xử lý đăng nhập Web
    */
-  const handleLogin = useCallback(async (username, password) => {
+  const handleLogin = useCallback(async (username, password, rememberMe) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await authService.login({ username, password });
+      const response = await authService.login({ username, password, rememberMe });
       if (response.success) {
         return { success: true, user: response.data };
       }
@@ -101,11 +101,11 @@ const useAuth = () => {
   /**
    * Đăng nhập bằng Google
    */
-  const handleGoogleLogin = useCallback(async (idToken) => {
+  const handleGoogleLogin = useCallback(async (idToken, rememberMe) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await authService.googleLogin(idToken);
+      const response = await authService.googleLogin(idToken, rememberMe);
       if (response.success) {
         return { success: true, user: response.data };
       }
