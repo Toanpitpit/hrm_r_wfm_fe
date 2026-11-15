@@ -19,18 +19,17 @@ const TILE_LAYERS = {
   dark: {
     name: 'Bản Đồ Tối',
     icon: 'screen',
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    subdomains: 'abcd',
-    attribution: '&copy; CartoDB &copy; OpenStreetMap contributors',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    referenceUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri World Dark Gray',
     maxZoom: 19,
     filterClass: '',
   },
   streets: {
     name: 'Đường Phố',
     icon: 'map',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    subdomains: 'abc',
-    attribution: '&copy; OpenStreetMap contributors',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri World Street Map',
     maxZoom: 19,
     filterClass: '',
   },
@@ -54,6 +53,7 @@ export default function BranchMapView({
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const tileLayerRef = useRef(null);
+  const referenceLayerRef = useRef(null);
   const markersGroupRef = useRef(null);
   const circlesGroupRef = useRef(null);
   const markersMapRef = useRef({});
@@ -83,21 +83,32 @@ export default function BranchMapView({
     });
   }, [branches, mapSearch, tierFilter]);
 
-  // Tạo Custom Marker Pin theo cấp chi nhánh (Tier 1/2/3)
+  // Tạo Custom Marker Pin theo cấp chi nhánh (Tier 1/2/3/4/5...)
   const createMarkerIcon = (branch, isSelected = false) => {
     const isActive = (branch.status || '').toUpperCase() === 'ACTIVE';
     const tier = Number(branch.branchTier ?? branch.tier ?? 2);
+    const tName = (branch.tierObj?.tierName || branch.tier?.tierName || branch.branchTierName || branch.tierName || '').toLowerCase();
+    const tMatch = tName.match(/\d+/);
+    const tierNum = tMatch ? Number(tMatch[0]) : (tier || 2);
 
     let pinColor = '#3b82f6'; // Tier 2 default (Blue)
-    let tierLabel = 'C2';
+    let tierLabel = `C${tierNum}`;
+    if (tierNum === 1) {
+      pinColor = '#f59e0b'; // Tier 1 Gold
+    } else if (tierNum === 2) {
+      pinColor = '#3b82f6'; // Tier 2 Blue
+    } else if (tierNum === 3) {
+      pinColor = '#10b981'; // Tier 3 Emerald
+    } else if (tierNum === 4) {
+      pinColor = '#a855f7'; // Tier 4 Purple
+    } else if (tierNum === 5) {
+      pinColor = '#ec4899'; // Tier 5 Pink
+    } else {
+      pinColor = '#06b6d4';
+    }
+
     if (!isActive) {
       pinColor = '#ef4444';
-    } else if (tier === 1) {
-      pinColor = '#f59e0b'; // Tier 1 Gold
-      tierLabel = 'C1';
-    } else if (tier === 3) {
-      pinColor = '#10b981'; // Tier 3 Emerald
-      tierLabel = 'C3';
     }
 
     const scale = isSelected ? 'transform: scale(1.18); z-index: 999;' : '';
@@ -198,6 +209,14 @@ export default function BranchMapView({
       }).addTo(map);
       tileLayerRef.current = tileLayer;
 
+      if (initialLayerDef.referenceUrl) {
+        const refLayer = L.tileLayer(initialLayerDef.referenceUrl, {
+          maxZoom: initialLayerDef.maxZoom,
+          subdomains: initialLayerDef.subdomains || 'abc',
+        }).addTo(map);
+        referenceLayerRef.current = refLayer;
+      }
+
       // Group cho Markers và Geofence Circles
       const circlesGroup = L.layerGroup().addTo(map);
       const markersGroup = L.layerGroup().addTo(map);
@@ -228,6 +247,11 @@ export default function BranchMapView({
 
     if (tileLayerRef.current) {
       map.removeLayer(tileLayerRef.current);
+      tileLayerRef.current = null;
+    }
+    if (referenceLayerRef.current) {
+      map.removeLayer(referenceLayerRef.current);
+      referenceLayerRef.current = null;
     }
 
     const newTileLayer = L.tileLayer(layerDef.url, {
@@ -235,8 +259,15 @@ export default function BranchMapView({
       subdomains: layerDef.subdomains || 'abc',
       className: layerDef.filterClass || '',
     }).addTo(map);
-
     tileLayerRef.current = newTileLayer;
+
+    if (layerDef.referenceUrl) {
+      const refLayer = L.tileLayer(layerDef.referenceUrl, {
+        maxZoom: layerDef.maxZoom,
+        subdomains: layerDef.subdomains || 'abc',
+      }).addTo(map);
+      referenceLayerRef.current = refLayer;
+    }
   }, [activeMapType]);
 
   // Vẽ Markers và Geofence Circles
@@ -262,14 +293,30 @@ export default function BranchMapView({
 
       bounds.push([lat, lng]);
 
+      const tName = (b.tierObj?.tierName || b.tier?.tierName || b.branchTierName || b.tierName || '').toLowerCase();
+      const tMatch = tName.match(/\d+/);
+      const tierNum = tMatch ? Number(tMatch[0]) : (tier || 2);
+
       let tierColor = '#3b82f6';
-      let tierName = 'Cấp 2 - Tiêu Chuẩn';
-      if (tier === 1) {
+      let tierName = `Cấp ${tierNum} - Tiêu Chuẩn`;
+      if (tierNum === 1) {
         tierColor = '#f59e0b';
         tierName = 'Cấp 1 - Flagship';
-      } else if (tier === 3) {
+      } else if (tierNum === 2) {
+        tierColor = '#3b82f6';
+        tierName = 'Cấp 2 - Tiêu Chuẩn';
+      } else if (tierNum === 3) {
         tierColor = '#10b981';
         tierName = 'Cấp 3 - Mini';
+      } else if (tierNum === 4) {
+        tierColor = '#a855f7';
+        tierName = 'Cấp 4 - Mở Rộng';
+      } else if (tierNum === 5) {
+        tierColor = '#ec4899';
+        tierName = 'Cấp 5 - Đặc Biệt';
+      } else {
+        tierColor = '#06b6d4';
+        tierName = `Cấp ${tierNum}`;
       }
 
       // 1. Circle Geofence
