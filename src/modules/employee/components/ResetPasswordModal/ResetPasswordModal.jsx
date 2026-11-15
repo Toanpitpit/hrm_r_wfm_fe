@@ -11,7 +11,8 @@ export default function ResetPasswordModal({
   employee,
   onConfirmReset,
 }) {
-  const { c, fonts } = useAdminTheme();
+  const { c, fonts, theme } = useAdminTheme();
+  const isDark = theme === 'dark';
 
   const [useCustomPassword, setUseCustomPassword] = useState(false);
   const [customPassword, setCustomPassword] = useState('');
@@ -145,7 +146,7 @@ export default function ResetPasswordModal({
                   fontSize: '18px',
                   fontFamily: fonts.mono,
                   fontWeight: 700,
-                  color: '#f2ca50',
+                  color: isDark ? '#2dd4bf' : '#0d9488',
                   marginTop: '4px',
                   letterSpacing: '1px',
                 }}
@@ -204,7 +205,7 @@ export default function ResetPasswordModal({
               border: '1px solid rgba(239, 68, 68, 0.25)',
               borderRadius: '8px',
               fontSize: '12.5px',
-              color: '#fca5a5',
+              color: '#991b1b',
               lineHeight: '1.5',
             }}
           >
