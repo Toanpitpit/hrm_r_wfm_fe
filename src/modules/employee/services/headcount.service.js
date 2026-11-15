@@ -278,6 +278,7 @@ export const headcountService = {
             branchId: Number(bId),
             branchName: b.name || `Chi nhánh #${bId}`,
             branchTier: tier,
+            status: b.status || finalStatus.status || 'ACTIVE',
             ...finalStatus,
             officialHeadcount: official,
             currentHeadcount: official,

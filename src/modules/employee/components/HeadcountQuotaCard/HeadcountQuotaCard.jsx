@@ -23,6 +23,33 @@ export default function HeadcountQuotaCard({
   };
 
   const getStatusBadge = (statusObj) => {
+    const isLocked = statusObj.status === 'INACTIVE' || statusObj.status === 'LOCKED';
+    if (isLocked) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '3px 8px',
+              borderRadius: '9999px',
+              fontSize: '11px',
+              fontWeight: 700,
+              background: 'rgba(239, 68, 68, 0.16)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              color: '#ef4444',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+            Tạm Khóa
+          </span>
+        </div>
+      );
+    }
+
     const tier = Number(statusObj.branchTier || 2);
     const standardQuota = Number(
       statusObj.effectiveQuota ||
@@ -175,6 +202,7 @@ export default function HeadcountQuotaCard({
             const bAvailable = b.availableQuotaSlots ?? Math.max(0, bStandardQuota - bActive);
             const isCardSelected = String(selectedBranchId) === String(bId);
             const isFull = bActive >= bStandardQuota;
+            const isLocked = b.status === 'INACTIVE' || b.status === 'LOCKED';
 
             return (
               <div
@@ -184,8 +212,9 @@ export default function HeadcountQuotaCard({
                 style={{
                   padding: '14px 16px',
                   borderRadius: '10px',
-                  background: isCardSelected ? 'rgba(13, 148, 136, 0.12)' : c.bgCard,
-                  border: `2px solid ${isCardSelected ? 'var(--color-primary, #0D9488)' : c.border}`,
+                  background: isCardSelected ? 'rgba(13, 148, 136, 0.12)' : (isLocked ? 'rgba(239, 68, 68, 0.04)' : c.bgCard),
+                  border: `2px solid ${isCardSelected ? 'var(--color-primary, #0D9488)' : (isLocked ? 'rgba(239, 68, 68, 0.35)' : c.border)}`,
+                  opacity: isLocked && !isCardSelected ? 0.85 : 1,
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
@@ -204,7 +233,7 @@ export default function HeadcountQuotaCard({
                       style={{
                         fontSize: '13.5px',
                         fontWeight: 700,
-                        color: isCardSelected ? 'var(--color-primary, #0D9488)' : c.fg,
+                        color: isCardSelected ? 'var(--color-primary, #0D9488)' : (isLocked ? '#f87171' : c.fg),
                         lineHeight: '1.35',
                         minHeight: '37px',
                         display: '-webkit-box',
@@ -216,6 +245,11 @@ export default function HeadcountQuotaCard({
                       title={b.branchName}
                     >
                       {b.branchName}
+                      {isLocked && (
+                        <span style={{ color: '#ef4444', fontSize: '11px', marginLeft: '6px', fontWeight: 600 }}>
+                          (Tạm Khóa)
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                       <span
