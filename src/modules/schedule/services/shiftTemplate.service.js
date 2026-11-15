@@ -261,8 +261,8 @@ export const findOverlappingShift = (newShift, existingShifts = [], ignoreShiftI
 // 2. MOCK DATA STORE VÀ CƠ CHẾ ADAPTER
 // ==============================================================================
 
-const STORAGE_KEY_SHIFTS = 'wfm_shifts_v3';
-const STORAGE_KEY_BRANCHES = 'wfm_branches_v3';
+const STORAGE_KEY_SHIFTS = 'wfm_shifts_v4';
+const STORAGE_KEY_BRANCHES = 'wfm_branches_v4';
 
 const INITIAL_GLOBAL_SHIFTS = [
   {
@@ -325,8 +325,8 @@ const INITIAL_BRANCHES = [
   {
     id: 1,
     storeId: 1,
-    name: 'Cửa hàng Q1 - Đồng Khởi',
-    code: 'HCM_DK_01',
+    name: 'Cửa hàng Tiện lợi Chi nhánh Cầu Giấy',
+    code: 'CH01',
     shiftMode: 'GLOBAL',
     activeCustomShiftCount: 0,
     isLocked: false,
@@ -334,8 +334,8 @@ const INITIAL_BRANCHES = [
   {
     id: 2,
     storeId: 2,
-    name: 'Cửa hàng Q3 - Nguyễn Thị Minh Khai',
-    code: 'HCM_NTMK_02',
+    name: 'Cửa hàng Tiện lợi Chi nhánh Lê Văn Việt',
+    code: 'CH02',
     shiftMode: 'GLOBAL',
     activeCustomShiftCount: 0,
     isLocked: false,
@@ -343,42 +343,24 @@ const INITIAL_BRANCHES = [
   {
     id: 3,
     storeId: 3,
-    name: 'Cửa hàng Q7 - Phú Mỹ Hưng',
-    code: 'HCM_PMH_03',
-    shiftMode: 'CUSTOM',
-    activeCustomShiftCount: 3,
-    isLocked: false,
-  },
-  {
-    id: 4,
-    storeId: 4,
-    name: 'Cửa hàng Bình Thạnh - Landmark',
-    code: 'HCM_LM_04',
-    shiftMode: 'GLOBAL',
-    activeCustomShiftCount: 2,
-    isLocked: false,
-  },
-  {
-    id: 5,
-    storeId: 5,
-    name: 'Cửa hàng Tân Bình - Sân Bay (Khóa)',
-    code: 'HCM_SB_05',
+    name: 'Cửa hàng Tiện lợi Chi nhánh Hoàn Kiếm',
+    code: 'CH03',
     shiftMode: 'CUSTOM',
     activeCustomShiftCount: 2,
-    isLocked: true,
+    isLocked: false,
   },
 ];
 
 const INITIAL_CUSTOM_SHIFTS = [
   {
-    id: 101,
-    templateCode: 'PMH_SANG',
-    name: 'Ca Sáng Phú Mỹ Hưng',
-    description: 'Khung ca sáng mở rộng cho khu vực cư dân cao cấp',
+    id: 4,
+    templateCode: 'CH03-S1',
+    name: 'Ca Sáng Riêng CH03 (07:00 - 15:00)',
+    description: 'Khung ca sáng riêng chi nhánh Hoàn Kiếm',
     shiftType: 'Morning',
     scope: 'BRANCH',
     branchId: 3,
-    branchName: 'Cửa hàng Q7 - Phú Mỹ Hưng',
+    branchName: 'Cửa hàng Tiện lợi Chi nhánh Hoàn Kiếm',
     startTime: '07:00',
     endTime: '15:00',
     breakDuration: 30,
@@ -388,14 +370,14 @@ const INITIAL_CUSTOM_SHIFTS = [
     nightHours: 0,
   },
   {
-    id: 102,
-    templateCode: 'PMH_CHIEU',
-    name: 'Ca Chiều Phú Mỹ Hưng',
-    description: 'Ca chiều tăng cường giờ ăn tối và mua sắm',
+    id: 5,
+    templateCode: 'CH03-C1',
+    name: 'Ca Chiều Riêng CH03 (15:00 - 23:00)',
+    description: 'Khung ca chiều riêng chi nhánh Hoàn Kiếm',
     shiftType: 'Afternoon',
     scope: 'BRANCH',
     branchId: 3,
-    branchName: 'Cửa hàng Q7 - Phú Mỹ Hưng',
+    branchName: 'Cửa hàng Tiện lợi Chi nhánh Hoàn Kiếm',
     startTime: '15:00',
     endTime: '23:00',
     breakDuration: 30,
@@ -403,57 +385,6 @@ const INITIAL_CUSTOM_SHIFTS = [
     isActive: true,
     paidHours: 7.5,
     nightHours: 1.0,
-  },
-  {
-    id: 103,
-    templateCode: 'PMH_DEM',
-    name: 'Ca Đêm Phú Mỹ Hưng',
-    description: 'Ca trực đêm phục vụ chuyên biệt',
-    shiftType: 'Night',
-    scope: 'BRANCH',
-    branchId: 3,
-    branchName: 'Cửa hàng Q7 - Phú Mỹ Hưng',
-    startTime: '23:00',
-    endTime: '07:00',
-    breakDuration: 45,
-    isOvernight: true,
-    isActive: true,
-    paidHours: 7.25,
-    nightHours: 7.0,
-  },
-  {
-    id: 104,
-    templateCode: 'LM_SANG_SOM',
-    name: 'Ca Sáng Sớm Landmark',
-    description: 'Phục vụ cư dân tập thể dục buổi sáng',
-    shiftType: 'Morning',
-    scope: 'BRANCH',
-    branchId: 4,
-    branchName: 'Cửa hàng Bình Thạnh - Landmark',
-    startTime: '05:30',
-    endTime: '13:30',
-    breakDuration: 30,
-    isOvernight: false,
-    isActive: true,
-    paidHours: 7.5,
-    nightHours: 0.5,
-  },
-  {
-    id: 105,
-    templateCode: 'LM_TOI_MUON',
-    name: 'Ca Tối Muộn Landmark',
-    description: 'Phục vụ cư dân và sự kiện tòa nhà',
-    shiftType: 'Afternoon',
-    scope: 'BRANCH',
-    branchId: 4,
-    branchName: 'Cửa hàng Bình Thạnh - Landmark',
-    startTime: '16:00',
-    endTime: '00:00',
-    breakDuration: 30,
-    isOvernight: true,
-    isActive: true,
-    paidHours: 7.5,
-    nightHours: 2.0,
   },
 ];
 
@@ -1155,12 +1086,14 @@ export const updateBranchShiftMode = async (branchId, mode, confirm = false) => 
     const res = await apiClient.patch(`/branches/${branchId}/shift-mode`, { mode, confirm });
     if (res.data) {
       const resultData = res.data.data || res.data;
-      const branches = getMockBranches();
-      const bIdx = branches.findIndex((b) => String(b.id || b.storeId) === String(branchId));
-      if (bIdx !== -1) {
-        branches[bIdx].shiftMode = mode;
-        setMockBranches(branches);
-      }
+      try {
+        const branches = getMockBranches();
+        const bIdx = branches.findIndex((b) => String(b.id || b.storeId) === String(branchId));
+        if (bIdx !== -1) {
+          branches[bIdx].shiftMode = mode;
+          setMockBranches(branches);
+        }
+      } catch { }
       return resultData;
     }
   } catch (err) {

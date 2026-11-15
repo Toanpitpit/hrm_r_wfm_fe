@@ -176,7 +176,20 @@ export default function AssignShiftCellModal({
   const isUserNotYetDispatched = Boolean(user?.isDispatched && uDispStart && targetDateStrMode2 < uDispStart);
   const isUserDispatchExpired = Boolean(user?.isDispatched && uDispEnd && targetDateStrMode2 > uDispEnd);
   const isUserDispatchedAway = Boolean(user?.isDispatchedAway && uDispAwayStart && uDispAwayEnd && targetDateStrMode2 >= uDispAwayStart && targetDateStrMode2 <= uDispAwayEnd);
-  const isMode2Blocked = isPastOrToday || isUserNotYetDispatched || isUserDispatchExpired || isUserDispatchedAway;
+  const userRoleCode = (user?.roleCode || '').toUpperCase();
+  const userRoleName = (user?.roleName || '').toLowerCase();
+  const isUserManager = Boolean(
+    userRoleCode === 'STORE_MANAGER' ||
+    userRoleCode === 'STOREMANAGER' ||
+    userRoleCode === 'MANAGER' ||
+    userRoleCode === 'OPERATIONS_ADMIN' ||
+    userRoleCode === 'ADMIN' ||
+    userRoleCode === 'BUSINESS_OWNER' ||
+    userRoleName.includes('quản lý') ||
+    userRoleName.includes('admin')
+  );
+
+  const isMode2Blocked = isPastOrToday || isUserNotYetDispatched || isUserDispatchExpired || isUserDispatchedAway || isUserManager;
 
   // Submit cho Mode 2 (Gán ca cho nhân viên cụ thể)
   const handleEmployeeSubmit = (e) => {
@@ -523,6 +536,26 @@ export default function AssignShiftCellModal({
       title={currentAssignment ? 'Điều Chỉnh / Hủy Phân Công Ca' : 'Phân Công Ca Làm Việc'}
     >
       <form onSubmit={handleEmployeeSubmit}>
+        {isUserManager && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 6,
+              background: c.tones.badDim,
+              border: `1px solid ${c.tones.bad}`,
+              color: c.tones.bad,
+              fontSize: 12.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            <Icon name="alertTriangle" size={16} color={c.tones.bad} />
+            <span>Tài khoản {user?.fullName} thuộc vai trò Quản lý ({user?.roleName || user?.roleCode}), không thuộc đối tượng xếp ca trực vận hành.</span>
+          </div>
+        )}
+
         {isPastOrToday && (
           <div
             style={{
