@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import tierService, { TIER_DEFINITIONS } from '../services/tier.service';
 import { createBranch, updateBranch } from '../services/branch.service';
 import employeeService from '@/modules/employee/services/employee.service';
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 
 export function useBranchTier() {
   const toast = useToast();

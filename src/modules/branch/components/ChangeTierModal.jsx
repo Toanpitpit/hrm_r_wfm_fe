@@ -58,8 +58,8 @@ export default function ChangeTierModal({
       const max = t.maxStaffCount !== null && t.maxStaffCount !== undefined
         ? Number(t.maxStaffCount)
         : (t.max_staff_count !== null && t.max_staff_count !== undefined
-            ? Number(t.max_staff_count)
-            : (t.maxStaff ? Number(t.maxStaff) : null));
+          ? Number(t.max_staff_count)
+          : (t.maxStaff ? Number(t.maxStaff) : null));
       const quota = Number(t.standardQuota || max || (min > 0 ? min + 5 : 15));
 
       // Màu sắc nhận diện
@@ -124,10 +124,14 @@ export default function ChangeTierModal({
         const matchedTier = targetTierDef;
         const targetTierId = Number(matchedTier?.rawObj?.id || matchedTier?.id || selectedTier || 0);
 
-        // Trích xuất số phân cấp nếu có (1, 2, 3...)
-        let tierNum = matchedTier?.name && matchedTier.name.match(/\d+/)
-          ? Number(matchedTier.name.match(/\d+/)[0])
-          : (Number(matchedTier?.id) <= 3 ? Number(matchedTier?.id) : 2);
+        // Trích xuất số phân cấp linh hoạt theo dữ liệu Tier thực tế
+        let tierNum = Number(matchedTier?.rawObj?.branchTier || matchedTier?.rawObj?.tier || matchedTier?.tier || targetTierId || 2);
+        if (matchedTier?.name) {
+          const nameMatch = matchedTier.name.match(/(?:tier|cấp)\s*(\d+)/i) || matchedTier.name.match(/\b(\d+)\b/);
+          if (nameMatch) {
+            tierNum = Number(nameMatch[1]);
+          }
+        }
 
         await submitHandler(
           branch.storeId || branch.id,

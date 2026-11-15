@@ -195,10 +195,11 @@ export default function UnlockModal({
         {/* Input lý do mở khóa (tùy chọn) */}
         <FormField
           label="Lý do mở khóa"
-          hint="Tùy chọn (lưu vào nhật ký kiểm toán)"
+          hint={`${reason.length}/500 ký tự (Tùy chọn, lưu vào nhật ký kiểm toán)`}
         >
           <textarea
             rows={3}
+            maxLength={500}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="VD: Đã hoàn tất bảo trì hệ thống và kiểm kê định kỳ..."

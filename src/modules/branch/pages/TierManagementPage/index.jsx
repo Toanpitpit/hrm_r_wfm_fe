@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import useTier from '../../hooks/useTier';
 import TierTable from '../../components/TierTable';
 import TierFormModal from '../../components/TierFormModal';
@@ -17,6 +17,7 @@ export const TierManagementPage = () => {
     submitting,
     notification,
     totalTiers,
+    activeTiers,
     totalBranchesInTiers,
     handleOpenCreate,
     handleOpenEdit,
@@ -110,7 +111,7 @@ export const TierManagementPage = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Tier Hoạt Động</p>
-              <h3 className="text-3xl font-black text-emerald-400 mt-1">{totalTiers}</h3>
+              <h3 className="text-3xl font-black text-emerald-400 mt-1">{activeTiers ?? totalTiers}</h3>
             </div>
             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

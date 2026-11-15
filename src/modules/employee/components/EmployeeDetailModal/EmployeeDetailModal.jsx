@@ -19,6 +19,7 @@ export default function EmployeeDetailModal({
   onEdit,
   onResetPassword,
   canManageSystem = false,
+  newEmployeeIds = [],
 }) {
   const { c, fonts } = useAdminTheme();
 
@@ -26,6 +27,37 @@ export default function EmployeeDetailModal({
 
   const avatarLetter = (employee.fullName || 'N').trim().charAt(0).toUpperCase();
   const isInactive = employee.status === 'INACTIVE';
+
+  const isNew = (() => {
+    if (employee.isNew) return true;
+    const strId = String(employee.id || '');
+    const code = (employee.employeeCode || '').trim().toUpperCase();
+    if (newEmployeeIds && newEmployeeIds.length > 0) {
+      if (
+        newEmployeeIds.some((item) => {
+          const val = typeof item === 'object' ? String(item.id || item.code || '') : String(item);
+          return val === strId || (code && val.toUpperCase() === code);
+        })
+      ) {
+        return true;
+      }
+    }
+    // Không đánh dấu NEW cho các tài khoản seed mặc định ban đầu của hệ thống
+    const numId = Number(employee.id);
+    const isSeeded = numId > 0 && numId <= 61;
+    if (isSeeded) return false;
+
+    if (employee.createdAt) {
+      const createdTime = new Date(employee.createdAt).getTime();
+      if (!isNaN(createdTime)) {
+        const diffHours = (Date.now() - createdTime) / (1000 * 60 * 60);
+        if (diffHours >= 0 && diffHours < 48) {
+          return true;
+        }
+      }
+    }
+    return false;
+  })();
 
   return (
     <Modal
@@ -52,7 +84,8 @@ export default function EmployeeDetailModal({
             padding: '16px',
             background: c.bgCard,
             borderRadius: '10px',
-            border: `1px solid ${c.border}`,
+            border: isNew ? '1px solid rgba(16, 185, 129, 0.4)' : `1px solid ${c.border}`,
+            boxShadow: isNew ? '0 0 15px rgba(16, 185, 129, 0.08)' : 'none',
           }}
         >
           <div
@@ -60,9 +93,11 @@ export default function EmployeeDetailModal({
               width: '56px',
               height: '56px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #443419, #1b1710)',
-              border: `2px solid ${c.accent}`,
-              color: c.accent,
+              background: isNew
+                ? 'linear-gradient(135deg, #064e3b, #022c22)'
+                : 'linear-gradient(135deg, #443419, #1b1710)',
+              border: `2px solid ${isNew ? '#10b981' : c.accent}`,
+              color: isNew ? '#34d399' : c.accent,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -79,6 +114,37 @@ export default function EmployeeDetailModal({
               <h3 style={{ fontSize: '18px', fontWeight: 700, color: c.fg }}>
                 {employee.fullName || 'Chưa đặt tên'}
               </h3>
+              {isNew && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '2px 8px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    letterSpacing: '0.6px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: '#ffffff',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                    textTransform: 'uppercase',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                  }}
+                  title="Nhân viên mới được thêm vào hệ thống"
+                >
+                  <span
+                    style={{
+                      width: '5px',
+                      height: '5px',
+                      borderRadius: '50%',
+                      background: '#ffffff',
+                      boxShadow: '0 0 3px #ffffff',
+                    }}
+                  />
+                  NEW
+                </span>
+              )}
               {isInactive ? (
                 <Badge variant="danger">Đã khóa tài khoản</Badge>
               ) : (

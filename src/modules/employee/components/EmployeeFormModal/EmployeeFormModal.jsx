@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 import Modal from '@/shared/components/ui/Modal';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
@@ -743,10 +743,10 @@ export default function EmployeeFormModal({
           setImportStatus('error');
         } else if (result.isPartialSuccess) {
           setImportStatus('partial');
-          onImportSuccess?.();
+          onImportSuccess?.(result.data?.successEmployees);
         } else if (result.success) {
           setImportStatus('success');
-          onImportSuccess?.();
+          onImportSuccess?.(result.data?.successEmployees);
         }
       } else {
         setImportStatus('error');

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { attendanceService } from '../services/attendance.service';
 import { ATTENDANCE_MESSAGES } from '@/shared/constants/message.constants';
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 
 export const useCheckInMobile = () => {
   const toast = useToast();

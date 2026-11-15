@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 import DashboardShell from '@/shared/components/layout/DashboardShell';
 import DashboardSidebar from '@/shared/components/layout/DashboardSidebar';
 import DashboardTopbar from '@/shared/components/layout/DashboardTopbar';
@@ -346,6 +346,13 @@ export default function ShiftRequestsPage() {
         return <Badge tone="active" dot>Đã Phê Duyệt</Badge>;
       case 'REJECTED':
         return <Badge tone="bad" dot>Đã Từ Chối</Badge>;
+      case 'EXPIRED':
+      case 'EXPRIED':
+        return <Badge tone="expired" dot>Quá Hạn Xử Lý</Badge>;
+      case 'CANCELLED':
+        return <Badge tone="neutral" dot>Đã Hủy</Badge>;
+      case 'PENDING_PEER':
+        return <Badge tone="info" dot>Chờ Đồng Nghiệp Duyệt</Badge>;
       case 'PENDING':
       default:
         return <Badge tone="warn" dot>Chờ Xét Duyệt</Badge>;
@@ -367,13 +374,20 @@ export default function ShiftRequestsPage() {
   const pendingCount = Array.isArray(storeRequests) ? storeRequests.filter((r) => r.status === 'PENDING').length : 0;
   const approvedCount = Array.isArray(storeRequests) ? storeRequests.filter((r) => r.status === 'APPROVED').length : 0;
   const rejectedCount = Array.isArray(storeRequests) ? storeRequests.filter((r) => r.status === 'REJECTED').length : 0;
+  const expiredCount = Array.isArray(storeRequests) ? storeRequests.filter((r) => r.status === 'EXPIRED' || r.status === 'EXPRIED').length : 0;
 
   // Filter store requests
   const filteredStoreRequests = useMemo(() => {
     if (!Array.isArray(storeRequests)) return [];
     return storeRequests.filter((req) => {
       // Filter status
-      if (reviewFilter !== 'ALL' && req.status !== reviewFilter) return false;
+      if (reviewFilter !== 'ALL') {
+        if (reviewFilter === 'EXPIRED') {
+          if (req.status !== 'EXPIRED' && req.status !== 'EXPRIED') return false;
+        } else if (req.status !== reviewFilter) {
+          return false;
+        }
+      }
       // Search term
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
@@ -456,7 +470,7 @@ export default function ShiftRequestsPage() {
 
         {/* Manager Summary Stat Cards */}
         {isStoreManager && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
             <StatCard
               title="ĐƠN CẦN BẠN XÉT DUYỆT"
               value={pendingCount}
@@ -477,6 +491,13 @@ export default function ShiftRequestsPage() {
               subtext="Đã từ chối đơn không hợp lệ"
               icon="close"
               tone={rejectedCount > 0 ? 'bad' : 'neutral'}
+            />
+            <StatCard
+              title="ĐƠN QUÁ HẠN XỬ LÝ"
+              value={expiredCount}
+              subtext="Đơn ca trực đã qua hạn xử lý"
+              icon="clock"
+              tone={expiredCount > 0 ? 'neutral' : 'neutral'}
             />
             <StatCard
               title="TỔNG SỐ ĐƠN TIẾP NHẬN"
@@ -962,6 +983,7 @@ export default function ShiftRequestsPage() {
                   { key: 'PENDING', label: 'Chờ Xét Duyệt', count: pendingCount },
                   { key: 'APPROVED', label: 'Đã Phê Duyệt', count: approvedCount },
                   { key: 'REJECTED', label: 'Đã Từ Chối', count: rejectedCount },
+                  { key: 'EXPIRED', label: 'Quá Hạn Xử Lý', count: expiredCount },
                 ].map(({ key, label, count }) => {
                   const active = reviewFilter === key;
                   return (
@@ -1131,6 +1153,10 @@ export default function ShiftRequestsPage() {
                                 >
                                   Từ Chối
                                 </Button>
+                              </div>
+                            ) : req.status === 'EXPIRED' || req.status === 'EXPRIED' ? (
+                              <div style={{ fontSize: 11.5, color: c.fgSubtle, fontStyle: 'italic' }}>
+                                Đã quá hạn ca trực
                               </div>
                             ) : (
                               <div style={{ fontSize: 11.5, color: c.fgSubtle }}>

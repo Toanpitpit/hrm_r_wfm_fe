@@ -46,6 +46,7 @@ export default function BranchFormModal({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (!open) return;
     if (Array.isArray(propTiers) && propTiers.length > 0) {
       setDbTiers(propTiers);
       return;
@@ -62,6 +63,7 @@ export default function BranchFormModal({
   }, [open, propTiers]);
 
   useEffect(() => {
+    if (!open) return;
     if (initialData) {
       const tierVal = Number(initialData.branchTier ?? initialData.tier ?? 2);
       const tierIdVal = Number(initialData.tierId || initialData.tier?.id || initialData.tierObj?.id || 0) || null;
@@ -70,19 +72,22 @@ export default function BranchFormModal({
         name: initialData.name || initialData.storeName || '',
         address: initialData.address || '',
         tierId: tierIdVal,
-        branchTier: [1, 2, 3].includes(tierVal) ? tierVal : 2,
+        branchTier: tierVal || 2,
         staffCount: Number(initialData.staffCount ?? 0),
         latitude: Number(initialData.latitude || initialData.lat || (initialData.location?.coordinates ? initialData.location.coordinates[1] : 21.033333)),
         longitude: Number(initialData.longitude || initialData.lng || (initialData.location?.coordinates ? initialData.location.coordinates[0] : 105.795000)),
         radiusMeters: Number(initialData.geofenceRadiusMeters ?? initialData.radiusMeters ?? initialData.radius ?? 100),
       });
     } else {
+      const firstTier = dbTiers.length > 0 ? dbTiers[0] : null;
+      const firstTierId = firstTier ? (firstTier.id || firstTier.tier_id) : null;
+      const firstTierNum = firstTier ? (Number(firstTier.branchTier || firstTier.tier || firstTier.id) || 2) : 2;
       setFormData({
         branchCode: '',
         name: '',
         address: '',
-        tierId: dbTiers.length > 0 ? dbTiers[0].id : null,
-        branchTier: 2,
+        tierId: firstTierId,
+        branchTier: firstTierNum,
         staffCount: 0,
         latitude: 21.028511,
         longitude: 105.854167,
@@ -91,7 +96,16 @@ export default function BranchFormModal({
     }
     setErrors({});
     setServerError('');
-  }, [initialData, open, dbTiers]);
+  }, [initialData, open]);
+
+  useEffect(() => {
+    if (!initialData && dbTiers.length > 0 && !formData.tierId) {
+      setFormData((prev) => ({
+        ...prev,
+        tierId: dbTiers[0].id || dbTiers[0].tier_id,
+      }));
+    }
+  }, [dbTiers, initialData, formData.tierId]);
 
   const validate = () => {
     const errs = {};
@@ -143,14 +157,13 @@ export default function BranchFormModal({
       const selectedTier = dbTiers.find((t) => Number(t.id || t.tier_id) === Number(formData.tierId));
       const tierVal = selectedTier?.tierName && selectedTier.tierName.match(/\d+/)
         ? Number(selectedTier.tierName.match(/\d+/)[0])
-        : (Number(formData.branchTier) || 2);
-      const safeTier = [1, 2, 3].includes(tierVal) ? tierVal : 2;
+        : (Number(formData.branchTier || selectedTier?.id) || 2);
 
       const submitPayload = {
         ...formData,
         tierId: formData.tierId ? Number(formData.tierId) : undefined,
-        branchTier: safeTier,
-        tier: safeTier,
+        branchTier: tierVal,
+        tier: tierVal,
         radiusMeters: validRadius,
         geofenceRadiusMeters: validRadius,
       };
@@ -246,19 +259,18 @@ export default function BranchFormModal({
                     const match = (t.tierName || t.tier_name || '').match(/\d+/);
                     return match && Number(match[0]) === Number(formData.branchTier);
                   })?.id ||
-                  formData.branchTier ||
-                  2
+                  (dbTiers.length > 0 ? (dbTiers[0].id || dbTiers[0].tier_id) : '')
                 }
                 onChange={(e) => {
                   const val = Number(e.target.value);
                   const selected = dbTiers.find((t) => Number(t.id || t.tier_id) === val);
                   const tierNum = selected?.tierName && selected.tierName.match(/\d+/)
                     ? Number(selected.tierName.match(/\d+/)[0])
-                    : (val <= 3 ? val : 2);
+                    : (val || 2);
                   setFormData((prev) => ({
                     ...prev,
                     tierId: val,
-                    branchTier: [1, 2, 3].includes(tierNum) ? tierNum : (val <= 3 ? val : 2),
+                    branchTier: tierNum,
                   }));
                   if (serverError) setServerError('');
                 }}
@@ -289,11 +301,9 @@ export default function BranchFormModal({
                     );
                   })
                 ) : (
-                  <>
-                    <option value={1} style={{ backgroundColor: c.bgCard, color: c.fg }}>Tier 1 - Đại siêu thị (Tối đa 30 nhân sự)</option>
-                    <option value={2} style={{ backgroundColor: c.bgCard, color: c.fg }}>Tier 2 - Tiêu chuẩn (Tối đa 15 nhân sự)</option>
-                    <option value={3} style={{ backgroundColor: c.bgCard, color: c.fg }}>Tier 3 - Cửa hàng tiện lợi mini (Tối đa 8 nhân sự)</option>
-                  </>
+                  <option value="" disabled style={{ backgroundColor: c.bgCard, color: c.fg }}>
+                    Đang tải danh mục phân cấp...
+                  </option>
                 )}
               </select>
             </FormField>

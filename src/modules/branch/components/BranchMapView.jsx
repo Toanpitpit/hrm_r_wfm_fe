@@ -19,16 +19,18 @@ const TILE_LAYERS = {
   dark: {
     name: 'Bản Đồ Tối',
     icon: 'screen',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-    attribution: '&copy; Esri World Street Map',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    subdomains: 'abcd',
+    attribution: '&copy; CartoDB &copy; OpenStreetMap contributors',
     maxZoom: 19,
-    filterClass: 'leaflet-dark-mode-tiles',
+    filterClass: '',
   },
   streets: {
     name: 'Đường Phố',
     icon: 'map',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-    attribution: '&copy; Esri World Street Map',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    subdomains: 'abc',
+    attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 19,
     filterClass: '',
   },
@@ -55,6 +57,7 @@ export default function BranchMapView({
   const markersGroupRef = useRef(null);
   const circlesGroupRef = useRef(null);
   const markersMapRef = useRef({});
+  const userLocationMarkerRef = useRef(null);
 
   const [activeMapType, setActiveMapType] = useState('dark');
   const [showGeofence, setShowGeofence] = useState(true);
@@ -442,8 +445,14 @@ export default function BranchMapView({
         if (map) {
           map.flyTo([uLat, uLng], 15, { duration: 1.2 });
 
+          // Xóa marker vị trí cũ nếu đã có
+          if (userLocationMarkerRef.current) {
+            map.removeLayer(userLocationMarkerRef.current);
+            userLocationMarkerRef.current = null;
+          }
+
           // Vẽ marker vị trí của tôi
-          L.circleMarker([uLat, uLng], {
+          const userMarker = L.circleMarker([uLat, uLng], {
             radius: 8,
             fillColor: '#38bdf8',
             color: '#ffffff',
@@ -454,6 +463,8 @@ export default function BranchMapView({
             .addTo(map)
             .bindPopup('<strong>Vị trí hiện tại của bạn</strong>')
             .openPopup();
+
+          userLocationMarkerRef.current = userMarker;
         }
       },
       (err) => {

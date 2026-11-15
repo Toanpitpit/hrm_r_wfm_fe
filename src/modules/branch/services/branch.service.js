@@ -1,4 +1,4 @@
-import axiosInstance from '@/config/axios.config';
+import axiosInstance, { getAccessToken } from '@/config/axios.config';
 
 /**
  * ==============================================================================
@@ -10,6 +10,13 @@ import axiosInstance from '@/config/axios.config';
  * - KiosksController (/api/kiosks)
  * Đi kèm cơ chế tự động chứng thực tài khoản Operations Admin khi thao tác dữ liệu.
  */
+
+/**
+ * Lấy Bearer Token của người dùng hiện tại từ RAM hoặc localStorage
+ */
+export const ensureAdminToken = async () => {
+  return (typeof getAccessToken === 'function' ? getAccessToken() : null) || localStorage.getItem('accessToken') || null;
+};
 
 const apiClient = axiosInstance;
 
@@ -330,6 +337,7 @@ export const createBranch = async (payload) => {
   const radius = Number(rawRadius || 100);
   const tier = Number(payload.branchTier || payload.tier || 2);
 
+  await ensureAdminToken();
 
   try {
     const res = await apiClient.post(STORE_ENDPOINTS.CREATE, {
@@ -415,7 +423,7 @@ export const updateBranch = async (storeId, payload) => {
   let tier = undefined;
   if (rawTier !== undefined && rawTier !== '') {
     const numTier = Number(rawTier);
-    if (numTier === 1 || numTier === 2 || numTier === 3) {
+    if (!isNaN(numTier) && numTier > 0) {
       tier = numTier;
     }
   }
@@ -429,6 +437,7 @@ export const updateBranch = async (storeId, payload) => {
     : (payload.targetStaffCount !== undefined ? Number(payload.targetStaffCount) : undefined);
 
   // Đảm bảo có token xác thực quyền Admin trước khi gọi API
+  await ensureAdminToken();
 
   try {
     const updateBody = {
@@ -450,8 +459,8 @@ export const updateBranch = async (storeId, payload) => {
     // Gửi yêu cầu PUT cập nhật chi nhánh tới Backend API (/api/branches/{id})
     const res = await apiClient.put(STORE_ENDPOINTS.UPDATE(storeId), updateBody);
 
-    // Nếu Backend phản hồi thành công (200 OK hoặc 204 No Content), tải lại danh sách mới nhất từ server
-    if (res.status === 200 || res.status === 204) {
+    // Nếu Backend phản hồi thành công (200-299), tải lại danh sách mới nhất từ server
+    if (res.status >= 200 && res.status < 300) {
       await getAllBranches();
       return true;
     }
@@ -516,6 +525,7 @@ export const updateBranch = async (storeId, payload) => {
  * 4b. Nâng cấp phân cấp Tier chi nhánh khi đạt kịch biên (Tier 3 -> Tier 2 -> Tier 1)
  */
 export const upgradeBranchTier = async (storeId) => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.post(STORE_ENDPOINTS.UPGRADE_TIER(storeId));
     await getAllBranches();
@@ -532,6 +542,7 @@ export const upgradeBranchTier = async (storeId) => {
  */
 export const updateBranchStatus = async (storeId, status, reason = '') => {
   // Đảm bảo token Admin hợp lệ
+  await ensureAdminToken();
 
   try {
     // Gửi PATCH request đổi trạng thái (ACTIVE / LOCKED) kèm lý do phục vụ Audit Log
@@ -541,7 +552,8 @@ export const updateBranchStatus = async (storeId, status, reason = '') => {
     });
 
     // Nếu Backend thành công, refresh lại danh sách chi nhánh
-    if (res.status === 200 || res.status === 204) {
+    if (res.status >= 200 && res.status < 300) {
+      syncBranchLockStateToStorage(storeId, status === 'LOCKED', reason);
       await getAllBranches();
       return true;
     }
@@ -551,6 +563,7 @@ export const updateBranchStatus = async (storeId, status, reason = '') => {
   }
 
   // Fallback: Cập nhật trạng thái và lý do khóa vào cache localStorage
+  syncBranchLockStateToStorage(storeId, status === 'LOCKED', reason);
   const list = getLocalBranches();
   const index = list.findIndex((b) => String(b.storeId) === String(storeId));
   if (index !== -1) {
@@ -568,6 +581,7 @@ export const updateBranchStatus = async (storeId, status, reason = '') => {
  * 6. Xóa chi nhánh khỏi hệ thống
  */
 export const deleteBranch = async (storeId) => {
+  await ensureAdminToken();
   const idStr = String(storeId);
   try {
     let res;
@@ -580,8 +594,12 @@ export const deleteBranch = async (storeId) => {
         throw e1;
       }
     }
-    if (res && (res.status === 200 || res.status === 204)) {
+    if (res && res.status >= 200 && res.status < 300) {
       await getAllBranches();
+      const list = getLocalBranches();
+      const filtered = list.filter((b) => String(b.storeId) !== idStr && String(b.id) !== idStr);
+      setLocalBranches(filtered);
+      return true;
     }
   } catch (err) {
     console.warn('[BranchService] Backend delete error:', err.response?.data || err.message);
@@ -599,6 +617,7 @@ export const deleteBranch = async (storeId) => {
  * 7. Lấy danh sách Kiosk toàn chuỗi (giám sát)
  */
 export const getAllKiosks = async () => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.get(KIOSK_ADMIN_ENDPOINTS.LIST_ALL);
     const data = res.data?.data || res.data;
@@ -616,6 +635,7 @@ export const getAllKiosks = async () => {
  * 8. Thêm mới máy Kiosk cho chi nhánh
  */
 export const createKiosk = async (storeId, kioskData) => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.post(KIOSK_ADMIN_ENDPOINTS.CREATE(storeId), {
       deviceName: kioskData.deviceName || kioskData.kioskName || 'Kiosk mới',
@@ -658,6 +678,7 @@ export const createKiosk = async (storeId, kioskData) => {
  * 9. Cập nhật cấu hình trạm Kiosk cụ thể
  */
 export const updateKioskConfig = async (kioskId, config) => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.put(
       KIOSK_ADMIN_ENDPOINTS.UPDATE_CONFIG(kioskId),
@@ -693,6 +714,7 @@ export const updateKioskConfig = async (kioskId, config) => {
  */
 export const toggleKioskLock = async (kioskId, currentStatus) => {
   const nextStatus = currentStatus === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
+  await ensureAdminToken();
   try {
     const res = await apiClient.patch(
       KIOSK_ADMIN_ENDPOINTS.UPDATE_STATUS(kioskId),
@@ -723,6 +745,7 @@ export const toggleKioskLock = async (kioskId, currentStatus) => {
  * GET /api/branches/{id}/lock-check
  */
 export const checkBranchLock = async (branchId) => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.get(`/branches/${branchId}/lock-check`);
     const data = res.data?.data || res.data;
@@ -747,13 +770,39 @@ export const checkBranchLock = async (branchId) => {
   };
 };
 
+// Helper đồng bộ trạng thái khóa của chi nhánh vào cả 2 storage keys (branch & schedule)
+export const syncBranchLockStateToStorage = (branchId, isLocked, reason = null) => {
+  const idStr = String(branchId);
+  const keys = ['wfm_branch_master_data_v4', 'wfm_branches_v3'];
+
+  keys.forEach((key) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          const idx = list.findIndex((b) => String(b.storeId || b.id) === idStr);
+          if (idx !== -1) {
+            list[idx].status = isLocked ? 'LOCKED' : 'ACTIVE';
+            list[idx].isLocked = isLocked;
+            list[idx].lockReason = isLocked ? (reason || 'Khóa bởi quản trị viên') : null;
+            list[idx].updatedAt = new Date().toISOString();
+            localStorage.setItem(key, JSON.stringify(list));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(`[BranchService] Error syncing lock state to ${key}:`, e.message);
+    }
+  });
+};
+
 /**
  * 12. Thuc hien khoa chi nhanh
  * POST /api/branches/{id}/lock
  */
-
-
 export const lockBranch = async (branchId, payload) => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.post(`/branches/${branchId}/lock`, {
       reason: payload.reason,
@@ -762,6 +811,7 @@ export const lockBranch = async (branchId, payload) => {
       transferToBranchId: payload.transferToBranchId || null,
       futureShiftHandling: payload.futureShiftHandling || 'Cancel',
     });
+    syncBranchLockStateToStorage(branchId, true, payload.reason);
     await getAllBranches();
     return res.data?.data || res.data || true;
   } catch (err) {
@@ -777,7 +827,14 @@ export const lockBranch = async (branchId, payload) => {
       throw conflictError;
     }
 
-    // 400, 403, 404 hoac loi khac - bao loi thuc su ra UI
+    // Nếu lỗi mạng hoặc backend chưa hỗ trợ endpoint /lock, fallback cập nhật local
+    if (!err.response || status === 404 || status === 405 || status >= 500) {
+      console.warn('[BranchService] Lock branch fallback local:', err.message);
+      syncBranchLockStateToStorage(branchId, true, payload.reason);
+      return true;
+    }
+
+    // 400, 403 hoac loi khac - bao loi thuc su ra UI
     const clientError = new Error(msg);
     clientError.status = status || 0;
     throw clientError;
@@ -789,15 +846,25 @@ export const lockBranch = async (branchId, payload) => {
  * POST /api/branches/{id}/unlock
  */
 export const unlockBranch = async (branchId, payload = {}) => {
+  await ensureAdminToken();
   try {
     const res = await apiClient.post(`/branches/${branchId}/unlock`, {
       reason: payload.reason || '',
     });
+    syncBranchLockStateToStorage(branchId, false, null);
     await getAllBranches();
     return res.data?.data || res.data || true;
   } catch (err) {
     const status = err.response?.status;
     const msg = extractErrorMessage(err, 'Lỗi khi mở khóa chi nhánh');
+
+    // Nếu lỗi mạng hoặc backend chưa hỗ trợ endpoint /unlock, fallback cập nhật local
+    if (!err.response || status === 404 || status === 405 || status >= 500) {
+      console.warn('[BranchService] Unlock branch fallback local:', err.message);
+      syncBranchLockStateToStorage(branchId, false, null);
+      return true;
+    }
+
     const clientError = new Error(msg);
     clientError.status = status || 0;
     throw clientError;
@@ -806,10 +873,13 @@ export const unlockBranch = async (branchId, payload = {}) => {
 
 
 export default {
+  ensureAdminToken,
+  extractErrorMessage,
   getAllBranches,
   getBranchDetail,
   createBranch,
   updateBranch,
+  upgradeBranchTier,
   updateBranchStatus,
   deleteBranch,
   getAllKiosks,

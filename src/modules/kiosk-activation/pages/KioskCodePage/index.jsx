@@ -17,7 +17,7 @@ import Select from '@/shared/components/ui/Select';
 import Icon from '@/shared/components/ui/Icon';
 import ConfirmModal from '@/shared/components/ui/ConfirmModal';
 import { IconButton } from '@/shared/components/ui';
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 
 
 // Hook & Subcomponents

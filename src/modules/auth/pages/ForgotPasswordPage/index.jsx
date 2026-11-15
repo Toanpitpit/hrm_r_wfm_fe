@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
-import { useToast } from '../../../../components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 import styles from '../LoginPage/LoginPage.module.css';
 import recoveryStyles from './ForgotPasswordPage.module.css';
 

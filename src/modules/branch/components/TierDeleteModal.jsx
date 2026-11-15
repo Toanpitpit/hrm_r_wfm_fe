@@ -21,8 +21,9 @@ export default function TierDeleteModal({
 
   if (!isOpen || !tier) return null;
 
+  const tierTargetId = tier.id ?? tier.tier_id ?? tier.tierId;
   const branchCount = Number(tier.branch_count ?? tier.branchCount ?? 0);
-  const canDelete = branchCount === 0;
+  const canDelete = branchCount === 0 && tierTargetId !== undefined;
   const displayName = tier.tier_name || tier.tierName || 'Phân cấp';
 
   return (
@@ -85,7 +86,7 @@ export default function TierDeleteModal({
           </Button>
           <Button
             variant="primary"
-            onClick={() => onConfirm(tier.id || tier.tier_id)}
+            onClick={() => onConfirm(tierTargetId)}
             disabled={!canDelete}
             loading={isLoading}
             style={{
