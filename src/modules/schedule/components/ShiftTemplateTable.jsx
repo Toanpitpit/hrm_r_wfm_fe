@@ -15,7 +15,7 @@ import { getShiftTypeColor, SHIFT_TYPE_COLORS } from '../constants/shift.constan
 export default function ShiftTemplateTable({
   shifts = [],
   loading = false,
-  isOperationsAdmin = true,
+  isOperationsAdmin = false,
   isBranchMuted = false,
   emptyMessage = 'Chưa có khung ca mẫu nào.',
   onEdit,

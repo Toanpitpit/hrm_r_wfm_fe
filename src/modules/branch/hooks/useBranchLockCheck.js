@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import branchService from '../services/branch.service';
+import branchService, { checkBranchLock as checkBranchLockApi } from '../services/branch.service';
 
 /**
  * Hook kiểm tra điều kiện tiên quyết trước khi khóa chi nhánh
@@ -15,7 +15,8 @@ export function useBranchLockCheck() {
     setLoading(true);
     setError(null);
     try {
-      const res = await branchService.checkBranchLock(branchId);
+      const fn = checkBranchLockApi || branchService?.checkBranchLock;
+      const res = await fn(branchId);
       setData(res);
       return res;
     } catch (err) {

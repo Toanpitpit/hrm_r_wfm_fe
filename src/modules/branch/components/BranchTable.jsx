@@ -148,23 +148,25 @@ export default function BranchTable({
   const hasLockPermission = (() => {
     try {
       const raw = localStorage.getItem('user');
-      if (!raw) return true;
+      if (!raw) return false;
       const user = JSON.parse(raw);
       const role = (user.role || user.Role || '').toUpperCase();
       if (
         role === 'OPERATIONS_ADMIN' ||
         role === 'ADMIN' ||
         role.includes('ADMIN') ||
-        role === 'SUPER_ADMIN'
+        role === 'SUPER_ADMIN' ||
+        role === 'BUSINESS_OWNER' ||
+        role === 'OWNER'
       ) {
         return true;
       }
       if (Array.isArray(user.permissions)) {
         return user.permissions.includes('branch.lock');
       }
-      return true;
+      return false;
     } catch {
-      return true;
+      return false;
     }
   })();
 
@@ -292,8 +294,8 @@ export default function BranchTable({
       label: 'TRẠNG THÁI',
       width: '130px',
       render: (row) => {
-        const isActive = (row.status || '').toUpperCase() === 'ACTIVE';
-        if (isActive) {
+        const statusUpper = (row.status || '').toUpperCase();
+        if (statusUpper === 'ACTIVE') {
           return (
             <Badge tone="good">
               <span
@@ -311,8 +313,16 @@ export default function BranchTable({
           );
         }
 
-        // Dòng chi nhánh Tạm khóa: tooltip hiển thị lý do, người khóa, thời gian khóa
-        return <LockedStatusBadge branch={row} c={c} />;
+        if (statusUpper === 'LOCKED' || statusUpper === 'INACTIVE' || row.isLocked) {
+          // Dòng chi nhánh Tạm khóa: tooltip hiển thị lý do, người khóa, thời gian khóa
+          return <LockedStatusBadge branch={row} c={c} />;
+        }
+
+        return (
+          <Badge tone="neutral">
+            {row.status || 'Tạm ngưng'}
+          </Badge>
+        );
       },
     },
     {

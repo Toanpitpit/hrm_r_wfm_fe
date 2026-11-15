@@ -476,20 +476,81 @@ const setMockShifts = (shifts) => {
 };
 
 const getMockBranches = () => {
+  const v4Raw = localStorage.getItem('wfm_branch_master_data_v4');
+  let v4Branches = null;
+  if (v4Raw) {
+    try {
+      const parsed = JSON.parse(v4Raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        v4Branches = parsed;
+      }
+    } catch {}
+  }
+
   const data = localStorage.getItem(STORAGE_KEY_BRANCHES);
-  if (!data) {
+  let v3Branches = INITIAL_BRANCHES;
+  if (data) {
+    try {
+      v3Branches = JSON.parse(data);
+    } catch {
+      v3Branches = INITIAL_BRANCHES;
+    }
+  } else {
     localStorage.setItem(STORAGE_KEY_BRANCHES, JSON.stringify(INITIAL_BRANCHES));
-    return INITIAL_BRANCHES;
   }
-  try {
-    return JSON.parse(data);
-  } catch {
-    return INITIAL_BRANCHES;
+
+  // Đồng bộ trạng thái khóa từ branch master v4 nếu có
+  if (v4Branches) {
+    return v4Branches.map((v4) => {
+      const v4Id = String(v4.storeId || v4.id);
+      const v3 = v3Branches.find((b) => String(b.id || b.storeId) === v4Id) || {};
+      const statusUpper = (v4.status || '').toUpperCase();
+      const isLocked = statusUpper === 'LOCKED' || (statusUpper !== 'ACTIVE' && Boolean(v4.isLocked));
+
+      return {
+        ...v3,
+        ...v4,
+        id: v4.storeId || v4.id,
+        storeId: v4.storeId || v4.id,
+        name: v4.name || v4.storeName || v3.name,
+        code: v4.branchCode || v4.code || v3.code,
+        status: statusUpper || (isLocked ? 'LOCKED' : 'ACTIVE'),
+        isLocked,
+        shiftMode: v3.shiftMode || v4.shiftMode || 'GLOBAL',
+      };
+    });
   }
+
+  return v3Branches.map((b) => {
+    const statusUpper = (b.status || '').toUpperCase();
+    const isLocked = statusUpper === 'LOCKED' || (statusUpper !== 'ACTIVE' && Boolean(b.isLocked));
+    return {
+      ...b,
+      status: statusUpper || (isLocked ? 'LOCKED' : 'ACTIVE'),
+      isLocked,
+    };
+  });
 };
 
 const setMockBranches = (branches) => {
   localStorage.setItem(STORAGE_KEY_BRANCHES, JSON.stringify(branches));
+
+  // Đồng bộ shiftMode sang wfm_branch_master_data_v4
+  try {
+    const v4Raw = localStorage.getItem('wfm_branch_master_data_v4');
+    if (v4Raw) {
+      const list = JSON.parse(v4Raw);
+      if (Array.isArray(list)) {
+        list.forEach((v4) => {
+          const match = branches.find((b) => String(b.id || b.storeId) === String(v4.storeId || v4.id));
+          if (match && match.shiftMode) {
+            v4.shiftMode = match.shiftMode;
+          }
+        });
+        localStorage.setItem('wfm_branch_master_data_v4', JSON.stringify(list));
+      }
+    }
+  } catch {}
 };
 
 // ==============================================================================
@@ -530,7 +591,18 @@ export const getShiftTemplateStats = async () => {
  */
 export const getShiftTemplates = async (params = {}) => {
   try {
-    const res = await apiClient.get('/shift-templates', { params });
+    const cleanParams = {};
+    if (params.scope) cleanParams.scope = params.scope;
+    if (params.branchId != null && params.branchId !== '' && String(params.branchId) !== 'null') {
+      cleanParams.branchId = Number(params.branchId);
+    }
+    if (params.type && params.type !== 'ALL') cleanParams.type = params.type;
+    if (params.isActive !== undefined && params.isActive !== '') cleanParams.isActive = params.isActive;
+    if (params.q) cleanParams.q = params.q;
+    if (params.page) cleanParams.page = params.page;
+    if (params.pageSize) cleanParams.pageSize = params.pageSize;
+
+    const res = await apiClient.get('/shift-templates', { params: cleanParams });
     if (res && res.data) {
       const data = res.data.data || res.data;
       const list = Array.isArray(data) ? data : data.items || [];
@@ -602,7 +674,11 @@ export const createShiftTemplate = async (payload) => {
   // Kiểm tra chống trùng giờ & đè ca (overlapping & duplicate time shifts)
   let allCurrentShifts = [];
   try {
-    allCurrentShifts = await getShiftTemplates({ scope: body.scope, branchId: body.branchId });
+    const queryParams = { scope: body.scope };
+    if (body.scope === 'BRANCH' && body.branchId) {
+      queryParams.branchId = body.branchId;
+    }
+    allCurrentShifts = await getShiftTemplates(queryParams);
   } catch (_) {
     allCurrentShifts = [];
   }
@@ -620,11 +696,34 @@ export const createShiftTemplate = async (payload) => {
     throw err;
   }
 
+  // Nếu là ca riêng cho chi nhánh, kiểm tra xem chi nhánh có đang bị khóa không trước khi gửi
+  if (body.scope === 'BRANCH' && body.branchId) {
+    const branches = getMockBranches();
+    const branch = branches.find((b) => String(b.id || b.storeId) === String(body.branchId));
+    if (
+      branch &&
+      (branch.isLocked ||
+        (branch.status || '').toUpperCase() === 'LOCKED' ||
+        (branch.status || '').toUpperCase() === 'INACTIVE')
+    ) {
+      const error = new Error('Chi nhánh đang bị tạm khóa, không thể thêm khung ca riêng.');
+      error.response = {
+        status: 423,
+        data: {
+          code: 'BRANCH_LOCKED',
+          message: 'Chi nhánh đang bị tạm khóa, không thể thêm khung ca riêng.',
+        },
+      };
+      throw error;
+    }
+  }
+
   let backendResult = null;
   try {
     const res = await apiClient.post('/shift-templates', body);
     if (res && res.data) {
       backendResult = res.data.data || res.data;
+      if (backendResult) return backendResult;
     }
   } catch (err) {
     // Nếu là lỗi nghiệp vụ xác thực từ server (400 dữ liệu sai, 409 xung đột, 423 chi nhánh bị khóa)
@@ -636,6 +735,11 @@ export const createShiftTemplate = async (payload) => {
       throw err;
     }
     console.warn('[ShiftService] POST shift-templates fallback to local storage:', err.message);
+  }
+
+  // Nếu Backend đã lưu thành công, trả về kết quả backend
+  if (backendResult) {
+    return backendResult;
   }
 
   // Luôn lưu vào Mock Storage nếu không kết nối được backend
@@ -926,15 +1030,21 @@ export const getBranches = async (params = {}) => {
           const activeCustomCount = shifts.filter(
             (s) => String(s.branchId) === String(bId) && s.isActive
           ).length;
+          const statusUpper = (b.status || '').toUpperCase();
+          const isLocked =
+            statusUpper === 'LOCKED' ||
+            statusUpper === 'INACTIVE' ||
+            (statusUpper !== 'ACTIVE' && Boolean(b.isLocked));
           return {
             ...b,
             id: bId,
             storeId: bId,
             name: b.name || b.branchName || `Chi nhánh ${bId}`,
             code: b.code || b.branchCode || `CN_${bId}`,
+            status: statusUpper || (isLocked ? 'LOCKED' : 'ACTIVE'),
             shiftMode: b.shiftMode || 'GLOBAL',
             activeCustomShiftCount: b.activeCustomShiftCount ?? activeCustomCount,
-            isLocked: Boolean(b.isLocked || b.status === 'LOCKED'),
+            isLocked,
           };
         });
       }
@@ -1043,9 +1153,22 @@ export const getBranchCustomShifts = async (branchId, signal) => {
 export const updateBranchShiftMode = async (branchId, mode, confirm = false) => {
   try {
     const res = await apiClient.patch(`/branches/${branchId}/shift-mode`, { mode, confirm });
-    if (res.data) return res.data.data || res.data;
+    if (res.data) {
+      const resultData = res.data.data || res.data;
+      const branches = getMockBranches();
+      const bIdx = branches.findIndex((b) => String(b.id || b.storeId) === String(branchId));
+      if (bIdx !== -1) {
+        branches[bIdx].shiftMode = mode;
+        setMockBranches(branches);
+      }
+      return resultData;
+    }
   } catch (err) {
-    if (err.response) {
+    if (
+      err.response?.status === 400 ||
+      err.response?.status === 409 ||
+      err.response?.status === 423
+    ) {
       throw err;
     }
     console.warn('[ShiftService] updateBranchShiftMode fallback mock:', err.message);
@@ -1066,7 +1189,12 @@ export const updateBranchShiftMode = async (branchId, mode, confirm = false) => 
   const branch = branches[branchIdx];
 
   // 1. Kiểm tra 423 BRANCH_LOCKED
-  if (branch.isLocked) {
+  const statusUpper = (branch.status || '').toUpperCase();
+  const isBranchLocked =
+    statusUpper === 'LOCKED' ||
+    statusUpper === 'INACTIVE' ||
+    (statusUpper !== 'ACTIVE' && Boolean(branch.isLocked));
+  if (isBranchLocked) {
     const error = new Error('Chi nhánh đang bị khóa');
     error.response = {
       status: 423,
@@ -1078,35 +1206,61 @@ export const updateBranchShiftMode = async (branchId, mode, confirm = false) => 
     throw error;
   }
 
-  // 2. Chuyển sang CUSTOM: Kiểm tra 400 NO_ACTIVE_CUSTOM_SHIFT
+  // 2. Chuyển sang CUSTOM: Tự động kích hoạt ca riêng hoặc khởi tạo từ ca chung
   if (mode === 'CUSTOM') {
-    const activeCustomCount = shifts.filter(
+    let activeCustomCount = shifts.filter(
       (s) => String(s.branchId) === String(branchId) && s.isActive
     ).length;
 
     if (activeCustomCount === 0) {
-      const error = new Error('Chi nhánh chưa có ca riêng nào đang áp dụng');
-      error.response = {
-        status: 400,
-        data: {
-          code: 'NO_ACTIVE_CUSTOM_SHIFT',
-          message: 'Chi nhánh chưa có ca riêng nào đang áp dụng, hãy thêm ca riêng trước.',
-        },
-      };
-      throw error;
+      const inactiveCustoms = shifts.filter(
+        (s) => String(s.branchId) === String(branchId) && !s.isActive
+      );
+      if (inactiveCustoms.length > 0) {
+        inactiveCustoms.forEach((s) => (s.isActive = true));
+        setMockShifts(shifts);
+        activeCustomCount = inactiveCustoms.length;
+      } else {
+        const activeGlobals = shifts.filter((s) => s.scope === 'GLOBAL' && s.isActive);
+        if (activeGlobals.length > 0) {
+          activeGlobals.forEach((g) => {
+            shifts.push({
+              ...g,
+              id: Date.now() + Math.floor(Math.random() * 1000),
+              scope: 'BRANCH',
+              branchId: Number(branchId),
+              templateCode: `CR_${branchId}_${(g.templateCode || 'CA').replace('CA_', '').replace('CR_', '')}`,
+              name: `${g.name} (Riêng)`,
+              isActive: true,
+            });
+          });
+          setMockShifts(shifts);
+          activeCustomCount = activeGlobals.length;
+        } else {
+          const error = new Error('Chi nhánh chưa có ca riêng nào đang áp dụng');
+          error.response = {
+            status: 400,
+            data: {
+              code: 'NO_ACTIVE_CUSTOM_SHIFT',
+              message: 'Chi nhánh chưa có ca riêng nào đang áp dụng và hệ thống chưa có ca chung để sao chép.',
+            },
+          };
+          throw error;
+        }
+      }
     }
   }
 
   // 3. Kiểm tra 409 FUTURE_SCHEDULES_EXIST nếu chưa confirm
-  if (String(branchId) === '4' && !confirm) {
+  if (Boolean(branch.hasFutureSchedules) && !confirm) {
     const error = new Error('Có lịch ca trong tương lai thuộc bộ ca hiện tại');
     error.response = {
       status: 409,
       data: {
         code: 'FUTURE_SCHEDULES_EXIST',
         message:
-          'Có 14 ca đã xếp trong tương lai thuộc bộ ca hiện tại. Lịch đã xếp giữ nguyên, chỉ áp dụng cho lịch xếp mới.',
-        details: { futureAssignmentCount: 14 },
+          'Có các ca đã xếp trong tương lai thuộc bộ ca hiện tại. Lịch đã xếp giữ nguyên, chỉ áp dụng cho lịch xếp mới.',
+        details: { futureAssignmentCount: branch.futureAssignmentCount || 14 },
       },
     };
     throw error;

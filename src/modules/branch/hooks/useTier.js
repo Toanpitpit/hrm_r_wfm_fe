@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as tierService from '../services/tier.service';
 
 /**
@@ -95,6 +95,10 @@ export const useTier = () => {
 
   // KPIs
   const totalTiers = tiers.length;
+  const activeTiers = tiers.filter((t) => {
+    const branchCount = Number(t.branch_count ?? t.branchCount ?? 0);
+    return t.isActive !== false && (branchCount > 0 || t.status === 'ACTIVE' || t.isActive === true);
+  }).length;
   const totalBranchesInTiers = tiers.reduce((sum, t) => sum + (Number(t.branch_count ?? t.branchCount ?? 0)), 0);
 
   return {
@@ -107,6 +111,7 @@ export const useTier = () => {
     submitting,
     notification,
     totalTiers,
+    activeTiers,
     totalBranchesInTiers,
     fetchTiers,
     handleOpenCreate,

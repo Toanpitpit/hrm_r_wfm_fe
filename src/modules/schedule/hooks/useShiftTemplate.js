@@ -23,7 +23,7 @@ export function useShiftTemplate() {
 
   // 1. Phân quyền người dùng: Chỉ Operations Admin (hoặc Admin/Owner) mới được thao tác
   const isOperationsAdmin = useMemo(() => {
-    if (!user) return true;
+    if (!user) return false;
     const role = (user?.role || user?.Role || '').toUpperCase();
     const roleName = (user?.roleName || user?.RoleName || '').toUpperCase();
     return (
@@ -159,6 +159,15 @@ export function useShiftTemplate() {
     );
   }, [branches, selectedBranchId]);
 
+  // Kiểm tra trạng thái khóa thực tế của chi nhánh (ưu tiên status ACTIVE là mở khóa)
+  const isCurrentBranchLocked = useMemo(() => {
+    if (!selectedBranch) return false;
+    const statusUpper = (selectedBranch.status || '').toUpperCase();
+    if (statusUpper === 'ACTIVE') return false;
+    if (statusUpper === 'LOCKED' || statusUpper === 'INACTIVE') return true;
+    return Boolean(selectedBranch.isLocked);
+  }, [selectedBranch]);
+
   // Tải dữ liệu bộ ca hiệu lực và ca riêng của chi nhánh đã chọn
   const fetchBranchShifts = useCallback(
     async (branchId) => {
@@ -200,10 +209,16 @@ export function useShiftTemplate() {
   );
 
   useEffect(() => {
-    if (activeTab === 'BRANCH' && selectedBranchId) {
-      fetchBranchShifts(selectedBranchId);
+    if (activeTab === 'BRANCH') {
+      if (selectedBranchId) {
+        fetchBranchShifts(selectedBranchId);
+      } else if (branches.length > 0) {
+        const firstBranchId = branches[0].id ?? branches[0].storeId;
+        setSelectedBranchId(firstBranchId);
+        fetchBranchShifts(firstBranchId);
+      }
     }
-  }, [activeTab, selectedBranchId, fetchBranchShifts]);
+  }, [activeTab, selectedBranchId, branches, fetchBranchShifts]);
 
   // Khởi tạo ban đầu
   useEffect(() => {
@@ -224,7 +239,7 @@ export function useShiftTemplate() {
   const handleToggleBranchMode = async (newMode, confirm = false) => {
     if (!selectedBranchId || !selectedBranch) return;
 
-    if (selectedBranch.isLocked) {
+    if (isCurrentBranchLocked) {
       toast.error(SHIFT_ERROR_MESSAGES.BRANCH_LOCKED);
       return;
     }
@@ -491,6 +506,7 @@ export function useShiftTemplate() {
     selectedBranchId,
     setSelectedBranchId,
     selectedBranch,
+    isCurrentBranchLocked,
     effectiveData,
     effectiveLoading,
     effectiveError,
@@ -504,6 +520,7 @@ export function useShiftTemplate() {
     formModalOpen,
     setFormModalOpen,
     editingShift,
+    setEditingShift,
     handleOpenCreateModal,
     handleOpenEditModal,
     handleCreateShift,

@@ -36,4 +36,8 @@ axiosInstance.interceptors.response.use(
   }
 );
 
+export const getAccessToken = () => {
+  return localStorage.getItem('accessToken') || localStorage.getItem('token') || null;
+};
+
 export default axiosInstance;
