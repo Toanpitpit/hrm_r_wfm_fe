@@ -297,11 +297,7 @@ export default function BranchManagementPage() {
                         value: String(t.id || t.tier_id),
                         label: t.tierName || t.tier_name || `Tier ${t.id}`,
                       }))
-                      : [
-                        { value: '1', label: 'Cấp 1' },
-                        { value: '2', label: 'Cấp 2' },
-                        { value: '3', label: 'Cấp 3' },
-                      ]),
+                      : []),
                   ]}
                 />
               </div>
@@ -314,7 +310,7 @@ export default function BranchManagementPage() {
                   options={[
                     { value: 'ALL', label: 'Tất cả trạng thái' },
                     { value: 'ACTIVE', label: 'Đang hoạt động' },
-                    { value: 'INACTIVE', label: 'Tạm khóa' },
+                    { value: 'LOCKED', label: 'Tạm khóa' },
                   ]}
                 />
               </div>

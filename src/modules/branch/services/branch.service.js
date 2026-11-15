@@ -423,7 +423,7 @@ export const updateBranch = async (storeId, payload) => {
   let tier = undefined;
   if (rawTier !== undefined && rawTier !== '') {
     const numTier = Number(rawTier);
-    if (numTier === 1 || numTier === 2 || numTier === 3) {
+    if (!isNaN(numTier) && numTier > 0) {
       tier = numTier;
     }
   }
@@ -459,8 +459,8 @@ export const updateBranch = async (storeId, payload) => {
     // Gửi yêu cầu PUT cập nhật chi nhánh tới Backend API (/api/branches/{id})
     const res = await apiClient.put(STORE_ENDPOINTS.UPDATE(storeId), updateBody);
 
-    // Nếu Backend phản hồi thành công (200 OK hoặc 204 No Content), tải lại danh sách mới nhất từ server
-    if (res.status === 200 || res.status === 204) {
+    // Nếu Backend phản hồi thành công (200-299), tải lại danh sách mới nhất từ server
+    if (res.status >= 200 && res.status < 300) {
       await getAllBranches();
       return true;
     }
@@ -552,7 +552,8 @@ export const updateBranchStatus = async (storeId, status, reason = '') => {
     });
 
     // Nếu Backend thành công, refresh lại danh sách chi nhánh
-    if (res.status === 200 || res.status === 204) {
+    if (res.status >= 200 && res.status < 300) {
+      syncBranchLockStateToStorage(storeId, status === 'LOCKED', reason);
       await getAllBranches();
       return true;
     }
@@ -562,6 +563,7 @@ export const updateBranchStatus = async (storeId, status, reason = '') => {
   }
 
   // Fallback: Cập nhật trạng thái và lý do khóa vào cache localStorage
+  syncBranchLockStateToStorage(storeId, status === 'LOCKED', reason);
   const list = getLocalBranches();
   const index = list.findIndex((b) => String(b.storeId) === String(storeId));
   if (index !== -1) {
@@ -592,8 +594,12 @@ export const deleteBranch = async (storeId) => {
         throw e1;
       }
     }
-    if (res && (res.status === 200 || res.status === 204)) {
+    if (res && res.status >= 200 && res.status < 300) {
       await getAllBranches();
+      const list = getLocalBranches();
+      const filtered = list.filter((b) => String(b.storeId) !== idStr && String(b.id) !== idStr);
+      setLocalBranches(filtered);
+      return true;
     }
   } catch (err) {
     console.warn('[BranchService] Backend delete error:', err.response?.data || err.message);
@@ -764,12 +770,37 @@ export const checkBranchLock = async (branchId) => {
   };
 };
 
+// Helper đồng bộ trạng thái khóa của chi nhánh vào cả 2 storage keys (branch & schedule)
+export const syncBranchLockStateToStorage = (branchId, isLocked, reason = null) => {
+  const idStr = String(branchId);
+  const keys = ['wfm_branch_master_data_v4', 'wfm_branches_v3'];
+
+  keys.forEach((key) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          const idx = list.findIndex((b) => String(b.storeId || b.id) === idStr);
+          if (idx !== -1) {
+            list[idx].status = isLocked ? 'LOCKED' : 'ACTIVE';
+            list[idx].isLocked = isLocked;
+            list[idx].lockReason = isLocked ? (reason || 'Khóa bởi quản trị viên') : null;
+            list[idx].updatedAt = new Date().toISOString();
+            localStorage.setItem(key, JSON.stringify(list));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(`[BranchService] Error syncing lock state to ${key}:`, e.message);
+    }
+  });
+};
+
 /**
  * 12. Thuc hien khoa chi nhanh
  * POST /api/branches/{id}/lock
  */
-
-
 export const lockBranch = async (branchId, payload) => {
   await ensureAdminToken();
   try {
@@ -780,6 +811,7 @@ export const lockBranch = async (branchId, payload) => {
       transferToBranchId: payload.transferToBranchId || null,
       futureShiftHandling: payload.futureShiftHandling || 'Cancel',
     });
+    syncBranchLockStateToStorage(branchId, true, payload.reason);
     await getAllBranches();
     return res.data?.data || res.data || true;
   } catch (err) {
@@ -795,7 +827,14 @@ export const lockBranch = async (branchId, payload) => {
       throw conflictError;
     }
 
-    // 400, 403, 404 hoac loi khac - bao loi thuc su ra UI
+    // Nếu lỗi mạng hoặc backend chưa hỗ trợ endpoint /lock, fallback cập nhật local
+    if (!err.response || status === 404 || status === 405 || status >= 500) {
+      console.warn('[BranchService] Lock branch fallback local:', err.message);
+      syncBranchLockStateToStorage(branchId, true, payload.reason);
+      return true;
+    }
+
+    // 400, 403 hoac loi khac - bao loi thuc su ra UI
     const clientError = new Error(msg);
     clientError.status = status || 0;
     throw clientError;
@@ -812,11 +851,20 @@ export const unlockBranch = async (branchId, payload = {}) => {
     const res = await apiClient.post(`/branches/${branchId}/unlock`, {
       reason: payload.reason || '',
     });
+    syncBranchLockStateToStorage(branchId, false, null);
     await getAllBranches();
     return res.data?.data || res.data || true;
   } catch (err) {
     const status = err.response?.status;
     const msg = extractErrorMessage(err, 'Lỗi khi mở khóa chi nhánh');
+
+    // Nếu lỗi mạng hoặc backend chưa hỗ trợ endpoint /unlock, fallback cập nhật local
+    if (!err.response || status === 404 || status === 405 || status >= 500) {
+      console.warn('[BranchService] Unlock branch fallback local:', err.message);
+      syncBranchLockStateToStorage(branchId, false, null);
+      return true;
+    }
+
     const clientError = new Error(msg);
     clientError.status = status || 0;
     throw clientError;
@@ -826,10 +874,12 @@ export const unlockBranch = async (branchId, payload = {}) => {
 
 export default {
   ensureAdminToken,
+  extractErrorMessage,
   getAllBranches,
   getBranchDetail,
   createBranch,
   updateBranch,
+  upgradeBranchTier,
   updateBranchStatus,
   deleteBranch,
   getAllKiosks,

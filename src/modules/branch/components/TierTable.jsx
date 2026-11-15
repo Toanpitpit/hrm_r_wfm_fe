@@ -73,8 +73,8 @@ export default function TierTable({
           row.maxStaffCount !== null && row.maxStaffCount !== undefined
             ? Number(row.maxStaffCount)
             : row.max_staff_count !== null && row.max_staff_count !== undefined
-            ? Number(row.max_staff_count)
-            : null;
+              ? Number(row.max_staff_count)
+              : null;
 
         return (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -165,7 +165,8 @@ export default function TierTable({
       label: 'THAO TÁC',
       width: '120px',
       render: (row) => {
-        const count = Number(row.branchCount ?? row.branch_count ?? 0);
+        const appliedCount = Array.isArray(row.appliedBranches) ? row.appliedBranches.length : null;
+        const count = appliedCount !== null ? appliedCount : Number(row.branchCount ?? row.branch_count ?? 0);
         const canDelete = count === 0;
 
         return (

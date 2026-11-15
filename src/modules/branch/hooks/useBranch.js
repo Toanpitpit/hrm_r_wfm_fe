@@ -71,23 +71,18 @@ export function useBranch() {
       const tId = Number(b.tierId || b.tier?.id || b.tier_id || 0);
       const matchedTier = (tiers || []).find((t) => Number(t.id || t.tier_id) === tId) || b.tierObj || b.tier;
       const tName = (matchedTier?.tierName || matchedTier?.name || b.branchTierName || '').toLowerCase();
+      const numBranchTier = Number(b.branchTier ?? b.tier);
 
-      if (tId === 6 || tName.includes('tier 1') || tName.includes('flagship')) {
+      if (numBranchTier === 1 || tId === 1 || tId === 6 || tName.includes('tier 1') || tName.includes('cấp 1') || tName.includes('flagship')) {
         t1Count++;
-      } else if (tId === 7 || tName.includes('tier 2') || tName.includes('tiêu chuẩn')) {
+      } else if (numBranchTier === 2 || tId === 2 || tId === 7 || tName.includes('tier 2') || tName.includes('cấp 2') || tName.includes('tiêu chuẩn') || tName.includes('standard')) {
         t2Count++;
-      } else if (tId === 3 || tName.includes('tier 3') || tName.includes('mini')) {
+      } else if (numBranchTier === 3 || tId === 3 || tName.includes('tier 3') || tName.includes('cấp 3') || tName.includes('mini') || tName.includes('compact')) {
         t3Count++;
-      } else if (tId === 9 || tName.includes('tier 4')) {
+      } else if (numBranchTier === 4 || tId === 4 || tId === 9 || tName.includes('tier 4') || tName.includes('cấp 4')) {
         t4Count++;
-      } else if (tId === 10 || tName.includes('tier 5')) {
+      } else if (numBranchTier === 5 || tId === 5 || tId === 10 || tName.includes('tier 5') || tName.includes('cấp 5')) {
         t5Count++;
-      } else if (Number(b.branchTier) === 1) {
-        t1Count++;
-      } else if (Number(b.branchTier) === 2) {
-        t2Count++;
-      } else if (Number(b.branchTier) === 3) {
-        t3Count++;
       } else {
         otherCount++;
       }
@@ -114,9 +109,13 @@ export function useBranch() {
         (b.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (b.branchCode || b.code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (b.address || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const bStatus = (b.status || '').toUpperCase();
+      const sFilter = (statusFilter || 'ALL').toUpperCase();
+      const isLockedStatus = bStatus === 'LOCKED' || bStatus === 'INACTIVE';
+      const isLockedFilter = sFilter === 'LOCKED' || sFilter === 'INACTIVE';
       const matchStatus =
-        statusFilter === 'ALL' ||
-        (b.status || '').toUpperCase() === statusFilter.toUpperCase();
+        sFilter === 'ALL' ||
+        (isLockedFilter ? isLockedStatus : bStatus === sFilter);
 
       const bTierId = Number(b.tierId || b.tier?.id || 0);
       const matchedTier = (tiers || []).find((t) => Number(t.id || t.tier_id) === bTierId);

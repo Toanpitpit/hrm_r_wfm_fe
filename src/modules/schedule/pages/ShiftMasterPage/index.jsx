@@ -54,6 +54,7 @@ export default function ShiftMasterPage() {
     selectedBranchId,
     setSelectedBranchId,
     selectedBranch,
+    isCurrentBranchLocked,
     effectiveData,
     customShifts,
     customLoading,
@@ -80,11 +81,13 @@ export default function ShiftMasterPage() {
   } = useShiftTemplate();
 
   // Tìm kiếm chi nhánh trong Tab Chi nhánh
-  const [branchSearchText, _setBranchSearchText] = useState('');
+  const [branchSearchText, setBranchSearchText] = useState('');
   const filteredBranches = branches.filter((b) => {
     if (!branchSearchText.trim()) return true;
     const q = branchSearchText.toLowerCase();
-    return b.name?.toLowerCase().includes(q) || b.code?.toLowerCase().includes(q);
+    const name = (b.name || b.storeName || '').toLowerCase();
+    const code = (b.code || b.branchCode || '').toLowerCase();
+    return name.includes(q) || code.includes(q);
   });
 
   const handleNavigate = (id) => {
@@ -398,7 +401,7 @@ export default function ShiftMasterPage() {
                   <Icon name="pin" size={18} />
                 </div>
 
-                <div style={{ flex: 1, maxWidth: '440px' }}>
+                <div style={{ flex: 1, maxWidth: '520px' }}>
                   <label
                     style={{
                       display: 'block',
@@ -412,14 +415,45 @@ export default function ShiftMasterPage() {
                   >
                     Chọn Chi Nhánh Áp Dụng
                   </label>
-                  <Select
-                    value={String(selectedBranchId || '')}
-                    onChange={(val) => setSelectedBranchId(val)}
-                    options={filteredBranches.map((b) => ({
-                      value: String(b.id),
-                      label: `${b.name} • [${b.shiftMode === 'CUSTOM' ? 'Ca riêng' : 'Ca chung'}]${b.isLocked ? ' 🔒 (Đang khóa)' : ''}`,
-                    }))}
-                  />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <Select
+                        value={String(selectedBranchId || '')}
+                        onChange={(val) => setSelectedBranchId(val)}
+                        options={filteredBranches.map((b) => {
+                          const statusUpper = (b.status || '').toUpperCase();
+                          const isLocked =
+                            statusUpper === 'LOCKED' ||
+                            statusUpper === 'INACTIVE' ||
+                            (statusUpper !== 'ACTIVE' && Boolean(b.isLocked));
+                          return {
+                            value: String(b.id ?? b.storeId),
+                            label: `${b.name || b.storeName} • [${b.shiftMode === 'CUSTOM' ? 'Ca riêng' : 'Ca chung'}]${isLocked ? ' 🔒 (Đang khóa)' : ''}`,
+                          };
+                        })}
+                      />
+                    </div>
+                    <div style={{ width: '180px' }}>
+                      <input
+                        type="text"
+                        placeholder="Lọc nhanh chi nhánh..."
+                        value={branchSearchText}
+                        onChange={(e) => setBranchSearchText(e.target.value)}
+                        style={{
+                          width: '100%',
+                          height: '36px',
+                          boxSizing: 'border-box',
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          border: `1px solid ${c.border}`,
+                          backgroundColor: c.bgCard,
+                          color: c.fg,
+                          fontSize: '12.5px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -438,7 +472,7 @@ export default function ShiftMasterPage() {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {selectedBranch.isLocked && (
+                    {isCurrentBranchLocked && (
                       <span
                         style={{
                           display: 'inline-flex',
@@ -472,7 +506,7 @@ export default function ShiftMasterPage() {
                         type="button"
                         role="radio"
                         aria-checked={selectedBranch.shiftMode === 'GLOBAL'}
-                        disabled={!isOperationsAdmin || selectedBranch.isLocked || modeSwitching}
+                        disabled={!isOperationsAdmin || isCurrentBranchLocked || modeSwitching}
                         onClick={() => {
                           if (selectedBranch.shiftMode !== 'GLOBAL') {
                             handleToggleBranchMode('GLOBAL');
@@ -483,14 +517,14 @@ export default function ShiftMasterPage() {
                           borderRadius: '6px',
                           fontSize: '13px',
                           fontWeight: 700,
-                          cursor: !isOperationsAdmin || selectedBranch.isLocked ? 'not-allowed' : 'pointer',
+                          cursor: !isOperationsAdmin || isCurrentBranchLocked ? 'not-allowed' : 'pointer',
                           backgroundColor:
                             selectedBranch.shiftMode === 'GLOBAL' ? (c.primary || '#0D9488') : 'transparent',
                           color:
                             selectedBranch.shiftMode === 'GLOBAL' ? '#ffffff' : c.fgSubtle,
                           border: 'none',
                           transition: 'all 0.18s ease',
-                          opacity: !isOperationsAdmin || selectedBranch.isLocked ? 0.6 : 1,
+                          opacity: !isOperationsAdmin || isCurrentBranchLocked ? 0.6 : 1,
                         }}
                       >
                         Dùng ca chung
@@ -500,7 +534,7 @@ export default function ShiftMasterPage() {
                         type="button"
                         role="radio"
                         aria-checked={selectedBranch.shiftMode === 'CUSTOM'}
-                        disabled={!isOperationsAdmin || selectedBranch.isLocked || modeSwitching}
+                        disabled={!isOperationsAdmin || isCurrentBranchLocked || modeSwitching}
                         onClick={() => {
                           if (selectedBranch.shiftMode !== 'CUSTOM') {
                             handleToggleBranchMode('CUSTOM');
@@ -511,14 +545,14 @@ export default function ShiftMasterPage() {
                           borderRadius: '6px',
                           fontSize: '13px',
                           fontWeight: 700,
-                          cursor: !isOperationsAdmin || selectedBranch.isLocked ? 'not-allowed' : 'pointer',
+                          cursor: !isOperationsAdmin || isCurrentBranchLocked ? 'not-allowed' : 'pointer',
                           backgroundColor:
                             selectedBranch.shiftMode === 'CUSTOM' ? (c.primary || '#0D9488') : 'transparent',
                           color:
                             selectedBranch.shiftMode === 'CUSTOM' ? '#ffffff' : c.fgSubtle,
                           border: 'none',
                           transition: 'all 0.18s ease',
-                          opacity: !isOperationsAdmin || selectedBranch.isLocked ? 0.6 : 1,
+                          opacity: !isOperationsAdmin || isCurrentBranchLocked ? 0.6 : 1,
                         }}
                       >
                         Dùng ca riêng
@@ -604,7 +638,7 @@ export default function ShiftMasterPage() {
               <ShiftTemplateTable
                 shifts={customShifts}
                 loading={customLoading}
-                isOperationsAdmin={isOperationsAdmin && !selectedBranch?.isLocked}
+                isOperationsAdmin={isOperationsAdmin && !isCurrentBranchLocked}
                 isBranchMuted={selectedBranch?.shiftMode === 'GLOBAL'}
                 onEdit={handleOpenEditModal}
                 onToggleStatus={handleToggleStatus}
