@@ -24,7 +24,13 @@ export default function HeadcountQuotaCard({
 
   const getStatusBadge = (statusObj) => {
     const tier = Number(statusObj.branchTier || 2);
-    const standardQuota = Number(statusObj.standardQuota || (tier === 1 ? 30 : tier === 3 ? 8 : 15));
+    const standardQuota = Number(
+      statusObj.effectiveQuota ||
+      statusObj.staffCount ||
+      statusObj.targetStaffCount ||
+      statusObj.standardQuota ||
+      (tier === 1 ? 30 : tier === 3 ? 8 : 15)
+    );
     const cHeadcount = Number(statusObj.officialHeadcount ?? statusObj.currentHeadcount ?? 0);
     const dispatchedIn = Number(statusObj.dispatchedInCount || 0);
     const isReached = Boolean(statusObj.isQuotaReached ?? (cHeadcount >= standardQuota));
@@ -52,7 +58,7 @@ export default function HeadcountQuotaCard({
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
             Còn {remaining} slot
           </span>
-        ) : tier === 1 ? (
+        ) : (
           <span
             style={{
               display: 'inline-flex',
@@ -64,26 +70,6 @@ export default function HeadcountQuotaCard({
               fontWeight: 700,
               background: 'rgba(239, 68, 68, 0.16)',
               border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#ef4444',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-            }}
-          >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
-            Kịch trần (30/30)
-          </span>
-        ) : (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '3px 8px',
-              borderRadius: '9999px',
-              fontSize: '11px',
-              fontWeight: 600,
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
               color: '#ef4444',
               whiteSpace: 'nowrap',
               flexShrink: 0,
@@ -148,18 +134,18 @@ export default function HeadcountQuotaCard({
               type="button"
               onClick={() => onSelectBranch('')}
               style={{
-                background: !selectedBranchId ? c.accent : 'transparent',
-                color: !selectedBranchId ? '#000000' : c.fgSubtle,
-                border: `1px solid ${!selectedBranchId ? c.accent : c.border}`,
-                padding: '4px 10px',
+                background: !selectedBranchId ? 'var(--color-primary, #0D9488)' : 'transparent',
+                color: !selectedBranchId ? '#ffffff' : c.fgSubtle,
+                border: `1px solid ${!selectedBranchId ? 'var(--color-primary, #0D9488)' : c.border}`,
+                padding: '5px 12px',
                 borderRadius: '6px',
-                fontSize: '11.5px',
+                fontSize: '12px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
               }}
             >
-              Xem Toàn Bộ Chuỗi
+              Xem Toàn Bộ Chuỗi {!selectedBranchId && '(61)'}
             </button>
           )}
         </div>
@@ -172,26 +158,34 @@ export default function HeadcountQuotaCard({
           }}
         >
           {allBranchesQuota.map((b) => {
+            const bId = b.branchId || b.id || b.storeId;
             const bTier = b.branchTier || 2;
-            const bStandardQuota = b.standardQuota || (bTier === 1 ? 30 : bTier === 3 ? 8 : 15);
+            const bStandardQuota = Number(
+              b.effectiveQuota ||
+              b.staffCount ||
+              b.targetStaffCount ||
+              b.standardQuota ||
+              (bTier === 1 ? 30 : bTier === 3 ? 8 : 15)
+            );
             const bActive = Number(b.officialHeadcount ?? b.currentHeadcount ?? 0);
             const bDispatchedIn = Number(b.dispatchedInCount || 0);
             const bDispatchedOut = Number(b.dispatchedOutCount || 0);
             const bTotalWorking = Number(b.actualWorkingCount ?? (bActive - bDispatchedOut + bDispatchedIn));
             const bPercent = Math.min(100, Math.round((bActive / bStandardQuota) * 100));
             const bAvailable = b.availableQuotaSlots ?? Math.max(0, bStandardQuota - bActive);
-            const isCardSelected = String(selectedBranchId) === String(b.branchId);
+            const isCardSelected = String(selectedBranchId) === String(bId);
             const isFull = bActive >= bStandardQuota;
 
             return (
               <div
-                key={b.branchId}
-                onClick={() => onSelectBranch && onSelectBranch(String(b.branchId))}
+                key={bId}
+                onClick={() => onSelectBranch && onSelectBranch(isCardSelected ? '' : String(bId))}
+                title={isCardSelected ? `Đang lọc theo ${b.branchName} (Bấm lại để xem toàn bộ chuỗi)` : `Bấm để xem số liệu chi tiết ${b.branchName}`}
                 style={{
                   padding: '14px 16px',
                   borderRadius: '10px',
-                  background: isCardSelected ? 'rgba(212, 175, 55, 0.08)' : c.bgCard,
-                  border: `1.5px solid ${isCardSelected ? c.accent : c.border}`,
+                  background: isCardSelected ? 'rgba(13, 148, 136, 0.12)' : c.bgCard,
+                  border: `2px solid ${isCardSelected ? 'var(--color-primary, #0D9488)' : c.border}`,
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
@@ -199,7 +193,8 @@ export default function HeadcountQuotaCard({
                   minHeight: '136px',
                   gap: '12px',
                   transition: 'all 0.2s ease',
-                  boxShadow: isCardSelected ? '0 0 12px rgba(212, 175, 55, 0.2)' : 'none',
+                  boxShadow: isCardSelected ? '0 0 16px rgba(13, 148, 136, 0.25)' : 'none',
+                  position: 'relative',
                 }}
               >
                 {/* Header card: Tên chi nhánh + Tier + Badge */}
@@ -209,7 +204,7 @@ export default function HeadcountQuotaCard({
                       style={{
                         fontSize: '13.5px',
                         fontWeight: 700,
-                        color: c.fg,
+                        color: isCardSelected ? 'var(--color-primary, #0D9488)' : c.fg,
                         lineHeight: '1.35',
                         minHeight: '37px',
                         display: '-webkit-box',
@@ -234,7 +229,24 @@ export default function HeadcountQuotaCard({
                       </span>
                     </div>
                   </div>
-                  {getStatusBadge(b)}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                    {isCardSelected && (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          background: 'var(--color-primary, #0D9488)',
+                          color: '#ffffff',
+                          fontWeight: 700,
+                          boxShadow: '0 1px 4px rgba(13, 148, 136, 0.4)',
+                        }}
+                      >
+                        ✓ Đang lọc
+                      </span>
+                    )}
+                    {getStatusBadge(b)}
+                  </div>
                 </div>
 
                 {/* Tiến độ mini (ghim sát đáy card để cân bằng hàng ngang) */}

@@ -4,7 +4,7 @@ import { useAdminTheme } from '@/shared/context/ThemeContext';
 import DashboardShell from '@/shared/components/layout/DashboardShell';
 import DashboardSidebar from '@/shared/components/layout/DashboardSidebar';
 import DashboardTopbar from '@/shared/components/layout/DashboardTopbar';
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 
 // UI components
 import PageHeader from '@/shared/components/ui/PageHeader';

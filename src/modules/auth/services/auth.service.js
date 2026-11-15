@@ -7,7 +7,7 @@ const authService = {
   /**
    * Đăng nhập Web (Standard Login)
    * @param {Object} data - { username, password }
-   * @returns {Promise<Object>} ApiResponse chứa token và thông tin user
+   * @returns {Promise<Object>} ApiResponse chứa thông tin user
    */
   login: async (data) => {
     const response = await axiosInstance.post('/Auth/login', data);
@@ -24,26 +24,14 @@ const authService = {
     return response.data;
   },
 
-  /**
-   * Gọi làm mới Access Token từ HttpOnly Cookie Refresh Token
-   * @returns {Promise<Object>} ApiResponse chứa new token và user
-   */
-  refreshToken: async () => {
-    const response = await axiosInstance.post('/Auth/refresh', {});
+  getSession: async (signal) => {
+    const response = await axiosInstance.get('/Auth/me', { signal });
     return response.data;
   },
 
-  /**
-   * Đăng xuất hệ thống (xóa cookie và thu hồi token)
-   * @returns {Promise<Object>} ApiResponse<bool>
-   */
   logout: async () => {
-    try {
-      const response = await axiosInstance.post('/Auth/logout', {});
-      return response.data;
-    } catch {
-      return { success: true };
-    }
+    const response = await axiosInstance.post('/Auth/logout', {});
+    return response.data;
   },
 
   /**

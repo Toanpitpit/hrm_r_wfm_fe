@@ -177,28 +177,44 @@ export const employeeService = {
    * 2. Lấy danh mục chi nhánh active cho dropdown (GET /api/Users/branches)
    */
   async getBranches() {
+    let list = [];
     try {
       const res = await axiosInstance.get('Users/branches');
       const data = res.data?.data || res.data;
-      if (Array.isArray(data) && data.length > 0) return data;
+      if (Array.isArray(data) && data.length > 0) list = data;
     } catch (err) {
       console.warn('[EmployeeService] Backend Users/branches error, trying fallback:', err.message);
     }
 
-    // Fallback: Thử gọi BranchesController hoặc trả về danh sách mẫu
-    try {
-      const res2 = await axiosInstance.get('branches');
-      const data2 = res2.data?.data || res2.data;
-      if (Array.isArray(data2) && data2.length > 0) return data2;
-    } catch {
-      // ignore
+    if (list.length === 0) {
+      try {
+        const res2 = await axiosInstance.get('branches');
+        const data2 = res2.data?.data || res2.data;
+        if (Array.isArray(data2) && data2.length > 0) list = data2;
+      } catch {
+        // ignore
+      }
     }
 
-    return [
-      { id: 1, storeId: 1, name: 'Chi nhánh Cầu Giấy', address: '123 Cầu Giấy, Hà Nội' },
-      { id: 2, storeId: 2, name: 'Chi nhánh Lê Văn Việt', address: '456 Lê Văn Việt, TP. Thủ Đức' },
-      { id: 3, storeId: 3, name: 'Chi nhánh Nguyễn Huệ', address: '789 Nguyễn Huệ, Quận 1' },
-    ];
+    if (list.length === 0) {
+      list = [
+        { id: 1, storeId: 1, name: 'Cửa hàng Tiện lợi Chi nhánh Cầu Giấy', address: '123 Cầu Giấy, Hà Nội', branchTier: 2 },
+        { id: 2, storeId: 2, name: 'Cửa hàng Tiện lợi Chi nhánh Lê Văn Việt', address: '456 Lê Văn Việt, TP. Thủ Đức', branchTier: 1 },
+        { id: 3, storeId: 3, name: 'Cửa hàng Tiện lợi Chi nhánh Hoàn Kiếm', address: '78 Hàng Bài, Hoàn Kiếm', branchTier: 1 },
+      ];
+    }
+
+    return list.map((b) => {
+      const tier = Number(b.branchTier || b.tier || 2);
+      const standardTierQuota = tier === 1 ? 30 : tier === 3 ? 8 : 15;
+      const validStaffCount = Number(b.staffCount || b.targetStaffCount || 0);
+      return {
+        ...b,
+        branchTier: tier,
+        staffCount: validStaffCount > 0 ? validStaffCount : standardTierQuota,
+        effectiveQuota: validStaffCount > 0 ? validStaffCount : standardTierQuota,
+      };
+    });
   },
 
   /**
@@ -319,9 +335,15 @@ export const employeeService = {
       const res = await axiosInstance.get('Users/employees', { params, ...options });
       const data = res.data?.data || res.data;
       if (Array.isArray(data)) {
+        if (!params.branchId && !params.roleCode && !params.search && data.length > 5) {
+          saveLocalEmployees(data);
+        }
         return { success: true, data };
       }
       if (data?.items && Array.isArray(data.items)) {
+        if (!params.branchId && !params.roleCode && !params.search && data.items.length > 5) {
+          saveLocalEmployees(data.items);
+        }
         return { success: true, data: data.items, total: data.total };
       }
     } catch (err) {
@@ -410,7 +432,7 @@ export const employeeService = {
       return {
         success: true,
         data: created,
-        message: 'Khai báo hồ sơ nhân sự thành công! Welcome Email kèm thông tin đăng nhập đã được tự động gửi tới email nhân sự.',
+        message: res.data?.message || 'Khai báo hồ sơ nhân sự thành công!',
       };
     } catch (err) {
       const status = err.response?.status;
@@ -523,7 +545,7 @@ export const employeeService = {
       return {
         success: true,
         data: res.data?.data || res.data,
-        message: 'Cấp tài khoản Cửa hàng trưởng thành công! Welcome Email đã được gửi.',
+        message: res.data?.message || 'Cấp tài khoản Cửa hàng trưởng thành công!',
       };
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
@@ -787,7 +809,12 @@ export const employeeService = {
         message = `Import thất bại: Tất cả ${failureCount} dòng đều có lỗi. Vui lòng kiểm tra và thử lại.`;
       }
 
-      return { success: successCount > 0, data: result, message, isPartialSuccess: successCount > 0 && failureCount > 0 };
+      return {
+        success: successCount > 0,
+        data: result,
+        message: res.data?.message || message,
+        isPartialSuccess: successCount > 0 && failureCount > 0,
+      };
     } catch (err) {
       const status = err.response?.status;
       const errData = err.response?.data;

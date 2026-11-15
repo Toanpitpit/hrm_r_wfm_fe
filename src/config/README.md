@@ -1,63 +1,12 @@
-# ⚙️ Config — Cấu hình dự án
+# Cấu hình API cho web
 
-## Mục đích
-Thư mục `config/` chứa các file thiết lập cấu hình cho dự án, bao gồm:
-- Cấu hình **Axios instance** (base URL, interceptors, headers mặc định).
-- Cấu hình **biến môi trường** (`import.meta.env`).
-- Setup các **thư viện bên thứ 3** nếu cần.
+`axios.config.js` dùng `VITE_API_URL` và gửi cookie phiên bằng `withCredentials`.
+Các request thay đổi dữ liệu gửi header `X-RWFM-Request: 1`.
+Khi tải lại trang, `AuthContext` gọi `GET /Auth/me` để khôi phục hồ sơ từ phiên backend.
 
-## Cấu trúc
+## Khi triển khai
 
-```
-config/
-├── README.md          ← Bạn đang đọc file này
-└── axios.config.js    ← Axios instance mặc định
-```
-
-## Quy tắc
-
-1. Mỗi thư viện/service cần config riêng → tạo file riêng: `[tên].config.js`
-2. **KHÔNG** hard-code URL hay secret ở đây — dùng biến môi trường từ `.env`.
-3. Axios interceptors xử lý:
-   - **Request**: Tự động gắn token vào header.
-   - **Response**: Xử lý lỗi chung (401 → redirect login, 500 → thông báo lỗi).
-
-## Ví dụ — `axios.config.js`
-
-```javascript
-import axios from 'axios';
-
-const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor — tự động gắn token
-axiosInstance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor — xử lý lỗi chung
-axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
-export default axiosInstance;
-```
+- Chạy API qua HTTPS. Môi trường Development hỗ trợ chạy HTTP trên localhost.
+- Nếu web gọi API khác origin, cấu hình danh sách origin frontend chính xác ở backend, ví dụ `WebSession__AllowedOrigins__0=https://web.example.com`.
+- Nếu web và API nằm khác site, bật `WebSession__CrossSite=true` để gửi cookie `SameSite=None; Secure`. Trình duyệt vẫn có thể chặn cookie bên thứ ba. Triển khai cùng site giúp tránh phụ thuộc vào thiết lập này.
+- Backend lưu phiên trong Redis khi có `ConnectionStrings__RedisConnection`. Nếu dùng nhiều API instance, cấu hình tất cả instance dùng chung Redis. Với cache trong bộ nhớ backend, phiên mất khi API khởi động lại.

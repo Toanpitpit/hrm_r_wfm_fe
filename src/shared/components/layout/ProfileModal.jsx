@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 import Modal from '@/shared/components/ui/Modal';
 import Button from '@/shared/components/ui/Button';
 import FormField from '@/shared/components/ui/FormField';
@@ -101,7 +101,7 @@ export default function ProfileModal({ isOpen, onClose, onProfileUpdated }) {
       isOpen={isOpen}
       onClose={onClose}
       title="Thông Tin Hồ Sơ Cá Nhân"
-      sub="Xem và quản lý thông tin tài khoản nhân sự trong hệ thống RWFM"
+      sub="Xem và quản lý thông tin tài khoản nhân sự trong hệ thống RWFM Enterprise"
       width={520}
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, width: '100%' }}>

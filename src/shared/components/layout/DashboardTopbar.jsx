@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../ui/Icon';
 import Badge from '../ui/Badge';
 import { useAdminTheme } from '../../context/ThemeContext';
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 import { useAuthContext } from '@/modules/auth/context/AuthContext';
 import ProfileModal from './ProfileModal';
 import ChangePasswordModal from './ChangePasswordModal';
@@ -93,7 +93,7 @@ export default function DashboardTopbar({
       setNotifications([
         {
           id: 'sys-welcome',
-          title: 'Chào mừng đến hệ thống RWFM',
+          title: 'Chào mừng đến hệ thống RWFM Enterprise',
           message: 'Tất cả thông báo thay đổi lịch phân ca, đổi ca và điều động sẽ hiển thị tại đây.',
           type: 'INFO',
           createdAt: new Date().toISOString(),
@@ -113,11 +113,10 @@ export default function DashboardTopbar({
   // Handle Logout
   const handleLogout = async () => {
     try {
-      toast.success('Đang đăng xuất khỏi hệ thống...');
       await logout();
     } catch (err) {
       console.error('Logout error:', err);
-      window.location.href = '/login';
+      toast.error('Chưa đăng xuất được. Vui lòng thử lại.');
     }
   };
 

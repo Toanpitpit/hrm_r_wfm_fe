@@ -293,7 +293,6 @@ export const LiveRosterDashboardPage = ({ storeId = null }) => {
         <DashboardSidebar
           activeId="live-roster"
           onNavigate={handleSidebarNavigate}
-          brandName="RWFM Console"
           tagline="Quản Trị Nhân Sự"
           roleSubtitle={roleName}
           navGroups={navItems}

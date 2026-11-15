@@ -14,7 +14,7 @@ import Badge from '@/shared/components/ui/Badge';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
 import { IconButton } from '@/shared/components/ui';
-import { useToast } from '@/components/ui/toast/ToastProvider';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 import { useCheckInMobile } from '../../hooks/useCheckInMobile';
 
 export default function AttendanceOtpPage() {
