@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
+import { useToast } from '@/shared/components/ui/ToastProvider';
 import DashboardShell from '@/shared/components/layout/DashboardShell';
 import DashboardSidebar from '@/shared/components/layout/DashboardSidebar';
 import DashboardTopbar from '@/shared/components/layout/DashboardTopbar';
@@ -10,6 +11,7 @@ import Button from '@/shared/components/ui/Button';
 import SearchInput from '@/shared/components/ui/SearchInput';
 import Select from '@/shared/components/ui/Select';
 import Modal from '@/shared/components/ui/Modal';
+import ConfirmModal from '@/shared/components/ui/ConfirmModal';
 
 import dispatchService from '../services/dispatch.service';
 import DispatchListTable from '../components/DispatchListTable';
@@ -34,19 +36,24 @@ export default function StoreDispatchPage() {
   const currentStoreId = currentUser?.storeId || currentUser?.homeBranchId || currentUser?.branchId || 1;
   const currentStoreName = currentUser?.storeName || currentUser?.branchName || 'Chi nhánh hiện tại';
 
+  const toast = useToast();
+
   // Data states
   const [dispatches, setDispatches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('incoming'); // 'incoming' | 'outgoing' | 'all'
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  const [toastMessage, setToastMessage] = useState(null);
 
   // Modals states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [reviewItem, setReviewItem] = useState(null);
   const [detailItem, setDetailItem] = useState(null);
+
+  // Confirmation modal state (Thay thế hoàn toàn window.confirm bằng ConfirmModal chuẩn hệ thống)
+  const [confirmTarget, setConfirmTarget] = useState(null); // { type: 'recall' | 'delete', item, title, message, subMessage, confirmText, confirmVariant }
+  const [isConfirming, setIsConfirming] = useState(false);
 
   // Lấy dữ liệu danh sách điều động của cửa hàng
   const loadDispatches = useCallback(async () => {
@@ -71,49 +78,65 @@ export default function StoreDispatchPage() {
     loadDispatches();
   }, [loadDispatches]);
 
-  // Thông báo toast
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
+  // Xử lý mở modal xác nhận thu hồi yêu cầu điều động PENDING để chỉnh sửa (RECALLED)
+  const handleRecallDispatch = (item) => {
+    setConfirmTarget({
+      type: 'recall',
+      item,
+      title: 'Xác Nhận Thu Hồi Yêu Cầu Điều Động',
+      message: `Bạn có chắc chắn muốn thu hồi yêu cầu điều động (#${item.dispatchId}) không?`,
+      subMessage: 'Sau khi thu hồi, đơn sẽ tạm dừng xét duyệt để bạn chỉnh sửa nội dung danh sách nhân sự hoặc thời gian và gửi lại khi hoàn tất.',
+      confirmText: 'Thu Hồi Đơn',
+      confirmVariant: 'primary',
+      icon: 'alertTriangle',
+    });
   };
 
-  // Xử lý thu hồi yêu cầu điều động PENDING để chỉnh sửa (RECALLED)
-  const handleRecallDispatch = async (item) => {
-    const confirmRecall = window.confirm(
-      `Bạn có chắc chắn muốn thu hồi yêu cầu điều động (#${item.dispatchId}) không?\n\nSau khi thu hồi, đơn sẽ tạm dừng xét duyệt để bạn chỉnh sửa nội dung và gửi lại khi hoàn tất.`
-    );
-    if (!confirmRecall) return;
-
-    try {
-      const res = await dispatchService.recallDispatchRequest(item.dispatchId);
-      if (res?.success) {
-        showToast('Đã thu hồi đơn điều động. Bạn có thể bấm "Sửa & Gửi Lại" để cập nhật nội dung.');
-        loadDispatches();
-      } else {
-        alert(res?.message || 'Không thể thu hồi phiếu điều động.');
-      }
-    } catch (err) {
-      alert(err.response?.data?.message || 'Có lỗi xảy ra khi thu hồi yêu cầu điều động.');
-    }
+  // Xử lý mở modal xác nhận hủy và xóa yêu cầu điều động
+  const handleDeleteDispatch = (item) => {
+    const empInfo = item.employeeName ? ` "${item.employeeName}"` : '';
+    setConfirmTarget({
+      type: 'delete',
+      item,
+      title: 'Xác Nhận Hủy Đơn Điều Động',
+      message: `Bạn có chắc chắn muốn hủy và xóa yêu cầu điều động nhân sự${empInfo} (#${item.dispatchId}) không?`,
+      subMessage: 'Thao tác này sẽ xóa hoàn toàn phiếu đề nghị khỏi hệ thống và không thể khôi phục.',
+      confirmText: 'Hủy & Xóa Phiếu',
+      confirmVariant: 'danger',
+      icon: 'alertTriangle',
+    });
   };
 
-  // Xử lý hủy và xóa yêu cầu điều động PENDING hoặc RECALLED
-  const handleDeleteDispatch = async (item) => {
-    const confirmDelete = window.confirm(
-      `Bạn có chắc chắn muốn hủy và xóa yêu cầu điều động nhân sự "${item.employeeName}" (#${item.dispatchId}) không?\n\nThao tác này sẽ xóa hoàn toàn phiếu đề nghị.`
-    );
-    if (!confirmDelete) return;
+  // Thực thi hành động khi người dùng bấm xác nhận trong ConfirmModal
+  const handleExecuteConfirm = async () => {
+    if (!confirmTarget?.item?.dispatchId) return;
+    const { type, item } = confirmTarget;
 
+    setIsConfirming(true);
     try {
-      const res = await dispatchService.deleteDispatchRequest(item.dispatchId);
-      if (res?.success) {
-        showToast('Đã hủy và xóa phiếu yêu cầu điều động thành công.');
-        loadDispatches();
-      } else {
-        alert(res?.message || 'Không thể hủy phiếu điều động.');
+      if (type === 'recall') {
+        const res = await dispatchService.recallDispatchRequest(item.dispatchId);
+        if (res?.success) {
+          toast.success('Đã thu hồi đơn điều động. Bạn có thể bấm "Sửa & Gửi Lại" để cập nhật nội dung.');
+          setConfirmTarget(null);
+          loadDispatches();
+        } else {
+          toast.error(res?.message || 'Không thể thu hồi phiếu điều động.');
+        }
+      } else if (type === 'delete') {
+        const res = await dispatchService.deleteDispatchRequest(item.dispatchId);
+        if (res?.success) {
+          toast.success('Đã hủy và xóa phiếu yêu cầu điều động thành công.');
+          setConfirmTarget(null);
+          loadDispatches();
+        } else {
+          toast.error(res?.message || 'Không thể hủy phiếu điều động.');
+        }
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Có lỗi xảy ra khi hủy yêu cầu điều động.');
+      toast.error(err.response?.data?.message || (type === 'recall' ? 'Có lỗi xảy ra khi thu hồi yêu cầu điều động.' : 'Có lỗi xảy ra khi hủy yêu cầu điều động.'));
+    } finally {
+      setIsConfirming(false);
     }
   };
 
@@ -195,30 +218,6 @@ export default function StoreDispatchPage() {
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {/* Toast Notification */}
-        {toastMessage && (
-          <div
-            style={{
-              position: 'fixed',
-              top: 24,
-              right: 32,
-              zIndex: 999,
-              background: '#10b981',
-              color: '#fff',
-              padding: '12px 20px',
-              borderRadius: 8,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-              fontSize: 14,
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <span>✓</span> {toastMessage}
-          </div>
-        )}
-
         {/* Tiêu đề & Nút Tạo mới */}
         <PageHeader
           index="Store Manager · Quản trị nhân sự"
@@ -370,7 +369,7 @@ export default function StoreDispatchPage() {
           currentStoreName={currentStoreName}
           editItem={editItem}
           onSuccess={(data, isEdit) => {
-            showToast(
+            toast.success(
               isEdit
                 ? 'Đã chỉnh sửa và cập nhật yêu cầu điều động thành công!'
                 : 'Đã tạo và gửi phiếu đề nghị điều động nhân sự thành công!'
@@ -394,15 +393,43 @@ export default function StoreDispatchPage() {
             setIsCreateModalOpen(true);
           }}
           onSuccess={(isApproved) => {
-            showToast(
-              isApproved
-                ? 'Đã phê duyệt lệnh điều động nhân sự thành công!'
-                : 'Đã từ chối lệnh điều động nhân sự.'
-            );
+            if (isApproved) {
+              toast.success('Đã phê duyệt lệnh điều động nhân sự thành công!');
+            } else {
+              toast.info('Đã từ chối lệnh điều động nhân sự.');
+            }
             setDetailItem(null);
             loadDispatches();
           }}
         />
+
+        {/* Modal Xác Nhận Thao Tác (Hủy Đơn / Thu Hồi Đơn) chuẩn giao diện Enterprise */}
+        <ConfirmModal
+          isOpen={Boolean(confirmTarget)}
+          onClose={isConfirming ? undefined : () => setConfirmTarget(null)}
+          onConfirm={handleExecuteConfirm}
+          loading={isConfirming}
+          title={confirmTarget?.title || 'Xác Nhận Thao Tác'}
+          message={confirmTarget?.message}
+          confirmText={confirmTarget?.confirmText || 'Xác Nhận'}
+          cancelText="Hủy Bỏ"
+          confirmVariant={confirmTarget?.confirmVariant || 'primary'}
+          icon={confirmTarget?.icon || 'alertTriangle'}
+        >
+          {confirmTarget?.subMessage && (
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 12.5,
+                color: confirmTarget.confirmVariant === 'danger' ? '#ef4444' : c.fgMuted,
+                fontWeight: 500,
+                lineHeight: 1.5,
+              }}
+            >
+              {confirmTarget.subMessage}
+            </div>
+          )}
+        </ConfirmModal>
       </div>
     </DashboardShell>
   );

@@ -185,6 +185,14 @@ export default function EmployeeFormModal({
           ...prev,
           email: `Email "${trimmed}" đã được sử dụng (${res.existingEmailOwnerName || 'Đã có trong hệ thống'}).`,
         }));
+      } else {
+        setErrors((prev) => {
+          if (prev.email && (prev.email.includes('đã được sử dụng') || prev.email.includes('không đúng định dạng'))) {
+            const { email: _, ...rest } = prev;
+            return rest;
+          }
+          return prev;
+        });
       }
     } catch {
       // ignore
@@ -214,11 +222,137 @@ export default function EmployeeFormModal({
           ...prev,
           phone: `Số điện thoại "${phone}" đã được sử dụng (${res.existingPhoneOwnerName || 'Đã có trong hệ thống'}).`,
         }));
+      } else {
+        setErrors((prev) => {
+          if (prev.phone && (prev.phone.includes('đã được sử dụng') || prev.phone.includes('không hợp lệ'))) {
+            const { phone: _, ...rest } = prev;
+            return rest;
+          }
+          return prev;
+        });
       }
     } catch {
       // ignore
     }
   }, [existingEmployees, isEdit, initialData?.id]);
+
+  // ─── Kiểm tra hợp lệ từng trường khi chuyển tiêu điểm (onBlur) ───────────
+  // Ràng buộc UX:
+  // 1. Chỉ hiển thị thông báo lỗi khi trường ĐÃ NHẬP DỮ LIỆU nhưng SAI định dạng / trùng lặp.
+  // 2. Những trường ĐỂ TRỐNG (chưa nhập) thì CHƯA hiển thị lỗi bắt buộc khi blur.
+  // (Lỗi bắt buộc để trống chỉ hiển thị khi bấm "Xác Nhận Khai Báo")
+  const handleFieldBlur = useCallback((field) => {
+    const rawVal = formData[field];
+    const strVal = typeof rawVal === 'string' ? rawVal.trim() : (rawVal || '');
+
+    // Nếu ô đang để trống: không hiển thị lỗi bắt buộc khi blur
+    if (!strVal) {
+      setErrors((prev) => {
+        if (!prev[field]) return prev;
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+      return;
+    }
+
+    // Nếu đã có dữ liệu nhập: kiểm tra tính hợp lệ của định dạng
+    switch (field) {
+      case 'employeeCode': {
+        const code = strVal.toUpperCase();
+        if (!/^[A-Z0-9_-]{3,20}$/.test(code)) {
+          setErrors((prev) => ({
+            ...prev,
+            employeeCode: 'Mã nhân viên chỉ gồm chữ hoa, số và dấu gạch ngang (3-20 ký tự, VD: NV-6414)',
+          }));
+        } else {
+          setErrors((prev) => {
+            if (prev.employeeCode && prev.employeeCode.includes('chỉ gồm chữ hoa')) {
+              const { employeeCode: _, ...rest } = prev;
+              return rest;
+            }
+            return prev;
+          });
+          checkCodeDuplicate(code);
+        }
+        break;
+      }
+      case 'fullName': {
+        if (strVal.length < 2) {
+          setErrors((prev) => ({
+            ...prev,
+            fullName: 'Họ và tên cần tối thiểu 2 ký tự',
+          }));
+        } else {
+          setErrors((prev) => {
+            if (prev.fullName && (prev.fullName.includes('tối thiểu') || prev.fullName.includes('bắt buộc'))) {
+              const { fullName: _, ...rest } = prev;
+              return rest;
+            }
+            return prev;
+          });
+        }
+        break;
+      }
+      case 'email': {
+        const email = strVal.toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          setErrors((prev) => ({
+            ...prev,
+            email: 'Email không đúng định dạng (VD: an.nguyen@rwfm.vn)',
+          }));
+        } else {
+          setErrors((prev) => {
+            if (prev.email && (prev.email.includes('không đúng định dạng') || prev.email.includes('bắt buộc'))) {
+              const { email: _, ...rest } = prev;
+              return rest;
+            }
+            return prev;
+          });
+          checkEmailDuplicate(email);
+        }
+        break;
+      }
+      case 'phone': {
+        const cleanPhone = strVal.replace(/\s/g, '');
+        if (!/^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(cleanPhone)) {
+          setErrors((prev) => ({
+            ...prev,
+            phone: 'Số điện thoại Việt Nam không hợp lệ (cần 10 chữ số, VD: 0912345678)',
+          }));
+        } else {
+          setErrors((prev) => {
+            if (prev.phone && (prev.phone.includes('không hợp lệ') || prev.phone.includes('bắt buộc'))) {
+              const { phone: _, ...rest } = prev;
+              return rest;
+            }
+            return prev;
+          });
+          checkPhoneDuplicate(cleanPhone);
+        }
+        break;
+      }
+      case 'password': {
+        if (!isEdit && strVal.length < 6) {
+          setErrors((prev) => ({
+            ...prev,
+            password: 'Mật khẩu khởi tạo cần tối thiểu 6 ký tự',
+          }));
+        } else {
+          setErrors((prev) => {
+            if (prev.password) {
+              const { password: _, ...rest } = prev;
+              return rest;
+            }
+            return prev;
+          });
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }, [formData, checkCodeDuplicate, checkEmailDuplicate, checkPhoneDuplicate, isEdit]);
 
   const checkCodeDuplicateRef = useRef(checkCodeDuplicate);
   useEffect(() => {
@@ -1005,7 +1139,7 @@ export default function EmployeeFormModal({
                 <TextInput
                   value={formData.employeeCode}
                   onChange={(e) => handleChange('employeeCode', e.target.value.toUpperCase())}
-                  onBlur={() => checkCodeDuplicate(formData.employeeCode)}
+                  onBlur={() => handleFieldBlur('employeeCode')}
                   placeholder="VD: NV-001 hoặc SM-001"
                   disabled={isEdit}
                   error={Boolean(errors.employeeCode)}
@@ -1017,6 +1151,7 @@ export default function EmployeeFormModal({
                 <TextInput
                   value={formData.fullName}
                   onChange={(e) => handleChange('fullName', e.target.value)}
+                  onBlur={() => handleFieldBlur('fullName')}
                   placeholder="VD: Nguyễn Văn An"
                   disabled={isEdit}
                   error={Boolean(errors.fullName)}
@@ -1031,7 +1166,7 @@ export default function EmployeeFormModal({
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
-                  onBlur={() => checkEmailDuplicate(formData.email)}
+                  onBlur={() => handleFieldBlur('email')}
                   placeholder="VD: an.nguyen@rwfm.vn"
                   disabled={isEdit}
                   error={Boolean(errors.email)}
@@ -1043,7 +1178,7 @@ export default function EmployeeFormModal({
                 <TextInput
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
-                  onBlur={() => checkPhoneDuplicate(formData.phone)}
+                  onBlur={() => handleFieldBlur('phone')}
                   placeholder="VD: 0912345678"
                   disabled={isEdit}
                   error={Boolean(errors.phone)}
@@ -1118,11 +1253,19 @@ export default function EmployeeFormModal({
                   }}
                 >
                   <option value="">-- Chọn chi nhánh --</option>
-                  {branches.map((b) => (
-                    <option key={b.id || b.storeId} value={String(b.id || b.storeId)}>
-                      {b.name || `Chi nhánh #${b.id || b.storeId}`}
-                    </option>
-                  ))}
+                  {branches.map((b) => {
+                    const isLocked = b.status === 'INACTIVE' || b.status === 'LOCKED';
+                    return (
+                      <option
+                        key={b.id || b.storeId}
+                        value={String(b.id || b.storeId)}
+                        disabled={isLocked && !isEdit}
+                      >
+                        {b.name || `Chi nhánh #${b.id || b.storeId}`}
+                        {isLocked ? ' — [Tạm Khóa - Không thể chọn]' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               </Field>
             </div>
@@ -1442,6 +1585,7 @@ export default function EmployeeFormModal({
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={(e) => handleChange('password', e.target.value)}
+                    onBlur={() => handleFieldBlur('password')}
                     placeholder="Nhập mật khẩu hoặc dùng mật khẩu tự sinh"
                     style={{
                       width: '100%',

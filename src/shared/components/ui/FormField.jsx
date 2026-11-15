@@ -35,7 +35,7 @@ export function Field({ label, hint, helper, children, full, error, required, st
   );
 }
 
-export function TextInput({ value, onChange, placeholder, type = 'text', disabled = false, error, ...props }) {
+export function TextInput({ value, onChange, placeholder, type = 'text', disabled = false, error, onFocus, onBlur, ...props }) {
   const { c, fonts } = useAdminTheme();
   const [focus, setFocus] = useState(false);
 
@@ -51,6 +51,16 @@ export function TextInput({ value, onChange, placeholder, type = 'text', disable
     onChange(e);
   };
 
+  const handleFocus = (e) => {
+    setFocus(true);
+    if (onFocus) onFocus(e);
+  };
+
+  const handleBlur = (e) => {
+    setFocus(false);
+    if (onBlur) onBlur(e);
+  };
+
   return (
     <input
       type={type}
@@ -59,8 +69,8 @@ export function TextInput({ value, onChange, placeholder, type = 'text', disable
       {...props}
       onChange={handleChange}
       placeholder={placeholder}
-      onFocus={() => setFocus(true)}
-      onBlur={() => setFocus(false)}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       style={{
         background: disabled ? c.track : c.bgRaised,
         border: `1.5px solid ${borderColor}`,
@@ -82,7 +92,7 @@ export function TextInput({ value, onChange, placeholder, type = 'text', disable
   );
 }
 
-export function Textarea({ value, onChange, placeholder, rows = 4, disabled = false, error, ...props }) {
+export function Textarea({ value, onChange, placeholder, rows = 4, disabled = false, error, onFocus, onBlur, ...props }) {
   const { c, fonts } = useAdminTheme();
   const [focus, setFocus] = useState(false);
 
@@ -98,6 +108,16 @@ export function Textarea({ value, onChange, placeholder, rows = 4, disabled = fa
     onChange(e);
   };
 
+  const handleFocus = (e) => {
+    setFocus(true);
+    if (onFocus) onFocus(e);
+  };
+
+  const handleBlur = (e) => {
+    setFocus(false);
+    if (onBlur) onBlur(e);
+  };
+
   return (
     <textarea
       value={value || ''}
@@ -106,8 +126,8 @@ export function Textarea({ value, onChange, placeholder, rows = 4, disabled = fa
       onChange={handleChange}
       placeholder={placeholder}
       rows={rows}
-      onFocus={() => setFocus(true)}
-      onBlur={() => setFocus(false)}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       style={{
         background: disabled ? c.track : c.bgRaised,
         border: `1.5px solid ${borderColor}`,
