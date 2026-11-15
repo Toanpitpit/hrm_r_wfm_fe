@@ -204,7 +204,7 @@ export default function ResetPasswordModal({
               border: '1px solid rgba(239, 68, 68, 0.25)',
               borderRadius: '8px',
               fontSize: '12.5px',
-              color: '#fca5a5',
+              color: '#991b1b',
               lineHeight: '1.5',
             }}
           >

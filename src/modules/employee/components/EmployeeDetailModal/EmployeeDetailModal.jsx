@@ -160,7 +160,7 @@ export default function EmployeeDetailModal({
                   padding: '2px 8px',
                   borderRadius: '4px',
                   border: `1px solid ${c.border}`,
-                  color: '#f2ca50',
+                  color: c.accent,
                   fontWeight: 600,
                   fontSize: '12px',
                 }}
@@ -217,7 +217,7 @@ export default function EmployeeDetailModal({
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: c.fgSubtle, fontWeight: 700 }}>
               Hình Thức Hợp Đồng
             </div>
-            <div style={{ fontSize: '14px', color: '#f2ca50', marginTop: '4px', fontWeight: 500 }}>
+            <div style={{ fontSize: '14px', color: c.fg, marginTop: '4px', fontWeight: 600 }}>
               {CONTRACT_TYPE_MAP[employee.contractType || employee.employmentType] || employee.contractType || employee.employmentType || 'Toàn thời gian'}
             </div>
           </div>
