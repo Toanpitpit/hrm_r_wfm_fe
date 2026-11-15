@@ -15,7 +15,7 @@ import axiosInstance, { getAccessToken } from '@/config/axios.config';
  * Lấy Bearer Token của người dùng hiện tại từ RAM hoặc localStorage
  */
 export const ensureAdminToken = async () => {
-  return getAccessToken() || localStorage.getItem('accessToken');
+  return (typeof getAccessToken === 'function' ? getAccessToken() : null) || localStorage.getItem('accessToken') || null;
 };
 
 const apiClient = axiosInstance;
