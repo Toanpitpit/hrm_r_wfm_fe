@@ -10,7 +10,8 @@ export default function ToggleStatusModal({
   employee,
   onConfirmToggle,
 }) {
-  const { c } = useAdminTheme();
+  const { c, theme } = useAdminTheme();
+  const isDark = theme === 'dark';
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -84,8 +85,19 @@ export default function ToggleStatusModal({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <p style={{ fontSize: '13.5px', color: c.fg, lineHeight: '1.5', margin: 0 }}>
           Bạn đang yêu cầu {targetAction} tài khoản của nhân sự:{' '}
-          <strong style={{ color: '#b45309', fontWeight: 700 }}>{employee.fullName}</strong> (Mã:{' '}
-          <strong style={{ color: c.fg }}>{employee.employeeCode || `NV-${employee.id}`}</strong>).
+          <strong
+            style={{
+              color: isDark ? '#fbbf24' : '#9a3412',
+              background: isDark ? 'rgba(251, 191, 36, 0.15)' : '#ffedd5',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontWeight: 700,
+            }}
+          >
+            {employee.fullName}
+          </strong>{' '}
+          (Mã:{' '}
+          <strong style={{ color: c.fg, fontWeight: 700 }}>{employee.employeeCode || `NV-${employee.id}`}</strong>).
         </p>
 
         {/* Cảnh báo ràng buộc dịch vụ */}
@@ -170,21 +182,21 @@ export default function ToggleStatusModal({
         <div
           style={{
             padding: '10px 14px',
-            background: 'rgba(59, 130, 246, 0.08)',
-            border: '1px solid rgba(59, 130, 246, 0.25)',
+            background: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
+            border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.35)' : '#bfdbfe'}`,
             borderRadius: '8px',
             fontSize: '12.5px',
-            color: '#1e40af',
+            color: isDark ? '#93c5fd' : '#1e40af',
             lineHeight: '1.5',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
           }}
         >
-          <Icon name="mail" size={16} color="#2563eb" />
+          <Icon name="mail" size={16} color={isDark ? '#60a5fa' : '#2563eb'} />
           <span>
             Email thông báo thay đổi trạng thái kèm lý do trên sẽ được gửi tự động tới email hồ sơ:{' '}
-            <strong style={{ color: '#1e3a8a', fontWeight: 700 }}>
+            <strong style={{ color: isDark ? '#60a5fa' : '#1d4ed8', fontWeight: 700 }}>
               {employee.email || 'Chưa cập nhật email'}
             </strong>.
           </span>
