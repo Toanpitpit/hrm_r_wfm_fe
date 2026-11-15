@@ -1253,11 +1253,19 @@ export default function EmployeeFormModal({
                   }}
                 >
                   <option value="">-- Chọn chi nhánh --</option>
-                  {branches.map((b) => (
-                    <option key={b.id || b.storeId} value={String(b.id || b.storeId)}>
-                      {b.name || `Chi nhánh #${b.id || b.storeId}`}
-                    </option>
-                  ))}
+                  {branches.map((b) => {
+                    const isLocked = b.status === 'INACTIVE' || b.status === 'LOCKED';
+                    return (
+                      <option
+                        key={b.id || b.storeId}
+                        value={String(b.id || b.storeId)}
+                        disabled={isLocked && !isEdit}
+                      >
+                        {b.name || `Chi nhánh #${b.id || b.storeId}`}
+                        {isLocked ? ' — [Tạm Khóa - Không thể chọn]' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               </Field>
             </div>

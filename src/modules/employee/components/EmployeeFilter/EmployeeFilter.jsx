@@ -44,10 +44,14 @@ export default function EmployeeFilter({
 
   const branchOptions = [
     { value: '', label: 'Tất cả chi nhánh' },
-    ...branches.map((b) => ({
-      value: String(b.storeId || b.id),
-      label: b.name || `Chi nhánh #${b.storeId || b.id}`,
-    })),
+    ...branches.map((b) => {
+      const isLocked = b.status === 'INACTIVE' || b.status === 'LOCKED';
+      const baseName = b.name || `Chi nhánh #${b.storeId || b.id}`;
+      return {
+        value: String(b.storeId || b.id),
+        label: isLocked ? `${baseName} (Tạm Khóa)` : baseName,
+      };
+    }),
   ];
 
   const statusOptions = [
