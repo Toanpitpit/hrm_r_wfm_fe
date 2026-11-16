@@ -163,7 +163,7 @@ export default function TierTable({
     {
       key: 'actions',
       label: 'THAO TÁC',
-      width: '170px',
+      width: '180px',
       render: (row) => {
         const appliedCount = Array.isArray(row.appliedBranches) ? row.appliedBranches.length : null;
         const count = appliedCount !== null ? appliedCount : Number(row.branchCount ?? row.branch_count ?? 0);
@@ -180,15 +180,15 @@ export default function TierTable({
                 }
               }}
               style={{
-                color: c.accent || '#3b82f6',
-                borderColor: 'rgba(59, 130, 246, 0.35)',
-                backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                cursor: 'pointer',
+                color: c.accent,
+                borderColor: `${c.accent}50`,
+                backgroundColor: `${c.accent}12`,
                 fontWeight: 600,
+                cursor: 'pointer',
               }}
               title="Chỉnh sửa phân cấp này"
             >
-              <Icon name="edit" size={13} color={c.accent || '#3b82f6'} />
+              <Icon name="edit" size={13} color={c.accent} />
               <span>Sửa</span>
             </Button>
 
