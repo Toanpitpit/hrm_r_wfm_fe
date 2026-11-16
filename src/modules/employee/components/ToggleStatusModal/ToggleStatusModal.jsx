@@ -10,7 +10,8 @@ export default function ToggleStatusModal({
   employee,
   onConfirmToggle,
 }) {
-  const { c } = useAdminTheme();
+  const { c, theme } = useAdminTheme();
+  const isDark = theme === 'dark';
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -60,7 +61,14 @@ export default function ToggleStatusModal({
             variant={isCurrentlyInactive ? 'primary' : 'danger'}
             onClick={handleConfirm}
             disabled={submitting}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              ...(!isCurrentlyInactive
+                ? { background: '#dc2626', color: '#ffffff', border: '1px solid #b91c1c' }
+                : {}),
+            }}
           >
             <Icon name={isCurrentlyInactive ? 'unlock' : 'lock'} size={14} />
             <span>
@@ -77,45 +85,58 @@ export default function ToggleStatusModal({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <p style={{ fontSize: '13.5px', color: c.fg, lineHeight: '1.5', margin: 0 }}>
           Bạn đang yêu cầu {targetAction} tài khoản của nhân sự:{' '}
-          <strong style={{ color: '#f2ca50' }}>{employee.fullName}</strong> (Mã:{' '}
-          <strong>{employee.employeeCode || `NV-${employee.id}`}</strong>).
+          <strong
+            style={{
+              color: isDark ? '#fbbf24' : '#9a3412',
+              background: isDark ? 'rgba(251, 191, 36, 0.15)' : '#ffedd5',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontWeight: 700,
+            }}
+          >
+            {employee.fullName}
+          </strong>{' '}
+          (Mã:{' '}
+          <strong style={{ color: c.fg, fontWeight: 700 }}>{employee.employeeCode || `NV-${employee.id}`}</strong>).
         </p>
 
         {/* Cảnh báo ràng buộc dịch vụ */}
         {!isCurrentlyInactive ? (
           <div
             style={{
-              padding: '12px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              borderRadius: '6px',
-              fontSize: '12px',
-              color: '#fca5a5',
+              padding: '12px 14px',
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              color: '#991b1b',
+              lineHeight: '1.5',
               display: 'flex',
               flexDirection: 'column',
               gap: '6px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}>
-              <Icon name="alert-triangle" size={15} color="#ef4444" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#dc2626' }}>
+              <Icon name="alert-triangle" size={15} color="#dc2626" />
               <span>RÀNG BUỘC KIỂM TRA DỊCH VỤ HOẠT ĐỘNG:</span>
             </div>
-            <div>
+            <div style={{ color: '#991b1b' }}>
               • Hệ thống sẽ tự động kiểm tra xem nhân viên có đang trong ca trực làm việc (đã Check-in), có ca làm việc sắp tới hoặc đang tham gia điều động hay không.
             </div>
-            <div>
-              • Nếu nhân sự còn lịch làm việc đang hoạt động, hệ thống sẽ <strong>từ chối khóa tài khoản</strong> để tránh gián đoạn vận hành cửa hàng.
+            <div style={{ color: '#991b1b' }}>
+              • Nếu nhân sự còn lịch làm việc đang hoạt động, hệ thống sẽ <strong style={{ color: '#7f1d1d' }}>từ chối khóa tài khoản</strong> để tránh gián đoạn vận hành cửa hàng.
             </div>
           </div>
         ) : (
           <div
             style={{
-              padding: '12px',
-              background: 'rgba(34, 197, 94, 0.1)',
-              border: '1px solid rgba(34, 197, 94, 0.3)',
-              borderRadius: '6px',
+              padding: '12px 14px',
+              background: 'rgba(34, 197, 94, 0.08)',
+              border: '1px solid rgba(34, 197, 94, 0.25)',
+              borderRadius: '8px',
               fontSize: '12.5px',
-              color: '#86efac',
+              color: '#15803d',
+              lineHeight: '1.5',
             }}
           >
             Sau khi mở khóa, nhân viên này sẽ có thể đăng nhập vào hệ thống và được phân bổ vào các ca làm việc bình thường.
@@ -160,21 +181,24 @@ export default function ToggleStatusModal({
         {/* Thông báo gửi email */}
         <div
           style={{
-            padding: '10px 12px',
-            background: 'rgba(59, 130, 246, 0.08)',
-            border: '1px solid rgba(59, 130, 246, 0.25)',
-            borderRadius: '6px',
-            fontSize: '12px',
-            color: '#93c5fd',
+            padding: '10px 14px',
+            background: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
+            border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.35)' : '#bfdbfe'}`,
+            borderRadius: '8px',
+            fontSize: '12.5px',
+            color: isDark ? '#93c5fd' : '#1e40af',
+            lineHeight: '1.5',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
           }}
         >
-          <Icon name="mail" size={16} color="#60a5fa" />
+          <Icon name="mail" size={16} color={isDark ? '#60a5fa' : '#2563eb'} />
           <span>
             Email thông báo thay đổi trạng thái kèm lý do trên sẽ được gửi tự động tới email hồ sơ:{' '}
-            <strong style={{ color: '#fff' }}>{employee.email || 'Chưa cập nhật email'}</strong>.
+            <strong style={{ color: isDark ? '#60a5fa' : '#1d4ed8', fontWeight: 700 }}>
+              {employee.email || 'Chưa cập nhật email'}
+            </strong>.
           </span>
         </div>
       </div>

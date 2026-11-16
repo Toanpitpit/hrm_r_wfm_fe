@@ -10,16 +10,17 @@ export default function HeadcountQuotaCard({
   canManageSystem = false,
   onUpgradeTier,
 }) {
-  const { c } = useAdminTheme();
+  const { c, theme } = useAdminTheme();
+  const isDark = theme === 'dark';
 
   if (isStoreManager || !allBranchesQuota || allBranchesQuota.length === 0) {
     return null;
   }
 
   const tierColors = {
-    1: '#eab308',
-    2: '#3b82f6',
-    3: '#9ca3af',
+    1: isDark ? '#fbbf24' : '#b45309',
+    2: isDark ? '#60a5fa' : '#1d4ed8',
+    3: isDark ? '#94a3b8' : '#475569',
   };
 
   const getStatusBadge = (statusObj) => {
@@ -36,14 +37,14 @@ export default function HeadcountQuotaCard({
               borderRadius: '9999px',
               fontSize: '11px',
               fontWeight: 700,
-              background: 'rgba(239, 68, 68, 0.16)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#ef4444',
+              background: isDark ? 'rgba(239, 68, 68, 0.16)' : '#fee2e2',
+              border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.4)' : '#fca5a5'}`,
+              color: isDark ? '#f87171' : '#b91c1c',
               whiteSpace: 'nowrap',
               flexShrink: 0,
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isDark ? '#f87171' : '#dc2626', flexShrink: 0 }} />
             Tạm Khóa
           </span>
         </div>
@@ -75,14 +76,14 @@ export default function HeadcountQuotaCard({
               borderRadius: '9999px',
               fontSize: '11px',
               fontWeight: 600,
-              background: 'rgba(34, 197, 94, 0.12)',
-              border: '1px solid rgba(34, 197, 94, 0.3)',
-              color: '#22c55e',
+              background: isDark ? 'rgba(34, 197, 94, 0.15)' : '#dcfce7',
+              border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.35)' : '#86efac'}`,
+              color: isDark ? '#4ade80' : '#15803d',
               whiteSpace: 'nowrap',
               flexShrink: 0,
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isDark ? '#4ade80' : '#16a34a', flexShrink: 0 }} />
             Còn {remaining} slot
           </span>
         ) : (
@@ -95,14 +96,14 @@ export default function HeadcountQuotaCard({
               borderRadius: '9999px',
               fontSize: '11px',
               fontWeight: 700,
-              background: 'rgba(239, 68, 68, 0.16)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#ef4444',
+              background: isDark ? 'rgba(239, 68, 68, 0.16)' : '#fee2e2',
+              border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.4)' : '#fca5a5'}`,
+              color: isDark ? '#f87171' : '#b91c1c',
               whiteSpace: 'nowrap',
               flexShrink: 0,
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isDark ? '#f87171' : '#dc2626', flexShrink: 0 }} />
             Đạt trần ({cHeadcount}/{standardQuota})
           </span>
         )}
@@ -117,9 +118,9 @@ export default function HeadcountQuotaCard({
               borderRadius: '9999px',
               fontSize: '10.5px',
               fontWeight: 600,
-              background: 'rgba(59, 130, 246, 0.14)',
-              border: '1px solid rgba(59, 130, 246, 0.35)',
-              color: '#60a5fa',
+              background: isDark ? 'rgba(59, 130, 246, 0.14)' : '#dbeafe',
+              border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.35)' : '#93c5fd'}`,
+              color: isDark ? '#60a5fa' : '#1d4ed8',
               whiteSpace: 'nowrap',
               flexShrink: 0,
             }}
@@ -135,12 +136,14 @@ export default function HeadcountQuotaCard({
   return (
     <div
       style={{
-        background: `linear-gradient(135deg, ${c.bgRaised} 0%, rgba(26, 22, 16, 0.95) 100%)`,
+        background: isDark
+          ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
+          : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
         border: `1px solid ${c.border}`,
         borderRadius: '12px',
         padding: '20px 22px',
         marginBottom: '20px',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.18)',
+        boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.35)' : '0 2px 10px rgba(0, 0, 0, 0.05)',
         display: 'flex',
         flexDirection: 'column',
         gap: '18px',
@@ -212,8 +215,16 @@ export default function HeadcountQuotaCard({
                 style={{
                   padding: '14px 16px',
                   borderRadius: '10px',
-                  background: isCardSelected ? 'rgba(13, 148, 136, 0.12)' : (isLocked ? 'rgba(239, 68, 68, 0.04)' : c.bgCard),
-                  border: `2px solid ${isCardSelected ? 'var(--color-primary, #0D9488)' : (isLocked ? 'rgba(239, 68, 68, 0.35)' : c.border)}`,
+                  background: isCardSelected
+                    ? (isDark ? 'rgba(13, 148, 136, 0.16)' : 'rgba(13, 148, 136, 0.08)')
+                    : (isLocked
+                        ? (isDark ? 'rgba(239, 68, 68, 0.08)' : '#fef2f2')
+                        : (isDark ? c.bgCard : '#ffffff')),
+                  border: `2px solid ${
+                    isCardSelected
+                      ? 'var(--color-primary, #0D9488)'
+                      : (isLocked ? 'rgba(239, 68, 68, 0.35)' : (isDark ? c.border : '#e2e8f0'))
+                  }`,
                   opacity: isLocked && !isCardSelected ? 0.85 : 1,
                   cursor: 'pointer',
                   display: 'flex',
@@ -222,7 +233,9 @@ export default function HeadcountQuotaCard({
                   minHeight: '136px',
                   gap: '12px',
                   transition: 'all 0.2s ease',
-                  boxShadow: isCardSelected ? '0 0 16px rgba(13, 148, 136, 0.25)' : 'none',
+                  boxShadow: isCardSelected
+                    ? '0 0 16px rgba(13, 148, 136, 0.25)'
+                    : (isDark ? 'none' : '0 1px 3px rgba(0, 0, 0, 0.05)'),
                   position: 'relative',
                 }}
               >
@@ -256,7 +269,12 @@ export default function HeadcountQuotaCard({
                         style={{
                           fontSize: '11px',
                           fontWeight: 600,
-                          color: tierColors[bTier] || '#3b82f6',
+                          color: tierColors[bTier] || (isDark ? '#60a5fa' : '#1d4ed8'),
+                          background: isDark
+                            ? (bTier === 1 ? 'rgba(251, 191, 36, 0.14)' : bTier === 2 ? 'rgba(96, 165, 250, 0.14)' : 'rgba(148, 163, 184, 0.14)')
+                            : (bTier === 1 ? '#fef3c7' : bTier === 2 ? '#dbeafe' : '#f1f5f9'),
+                          padding: '2px 8px',
+                          borderRadius: '4px',
                         }}
                       >
                         Tier {bTier} · Định biên {bStandardQuota} người
@@ -296,10 +314,10 @@ export default function HeadcountQuotaCard({
                             fontSize: '10px',
                             padding: '1px 5px',
                             borderRadius: '4px',
-                            background: 'rgba(59, 130, 246, 0.12)',
-                            color: '#60a5fa',
+                            background: isDark ? 'rgba(59, 130, 246, 0.14)' : '#dbeafe',
+                            color: isDark ? '#60a5fa' : '#1d4ed8',
                             fontWeight: 600,
-                            border: '1px solid rgba(59, 130, 246, 0.25)',
+                            border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe'}`,
                             whiteSpace: 'nowrap',
                           }}
                           title={`Có ${bDispatchedIn} nhân sự điều động từ chi nhánh khác hỗ trợ (Tổng đang làm việc: ${bTotalWorking})`}
@@ -313,10 +331,10 @@ export default function HeadcountQuotaCard({
                             fontSize: '10px',
                             padding: '1px 5px',
                             borderRadius: '4px',
-                            background: 'rgba(234, 179, 8, 0.12)',
-                            color: '#fbbf24',
+                            background: isDark ? 'rgba(234, 179, 8, 0.14)' : '#fef3c7',
+                            color: isDark ? '#fbbf24' : '#b45309',
                             fontWeight: 600,
-                            border: '1px solid rgba(234, 179, 8, 0.25)',
+                            border: `1px solid ${isDark ? 'rgba(234, 179, 8, 0.3)' : '#fde68a'}`,
                             whiteSpace: 'nowrap',
                           }}
                           title={`Có ${bDispatchedOut} nhân sự cơ hữu đang đi hỗ trợ chi nhánh khác`}
@@ -327,7 +345,7 @@ export default function HeadcountQuotaCard({
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                      <span style={{ color: bAvailable > 0 ? '#38bdf8' : '#ef4444', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      <span style={{ color: bAvailable > 0 ? (isDark ? '#38bdf8' : '#0284c7') : '#dc2626', fontWeight: 600, whiteSpace: 'nowrap' }}>
                         {bAvailable > 0 ? `Còn ${bAvailable} slot` : 'Đủ định biên'}
                       </span>
                       {isFull && bTier > 1 && canManageSystem && onUpgradeTier && (
@@ -363,7 +381,7 @@ export default function HeadcountQuotaCard({
                     style={{
                       height: '5px',
                       width: '100%',
-                      background: 'rgba(255, 255, 255, 0.08)',
+                      background: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
                       borderRadius: '9999px',
                       overflow: 'hidden',
                     }}
