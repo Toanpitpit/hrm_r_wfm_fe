@@ -163,14 +163,35 @@ export default function TierTable({
     {
       key: 'actions',
       label: 'THAO TÁC',
-      width: '120px',
+      width: '170px',
       render: (row) => {
         const appliedCount = Array.isArray(row.appliedBranches) ? row.appliedBranches.length : null;
         const count = appliedCount !== null ? appliedCount : Number(row.branchCount ?? row.branch_count ?? 0);
         const canDelete = count === 0;
 
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (onEdit) {
+                  onEdit(row);
+                }
+              }}
+              style={{
+                color: c.accent || '#3b82f6',
+                borderColor: 'rgba(59, 130, 246, 0.35)',
+                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+              title="Chỉnh sửa phân cấp này"
+            >
+              <Icon name="edit" size={13} color={c.accent || '#3b82f6'} />
+              <span>Sửa</span>
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
