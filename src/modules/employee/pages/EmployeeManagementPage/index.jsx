@@ -22,6 +22,7 @@ import headcountService from '@/modules/employee/services/headcount.service';
 import EmployeeTable from '@/modules/employee/components/EmployeeTable/EmployeeTable';
 import EmployeeFilter from '@/modules/employee/components/EmployeeFilter/EmployeeFilter';
 import EmployeeFormModal from '@/modules/employee/components/EmployeeFormModal/EmployeeFormModal';
+import BulkImportEmployeeModal from '@/modules/employee/components/BulkImportEmployeeModal/BulkImportEmployeeModal';
 import EmployeeDetailModal from '@/modules/employee/components/EmployeeDetailModal/EmployeeDetailModal';
 import ResetPasswordModal from '@/modules/employee/components/ResetPasswordModal/ResetPasswordModal';
 import ToggleStatusModal from '@/modules/employee/components/ToggleStatusModal/ToggleStatusModal';
@@ -153,6 +154,22 @@ export default function EmployeeManagementPage() {
     }
   });
 
+  // Map các ID tài khoản cũ vừa được mở khóa / tái tuyển dụng (chỉ nháy highlight nền 2-3s, không gắn NEW)
+  const [recentlyUnlockedIds, setRecentlyUnlockedIds] = useState({});
+
+  const flashUnlockedEmployee = useCallback((identifier) => {
+    if (!identifier) return;
+    const str = String(identifier).trim();
+    setRecentlyUnlockedIds((prev) => ({ ...prev, [str]: true }));
+    setTimeout(() => {
+      setRecentlyUnlockedIds((prev) => {
+        const copy = { ...prev };
+        delete copy[str];
+        return copy;
+      });
+    }, 3000); // Tự động tắt highlight sau 3 giây
+  }, []);
+
   const registerNewEmployee = useCallback((newId) => {
     if (!newId) return;
     try {
@@ -170,6 +187,8 @@ export default function EmployeeManagementPage() {
   // Modals state
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
+  const [bulkImportModalOpen, setBulkImportModalOpen] = useState(false);
+  const [rehireQueue, setRehireQueue] = useState([]);
 
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -429,6 +448,9 @@ export default function EmployeeManagementPage() {
     const res = await employeeService.toggleUserStatus(id, newStatus, reason, newBranchId);
     if (res.success) {
       toast.success(res.message || 'Cập nhật trạng thái thành công!');
+      if (newStatus === 'ACTIVE') {
+        flashUnlockedEmployee(id);
+      }
       fetchEmployees();
       fetchStats();
       // Quota tự động cập nhật ngay lập tức vì trạng thái INACTIVE làm dôi dư vị trí (Attrition Compensation)
@@ -438,6 +460,33 @@ export default function EmployeeManagementPage() {
       throw new Error(res.message);
     }
   };
+
+  const handleStartRehireQueue = useCallback((queueEmployees) => {
+    if (!queueEmployees || queueEmployees.length === 0) return;
+    setBulkImportModalOpen(false);
+    setEditingEmployee(null);
+    setRehireQueue(queueEmployees);
+    setFormModalOpen(true);
+  }, []);
+
+  const handleRehireQueueComplete = useCallback(({ successCount, total, savedEmployees }) => {
+    setRehireQueue([]);
+    setFormModalOpen(false);
+    fetchEmployees();
+    fetchStats();
+    fetchHeadcountData();
+    if (Array.isArray(savedEmployees)) {
+      savedEmployees.forEach((emp) => {
+        // Tài khoản cũ tái tuyển dụng: KHÔNG gắn nhãn NEW, chỉ nháy highlight nền 2-3 giây
+        if (emp?.id) flashUnlockedEmployee(emp.id);
+        if (emp?.employeeCode) flashUnlockedEmployee(emp.employeeCode);
+      });
+      if (savedEmployees.length === 1 && savedEmployees[0]?.employeeCode) {
+        setSearch(savedEmployees[0].employeeCode);
+      }
+    }
+    toast?.success?.(`Đã kích hoạt và cập nhật thành công ${successCount}/${total} nhân sự tái tuyển dụng!`);
+  }, [fetchEmployees, fetchStats, fetchHeadcountData, flashUnlockedEmployee, toast]);
 
   const handleResetFilters = () => {
     setSearch('');
@@ -551,7 +600,6 @@ export default function EmployeeManagementPage() {
         actions={
           !isStoreManager && (
             <div style={{ display: 'flex', gap: '10px' }}>
-              {/* Operations Admin & Owner: Quyền tạo nhân viên (kèm tính năng Import Hàng Loạt bên trong modal) */}
               <Button
                 variant="primary"
                 onClick={handleOpenCreateModal}
@@ -648,6 +696,7 @@ export default function EmployeeManagementPage() {
             initialLoading={initialLoading}
             newlyCreatedId={newlyCreatedId}
             newlyDeclaredMap={newlyDeclaredMap}
+            recentlyUnlockedIds={recentlyUnlockedIds}
             onViewDetail={handleOpenDetailModal}
             onEdit={handleOpenEditModal}
             onResetPassword={handleOpenResetModal}
@@ -661,7 +710,11 @@ export default function EmployeeManagementPage() {
       {/* Modal: Khai báo / Chỉnh sửa hồ sơ nhân sự (kèm Import Hàng Loạt Excel/CSV bên trong) */}
       <EmployeeFormModal
         isOpen={formModalOpen}
-        onClose={() => setFormModalOpen(false)}
+        onClose={() => {
+          setFormModalOpen(false);
+          setRehireQueue([]);
+          setEditingEmployee(null);
+        }}
         onSubmit={handleFormSubmit}
         onImportSuccess={(importedList) => {
           if (Array.isArray(importedList)) {
@@ -675,6 +728,8 @@ export default function EmployeeManagementPage() {
           fetchHeadcountData();
           toast?.success?.('Import nhân sự hoàn tất! Đã cập nhật danh sách.');
         }}
+        rehireQueue={rehireQueue}
+        onRehireQueueComplete={handleRehireQueueComplete}
         initialData={editingEmployee}
         roles={roles}
         branches={branches}
@@ -700,6 +755,23 @@ export default function EmployeeManagementPage() {
         }}
       />
 
+      {/* Modal: Import Excel độc lập với hỗ trợ Review Queue Wizard */}
+      <BulkImportEmployeeModal
+        isOpen={bulkImportModalOpen}
+        onClose={() => setBulkImportModalOpen(false)}
+        onSuccess={() => {
+          fetchEmployees();
+          fetchStats();
+          fetchHeadcountData();
+        }}
+        branches={branches}
+        roles={roles}
+        currentBranchId={branchFilter || currentBranchId}
+        existingEmployees={employees}
+        onToggleStatus={handleOpenToggleModal}
+        onStartRehireQueue={handleStartRehireQueue}
+      />
+
       {/* Modal: Xem chi tiết hồ sơ */}
       <EmployeeDetailModal
         isOpen={detailModalOpen}
@@ -709,6 +781,10 @@ export default function EmployeeManagementPage() {
         newEmployeeIds={newEmployeeIds}
         onToggleStatus={handleOpenToggleModal}
         onResetPassword={handleOpenResetModal}
+        onEdit={(emp) => {
+          setDetailModalOpen(false);
+          handleOpenEditModal(emp);
+        }}
       />
 
       {/* Modal: Đặt lại mật khẩu (Admin / Owner only) */}

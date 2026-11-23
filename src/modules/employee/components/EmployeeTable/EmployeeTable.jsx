@@ -35,41 +35,60 @@ export default function EmployeeTable({
   onToggleStatus,
   canManageSystem = false, // True for Admin & Business Owner
   newEmployeeIds = [],
+  recentlyUnlockedIds = {},
 }) {
   const { c, fonts } = useAdminTheme();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Kiểm tra nhân sự mới được thêm
+  // 1. Điều kiện hiển thị chuẩn (Logic):
+  // Chỉ hiện nhãn • NEW (kèm nền xanh nhạt) khi thỏa mãn đồng thời 2 điều kiện:
+  // - Trạng thái tài khoản đang là Hoạt động (ACTIVE).
+  // - Thời gian tạo tài khoản (createdAt) nằm trong ngưỡng mới (trong vòng 72 giờ / 3 ngày).
+  // 2. Quy tắc cho từng trường hợp:
+  // - Nhân viên mới + Hoạt động: Hiện • NEW.
+  // - Nhân viên mới + Đã khóa: Ẩn • NEW (chỉ làm mờ dòng và hiện badge Đã khóa).
+  // - Tài khoản cũ vừa mở khóa: Không hiện • NEW. Chỉ chuyển về Hoạt động, có thể nháy highlight nền 2–3 giây.
+  // 3. Nguyên tắc cốt lõi:
+  // - Chỉ tính theo thời điểm tạo (createdAt), không gắn lại NEW theo thời điểm cập nhật hay mở khóa (updatedAt).
   const checkIsNewEmployee = (emp) => {
     if (!emp) return false;
-    if (emp.isNew) return true;
-    const strId = String(emp.id || '');
-    const code = (emp.employeeCode || '').trim().toUpperCase();
-    if (newEmployeeIds && newEmployeeIds.length > 0) {
-      if (
-        newEmployeeIds.some((item) => {
-          const val = typeof item === 'object' ? String(item.id || item.code || '') : String(item);
-          return val === strId || (code && val.toUpperCase() === code);
-        })
-      ) {
-        return true;
-      }
-    }
+
+    // ĐIỀU KIỆN 1: Bắt buộc trạng thái phải là Hoạt động (ACTIVE)
+    const isInactive = emp.status === 'INACTIVE';
+    if (isInactive) return false;
+
     // Không đánh dấu NEW cho các tài khoản seed mặc định ban đầu của hệ thống
     const numId = Number(emp.id);
     const isSeeded = numId > 0 && numId <= 61;
     if (isSeeded) return false;
 
+    // ĐIỀU KIỆN 2: Thời gian tạo tài khoản (createdAt) nằm trong ngưỡng mới (72 giờ / 3 ngày)
+    // Nguyên tắc cốt lõi: Chỉ tính theo createdAt, không tính updatedAt
     if (emp.createdAt) {
       const createdTime = new Date(emp.createdAt).getTime();
       if (!isNaN(createdTime)) {
         const diffHours = (Date.now() - createdTime) / (1000 * 60 * 60);
-        if (diffHours >= 0 && diffHours < 72) {
+        return diffHours >= 0 && diffHours < 72;
+      }
+    }
+
+    // Nếu vừa được tạo mới trong phiên hiện tại (nhưng vẫn phải thỏa mãn ACTIVE và là tài khoản mới)
+    const strId = String(emp.id || '');
+    const code = (emp.employeeCode || '').trim().toUpperCase();
+    if (newEmployeeIds && newEmployeeIds.length > 0) {
+      const matched = newEmployeeIds.find((item) => {
+        const val = typeof item === 'object' ? String(item.id || item.code || '') : String(item);
+        return val === strId || (code && val.toUpperCase() === code);
+      });
+      if (matched) {
+        const itemTime = typeof matched === 'object' && matched.time ? matched.time : 0;
+        if (itemTime && Date.now() - itemTime < 72 * 3600 * 1000) {
           return true;
         }
       }
     }
+
     return false;
   };
 
@@ -231,6 +250,10 @@ export default function EmployeeTable({
           {displayEmployees.map((emp, index) => {
             const isInactive = emp.status === 'INACTIVE';
             const isNew = checkIsNewEmployee(emp);
+            const isRecentlyUnlocked = Boolean(
+              recentlyUnlockedIds &&
+              (recentlyUnlockedIds[String(emp.id)] || (emp.employeeCode && recentlyUnlockedIds[emp.employeeCode]))
+            );
             const roleBadge = ROLE_BADGE_MAP[emp.roleCode] || {
               label: emp.roleName || emp.roleCode || 'Nhân Viên',
               variant: 'secondary',
@@ -243,16 +266,32 @@ export default function EmployeeTable({
                 key={emp.id || index}
                 style={{
                   borderBottom: `1px solid ${c.border}`,
-                  transition: 'background 0.25s ease',
-                  opacity: isInactive ? 0.7 : 1,
-                  background: isNew ? 'rgba(16, 185, 129, 0.05)' : 'transparent',
-                  borderLeft: isNew ? '3px solid #10b981' : '3px solid transparent',
+                  transition: 'background 0.3s ease, border-left 0.3s ease, opacity 0.3s ease',
+                  opacity: isInactive ? 0.65 : 1,
+                  background: isRecentlyUnlocked
+                    ? 'rgba(59, 130, 246, 0.14)'
+                    : isNew
+                      ? 'rgba(16, 185, 129, 0.05)'
+                      : 'transparent',
+                  borderLeft: isRecentlyUnlocked
+                    ? '3px solid #3b82f6'
+                    : isNew
+                      ? '3px solid #10b981'
+                      : '3px solid transparent',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = isNew ? 'rgba(16, 185, 129, 0.12)' : c.bgCard;
+                  e.currentTarget.style.background = isRecentlyUnlocked
+                    ? 'rgba(59, 130, 246, 0.22)'
+                    : isNew
+                      ? 'rgba(16, 185, 129, 0.12)'
+                      : c.bgCard;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = isNew ? 'rgba(16, 185, 129, 0.05)' : 'transparent';
+                  e.currentTarget.style.background = isRecentlyUnlocked
+                    ? 'rgba(59, 130, 246, 0.14)'
+                    : isNew
+                      ? 'rgba(16, 185, 129, 0.05)'
+                      : 'transparent';
                 }}
               >
                 {/* Họ tên & Avatar (Nhấn để xem chi tiết hồ sơ) */}
@@ -455,8 +494,29 @@ export default function EmployeeTable({
 
                 {/* Hành động */}
                 <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <div style={{ display: 'inline-flex', gap: '5px', alignItems: 'center' }}>
-                    {/* Quản trị trạng thái: 2 nút Mở khóa & Khóa tài khoản thành các icon tương ứng */}
+                  <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+
+
+                    {/* Chỉnh sửa hồ sơ nhân sự (Icon Edit/Pencil) */}
+                    {canManageSystem && onEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit(emp)}
+                        title="Chỉnh sửa thông tin hồ sơ nhân sự"
+                        style={{
+                          color: '#d97706',
+                          border: '1px solid rgba(217, 119, 6, 0.4)',
+                          background: 'rgba(245, 158, 11, 0.1)',
+                          cursor: 'pointer',
+                          padding: '6px 8px',
+                        }}
+                      >
+                        <Icon name="edit" size={15} color="#d97706" />
+                      </Button>
+                    )}
+
+                    {/* Quản trị trạng thái: 2 nút Mở khóa & Khóa tài khoản */}
                     {canManageSystem && onToggleStatus && (
                       <>
                         {/* Nút Mở khóa tài khoản (Icon Unlock) */}

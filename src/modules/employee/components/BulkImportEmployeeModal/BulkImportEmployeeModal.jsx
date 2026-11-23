@@ -25,10 +25,12 @@ export default function BulkImportEmployeeModal({
   onClose,
   onSuccess,
   branches = [],
+  roles = [],
   availableImportRequests = [], // Danh sách đơn mở rộng định biên còn hiệu lực
   currentBranchId = null,
   existingEmployees = [],
   onToggleStatus,
+  onStartRehireQueue,
 }) {
   const { c, fonts } = useAdminTheme();
   const fileInputRef = useRef(null);
@@ -244,6 +246,79 @@ export default function BulkImportEmployeeModal({
       onToggleStatus(target);
     }
   };
+
+  const getRehireCandidates = useCallback(() => {
+    if (!importResult?.errors?.length) return [];
+    const list = [];
+    importResult.errors.forEach((errRow) => {
+      const code = errRow.employeeCode ?? errRow.EmployeeCode ?? errRow.rowData?.employeeCode ?? errRow.RowData?.EmployeeCode ?? '';
+      const normCode = String(code || '').trim().toUpperCase();
+      const localMatch = existingEmployees?.find(
+        (e) => (e.employeeCode || '').trim().toUpperCase() === normCode
+      );
+      const isLocallyInactive = localMatch && (String(localMatch.status || '').toUpperCase() === 'INACTIVE');
+      const canUnlock = Boolean(
+        (errRow.canUnlock ?? errRow.CanUnlock) ||
+        (String(errRow.existingUserStatus ?? errRow.ExistingUserStatus ?? '').toUpperCase() === 'INACTIVE') ||
+        isLocallyInactive
+      );
+      if (!canUnlock) return;
+
+      const existingUserId = errRow.existingUserId ?? errRow.ExistingUserId ?? localMatch?.id;
+      if (!existingUserId) return;
+
+      const name = errRow.fullName ?? errRow.FullName ?? errRow.rowData?.fullName ?? errRow.RowData?.FullName ?? localMatch?.fullName ?? '';
+      const email = errRow.email ?? errRow.Email ?? errRow.rowData?.email ?? errRow.RowData?.Email ?? localMatch?.email ?? '';
+      const phone = errRow.phone ?? errRow.Phone ?? errRow.rowData?.phone ?? errRow.RowData?.Phone ?? localMatch?.phone ?? '';
+      const roleCode = errRow.roleCode ?? errRow.RoleCode ?? errRow.rowData?.roleCode ?? errRow.RowData?.RoleCode ?? '';
+      const branchIdentifier = errRow.branchIdentifier ?? errRow.BranchIdentifier ?? errRow.rowData?.branchIdentifier ?? errRow.RowData?.BranchIdentifier ?? '';
+      const employmentType = errRow.employmentType ?? errRow.EmploymentType ?? errRow.rowData?.employmentType ?? errRow.RowData?.EmploymentType ?? 'FULL_TIME';
+
+      let matchedBranchId = '';
+      if (branchIdentifier) {
+        const foundB = branches.find(
+          (b) => String(b.branchCode || '').toUpperCase() === String(branchIdentifier).toUpperCase() ||
+                 String(b.id) === String(branchIdentifier) ||
+                 (b.name && b.name.toLowerCase().includes(String(branchIdentifier).toLowerCase()))
+        );
+        if (foundB) matchedBranchId = foundB.id;
+      }
+      if (!matchedBranchId && currentBranchId) matchedBranchId = currentBranchId;
+      if (!matchedBranchId && localMatch?.homeBranchId) matchedBranchId = localMatch.homeBranchId;
+
+      let matchedRoleId = '';
+      if (roleCode) {
+        const foundR = (roles || []).find(
+          (r) => String(r.roleCode || '').toUpperCase() === String(roleCode).toUpperCase()
+        );
+        if (foundR) matchedRoleId = foundR.id;
+      }
+      if (!matchedRoleId && localMatch?.roleId) matchedRoleId = localMatch.roleId;
+
+      list.push({
+        id: existingUserId,
+        userId: existingUserId,
+        employeeCode: normCode || code,
+        fullName: name,
+        email: email,
+        phone: phone,
+        roleId: matchedRoleId,
+        roleCode: roleCode || localMatch?.roleCode || '',
+        branchId: matchedBranchId,
+        homeBranchId: matchedBranchId,
+        branchIdentifier: branchIdentifier,
+        contractType: employmentType,
+        employmentType: employmentType,
+        oldBranchId: errRow.oldBranchId ?? localMatch?.homeBranchId,
+        oldBranchName: errRow.oldBranchName ?? localMatch?.branchName,
+        oldRoleId: errRow.oldRoleId ?? localMatch?.roleId,
+        oldRoleCode: errRow.oldRoleCode ?? localMatch?.roleCode,
+      });
+    });
+    return list;
+  }, [importResult, existingEmployees, branches, roles, currentBranchId]);
+
+  const rehireCandidates = getRehireCandidates();
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -511,6 +586,71 @@ export default function BulkImportEmployeeModal({
               <Icon name={currentStatus.icon} size={15} color={currentStatus.color} />
               <span>{importMessage || 'Có lỗi xảy ra trong quá trình import.'}</span>
             </div>
+
+            {/* Nút hành động xử lý hàng loạt Re-hire Queue Wizard */}
+            {rehireCandidates.length > 0 && (
+              <div style={{
+                margin: '0 0 14px 30px',
+                padding: '12px 16px',
+                background: 'linear-gradient(135deg, rgba(13, 148, 136, 0.14) 0%, rgba(13, 148, 136, 0.04) 100%)',
+                border: '1.5px solid #0D9488',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '14px',
+                boxShadow: '0 2px 6px rgba(13, 148, 136, 0.12)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '32px', height: '32px', borderRadius: '50%',
+                    background: 'rgba(13, 148, 136, 0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <Icon name="users" size={17} color="#0D9488" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#0D9488' }}>
+                      Phát hiện {rehireCandidates.length} nhân sự tái tuyển dụng (Re-hire)!
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: c.fgSubtle, marginTop: '2px' }}>
+                      Tài khoản đang ở trạng thái Khóa. Nhấn nút bên cạnh để mở hàng đợi duyệt tuần tự và cập nhật thông tin mới.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onStartRehireQueue) {
+                      onClose();
+                      onStartRehireQueue(rehireCandidates);
+                    }
+                  }}
+                  id="btn-rehire-queue-all-bulk-modal"
+                  style={{
+                    padding: '8px 16px',
+                    background: '#0D9488',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#0F766E')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = '#0D9488')}
+                >
+                  <Icon name="check" size={14} color="#ffffff" />
+                  <span>Kích Hoạt & Cập Nhật Toàn Bộ ({rehireCandidates.length} nhân sự Re-hire)</span>
+                </button>
+              </div>
+            )}
 
             {/* Danh sách lỗi chi tiết */}
             {importResult?.errors?.length > 0 && (

@@ -498,6 +498,8 @@ export const employeeService = {
       branchId: Number(payload.branchId || payload.homeBranchId),
       contractType: payload.contractType || payload.employmentType || 'FULL_TIME',
       employmentType: payload.contractType || payload.employmentType || 'FULL_TIME',
+      reason: payload.reason || '',
+      ...(payload.status ? { status: payload.status } : {}),
     };
 
     try {

@@ -29,20 +29,13 @@ export default function EmployeeDetailModal({
   const avatarLetter = (employee.fullName || 'N').trim().charAt(0).toUpperCase();
   const isInactive = employee.status === 'INACTIVE';
 
+  // Điều kiện hiển thị nhãn • NEW:
+  // 1. Trạng thái tài khoản bắt buộc phải là Hoạt động (nếu Đã khóa -> ẨN hoàn toàn).
+  // 2. Thời gian tạo tài khoản (createdAt) nằm trong ngưỡng mới (72 giờ / 3 ngày).
+  // 3. Nguyên tắc cốt lõi: Chỉ tính theo createdAt, không tính updatedAt (tài khoản cũ mở khóa không hiện NEW).
   const isNew = (() => {
-    if (employee.isNew) return true;
-    const strId = String(employee.id || '');
-    const code = (employee.employeeCode || '').trim().toUpperCase();
-    if (newEmployeeIds && newEmployeeIds.length > 0) {
-      if (
-        newEmployeeIds.some((item) => {
-          const val = typeof item === 'object' ? String(item.id || item.code || '') : String(item);
-          return val === strId || (code && val.toUpperCase() === code);
-        })
-      ) {
-        return true;
-      }
-    }
+    if (isInactive) return false;
+
     // Không đánh dấu NEW cho các tài khoản seed mặc định ban đầu của hệ thống
     const numId = Number(employee.id);
     const isSeeded = numId > 0 && numId <= 61;
@@ -52,11 +45,25 @@ export default function EmployeeDetailModal({
       const createdTime = new Date(employee.createdAt).getTime();
       if (!isNaN(createdTime)) {
         const diffHours = (Date.now() - createdTime) / (1000 * 60 * 60);
-        if (diffHours >= 0 && diffHours < 48) {
+        if (diffHours >= 0 && diffHours < 72) {
           return true;
         }
       }
     }
+
+    const strId = String(employee.id || '');
+    const code = (employee.employeeCode || '').trim().toUpperCase();
+    if (newEmployeeIds && newEmployeeIds.length > 0) {
+      const match = newEmployeeIds.find((item) => {
+        const val = typeof item === 'object' ? String(item.id || item.code || '') : String(item);
+        return val === strId || (code && val.toUpperCase() === code);
+      });
+      if (match) {
+        const matchTime = typeof match === 'object' && match.time ? match.time : 0;
+        return matchTime && Date.now() - matchTime < 72 * 3600 * 1000;
+      }
+    }
+
     return false;
   })();
 
@@ -102,9 +109,12 @@ export default function EmployeeDetailModal({
           ) : (
             <div />
           )}
-          <Button variant="ghost" onClick={onClose}>
-            Đóng
-          </Button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Button variant="ghost" onClick={onClose}>
+              Đóng
+            </Button>
+          </div>
         </div>
       }
     >
