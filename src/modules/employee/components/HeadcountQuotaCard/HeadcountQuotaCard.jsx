@@ -10,17 +10,16 @@ export default function HeadcountQuotaCard({
   canManageSystem = false,
   onUpgradeTier,
 }) {
-  const { c, theme } = useAdminTheme();
-  const isDark = theme === 'dark';
+  const { c } = useAdminTheme();
 
   if (isStoreManager || !allBranchesQuota || allBranchesQuota.length === 0) {
     return null;
   }
 
   const tierColors = {
-    1: isDark ? '#fbbf24' : '#b45309',
-    2: isDark ? '#60a5fa' : '#1d4ed8',
-    3: isDark ? '#94a3b8' : '#475569',
+    1: '#eab308',
+    2: '#3b82f6',
+    3: '#9ca3af',
   };
 
   const overQuotaBranches = useMemo(() => {
@@ -54,14 +53,14 @@ export default function HeadcountQuotaCard({
               borderRadius: '9999px',
               fontSize: '11px',
               fontWeight: 700,
-              background: isDark ? 'rgba(239, 68, 68, 0.16)' : '#fee2e2',
-              border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.4)' : '#fca5a5'}`,
-              color: isDark ? '#f87171' : '#b91c1c',
+              background: 'rgba(239, 68, 68, 0.16)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              color: '#ef4444',
               whiteSpace: 'nowrap',
               flexShrink: 0,
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isDark ? '#f87171' : '#dc2626', flexShrink: 0 }} />
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
             Tạm Khóa
           </span>
         </div>
@@ -116,14 +115,14 @@ export default function HeadcountQuotaCard({
               borderRadius: '9999px',
               fontSize: '11px',
               fontWeight: 600,
-              background: isDark ? 'rgba(34, 197, 94, 0.15)' : '#dcfce7',
-              border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.35)' : '#86efac'}`,
-              color: isDark ? '#4ade80' : '#15803d',
+              background: 'rgba(34, 197, 94, 0.12)',
+              border: '1px solid rgba(34, 197, 94, 0.3)',
+              color: '#22c55e',
               whiteSpace: 'nowrap',
               flexShrink: 0,
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isDark ? '#4ade80' : '#16a34a', flexShrink: 0 }} />
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
             Còn {remaining} slot
           </span>
         ) : (
@@ -136,14 +135,14 @@ export default function HeadcountQuotaCard({
               borderRadius: '9999px',
               fontSize: '11px',
               fontWeight: 700,
-              background: isDark ? 'rgba(245, 158, 11, 0.16)' : '#fef3c7',
-              border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.4)' : '#fde68a'}`,
-              color: isDark ? '#fbbf24' : '#b45309',
+              background: isDark ? 'rgba(239, 68, 68, 0.16)' : '#fee2e2',
+              border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.4)' : '#fca5a5'}`,
+              color: isDark ? '#f87171' : '#b91c1c',
               whiteSpace: 'nowrap',
               flexShrink: 0,
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isDark ? '#fbbf24' : '#d97706', flexShrink: 0 }} />
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isDark ? '#f87171' : '#dc2626', flexShrink: 0 }} />
             Đạt trần ({cHeadcount}/{standardQuota})
           </span>
         )}
@@ -158,9 +157,9 @@ export default function HeadcountQuotaCard({
               borderRadius: '9999px',
               fontSize: '10.5px',
               fontWeight: 600,
-              background: isDark ? 'rgba(59, 130, 246, 0.14)' : '#dbeafe',
-              border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.35)' : '#93c5fd'}`,
-              color: isDark ? '#60a5fa' : '#1d4ed8',
+              background: 'rgba(59, 130, 246, 0.14)',
+              border: '1px solid rgba(59, 130, 246, 0.35)',
+              color: '#60a5fa',
               whiteSpace: 'nowrap',
               flexShrink: 0,
             }}
@@ -173,17 +172,21 @@ export default function HeadcountQuotaCard({
     );
   };
 
+  // Tính tổng số lượng nhân sự cơ hữu toàn chuỗi từ danh sách định biên
+  const totalChainHeadcount = allBranchesQuota.reduce(
+    (sum, b) => sum + Number(b.officialHeadcount ?? b.currentHeadcount ?? 0),
+    0
+  );
+
   return (
     <div
       style={{
-        background: isDark
-          ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
-          : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+        background: `linear-gradient(135deg, ${c.bgRaised} 0%, rgba(26, 22, 16, 0.95) 100%)`,
         border: `1px solid ${c.border}`,
         borderRadius: '12px',
         padding: '20px 22px',
         marginBottom: '20px',
-        boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.35)' : '0 2px 10px rgba(0, 0, 0, 0.05)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.18)',
         display: 'flex',
         flexDirection: 'column',
         gap: '18px',
@@ -215,7 +218,7 @@ export default function HeadcountQuotaCard({
                 transition: 'all 0.2s ease',
               }}
             >
-              Xem Toàn Bộ Chuỗi {!selectedBranchId && '(61)'}
+              Xem Toàn Bộ Chuỗi {!selectedBranchId && totalChainHeadcount > 0 ? `(${totalChainHeadcount})` : ''}
             </button>
           )}
         </div>
@@ -324,9 +327,7 @@ export default function HeadcountQuotaCard({
                   minHeight: '136px',
                   gap: '12px',
                   transition: 'all 0.2s ease',
-                  boxShadow: isCardSelected
-                    ? '0 0 16px rgba(13, 148, 136, 0.25)'
-                    : (isDark ? 'none' : '0 1px 3px rgba(0, 0, 0, 0.05)'),
+                  boxShadow: isCardSelected ? '0 0 16px rgba(13, 148, 136, 0.25)' : 'none',
                   position: 'relative',
                 }}
               >
@@ -405,10 +406,10 @@ export default function HeadcountQuotaCard({
                             fontSize: '10px',
                             padding: '1px 5px',
                             borderRadius: '4px',
-                            background: isDark ? 'rgba(59, 130, 246, 0.14)' : '#dbeafe',
-                            color: isDark ? '#60a5fa' : '#1d4ed8',
+                            background: 'rgba(59, 130, 246, 0.12)',
+                            color: '#60a5fa',
                             fontWeight: 600,
-                            border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe'}`,
+                            border: '1px solid rgba(59, 130, 246, 0.25)',
                             whiteSpace: 'nowrap',
                           }}
                           title={`Có ${bDispatchedIn} nhân sự điều động từ chi nhánh khác hỗ trợ (Tổng đang làm việc: ${bTotalWorking})`}
@@ -422,10 +423,10 @@ export default function HeadcountQuotaCard({
                             fontSize: '10px',
                             padding: '1px 5px',
                             borderRadius: '4px',
-                            background: isDark ? 'rgba(234, 179, 8, 0.14)' : '#fef3c7',
-                            color: isDark ? '#fbbf24' : '#b45309',
+                            background: 'rgba(234, 179, 8, 0.12)',
+                            color: '#fbbf24',
                             fontWeight: 600,
-                            border: `1px solid ${isDark ? 'rgba(234, 179, 8, 0.3)' : '#fde68a'}`,
+                            border: '1px solid rgba(234, 179, 8, 0.25)',
                             whiteSpace: 'nowrap',
                           }}
                           title={`Có ${bDispatchedOut} nhân sự cơ hữu đang đi hỗ trợ chi nhánh khác`}
@@ -480,7 +481,7 @@ export default function HeadcountQuotaCard({
                     style={{
                       height: '5px',
                       width: '100%',
-                      background: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
+                      background: 'rgba(255, 255, 255, 0.08)',
                       borderRadius: '9999px',
                       overflow: 'hidden',
                     }}

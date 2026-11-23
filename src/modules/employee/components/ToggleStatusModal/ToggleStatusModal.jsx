@@ -36,7 +36,7 @@ export default function ToggleStatusModal({
     setReasonError('');
     setSubmitting(true);
     try {
-      await onConfirmToggle(employee.id, targetNewStatus, reason.trim());
+      await onConfirmToggle(employee.id, targetNewStatus, reason.trim(), employee.targetBranchId);
       handleClose();
     } catch (err) {
       console.error('Toggle status error:', err);
@@ -99,6 +99,29 @@ export default function ToggleStatusModal({
           (Mã:{' '}
           <strong style={{ color: c.fg, fontWeight: 700 }}>{employee.employeeCode || `NV-${employee.id}`}</strong>).
         </p>
+
+        {/* Thông báo tiếp nhận chi nhánh mới khi Re-hire */}
+        {employee.targetBranchId && isCurrentlyInactive && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: '6px',
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              color: '#10b981',
+              fontSize: '12.5px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <Icon name="check" size={14} color="#10b981" />
+            <span>
+              <strong>Tái tuyển dụng (Re-hire):</strong> Nhân sự sẽ được kích hoạt lại và tự động tiếp nhận vào biên chế của{' '}
+              <strong>{employee.targetBranchName || `Chi nhánh #${employee.targetBranchId}`}</strong>.
+            </span>
+          </div>
+        )}
 
         {/* Cảnh báo ràng buộc dịch vụ */}
         {!isCurrentlyInactive ? (

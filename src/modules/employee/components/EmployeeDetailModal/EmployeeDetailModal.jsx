@@ -18,6 +18,7 @@ export default function EmployeeDetailModal({
   employee,
   onEdit,
   onResetPassword,
+  onToggleStatus,
   canManageSystem = false,
   newEmployeeIds = [],
 }) {
@@ -67,7 +68,40 @@ export default function EmployeeDetailModal({
       sub={`Thông tin định danh và phân bổ chi nhánh của tài khoản #${employee.id}`}
       width={560}
       footer={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          {canManageSystem && onResetPassword ? (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isInactive}
+              onClick={() => {
+                if (isInactive) return;
+                onClose();
+                onResetPassword(employee);
+              }}
+              title={
+                isInactive
+                  ? 'Không thể đặt lại mật khẩu cho tài khoản đang bị KHÓA. Vui lòng mở khóa tài khoản trước.'
+                  : 'Cấp lại mật khẩu cho nhân sự'
+              }
+              style={{
+                color: isInactive ? c.fgSubtle : '#d97706',
+                borderColor: isInactive ? c.border : '#d97706',
+                background: isInactive ? 'transparent' : 'rgba(245, 158, 11, 0.1)',
+                opacity: isInactive ? 0.35 : 1,
+                cursor: isInactive ? 'not-allowed' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: 600,
+              }}
+            >
+              <Icon name="refresh" size={14} color={isInactive ? c.fgSubtle : '#d97706'} />
+              <span>Reset Mật Khẩu</span>
+            </Button>
+          ) : (
+            <div />
+          )}
           <Button variant="ghost" onClick={onClose}>
             Đóng
           </Button>

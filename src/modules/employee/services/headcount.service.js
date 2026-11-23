@@ -223,12 +223,29 @@ export const headcountService = {
       customQuotasMap = JSON.parse(localStorage.getItem('wfm_branch_custom_quotas_v1') || '{}');
     } catch {}
 
-    const list = branchList.length > 0 ? branchList : [
-      { id: 1, storeId: 1, name: 'Cửa hàng Tiện lợi Chi nhánh Cầu Giấy', branchTier: 1 },
-      { id: 2, storeId: 2, name: 'Cửa hàng Tiện lợi Chi nhánh Lê Văn Việt', branchTier: 1 },
-      { id: 3, storeId: 3, name: 'Cửa hàng Tiện lợi Chi nhánh Hoàn Kiếm', branchTier: 2 },
-      { id: 4, storeId: 4, name: 'Siêu Thị FPT', branchTier: 2 },
-    ];
+    let list = Array.isArray(branchList) && branchList.length > 0 ? branchList : [];
+    
+    // Nếu danh sách chi nhánh truyền vào rỗng, ưu tiên gọi API lấy danh mục chi nhánh thực tế
+    if (list.length === 0) {
+      try {
+        const res = await axiosInstance.get('Users/branches');
+        const data = res.data?.data || res.data;
+        if (Array.isArray(data) && data.length > 0) {
+          list = data;
+        }
+      } catch (err) {
+        console.warn('[HeadcountService] Không thể tải Users/branches, sử dụng fallback thực tế:', err);
+      }
+    }
+
+    // Fallback chỉ gồm các chi nhánh thực tế trong Database (loại bỏ dữ liệu rác mẫu)
+    if (list.length === 0) {
+      list = [
+        { id: 1, storeId: 1, name: 'Cửa hàng Tiện lợi Chi nhánh Cầu Giấy', branchTier: 1 },
+        { id: 2, storeId: 2, name: 'Cửa hàng Tiện lợi Chi nhánh Lê Văn Việt', branchTier: 1 },
+        { id: 3, storeId: 3, name: 'Cửa hàng Tiện lợi Chi nhánh Hoàn Kiếm', branchTier: 1 },
+      ];
+    }
 
     // Tạo bản đồ số lượng nhân viên thực tế từ activeEmployeesList (hoặc localStorage cache)
     const empCountByBranch = {};
