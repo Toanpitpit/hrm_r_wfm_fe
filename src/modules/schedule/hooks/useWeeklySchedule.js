@@ -214,17 +214,13 @@ export function useWeeklySchedule(initialBranchId = null) {
 
   useEffect(() => {
     loadAccessibleBranches();
-    if (branchId) {
-      loadTemplates(branchId);
-    }
-  }, [loadAccessibleBranches, loadTemplates, branchId]);
+  }, [loadAccessibleBranches]);
 
   useEffect(() => {
     if (branchId) {
       fetchWeeklyMatrix();
-      loadTemplates(branchId);
     }
-  }, [branchId, fetchWeeklyMatrix, loadTemplates]);
+  }, [branchId, fetchWeeklyMatrix]);
 
 
   // Điều hướng tuần
@@ -456,6 +452,21 @@ export function useWeeklySchedule(initialBranchId = null) {
   const filteredEmployees = useMemo(() => {
     if (!matrix || !matrix.employeeRosters) return [];
     return matrix.employeeRosters.filter((emp) => {
+      // Luôn loại trừ các vai trò quản lý (Store Manager, Operations Admin) khỏi bảng xếp ca vận hành
+      const rCode = (emp.roleCode || '').toUpperCase();
+      const rName = (emp.roleName || '').toLowerCase();
+      if (
+        rCode === 'STORE_MANAGER' ||
+        rCode === 'STOREMANAGER' ||
+        rCode === 'MANAGER' ||
+        rCode === 'OPERATIONS_ADMIN' ||
+        rCode === 'ADMIN' ||
+        rName.includes('quản lý') ||
+        rName.includes('admin')
+      ) {
+        return false;
+      }
+
       const matchSearch =
         emp.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         emp.employeeCode.toLowerCase().includes(searchTerm.toLowerCase());

@@ -73,8 +73,8 @@ export default function TierTable({
           row.maxStaffCount !== null && row.maxStaffCount !== undefined
             ? Number(row.maxStaffCount)
             : row.max_staff_count !== null && row.max_staff_count !== undefined
-            ? Number(row.max_staff_count)
-            : null;
+              ? Number(row.max_staff_count)
+              : null;
 
         return (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -163,13 +163,35 @@ export default function TierTable({
     {
       key: 'actions',
       label: 'THAO TÁC',
-      width: '120px',
+      width: '180px',
       render: (row) => {
-        const count = Number(row.branchCount ?? row.branch_count ?? 0);
+        const appliedCount = Array.isArray(row.appliedBranches) ? row.appliedBranches.length : null;
+        const count = appliedCount !== null ? appliedCount : Number(row.branchCount ?? row.branch_count ?? 0);
         const canDelete = count === 0;
 
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (onEdit) {
+                  onEdit(row);
+                }
+              }}
+              style={{
+                color: c.accent,
+                borderColor: `${c.accent}50`,
+                backgroundColor: `${c.accent}12`,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+              title="Chỉnh sửa phân cấp này"
+            >
+              <Icon name="edit" size={13} color={c.accent} />
+              <span>Sửa</span>
+            </Button>
+
             <Button
               variant="outline"
               size="sm"

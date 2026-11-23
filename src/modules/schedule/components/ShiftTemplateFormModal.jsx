@@ -12,6 +12,7 @@ import {
   checkIsOvernight,
   findOverlappingShift,
   isShiftsOverlapping,
+  getBranchCustomShifts,
 } from '../services/shiftTemplate.service';
 
 /**
@@ -90,8 +91,18 @@ export default function ShiftTemplateFormModal({
   const [clientErrors, setClientErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [fetchedBranchShifts, setFetchedBranchShifts] = useState([]);
 
-  // Nạp dữ liệu khi mở Modal
+  // Tự động tải danh sách ca riêng của chi nhánh khi người dùng chọn phạm vi BRANCH
+  useEffect(() => {
+    if (open && formData.scope === 'BRANCH' && formData.branchId) {
+      getBranchCustomShifts(formData.branchId)
+        .then((data) => setFetchedBranchShifts(Array.isArray(data) ? data : []))
+        .catch(() => setFetchedBranchShifts([]));
+    } else {
+      setFetchedBranchShifts([]);
+    }
+  }, [open, formData.scope, formData.branchId]);
   useEffect(() => {
     if (open) {
       setServerError('');
@@ -182,6 +193,10 @@ export default function ShiftTemplateFormModal({
       // Nếu chưa chọn chi nhánh thì không thể kiểm tra trùng ca của chi nhánh
       if (!branchIdStr) return [];
 
+      if (fetchedBranchShifts.length > 0) {
+        return fetchedBranchShifts;
+      }
+
       const listFromCustom = (customShifts || []).filter(
         (s) => String(s.branchId) === branchIdStr
       );
@@ -195,7 +210,7 @@ export default function ShiftTemplateFormModal({
       }
       return [];
     }
-  }, [formData.scope, formData.branchId, allGlobalShifts, customShifts, existingShifts]);
+  }, [formData.scope, formData.branchId, allGlobalShifts, customShifts, existingShifts, fetchedBranchShifts]);
 
   // Kiểm tra Realtime xem ca hiện tại trong Single mode có bị trùng giờ hoặc đè lên ca nào không
   const overlappingShift = React.useMemo(() => {
@@ -219,7 +234,11 @@ export default function ShiftTemplateFormModal({
   }, [formData.scope, formData.branchId, branches]);
 
   const isSelectedBranchLocked = Boolean(
-    selectedBranchObj && (selectedBranchObj.isLocked || selectedBranchObj.status === 'LOCKED')
+    selectedBranchObj && (
+      (selectedBranchObj.status || '').toUpperCase() === 'LOCKED' ||
+      (selectedBranchObj.status || '').toUpperCase() === 'INACTIVE' ||
+      ((selectedBranchObj.status || '').toUpperCase() !== 'ACTIVE' && selectedBranchObj.isLocked)
+    )
   );
 
   // Xung đột trong chế độ BATCH (Tạo nhiều ca)
@@ -426,6 +445,22 @@ export default function ShiftTemplateFormModal({
         setServerError(`Ca #${i + 1} (${s.name}) có giờ bắt đầu trùng giờ kết thúc.`);
         return;
       }
+
+      const [startH, startM] = (s.startTime || '00:00').split(':').map(Number);
+      const [endH, endM] = (s.endTime || '00:00').split(':').map(Number);
+      let durationMin = endH * 60 + endM - (startH * 60 + startM);
+      if (durationMin <= 0) durationMin += 24 * 60;
+
+      const breakMin = Number(s.breakDuration || 0);
+      if (breakMin < 0) {
+        setServerError(`Ca #${i + 1} (${s.name}) có thời gian nghỉ không được nhỏ hơn 0.`);
+        return;
+      }
+      if (breakMin >= durationMin) {
+        setServerError(`Ca #${i + 1} (${s.name}) có thời gian nghỉ (${breakMin}p) phải nhỏ hơn tổng thời lượng ca (${durationMin}p).`);
+        return;
+      }
+
       if (batchConflicts[s.id]) {
         setServerError(`Ca #${i + 1} (${s.name}) bị xung đột: ${batchConflicts[s.id]}`);
         return;
@@ -476,6 +511,10 @@ export default function ShiftTemplateFormModal({
 
   // Thêm 1 ca mới vào danh sách Batch
   const handleAddBatchShift = () => {
+    if (batchShifts.length >= 10) {
+      setServerError('Mỗi đợt tạo hàng loạt chỉ hỗ trợ tối đa 10 khung ca.');
+      return;
+    }
     const lastShift = batchShifts[batchShifts.length - 1];
     let nextStart = '06:00';
     let nextEnd = '14:00';
@@ -521,7 +560,11 @@ export default function ShiftTemplateFormModal({
 
   const branchOptions = branches.map((b) => {
     const bId = b.id ?? b.storeId;
-    const isLocked = Boolean(b.isLocked || b.status === 'LOCKED');
+    const statusUpper = (b.status || '').toUpperCase();
+    const isLocked =
+      statusUpper === 'LOCKED' ||
+      statusUpper === 'INACTIVE' ||
+      ((statusUpper !== 'ACTIVE' && Boolean(b.isLocked)));
     return {
       value: String(bId),
       label: `${b.name} (${b.shiftMode === 'CUSTOM' ? 'Dùng ca riêng' : 'Dùng ca chung'})${isLocked ? ' 🔒 [Đang khóa]' : ''}`,
@@ -1252,7 +1295,6 @@ export default function ShiftTemplateFormModal({
                 variant="outline"
                 type="button"
                 onClick={() => {
-                  onClose();
                   onDelete(initialData);
                 }}
                 disabled={submitting}

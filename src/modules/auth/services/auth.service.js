@@ -6,7 +6,7 @@ import axiosInstance from '@/config/axios.config';
 const authService = {
   /**
    * Đăng nhập Web (Standard Login)
-   * @param {Object} data - { username, password }
+   * @param {Object} data - { username, password, rememberMe }
    * @returns {Promise<Object>} ApiResponse chứa thông tin user
    */
   login: async (data) => {
@@ -68,10 +68,11 @@ const authService = {
   /**
    * Đăng nhập bằng tài khoản Google
    * @param {string} idToken - Google Credential ID Token
-   * @returns {Promise<Object>} ApiResponse chứa token và thông tin user
+   * @param {boolean} rememberMe
+   * @returns {Promise<Object>} ApiResponse chứa thông tin user
    */
-  googleLogin: async (idToken) => {
-    const response = await axiosInstance.post('/Auth/google-login', { idToken });
+  googleLogin: async (idToken, rememberMe) => {
+    const response = await axiosInstance.post('/Auth/google-login', { idToken, rememberMe });
     return response.data;
   },
 

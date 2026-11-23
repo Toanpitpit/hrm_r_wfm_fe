@@ -24,6 +24,26 @@ export default function AssignFullTimeModal({
     return (templates || []).filter((t) => t.isActive !== false && t.status !== 'INACTIVE');
   }, [templates]);
 
+  // Lọc danh sách nhân sự vận hành: LOẠI TRỪ vai trò Quản lý cửa hàng (Store Manager) và Admin
+  const assignableEmployees = useMemo(() => {
+    return (employees || []).filter((emp) => {
+      const code = (emp.roleCode || '').toUpperCase();
+      const name = (emp.roleName || '').toLowerCase();
+      if (
+        code === 'STORE_MANAGER' ||
+        code === 'STOREMANAGER' ||
+        code === 'MANAGER' ||
+        code === 'OPERATIONS_ADMIN' ||
+        code === 'ADMIN' ||
+        name.includes('quản lý') ||
+        name.includes('admin')
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [employees]);
+
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState(
     activeTemplates.length > 0 ? (activeTemplates[0].shiftId || activeTemplates[0].id) : ''
@@ -43,10 +63,10 @@ export default function AssignFullTimeModal({
   };
 
   const handleSelectAll = () => {
-    if (selectedUserIds.length === employees.length) {
+    if (selectedUserIds.length === assignableEmployees.length) {
       setSelectedUserIds([]);
     } else {
-      setSelectedUserIds(employees.map((e) => e.userId));
+      setSelectedUserIds(assignableEmployees.map((e) => e.userId));
     }
   };
 
@@ -199,14 +219,14 @@ export default function AssignFullTimeModal({
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <label style={{ fontSize: 12.5, fontWeight: 700, color: c.fg }}>
-              3. Chọn Danh Sách Nhân Sự ({selectedUserIds.length}/{employees.length} đã chọn):
+              3. Chọn Danh Sách Nhân Sự ({selectedUserIds.length}/{assignableEmployees.length} đã chọn):
             </label>
             <button
               type="button"
               onClick={handleSelectAll}
               style={{ background: 'transparent', border: 'none', color: c.accent, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
             >
-              {selectedUserIds.length === employees.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+              {selectedUserIds.length === assignableEmployees.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
             </button>
           </div>
 
@@ -223,7 +243,7 @@ export default function AssignFullTimeModal({
               gap: 4,
             }}
           >
-            {employees.map((emp) => {
+            {assignableEmployees.map((emp) => {
               const isChecked = selectedUserIds.includes(emp.userId);
               return (
                 <label
