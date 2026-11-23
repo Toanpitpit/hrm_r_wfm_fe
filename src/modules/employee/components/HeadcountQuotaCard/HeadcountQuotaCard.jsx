@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Icon from '@/shared/components/ui/Icon';
 
@@ -10,7 +10,8 @@ export default function HeadcountQuotaCard({
   canManageSystem = false,
   onUpgradeTier,
 }) {
-  const { c } = useAdminTheme();
+  const { c, theme } = useAdminTheme();
+  const isDark = theme === 'dark';
 
   if (isStoreManager || !allBranchesQuota || allBranchesQuota.length === 0) {
     return null;
