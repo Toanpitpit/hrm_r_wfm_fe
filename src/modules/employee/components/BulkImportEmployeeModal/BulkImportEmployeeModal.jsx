@@ -27,6 +27,8 @@ export default function BulkImportEmployeeModal({
   branches = [],
   availableImportRequests = [], // Danh sách đơn mở rộng định biên còn hiệu lực
   currentBranchId = null,
+  existingEmployees = [],
+  onToggleStatus,
 }) {
   const { c, fonts } = useAdminTheme();
   const fileInputRef = useRef(null);
@@ -227,6 +229,19 @@ export default function BulkImportEmployeeModal({
       }
     } finally {
       setIsImporting(false);
+    }
+  };
+
+  const handleUnlockFromImport = (errRow, fallbackEmp) => {
+    const target = fallbackEmp || {
+      id: errRow.existingUserId ?? errRow.ExistingUserId,
+      employeeCode: errRow.employeeCode ?? errRow.EmployeeCode ?? errRow.rowData?.employeeCode ?? errRow.RowData?.EmployeeCode,
+      fullName: errRow.fullName ?? errRow.FullName ?? errRow.rowData?.fullName ?? errRow.RowData?.FullName ?? '',
+      status: 'INACTIVE',
+    };
+    if (target?.id && onToggleStatus) {
+      onClose();
+      onToggleStatus(target);
     }
   };
 
@@ -533,6 +548,25 @@ export default function BulkImportEmployeeModal({
                         const rawMsg = errRow.errorMessage ?? errRow.ErrorMessage ?? errRow.errorMessages ?? errRow.ErrorMessages;
                         const errMsg = Array.isArray(rawMsg) ? rawMsg.join('; ') : (rawMsg || 'Dữ liệu không hợp lệ');
 
+                        const normCode = String(code || '').trim().toUpperCase();
+                        const localMatch = existingEmployees?.find(
+                          (e) => (e.employeeCode || '').trim().toUpperCase() === normCode
+                        );
+                        const isLocallyInactive = localMatch && (String(localMatch.status || '').toUpperCase() === 'INACTIVE');
+                        const canUnlock = Boolean(
+                          (errRow.canUnlock ?? errRow.CanUnlock) ||
+                          (String(errRow.existingUserStatus ?? errRow.ExistingUserStatus ?? '').toUpperCase() === 'INACTIVE') ||
+                          isLocallyInactive
+                        );
+                        const existingUserId = errRow.existingUserId ?? errRow.ExistingUserId ?? localMatch?.id;
+
+                        const unlockPayload = {
+                          id: existingUserId,
+                          employeeCode: normCode || code,
+                          fullName: name || localMatch?.fullName || 'Nhân sự',
+                          status: 'INACTIVE',
+                        };
+
                         return (
                           <tr
                             key={idx}
@@ -542,7 +576,36 @@ export default function BulkImportEmployeeModal({
                               Dòng {rowNum}
                             </td>
                             <td style={{ padding: '7px 10px', color: c.fgMuted }}>
-                              <span style={{ fontWeight: 600, color: c.fg }}>{code}</span>
+                              {canUnlock && existingUserId ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUnlockFromImport(errRow, unlockPayload)}
+                                  title="Tài khoản này đang bị khóa. Bấm vào đây để mở khóa kích hoạt lại tài khoản!"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    padding: '2px 8px',
+                                    borderRadius: '5px',
+                                    border: '1px solid #0D9488',
+                                    background: 'rgba(13, 148, 136, 0.1)',
+                                    color: '#0D9488',
+                                    fontWeight: 700,
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    textDecoration: 'underline',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                >
+                                  <Icon name="unlock" size={13} color="#0D9488" />
+                                  <span>{code}</span>
+                                  <span style={{ fontSize: '10px', fontWeight: 600, color: '#0D9488', background: 'rgba(13, 148, 136, 0.18)', padding: '1px 4px', borderRadius: '3px' }}>
+                                    Mở khóa
+                                  </span>
+                                </button>
+                              ) : (
+                                <span style={{ fontWeight: 600, color: c.fg }}>{code}</span>
+                              )}
                               {name && (
                                 <span style={{ marginLeft: '4px', color: c.fgSubtle, fontSize: '11px' }}>
                                   ({name})
@@ -555,7 +618,37 @@ export default function BulkImportEmployeeModal({
                               )}
                             </td>
                             <td style={{ padding: '7px 10px', color: '#DC2626' }}>
-                              {errMsg}
+                              <div>
+                                {canUnlock && errMsg.includes('đã tồn tại trong hệ thống') && !errMsg.includes('KHÓA')
+                                  ? `Mã nhân viên '${code}' đã tồn tại nhưng tài khoản đang bị KHÓA (Inactive). Bạn có thể bấm nút bên dưới để mở khóa kích hoạt lại.`
+                                  : errMsg}
+                              </div>
+                              {canUnlock && existingUserId && (
+                                <div style={{ marginTop: '5px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnlockFromImport(errRow, unlockPayload)}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '5px',
+                                      padding: '4px 10px',
+                                      borderRadius: '4px',
+                                      background: '#0D9488',
+                                      color: '#ffffff',
+                                      border: 'none',
+                                      fontSize: '11.5px',
+                                      fontWeight: 600,
+                                      cursor: 'pointer',
+                                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                  >
+                                    <Icon name="unlock" size={12} color="#ffffff" />
+                                    <span>Mở khóa tài khoản [{code}] ngay</span>
+                                  </button>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         );

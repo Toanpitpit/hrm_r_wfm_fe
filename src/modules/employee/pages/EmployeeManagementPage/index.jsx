@@ -425,8 +425,8 @@ export default function EmployeeManagementPage() {
     }
   };
 
-  const handleConfirmToggleStatus = async (id, newStatus, reason) => {
-    const res = await employeeService.toggleUserStatus(id, newStatus, reason);
+  const handleConfirmToggleStatus = async (id, newStatus, reason, newBranchId) => {
+    const res = await employeeService.toggleUserStatus(id, newStatus, reason, newBranchId);
     if (res.success) {
       toast.success(res.message || 'Cập nhật trạng thái thành công!');
       fetchEmployees();
@@ -449,15 +449,15 @@ export default function EmployeeManagementPage() {
 
   // 7. Số liệu thống kê nhanh trên cùng: LUÔN HIỂN THỊ TỔNG TOÀN CHUỖI (hoặc chi nhánh nếu là Store Manager)
   // Cố định không phụ thuộc vào việc người dùng đang lọc chi nhánh nào ở bảng bên dưới
-  const totalEmployees = statsData?.totalEmployees ?? 61;
-  const activeCount = statsData?.activeCount ?? 61;
+  const totalEmployees = statsData?.totalEmployees ?? 0;
+  const activeCount = statsData?.activeCount ?? 0;
   const inactiveCount = statsData?.inactiveCount ?? 0;
   const roleStats = statsData?.roleStats || {
-    shiftLeader: 9,
-    cashier: 20,
-    sales: 20,
-    security: 9,
-    manager: 3,
+    shiftLeader: 0,
+    cashier: 0,
+    sales: 0,
+    security: 0,
+    manager: 0,
   };
 
   const handleUpgradeBranchTier = async (branchId) => {
@@ -700,13 +700,15 @@ export default function EmployeeManagementPage() {
         }}
       />
 
-      {/* Modal: Xem chi tiết hồ sơ (Chỉ xem chi tiết, không còn nút chỉnh sửa hay reset mật khẩu) */}
+      {/* Modal: Xem chi tiết hồ sơ */}
       <EmployeeDetailModal
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
         employee={selectedEmployee}
         canManageSystem={canManageSystem}
         newEmployeeIds={newEmployeeIds}
+        onToggleStatus={handleOpenToggleModal}
+        onResetPassword={handleOpenResetModal}
       />
 
       {/* Modal: Đặt lại mật khẩu (Admin / Owner only) */}
