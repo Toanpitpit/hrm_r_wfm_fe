@@ -26,13 +26,22 @@ export default function EmployeeFormModal({
   onToggleStatus,
   onResetPassword,
   onDeleteSuccess,
+  rehireQueue = [],
+  onRehireQueueComplete,
 }) {
   const { c, fonts } = useAdminTheme();
   const toast = useToast();
   const isEdit = Boolean(initialData && initialData.id);
 
-  // Tab chuyển đổi: 'manual' (Khai báo thủ công) | 'bulk' (Import hàng loạt Excel)
+  // Tab chuyển đổi: 'manual' (Khai báo thủ công) | 'bulk' (Import hàng loạt Excel) | 'queue' (Review Queue Wizard)
   const [activeTab, setActiveTab] = useState('manual');
+
+  // ─── State: Review Queue Wizard (Duyệt tuần tự hồ sơ Re-hire) ────────────
+  const [queueList, setQueueList] = useState([]);
+  const [queueIndex, setQueueIndex] = useState(0);
+  const [savedQueueEmployees, setSavedQueueEmployees] = useState([]);
+  const [savingQueueItem, setSavingQueueItem] = useState(false);
+  const [showCancelQueueConfirm, setShowCancelQueueConfirm] = useState(false);
 
   // ─── State: Form Khai Báo Đơn Lẻ ──────────────────────────────────────────
   const [formData, setFormData] = useState({
@@ -48,6 +57,7 @@ export default function EmployeeFormModal({
     branchName: '',
     contractType: 'FULL_TIME',
     password: '',
+    reason: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -460,7 +470,15 @@ export default function EmployeeFormModal({
     // Chỉ thực hiện reset khi modal vừa mở lên hoặc đổi nhân viên edit
     // Tuyệt đối không reset khi modal đang mở mà danh sách existingEmployees / stats cập nhật ngầm phía sau
     if (isOpening || initialDataChanged) {
-      setActiveTab('manual');
+      if (rehireQueue && rehireQueue.length > 0) {
+        setQueueList(rehireQueue);
+        setQueueIndex(0);
+        setSavedQueueEmployees([]);
+        setActiveTab('queue');
+      } else {
+        setActiveTab('manual');
+        setQueueList([]);
+      }
       setSelectedFile(null);
       setFileError('');
       setImportResult(null);
@@ -468,6 +486,7 @@ export default function EmployeeFormModal({
       setImportStatus('idle');
       setAccountStatus(initialData?.status || 'ACTIVE');
       setShowDiscardConfirm(false);
+      setShowCancelQueueConfirm(false);
       setSubmitError('');
       setIsTogglingStatus(false);
 
@@ -485,6 +504,7 @@ export default function EmployeeFormModal({
           branchName: initialData.branchName || currentStoreBranchName || '',
           contractType: initialData.contractType || initialData.employmentType || 'FULL_TIME',
           password: '',
+          reason: '',
         });
       } else {
         const defaultBranchId = isStoreManager && currentStoreBranchId
@@ -509,6 +529,7 @@ export default function EmployeeFormModal({
           branchName: defaultBranch?.name || currentStoreBranchName || '',
           contractType: 'FULL_TIME',
           password: `Rwfm@${Math.floor(100000 + Math.random() * 900000)}`,
+          reason: '',
         });
         setBranchQuota(null);
         setTimeout(() => checkCodeDuplicateRef.current?.(initialCode), 150);
@@ -765,6 +786,11 @@ export default function EmployeeFormModal({
       newErrors.password = 'Mật khẩu khởi tạo cần tối thiểu 6 ký tự';
     }
 
+    // Bắt buộc nhập lý do khi Chỉnh sửa hồ sơ (Edit mode)
+    if (isEdit && (!formData.reason || formData.reason.trim().length < 5)) {
+      newErrors.reason = 'Vui lòng nhập lý do điều chỉnh hồ sơ nhân sự (tối thiểu 5 ký tự) để gửi email thông báo và lưu vết kiểm toán.';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -991,6 +1017,241 @@ export default function EmployeeFormModal({
     }
   };
 
+  // ─── Hàng Đợi Tái Tuyển Dụng (Review Queue Wizard) ──────────────────────
+  const getRehireCandidatesFromImport = useCallback(() => {
+    if (!importResult?.errors?.length) return [];
+    const list = [];
+    importResult.errors.forEach((errRow) => {
+      const code = errRow.employeeCode ?? errRow.EmployeeCode ?? errRow.rowData?.employeeCode ?? errRow.RowData?.EmployeeCode ?? '';
+      const normCode = String(code || '').trim().toUpperCase();
+      const localMatch = existingEmployees?.find(
+        (e) => (e.employeeCode || '').trim().toUpperCase() === normCode
+      );
+      const isLocallyInactive = localMatch && (String(localMatch.status || '').toUpperCase() === 'INACTIVE');
+      const canUnlock = Boolean(
+        (errRow.canUnlock ?? errRow.CanUnlock) ||
+        (String(errRow.existingUserStatus ?? errRow.ExistingUserStatus ?? '').toUpperCase() === 'INACTIVE') ||
+        isLocallyInactive
+      );
+      if (!canUnlock) return;
+
+      const existingUserId = errRow.existingUserId ?? errRow.ExistingUserId ?? localMatch?.id;
+      if (!existingUserId) return;
+
+      const name = errRow.fullName ?? errRow.FullName ?? errRow.rowData?.fullName ?? errRow.RowData?.FullName ?? localMatch?.fullName ?? '';
+      const email = errRow.email ?? errRow.Email ?? errRow.rowData?.email ?? errRow.RowData?.Email ?? localMatch?.email ?? '';
+      const phone = errRow.phone ?? errRow.Phone ?? errRow.rowData?.phone ?? errRow.RowData?.Phone ?? localMatch?.phone ?? '';
+      const roleCode = errRow.roleCode ?? errRow.RoleCode ?? errRow.rowData?.roleCode ?? errRow.RowData?.RoleCode ?? '';
+      const branchIdentifier = errRow.branchIdentifier ?? errRow.BranchIdentifier ?? errRow.rowData?.branchIdentifier ?? errRow.RowData?.BranchIdentifier ?? '';
+      const employmentType = errRow.employmentType ?? errRow.EmploymentType ?? errRow.rowData?.employmentType ?? errRow.RowData?.EmploymentType ?? 'FULL_TIME';
+
+      let matchedBranchId = '';
+      if (branchIdentifier) {
+        const foundB = branches.find(
+          (b) => String(b.branchCode || '').toUpperCase() === String(branchIdentifier).toUpperCase() ||
+                 String(b.id) === String(branchIdentifier) ||
+                 (b.name && b.name.toLowerCase().includes(String(branchIdentifier).toLowerCase()))
+        );
+        if (foundB) matchedBranchId = foundB.id;
+      }
+      if (!matchedBranchId && currentStoreBranchId) matchedBranchId = currentStoreBranchId;
+      if (!matchedBranchId && localMatch?.homeBranchId) matchedBranchId = localMatch.homeBranchId;
+
+      let matchedRoleId = '';
+      if (roleCode) {
+        const foundR = (roles.length > 0 ? roles : STORE_ROLES).find(
+          (r) => String(r.roleCode || '').toUpperCase() === String(roleCode).toUpperCase()
+        );
+        if (foundR) matchedRoleId = foundR.id;
+      }
+      if (!matchedRoleId && localMatch?.roleId) matchedRoleId = localMatch.roleId;
+
+      list.push({
+        id: existingUserId,
+        userId: existingUserId,
+        employeeCode: normCode || code,
+        fullName: name,
+        email: email,
+        phone: phone,
+        roleId: matchedRoleId,
+        roleCode: roleCode || localMatch?.roleCode || '',
+        branchId: matchedBranchId,
+        homeBranchId: matchedBranchId,
+        branchIdentifier: branchIdentifier,
+        contractType: employmentType,
+        employmentType: employmentType,
+        oldBranchId: errRow.oldBranchId ?? localMatch?.homeBranchId,
+        oldBranchName: errRow.oldBranchName ?? localMatch?.branchName,
+        oldRoleId: errRow.oldRoleId ?? localMatch?.roleId,
+        oldRoleCode: errRow.oldRoleCode ?? localMatch?.roleCode,
+      });
+    });
+    return list;
+  }, [importResult, existingEmployees, branches, roles, currentStoreBranchId]);
+
+  const rehireCandidatesTab2 = getRehireCandidatesFromImport();
+
+  // Đồng bộ form khi duyệt queue
+  useEffect(() => {
+    if (activeTab === 'queue' && queueList.length > 0 && queueList[queueIndex]) {
+      const cur = queueList[queueIndex];
+      const matchedBranch = branches.find((b) => String(b.id) === String(cur.branchId || cur.homeBranchId));
+      const matchedRole = (roles.length > 0 ? roles : STORE_ROLES).find((r) => String(r.id) === String(cur.roleId));
+
+      setFormData({
+        employeeCode: cur.employeeCode || '',
+        fullName: cur.fullName || '',
+        email: cur.email || '',
+        phone: cur.phone || '',
+        roleId: cur.roleId || (matchedRole?.id ?? ''),
+        roleCode: cur.roleCode || matchedRole?.roleCode || '',
+        roleName: matchedRole?.roleName || '',
+        homeBranchId: cur.branchId || cur.homeBranchId || (matchedBranch?.id ?? ''),
+        branchId: cur.branchId || cur.homeBranchId || (matchedBranch?.id ?? ''),
+        branchName: matchedBranch?.name || '',
+        contractType: cur.contractType || cur.employmentType || 'FULL_TIME',
+        status: 'ACTIVE',
+        password: '',
+      });
+      setSubmitError('');
+      setErrors({});
+    }
+  }, [activeTab, queueIndex, queueList, branches, roles]);
+
+  const handleSaveQueueItem = async () => {
+    if (savingQueueItem) return;
+    const cur = queueList[queueIndex];
+    if (!cur) return;
+
+    const newErrors = {};
+    if (!formData.fullName?.trim()) newErrors.fullName = 'Vui lòng nhập họ và tên.';
+    if (!formData.branchId) newErrors.branchId = 'Vui lòng chọn cơ sở làm việc tiếp nhận.';
+    if (!formData.roleId) newErrors.roleId = 'Vui lòng chọn chức danh / vị trí.';
+
+    const cleanPhone = (formData.phone || '').trim().replace(/[\s\.\-\(\)]/g, '');
+    let normPhone = cleanPhone;
+    if (normPhone.startsWith('+84')) normPhone = '0' + normPhone.substring(3);
+    else if (normPhone.startsWith('84') && normPhone.length === 11) normPhone = '0' + normPhone.substring(2);
+
+    if (!normPhone) {
+      newErrors.phone = 'Vui lòng nhập số điện thoại.';
+    } else if (!/^0[35789][0-9]{8}$/.test(normPhone)) {
+      newErrors.phone = 'Số điện thoại không hợp lệ (yêu cầu 10 chữ số, bắt đầu 03, 05, 07, 08, 09).';
+    }
+
+    if (formData.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      newErrors.email = 'Email không đúng định dạng.';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setSavingQueueItem(true);
+    setSubmitError('');
+
+    try {
+      // 1. Kích hoạt trạng thái tài khoản: PATCH /api/Users/{id}/status
+      const toggleRes = await employeeService.toggleUserStatus(
+        cur.id,
+        'ACTIVE',
+        'Tái tuyển dụng từ file import nhân sự',
+        formData.branchId
+      );
+
+      if (!toggleRes.success) {
+        setSubmitError(toggleRes.message || 'Không thể kích hoạt lại tài khoản nhân sự.');
+        return;
+      }
+
+      // 2. Cập nhật hồ sơ thông tin mới: PUT /api/Users/employees/{id}
+      const updatePayload = {
+        fullName: formData.fullName.trim(),
+        email: formData.email?.trim() || cur.email,
+        phone: normPhone,
+        roleId: Number(formData.roleId),
+        roleCode: formData.roleCode,
+        branchId: Number(formData.branchId),
+        homeBranchId: Number(formData.branchId),
+        contractType: formData.contractType || 'FULL_TIME',
+        status: 'ACTIVE',
+      };
+
+      const updateRes = await employeeService.updateEmployee(cur.id, updatePayload);
+      if (!updateRes.success) {
+        setSubmitError(updateRes.message || 'Kích hoạt thành công nhưng cập nhật thông tin thất bại.');
+        return;
+      }
+
+      const savedItem = {
+        ...cur,
+        ...updatePayload,
+        id: cur.id,
+        employeeCode: cur.employeeCode,
+      };
+      const updatedSavedList = [...savedQueueEmployees, savedItem];
+      setSavedQueueEmployees(updatedSavedList);
+
+      toast?.success?.(`Đã kích hoạt & cập nhật thành công [${cur.employeeCode}] ${cur.fullName}!`);
+
+      if (queueIndex + 1 < queueList.length) {
+        setQueueIndex(queueIndex + 1);
+      } else {
+        setActiveTab('manual');
+        setQueueList([]);
+        onClose();
+        if (onRehireQueueComplete) {
+          onRehireQueueComplete({
+            successCount: updatedSavedList.length,
+            total: queueList.length,
+            savedEmployees: updatedSavedList,
+          });
+        } else if (onImportSuccess) {
+          onImportSuccess(updatedSavedList);
+        }
+      }
+    } catch (err) {
+      console.error('Error saving rehire queue item:', err);
+      setSubmitError(err.message || 'Có lỗi xảy ra khi lưu hồ sơ.');
+    } finally {
+      setSavingQueueItem(false);
+    }
+  };
+
+  const handleSkipQueueItem = () => {
+    if (queueIndex + 1 < queueList.length) {
+      setQueueIndex(queueIndex + 1);
+      setSubmitError('');
+      setErrors({});
+    } else {
+      setActiveTab('manual');
+      setQueueList([]);
+      onClose();
+      if (savedQueueEmployees.length > 0) {
+        if (onRehireQueueComplete) {
+          onRehireQueueComplete({
+            successCount: savedQueueEmployees.length,
+            total: queueList.length,
+            savedEmployees: savedQueueEmployees,
+          });
+        } else if (onImportSuccess) {
+          onImportSuccess(savedQueueEmployees);
+        }
+      }
+    }
+  };
+
+  const handleCancelQueue = () => {
+    if (savedQueueEmployees.length > 0 || queueIndex < queueList.length) {
+      setShowCancelQueueConfirm(true);
+    } else {
+      setActiveTab('manual');
+      setQueueList([]);
+      onClose();
+    }
+  };
+
   const getFileExtIcon = (fileName) => {
     const ext = ('.' + (fileName || '').split('.').pop()).toLowerCase();
     if (['.xlsx', '.xls'].includes(ext)) return 'file-spreadsheet';
@@ -1020,31 +1281,89 @@ export default function EmployeeFormModal({
   });
 
   // Tiêu đề & mô tả Modal
-  const title = isEdit
-    ? `Hồ Sơ Nhân Sự: ${initialData?.fullName || ''}`
-    : activeTab === 'bulk'
-      ? 'Import Nhân Sự Hàng Loạt (Excel/CSV)'
-      : isStoreManager
-        ? 'Khai Báo Nhân Sự Chi Nhánh'
-        : 'Khai Báo Hồ Sơ Nhân Sự Chuỗi Bán Lẻ';
+  const curQueueEmp = activeTab === 'queue' ? queueList[queueIndex] : null;
 
-  const sub = isEdit
-    ? 'Thông tin hồ sơ nhân sự ở chế độ chỉ đọc. Quản trị viên chỉ có quyền Cấp lại mật khẩu hoặc Quản trị trạng thái tài khoản.'
-    : activeTab === 'bulk'
-      ? 'Tải file mẫu Excel chuẩn, điền danh sách nhân sự và tải lên hệ thống để thêm hàng loạt.'
-      : 'Hệ thống tự động băm mật khẩu bảo mật và kích hoạt gửi Welcome Email có thông tin tài khoản & link đăng nhập.';
+  const title = activeTab === 'queue'
+    ? 'Duyệt Hồ Sơ Tái Tuyển Dụng (Review Queue Wizard)'
+    : isEdit
+      ? `Chỉnh Sửa Hồ Sơ: ${initialData?.fullName || ''} (${initialData?.employeeCode || ''})`
+      : activeTab === 'bulk'
+        ? 'Import Nhân Sự Hàng Loạt (Excel/CSV)'
+        : isStoreManager
+          ? 'Khai Báo Nhân Sự Chi Nhánh'
+          : 'Khai Báo Hồ Sơ Nhân Sự Chuỗi Bán Lẻ';
+
+  const sub = activeTab === 'queue'
+    ? `Hồ sơ [${queueIndex + 1} / ${queueList.length}]: ${curQueueEmp?.employeeCode || '—'} - ${curQueueEmp?.fullName || ''}`
+    : isEdit
+      ? 'Chỉnh sửa thông tin định danh, chức vụ, chi nhánh và hợp đồng của nhân sự. Mọi thay đổi đều bắt buộc nhập lý do, được lưu vết kiểm toán và tự động gửi email thông báo.'
+      : activeTab === 'bulk'
+        ? 'Tải file mẫu Excel chuẩn, điền danh sách nhân sự và tải lên hệ thống để thêm hàng loạt.'
+        : 'Hệ thống tự động băm mật khẩu bảo mật và kích hoạt gửi Welcome Email có thông tin tài khoản & link đăng nhập.';
 
   return (
     <>
       <Modal
         open={isOpen}
         closeOnOutsideClick={false}
-        onClose={isImporting ? undefined : handleSafeClose}
+        onClose={isImporting || savingQueueItem ? undefined : activeTab === 'queue' ? handleCancelQueue : handleSafeClose}
         title={title}
         sub={sub}
-        width={activeTab === 'bulk' ? 720 : 680}
+        width={activeTab === 'bulk' || activeTab === 'queue' ? 740 : 680}
         footer={
-          activeTab === 'bulk' ? (
+          activeTab === 'queue' ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '10px' }}>
+              <Button
+                variant="ghost"
+                onClick={handleCancelQueue}
+                disabled={savingQueueItem}
+                style={{ color: '#EF4444' }}
+              >
+                <Icon name="x" size={15} color="#EF4444" />
+                <span>Hủy Toàn Bộ Hàng Đợi</span>
+              </Button>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {queueList.length > 1 && (
+                  <Button
+                    variant="outline"
+                    onClick={handleSkipQueueItem}
+                    disabled={savingQueueItem}
+                  >
+                    <Icon name="chevron-right" size={15} />
+                    <span>Bỏ Qua Người Này</span>
+                  </Button>
+                )}
+                <Button
+                  variant="primary"
+                  onClick={handleSaveQueueItem}
+                  disabled={savingQueueItem || isQuotaReached}
+                  id="btn-save-rehire-queue-item"
+                  style={{
+                    background: '#0D9488',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: 700,
+                  }}
+                >
+                  {savingQueueItem ? (
+                    <>
+                      <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⟳</span>
+                      <span>Đang Kích Hoạt & Lưu...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="check" size={16} color="#ffffff" />
+                      <span>
+                        {queueIndex + 1 === queueList.length ? 'Kích Hoạt & Hoàn Tất' : `Kích Hoạt & Tiếp Tục [${queueIndex + 2}/${queueList.length}] ➔`}
+                      </span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : activeTab === 'bulk' ? (
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', width: '100%', gap: '10px' }}>
               <Button variant="ghost" onClick={handleSafeClose} disabled={isImporting}>
                 {importStatus !== 'idle' ? 'Đóng' : 'Hủy Bỏ'}
@@ -1079,25 +1398,40 @@ export default function EmployeeFormModal({
               )}
               <div style={{ display: 'flex', gap: '10px' }}>
                 <Button variant="ghost" onClick={handleSafeClose} disabled={submitting}>
-                  {isEdit ? 'Đóng' : 'Hủy Bỏ'}
+                  Hủy Bỏ
                 </Button>
-                {!isEdit && (
-                  <Button
-                    variant="primary"
-                    onClick={handleSubmit}
-                    disabled={submitting || isQuotaReached}
-                    title={isQuotaReached ? 'Vui lòng nâng Tier chi nhánh trước khi thêm nhân viên' : ''}
-                  >
-                    {submitting ? 'Đang xử lý...' : 'Xác Nhận Khai Báo'}
-                  </Button>
-                )}
+                <Button
+                  variant="primary"
+                  onClick={handleSubmit}
+                  disabled={submitting || (!isEdit && isQuotaReached)}
+                  title={!isEdit && isQuotaReached ? 'Vui lòng nâng Tier chi nhánh trước khi thêm nhân viên' : ''}
+                  style={isEdit ? {
+                    background: '#2563eb',
+                    borderColor: '#1d4ed8',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontWeight: 600,
+                  } : {}}
+                >
+                  {submitting ? (
+                    'Đang xử lý...'
+                  ) : isEdit ? (
+                    <>
+                      <Icon name="check" size={16} color="#ffffff" />
+                      <span>Lưu Thay Đổi & Gửi Mail</span>
+                    </>
+                  ) : (
+                    'Xác Nhận Khai Báo'
+                  )}
+                </Button>
               </div>
             </div>
           )
         }
       >
         {/* ─── TAB SWITCHER: Khai Báo Thủ Công vs Import Hàng Loạt (Chỉ hiện khi Tạo Mới và Có Quyền Quản Trị) ─── */}
-        {!isEdit && canManageSystem && (
+        {!isEdit && canManageSystem && activeTab !== 'queue' && (
           <div
             style={{
               display: 'grid',
@@ -1156,6 +1490,307 @@ export default function EmployeeFormModal({
             >
               <span>Import Nhân Sự Hàng Loạt (Excel/CSV)</span>
             </button>
+          </div>
+        )}
+
+        {/* ─── TAB QUEUE: REVIEW QUEUE WIZARD (DUYỆT TUẦN TỰ TÁI TUYỂN DỤNG) ─── */}
+        {activeTab === 'queue' && queueList.length > 0 && curQueueEmp && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Stepper & Progress Bar */}
+            <div style={{
+              padding: '14px 16px',
+              background: 'linear-gradient(135deg, rgba(13, 148, 136, 0.1) 0%, rgba(13, 148, 136, 0.03) 100%)',
+              borderRadius: '8px',
+              border: '1px solid rgba(13, 148, 136, 0.25)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    background: '#0D9488',
+                    color: '#fff',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '12px',
+                    letterSpacing: '0.4px',
+                  }}>
+                    HÀNG ĐỢI DUYỆT [{queueIndex + 1} / {queueList.length}]
+                  </span>
+                  <span style={{ fontSize: '13.5px', fontWeight: 700, color: c.fg }}>
+                    {curQueueEmp.employeeCode} — {curQueueEmp.fullName}
+                  </span>
+                </div>
+                <span style={{ fontSize: '12px', color: c.fgSubtle, fontWeight: 600 }}>
+                  Tiến độ: {Math.round(((queueIndex + 1) / queueList.length) * 100)}% ({savedQueueEmployees.length} đã lưu)
+                </span>
+              </div>
+
+              {/* Progress Track */}
+              <div style={{
+                width: '100%',
+                height: '7px',
+                background: 'rgba(0, 0, 0, 0.08)',
+                borderRadius: '4px',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${Math.round(((queueIndex + 1) / queueList.length) * 100)}%`,
+                  height: '100%',
+                  background: '#0D9488',
+                  borderRadius: '4px',
+                  transition: 'width 0.3s ease',
+                }} />
+              </div>
+
+              {/* Step Indicators */}
+              {queueList.length <= 8 && (
+                <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
+                  {queueList.map((emp, idx) => {
+                    const isCompleted = idx < queueIndex;
+                    const isCurrent = idx === queueIndex;
+                    return (
+                      <span
+                        key={idx}
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          background: isCurrent ? '#0D9488' : isCompleted ? 'rgba(34, 197, 94, 0.15)' : 'rgba(0,0,0,0.05)',
+                          color: isCurrent ? '#fff' : isCompleted ? '#16A34A' : c.fgSubtle,
+                          border: isCurrent ? '1px solid #0D9488' : isCompleted ? '1px solid rgba(34, 197, 94, 0.3)' : `1px solid ${c.border}`,
+                        }}
+                      >
+                        {isCompleted ? '✓ ' : ''}{emp.employeeCode}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Banner Thông Báo Lỗi Ràng Buộc / Trùng Lặp (nếu có khi bấm lưu) */}
+            {submitError && (
+              <div style={{
+                padding: '12px 14px',
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                color: '#ef4444',
+                fontSize: '13px',
+                fontWeight: 600,
+              }}>
+                <Icon name="alert-triangle" size={18} color="#ef4444" />
+                <div style={{ flex: 1, lineHeight: '1.4' }}>{submitError}</div>
+              </div>
+            )}
+
+            {/* Bảng Đối Chiếu Dữ Liệu Hồ Sơ Cũ vs Thông Tin Mới Từ Excel */}
+            <div style={{
+              padding: '12px 14px',
+              background: c.bgRaised,
+              borderRadius: '8px',
+              border: `1px solid ${c.border}`,
+              fontSize: '12px',
+            }}>
+              <div style={{ fontWeight: 700, color: c.fg, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Icon name="info" size={15} color={c.accent} />
+                <span>Đối Chiếu Hồ Sơ Quá Khứ & Dữ Liệu Mới Đọc Từ Excel</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ padding: '8px 10px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#DC2626', textTransform: 'uppercase' }}>Hồ sơ cũ trong hệ thống</div>
+                  <div style={{ marginTop: '4px', color: c.fg }}>
+                    <strong>Mã NV:</strong> {curQueueEmp.employeeCode}
+                  </div>
+                  <div style={{ marginTop: '2px', color: c.fgMuted }}>
+                    <strong>Trạng thái:</strong> <span style={{ color: '#EF4444', fontWeight: 600 }}>INACTIVE (Đã nghỉ việc)</span>
+                  </div>
+                  <div style={{ marginTop: '2px', color: c.fgMuted }}>
+                    <strong>Cơ sở cũ:</strong> {curQueueEmp.oldBranchName || 'Chưa rõ'}
+                  </div>
+                  <div style={{ marginTop: '2px', color: c.fgMuted }}>
+                    <strong>Chức danh cũ:</strong> {curQueueEmp.oldRoleCode || '—'}
+                  </div>
+                </div>
+
+                <div style={{ padding: '8px 10px', background: 'rgba(13, 148, 136, 0.05)', borderRadius: '6px', border: '1px solid rgba(13, 148, 136, 0.25)' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#0D9488', textTransform: 'uppercase' }}>Dữ liệu tiếp nhận mới (Excel)</div>
+                  <div style={{ marginTop: '4px', color: c.fg }}>
+                    <strong>Tiếp nhận:</strong> <span style={{ color: '#0D9488', fontWeight: 700 }}>ACTIVE (Kích hoạt lại)</span>
+                  </div>
+                  <div style={{ marginTop: '2px', color: c.fgMuted }}>
+                    <strong>Cơ sở mới:</strong> {branches.find((b) => String(b.id) === String(formData.branchId))?.name || 'Chưa chọn'}
+                  </div>
+                  <div style={{ marginTop: '2px', color: c.fgMuted }}>
+                    <strong>Chức danh mới:</strong> {(roles.length > 0 ? roles : STORE_ROLES).find((r) => String(r.id) === String(formData.roleId))?.roleName || 'Chưa chọn'}
+                  </div>
+                  <div style={{ marginTop: '2px', color: c.fgMuted }}>
+                    <strong>SĐT:</strong> {formData.phone || '—'} • <strong>Email:</strong> {formData.email || '—'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Form nhập liệu & kiểm tra chỉnh sửa nhanh */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <Field label="Mã Nhân Viên" required>
+                <TextInput
+                  value={formData.employeeCode}
+                  disabled
+                  style={{ opacity: 0.85, fontWeight: 700, cursor: 'not-allowed' }}
+                />
+              </Field>
+
+              <Field label="Họ Và Tên" required error={errors.fullName}>
+                <TextInput
+                  value={formData.fullName}
+                  onChange={(e) => {
+                    setFormData((prev) => ({ ...prev, fullName: e.target.value }));
+                    if (errors.fullName) setErrors((prev) => ({ ...prev, fullName: '' }));
+                  }}
+                  placeholder="Nhập họ và tên..."
+                />
+              </Field>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <Field label="Cơ Sở Tiếp Nhận (Chi Nhánh)" required error={errors.branchId}>
+                <select
+                  value={formData.branchId}
+                  onChange={(e) => {
+                    const bId = e.target.value;
+                    setFormData((prev) => ({ ...prev, branchId: bId, homeBranchId: bId }));
+                    if (errors.branchId) setErrors((prev) => ({ ...prev, branchId: '' }));
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '6px',
+                    border: `1px solid ${errors.branchId ? '#ef4444' : c.border}`,
+                    background: c.bgInput,
+                    color: c.fg,
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">-- Chọn chi nhánh tiếp nhận --</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.branchCode ? `[${b.branchCode}] ` : ''}{b.name} (Tier {b.branchTier || 1})
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Vị Trí / Chức Danh Tiếp Nhận" required error={errors.roleId}>
+                <select
+                  value={formData.roleId}
+                  onChange={(e) => {
+                    const rId = e.target.value;
+                    const rObj = (roles.length > 0 ? roles : STORE_ROLES).find((r) => String(r.id) === String(rId));
+                    setFormData((prev) => ({
+                      ...prev,
+                      roleId: rId,
+                      roleCode: rObj?.roleCode || '',
+                      roleName: rObj?.roleName || '',
+                    }));
+                    if (errors.roleId) setErrors((prev) => ({ ...prev, roleId: '' }));
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '6px',
+                    border: `1px solid ${errors.roleId ? '#ef4444' : c.border}`,
+                    background: c.bgInput,
+                    color: c.fg,
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">-- Chọn vị trí / chức danh --</option>
+                  {availableRoles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.roleName || r.name} ({r.roleCode})
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            {/* Widget hiển thị Quota định biên chi nhánh đích */}
+            {branchQuota && (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '6px',
+                background: isQuotaReached ? 'rgba(239, 68, 68, 0.08)' : 'rgba(13, 148, 136, 0.06)',
+                border: `1px solid ${isQuotaReached ? 'rgba(239, 68, 68, 0.3)' : 'rgba(13, 148, 136, 0.25)'}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '12px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Icon name={isQuotaReached ? 'alert-triangle' : 'users'} size={15} color={isQuotaReached ? '#EF4444' : '#0D9488'} />
+                  <span>
+                    Định biên: <strong>{branchQuota.branchName}</strong> (Tier {branchQuota.branchTier}) —{' '}
+                    Hiện có: <strong>{branchQuota.officialHeadcount ?? branchQuota.currentHeadcount}</strong> / {branchQuota.standardQuota} nhân sự
+                  </span>
+                </div>
+                <span style={{
+                  fontWeight: 700,
+                  color: isQuotaReached ? '#EF4444' : '#0D9488',
+                }}>
+                  {isQuotaReached ? 'Đã Đầy Quota (Cần nâng Tier)' : `Còn ${branchQuota.remainingSlots ?? (branchQuota.standardQuota - (branchQuota.officialHeadcount ?? branchQuota.currentHeadcount))} vị trí trống`}
+                </span>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <Field label="Số Điện Thoại (10 Số VN)" required error={errors.phone}>
+                <TextInput
+                  value={formData.phone}
+                  onChange={(e) => {
+                    setFormData((prev) => ({ ...prev, phone: e.target.value }));
+                    if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
+                  }}
+                  placeholder="VD: 0912345678"
+                />
+              </Field>
+
+              <Field label="Email Liên Hệ Mới" error={errors.email}>
+                <TextInput
+                  value={formData.email}
+                  onChange={(e) => {
+                    setFormData((prev) => ({ ...prev, email: e.target.value }));
+                    if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+                  }}
+                  placeholder="VD: nhanvien@rwfm.vn"
+                />
+              </Field>
+            </div>
+
+            <Field label="Loại Hợp Đồng Làm Việc">
+              <div style={{ display: 'flex', gap: '20px', alignItems: 'center', marginTop: '4px' }}>
+                {CONTRACT_TYPES.map((ct) => (
+                  <label key={ct.value} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', color: c.fg }}>
+                    <input
+                      type="radio"
+                      name="rehire_queue_contractType"
+                      value={ct.value}
+                      checked={formData.contractType === ct.value}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, contractType: e.target.value }))}
+                    />
+                    <span>{ct.label}</span>
+                  </label>
+                ))}
+              </div>
+            </Field>
           </div>
         )}
 
@@ -1288,7 +1923,6 @@ export default function EmployeeFormModal({
                   onChange={(e) => handleChange('fullName', e.target.value)}
                   onBlur={() => handleFieldBlur('fullName')}
                   placeholder="VD: Nguyễn Văn An"
-                  disabled={isEdit}
                   error={Boolean(errors.fullName)}
                 />
               </Field>
@@ -1306,7 +1940,6 @@ export default function EmployeeFormModal({
                   }}
                   onBlur={() => handleFieldBlur('email')}
                   placeholder="VD: an.nguyen@rwfm.vn"
-                  disabled={isEdit}
                   error={Boolean(errors.email)}
                 />
                 {duplicateCodeInfo && errors.email && errors.email.includes('đang bị KHÓA') && (
@@ -1354,7 +1987,6 @@ export default function EmployeeFormModal({
                   }}
                   onBlur={() => handleFieldBlur('phone')}
                   placeholder="VD: 0912345678"
-                  disabled={isEdit}
                   error={Boolean(errors.phone)}
                 />
                 {duplicateCodeInfo && errors.phone && errors.phone.includes('đang bị KHÓA') && (
@@ -1403,17 +2035,16 @@ export default function EmployeeFormModal({
                 <select
                   value={formData.roleId}
                   onChange={(e) => handleChange('roleId', e.target.value)}
-                  disabled={isEdit}
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: isEdit ? c.track : c.bgRaised,
+                    background: c.bgRaised,
                     border: `1px solid ${errors.roleId ? '#ef4444' : c.border}`,
                     borderRadius: '6px',
-                    color: isEdit ? c.fgSubtle : c.fg,
+                    color: c.fg,
                     fontSize: '13.5px',
                     outline: 'none',
-                    cursor: isEdit ? 'not-allowed' : 'pointer',
+                    cursor: 'pointer',
                   }}
                 >
                   <option value="">-- Chọn vai trò --</option>
@@ -1446,17 +2077,17 @@ export default function EmployeeFormModal({
                 <select
                   value={formData.branchId || formData.homeBranchId}
                   onChange={(e) => handleChange('branchId', e.target.value)}
-                  disabled={isEdit || isStoreManager}
+                  disabled={isStoreManager}
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: (isEdit || isStoreManager) ? c.track : c.bgRaised,
+                    background: isStoreManager ? c.track : c.bgRaised,
                     border: `1px solid ${errors.branchId ? '#ef4444' : c.border}`,
                     borderRadius: '6px',
-                    color: (isEdit || isStoreManager) ? c.fgSubtle : c.fg,
+                    color: isStoreManager ? c.fgSubtle : c.fg,
                     fontSize: '13.5px',
                     outline: 'none',
-                    cursor: (isEdit || isStoreManager) ? 'not-allowed' : 'pointer',
+                    cursor: isStoreManager ? 'not-allowed' : 'pointer',
                   }}
                 >
                   <option value="">-- Chọn chi nhánh --</option>
@@ -1617,17 +2248,16 @@ export default function EmployeeFormModal({
                 <select
                   value={formData.contractType}
                   onChange={(e) => handleChange('contractType', e.target.value)}
-                  disabled={isEdit}
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    background: isEdit ? c.track : c.bgRaised,
+                    background: c.bgRaised,
                     border: `1px solid ${c.border}`,
                     borderRadius: '6px',
-                    color: isEdit ? c.fgSubtle : c.fg,
+                    color: c.fg,
                     fontSize: '13.5px',
                     outline: 'none',
-                    cursor: isEdit ? 'not-allowed' : 'pointer',
+                    cursor: 'pointer',
                   }}
                 >
                   {CONTRACT_TYPES.map((ct) => (
@@ -1638,6 +2268,44 @@ export default function EmployeeFormModal({
                 </select>
               </Field>
             </div>
+
+            {/* ─── LÝ DO ĐIỀU CHỈNH HỒ SƠ & GỬI EMAIL THÔNG BÁO (BẮT BUỘC KHI CHỈNH SỬA) ─── */}
+            {isEdit && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  padding: '14px 16px',
+                  borderRadius: '8px',
+                  background: 'rgba(37, 99, 235, 0.05)',
+                  border: `1.5px solid ${errors.reason ? '#ef4444' : 'rgba(37, 99, 235, 0.35)'}`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Icon name="mail" size={16} color="#2563eb" />
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: c.fg }}>
+                    Lý Do Điều Chỉnh Hồ Sơ & Gửi Email Thông Báo (Bắt buộc) *
+                  </span>
+                </div>
+                <Field
+                  label=""
+                  error={errors.reason}
+                  hint="Lý do này sẽ được lưu vết kiểm toán hệ thống (SystemAuditLog) và tự động gửi thông báo thay đổi chi tiết đến email nhân viên."
+                >
+                  <TextInput
+                    value={formData.reason || ''}
+                    onChange={(e) => {
+                      handleChange('reason', e.target.value);
+                      if (errors.reason) setErrors((prev) => ({ ...prev, reason: '' }));
+                    }}
+                    placeholder="Ví dụ: Điều chuyển cơ sở công tác theo nguyện vọng, cập nhật số điện thoại và email..."
+                    error={Boolean(errors.reason)}
+                  />
+                </Field>
+              </div>
+            )}
 
             {/* ─── VÙNG QUẢN TRỊ TÀI KHOẢN (DÀNH CHO ADMIN / OWNER KHI CHỈNH SỬA) ─── */}
             {isEdit && canManageSystem && (
@@ -1986,6 +2654,71 @@ export default function EmployeeFormModal({
                   <span>{importMessage || 'Có lỗi xảy ra trong quá trình import.'}</span>
                 </div>
 
+                {/* Nút hành động xử lý hàng loạt Re-hire Queue Wizard */}
+                {rehireCandidatesTab2.length > 0 && (
+                  <div style={{
+                    margin: '0 0 14px 30px',
+                    padding: '12px 16px',
+                    background: 'linear-gradient(135deg, rgba(13, 148, 136, 0.14) 0%, rgba(13, 148, 136, 0.04) 100%)',
+                    border: '1.5px solid #0D9488',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '14px',
+                    boxShadow: '0 2px 6px rgba(13, 148, 136, 0.12)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{
+                        width: '32px', height: '32px', borderRadius: '50%',
+                        background: 'rgba(13, 148, 136, 0.2)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <Icon name="users" size={17} color="#0D9488" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0D9488' }}>
+                          Phát hiện {rehireCandidatesTab2.length} nhân sự tái tuyển dụng (Re-hire)!
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: c.fgSubtle, marginTop: '2px' }}>
+                          Tài khoản đang ở trạng thái Khóa. Nhấn nút bên cạnh để mở hàng đợi duyệt tuần tự và cập nhật thông tin mới.
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQueueList(rehireCandidatesTab2);
+                        setQueueIndex(0);
+                        setSavedQueueEmployees([]);
+                        setActiveTab('queue');
+                      }}
+                      id="btn-rehire-queue-all-tab2"
+                      style={{
+                        padding: '8px 16px',
+                        background: '#0D9488',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '12.5px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#0F766E')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = '#0D9488')}
+                    >
+                      <Icon name="check" size={14} color="#ffffff" />
+                      <span>Kích Hoạt & Cập Nhật Toàn Bộ ({rehireCandidatesTab2.length} nhân sự Re-hire)</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Bảng lỗi chi tiết nếu có */}
                 {importResult?.errors?.length > 0 && (
                   <div style={{ marginLeft: '30px' }}>
@@ -2211,6 +2944,56 @@ export default function EmployeeFormModal({
           </div>
         </div>
       </Modal>
+
+      {/* ─── MODAL XÁC NHẬN HỦY HÀNG ĐỢI DUYỆT (Review Queue Cancel Confirm) ─── */}
+      <Modal
+        open={showCancelQueueConfirm}
+        closeOnOutsideClick={false}
+        onClose={() => setShowCancelQueueConfirm(false)}
+        title="Xác Nhận Hủy Hàng Đợi Duyệt"
+        sub="Bạn có chắc chắn muốn dừng duyệt hồ sơ tái tuyển dụng không?"
+        width={460}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', width: '100%' }}>
+            <Button variant="ghost" onClick={() => setShowCancelQueueConfirm(false)}>
+              Tiếp Tục Duyệt
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowCancelQueueConfirm(false);
+                setActiveTab('manual');
+                const saved = [...savedQueueEmployees];
+                setQueueList([]);
+                onClose();
+                if (saved.length > 0) {
+                  onRehireQueueComplete?.({
+                    successCount: saved.length,
+                    total: queueList.length,
+                    savedEmployees: saved,
+                  });
+                }
+              }}
+              style={{
+                background: '#ef4444',
+                color: '#fff',
+                borderColor: '#dc2626',
+              }}
+            >
+              Dừng & Thoát
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '6px 0' }}>
+          <div style={{ fontSize: '13.5px', lineHeight: '1.5', color: c.fg }}>
+            Hàng đợi hiện có <strong>{savedQueueEmployees.length}</strong> / <strong>{queueList.length}</strong> hồ sơ đã được lưu. Nếu thoát bây giờ, các hồ sơ đã lưu vẫn được giữ nguyên, còn các hồ sơ chưa duyệt sẽ được giữ nguyên trạng thái cũ.
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }
+
+export { EmployeeFormModal };
+
