@@ -205,14 +205,16 @@ export const employeeService = {
     }
 
     return list.map((b) => {
-      const tier = Number(b.branchTier || b.tier || 2);
-      const standardTierQuota = tier === 1 ? 30 : tier === 3 ? 8 : 15;
+      const tier = Number(b.branchTierNumber ?? b.branchTier ?? b.tier ?? 2);
       const validStaffCount = Number(b.staffCount || b.targetStaffCount || 0);
+      const standardTierQuota = validStaffCount > 0 ? validStaffCount : (tier === 1 ? 30 : tier === 3 ? 8 : 15);
       return {
         ...b,
         branchTier: tier,
-        staffCount: validStaffCount > 0 ? validStaffCount : standardTierQuota,
-        effectiveQuota: validStaffCount > 0 ? validStaffCount : standardTierQuota,
+        tierName: b.tierName || (tier ? `Tier ${tier}` : 'Chưa phân cấp'),
+        branchTierName: b.tierName || (tier ? `Tier ${tier}` : 'Chưa phân cấp'),
+        staffCount: standardTierQuota,
+        effectiveQuota: standardTierQuota,
       };
     });
   },

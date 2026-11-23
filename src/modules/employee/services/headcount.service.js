@@ -51,12 +51,14 @@ export const headcountService = {
           localStorage.removeItem('wfm_branch_custom_quotas_v1');
         } catch {}
 
-        const backendQuota = Number(raw.effectiveQuota ?? raw.EffectiveQuota ?? raw.staffCount ?? raw.StaffCount ?? 0);
-        const fallbackQuota = raw.standardQuota ?? raw.StandardQuota ?? HEADCOUNT_TIER_QUOTAS[resolvedTier] ?? (resolvedTier === 1 ? 30 : resolvedTier === 3 ? 8 : 15);
-        const standardQuota = Number(
-          (backendQuota > 0 ? backendQuota : null) ||
-          fallbackQuota
+        const backendQuota = Number(
+          raw.effectiveQuota ?? raw.EffectiveQuota ??
+          raw.staffCount ?? raw.StaffCount ??
+          raw.standardQuota ?? raw.StandardQuota ??
+          raw.quota ?? raw.Quota ?? 0
         );
+        const fallbackQuota = Number(raw.standardQuota ?? raw.StandardQuota ?? HEADCOUNT_TIER_QUOTAS[resolvedTier] ?? (resolvedTier === 1 ? 30 : resolvedTier === 3 ? 8 : 15));
+        const standardQuota = backendQuota > 0 ? backendQuota : fallbackQuota;
         const effectiveQuota = standardQuota;
         const officialHeadcount = Number(raw.officialHeadcount ?? raw.OfficialHeadcount ?? raw.currentHeadcount ?? raw.CurrentHeadcount ?? 0);
         const currentHeadcount = officialHeadcount;
@@ -65,7 +67,7 @@ export const headcountService = {
         const actualWorkingCount = Number(raw.actualWorkingCount ?? raw.ActualWorkingCount ?? (currentHeadcount + dispatchedInCount));
 
         const availableQuotaSlots = Number(
-          (raw.availableQuotaSlots != null && raw.availableQuotaSlots >= 0 && !customQuota)
+          (raw.availableQuotaSlots != null && raw.availableQuotaSlots >= 0)
             ? raw.availableQuotaSlots
             : Math.max(0, effectiveQuota - officialHeadcount)
         );
@@ -89,6 +91,10 @@ export const headcountService = {
           data: {
             branchId: Number(branchId),
             branchTier: resolvedTier,
+            branchTierValue: raw.branchTierValue ?? raw.BranchTierValue ?? resolvedTier,
+            tierId: raw.tierId ?? raw.TierId ?? resolvedTier,
+            tierName: raw.tierName || raw.TierName || raw.branchTierName || raw.BranchTierName || `Tier ${resolvedTier}`,
+            branchTierName: raw.branchTierName || raw.BranchTierName || raw.tierName || raw.TierName || `Tier ${resolvedTier}`,
             standardQuota,
             staffCount: backendQuota > 0 ? backendQuota : standardQuota,
             effectiveQuota,
@@ -177,6 +183,10 @@ export const headcountService = {
       data: {
         branchId: Number(branchId),
         branchTier: resolvedTier,
+        branchTierValue: resolvedTier,
+        tierId: resolvedTier,
+        tierName: `Tier ${resolvedTier}`,
+        branchTierName: `Tier ${resolvedTier}`,
         standardQuota,
         staffCount: 0,
         effectiveQuota,
@@ -247,7 +257,8 @@ export const headcountService = {
       const results = await Promise.all(
         list.map(async (b) => {
           const bId = Number(b.id || b.storeId);
-          const tier = Number(b.branchTier || b.tier || (bId === 1 || bId === 2 ? 1 : 2));
+          const rawTierNum = Number(b.branchTierNumber ?? b.branchTier ?? b.tier ?? b.tierId ?? 2);
+          const tier = !isNaN(rawTierNum) && rawTierNum > 0 ? rawTierNum : 2;
           const res = await this.getBranchHeadcountStatus(bId, tier);
 
           let finalStatus = res.success ? { ...res.data } : {};
@@ -261,7 +272,7 @@ export const headcountService = {
           }
 
           const fallbackTierQuota = tier === 1 ? 30 : tier === 3 ? 8 : 15;
-          const finalQuota = Number(finalStatus.effectiveQuota || finalStatus.standardQuota || fallbackTierQuota);
+          const finalQuota = Number(finalStatus.effectiveQuota || finalStatus.standardQuota || b.staffCount || fallbackTierQuota);
           if (finalQuota) {
             finalStatus.standardQuota = finalQuota;
             finalStatus.effectiveQuota = finalQuota;
@@ -274,12 +285,24 @@ export const headcountService = {
             finalStatus.canCreateDirectly = official < finalQuota;
           }
 
+          const resolvedTierName =
+            finalStatus.tierName ||
+            finalStatus.branchTierName ||
+            b.tierName ||
+            b.tier?.tierName ||
+            (b.tier && typeof b.tier === 'object' ? b.tier.tierName : null) ||
+            (tier ? `Tier ${tier}` : 'Chưa phân cấp');
+
           return {
             branchId: Number(bId),
             branchName: b.name || `Chi nhánh #${bId}`,
-            branchTier: tier,
+            branchTier: finalStatus.branchTierValue ?? finalStatus.branchTier ?? tier,
+            tierName: resolvedTierName,
+            branchTierName: resolvedTierName,
             status: b.status || finalStatus.status || 'ACTIVE',
             ...finalStatus,
+            tierName: resolvedTierName,
+            branchTierName: resolvedTierName,
             officialHeadcount: official,
             currentHeadcount: official,
           };

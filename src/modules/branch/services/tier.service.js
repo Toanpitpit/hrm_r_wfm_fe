@@ -204,6 +204,17 @@ export const updateBranchTierAndQuota = async (storeId, tierInput, quota, note =
   }
 
   const finalTier = Number(targetBranchTier ?? branch?.branchTier ?? 2);
+
+  if (targetQuota === undefined || targetQuota === null) {
+    try {
+      const allDbTiers = await getAllTiers();
+      const matched = allDbTiers.find((t) => Number(t.id || t.tier_id) === Number(targetTierId || finalTier));
+      if (matched) {
+        targetQuota = Number(matched.maxStaffCount ?? matched.max_staff_count ?? matched.standardQuota ?? matched.minStaffCount ?? 20);
+      }
+    } catch {}
+  }
+
   const finalQuota = Number(targetQuota ?? (branch?.staffCount || 20));
 
   // Lưu quota tùy chỉnh

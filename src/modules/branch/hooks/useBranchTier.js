@@ -195,9 +195,20 @@ export function useBranchTier() {
       await tierService.updateBranchTierAndQuota(storeId, newTier, quota, note);
       await fetchData();
       const tierLabel = typeof newTier === 'object' ? (newTier.tierName || `Tier ${newTier.tierId}`) : `Cấp ${newTier}`;
-      toast?.success?.(
-        `Đã cập nhật phân cấp ${tierLabel} cho chi nhánh thành công!`
-      );
+      
+      const currentBranch = branches.find(b => String(b.storeId || b.id) === String(storeId));
+      const staffNow = Number(currentBranch?.currentStaffCount ?? currentBranch?.officialHeadcount ?? branchEmployeesMap[Number(storeId)] ?? 0);
+      const newQuota = Number((typeof newTier === 'object' ? newTier.quota : quota) || 0);
+
+      if (staffNow > newQuota && newQuota > 0) {
+        toast?.warning?.(
+          `Đã chuyển sang ${tierLabel}! Cảnh báo: Quân số hiện tại (${staffNow} nv) đang vượt quá định biên (${newQuota} nv) là ${staffNow - newQuota} người.`
+        );
+      } else {
+        toast?.success?.(
+          `Đã cập nhật phân cấp ${tierLabel} cho chi nhánh thành công!`
+        );
+      }
       setChangeTierModalOpen(false);
       setSelectedBranch(null);
       return { success: true };

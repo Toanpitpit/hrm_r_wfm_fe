@@ -467,7 +467,8 @@ export const updateBranch = async (storeId, payload) => {
   } catch (err) {
     // Ghi log cảnh báo và ném lỗi rõ ràng để UI hiển thị thông báo lỗi (Toast error)
     console.warn('[BranchService] Backend update error:', err.response?.data || err.message);
-    throw new Error(err.response?.data?.message || err.response?.data?.title || err.message || 'Lỗi cập nhật chi nhánh từ máy chủ');
+    const msg = extractErrorMessage(err, 'Lỗi cập nhật chi nhánh từ máy chủ');
+    throw new Error(msg);
   }
 
   // --- CƠ CHẾ FALLBACK CẬP NHẬT LOCALSTORAGE / MOCK CACHE ---

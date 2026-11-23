@@ -1369,13 +1369,16 @@ export default function EmployeeFormModal({
                     }}
                   >
                     <div style={{ fontSize: '12px', color: '#fca5a5' }}>
-                      {branchQuota.canUpgradeTier ? (
+                      {Number((branchQuota.officialHeadcount ?? branchQuota.currentHeadcount) || 0) > Number(branchQuota.standardQuota || 0) ? (
+                        <span style={{ color: '#ef4444', fontWeight: 700 }}>
+                          ⚠️ Cảnh báo: Chi nhánh đang vượt quá định biên phân cấp ({branchQuota.officialHeadcount ?? branchQuota.currentHeadcount}/{branchQuota.standardQuota} nhân sự, vượt {(branchQuota.officialHeadcount ?? branchQuota.currentHeadcount) - branchQuota.standardQuota} người)! Vui lòng nâng phân cấp trước khi tuyển thêm.
+                        </span>
+                      ) : branchQuota.canUpgradeTier ? (
                         <span>
-                          Đã đạt trần Tier {branchQuota.branchTier}. Bạn có thể nâng chi nhánh lên{' '}
-                          <strong>Tier {branchQuota.branchTier - 1}</strong> để tuyển thêm.
+                          Đã đạt trần {branchQuota.tierName || branchQuota.branchTierName || `Tier ${branchQuota.branchTier}`}. Bạn có thể nâng phân cấp chi nhánh để tuyển thêm.
                         </span>
                       ) : (
-                        <span> Chi nhánh đã đạt kịch trần cao nhất Tier 1 (30 nhân sự). Không thể tuyển thêm!</span>
+                        <span> Chi nhánh đã đạt kịch trần định biên ({branchQuota.standardQuota} nhân sự). Không thể tuyển thêm!</span>
                       )}
                     </div>
 
@@ -1393,7 +1396,7 @@ export default function EmployeeFormModal({
                           fontWeight: 700,
                         }}
                       >
-                        {upgradingTier ? 'Đang Nâng Tier...' : ` Nâng Lên Tier ${branchQuota.branchTier - 1}`}
+                        {upgradingTier ? 'Đang Nâng Phân Cấp...' : 'Nâng Phân Cấp'}
                       </Button>
                     )}
                   </div>
