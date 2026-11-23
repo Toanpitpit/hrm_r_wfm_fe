@@ -255,9 +255,18 @@ export default function EmployeeTable({
                   e.currentTarget.style.background = isNew ? 'rgba(16, 185, 129, 0.05)' : 'transparent';
                 }}
               >
-                {/* Họ tên & Avatar */}
+                {/* Họ tên & Avatar (Nhấn để xem chi tiết hồ sơ) */}
                 <td style={{ padding: '12px 16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      cursor: onViewDetail ? 'pointer' : 'default',
+                    }}
+                    onClick={() => onViewDetail && onViewDetail(emp)}
+                    title="Nhấn để xem chi tiết hồ sơ nhân sự"
+                  >
                     <div
                       style={{
                         width: '36px',
@@ -275,13 +284,24 @@ export default function EmployeeTable({
                         fontSize: '14px',
                         flexShrink: 0,
                         boxShadow: isNew ? '0 0 10px rgba(16, 185, 129, 0.3)' : 'none',
+                        transition: 'transform 0.15s ease',
                       }}
+                      onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.08)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
                     >
                       {avatarLetter}
                     </div>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontWeight: 600, color: c.fg }}>
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color: c.fg,
+                            transition: 'color 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = c.accent; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = c.fg; }}
+                        >
                           {emp.fullName || 'Chưa đặt tên'}
                         </span>
                         {isNew && (
@@ -364,18 +384,19 @@ export default function EmployeeTable({
                       <span
                         style={{
                           fontSize: '10.5px',
-                          padding: '1px 6px',
+                          padding: '2px 7px',
                           background: 'rgba(59, 130, 246, 0.15)',
                           color: '#60a5fa',
                           borderRadius: '4px',
                           fontWeight: 600,
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '3px',
+                          gap: '4px',
                         }}
-                        title={`Nhân sự điều chuyển từ: ${emp.originalBranchName || `Chi nhánh #${emp.originalHomeBranchId}`}`}
+                        title={`Biên chế gốc: ${emp.originalBranchName || `Chi nhánh #${emp.originalHomeBranchId}`} · Đang công tác tại: ${emp.branchName}`}
                       >
-                        Chi viện từ {emp.originalBranchName || `CN #${emp.originalHomeBranchId}`}
+                        <Icon name="swap" size={11} color="#60a5fa" />
+                        <span>Biên chế: {emp.originalBranchName || `CN #${emp.originalHomeBranchId}`} (Đang chi viện tại {emp.branchName})</span>
                       </span>
                     </div>
                   )}
@@ -434,27 +455,48 @@ export default function EmployeeTable({
 
                 {/* Hành động */}
                 <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
-                    {/* Xem chi tiết */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onViewDetail(emp)}
-                      title="Xem chi tiết hồ sơ"
-                    >
-                      <Icon name="eye" size={15} />
-                    </Button>
+                  <div style={{ display: 'inline-flex', gap: '5px', alignItems: 'center' }}>
+                    {/* Quản trị trạng thái: 2 nút Mở khóa & Khóa tài khoản thành các icon tương ứng */}
+                    {canManageSystem && onToggleStatus && (
+                      <>
+                        {/* Nút Mở khóa tài khoản (Icon Unlock) */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={!isInactive}
+                          onClick={() => isInactive && onToggleStatus(emp)}
+                          title={isInactive ? "Mở khóa / Kích hoạt lại tài khoản" : "Tài khoản đang hoạt động (không cần mở khóa)"}
+                          style={{
+                            color: isInactive ? '#10b981' : c.fgSubtle,
+                            border: isInactive ? '1px solid rgba(16, 185, 129, 0.4)' : `1px solid ${c.border}`,
+                            background: isInactive ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
+                            opacity: isInactive ? 1 : 0.3,
+                            cursor: isInactive ? 'pointer' : 'not-allowed',
+                            padding: '6px 8px',
+                          }}
+                        >
+                          <Icon name="unlock" size={15} color={isInactive ? '#10b981' : c.fgSubtle} />
+                        </Button>
 
-                    {/* Chỉnh sửa hồ sơ: Chỉ dành cho Operations Admin & Business Owner, Store Manager chỉ được xem */}
-                    {canManageSystem && onEdit && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEdit(emp)}
-                        title="Chỉnh sửa hồ sơ & quản trị tài khoản"
-                      >
-                        <Icon name="edit" size={15} />
-                      </Button>
+                        {/* Nút Khóa tài khoản (Icon Lock) */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={isInactive}
+                          onClick={() => !isInactive && onToggleStatus(emp)}
+                          title={!isInactive ? "Khóa tài khoản nhân sự" : "Tài khoản hiện đang bị khóa"}
+                          style={{
+                            color: !isInactive ? '#ef4444' : c.fgSubtle,
+                            border: !isInactive ? '1px solid rgba(239, 68, 68, 0.4)' : `1px solid ${c.border}`,
+                            background: !isInactive ? 'rgba(239, 68, 68, 0.12)' : 'transparent',
+                            opacity: !isInactive ? 1 : 0.3,
+                            cursor: !isInactive ? 'pointer' : 'not-allowed',
+                            padding: '6px 8px',
+                          }}
+                        >
+                          <Icon name="lock" size={15} color={!isInactive ? '#ef4444' : c.fgSubtle} />
+                        </Button>
+                      </>
                     )}
                   </div>
                 </td>

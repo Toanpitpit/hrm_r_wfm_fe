@@ -165,212 +165,214 @@ export default function DispatchNetworkMetricsPage() {
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* Header */}
-          <PageHeader
-            index="Quản trị chuỗi · Báo cáo mạng lưới"
-            title="Ma Trận & Giám Sát Điều Động Mạng Lưới"
-            desc="Phân tích luồng dịch chuyển nhân sự liên chi nhánh và tổng hợp giờ công chi viện phục vụ tính chi phí vận hành"
-          />
+        {/* Header */}
+        <PageHeader
+          index="Quản trị chuỗi · Báo cáo mạng lưới"
+          title="Ma Trận & Giám Sát Điều Động Mạng Lưới"
+          desc="Phân tích luồng dịch chuyển nhân sự liên chi nhánh và tổng hợp giờ công chi viện phục vụ tính chi phí vận hành"
+        />
 
-          {/* Thanh lọc thời gian */}
-          <Panel style={{ padding: '14px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', color: c.fgFaint }}>
-                  Khoảng thời gian:
-                </span>
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  style={{
-                    background: c.bgRaised,
-                    border: `1px solid ${c.border}`,
-                    borderRadius: 6,
-                    color: c.fg,
-                    fontSize: 13,
-                    fontFamily: fonts.body,
-                    padding: '7px 10px',
-                    outline: 'none',
-                  }}
-                />
-                <span style={{ color: c.fgFaint }}>&rarr;</span>
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  style={{
-                    background: c.bgRaised,
-                    border: `1px solid ${c.border}`,
-                    borderRadius: 6,
-                    color: c.fg,
-                    fontSize: 13,
-                    fontFamily: fonts.body,
-                    padding: '7px 10px',
-                    outline: 'none',
-                  }}
-                />
-                {(fromDate || toDate) && (
-                  <Button
-                    size="sm"
-                    kind="ghost"
-                    onClick={() => {
-                      setFromDate('');
-                      setToDate('');
-                    }}
-                  >
-                    Xóa lọc ngày
-                  </Button>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', gap: 8 }}>
+        {/* Thanh lọc thời gian */}
+        <Panel style={{ padding: '14px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', color: c.fgFaint }}>
+                Khoảng thời gian:
+              </span>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                style={{
+                  background: c.bgRaised,
+                  border: `1px solid ${c.border}`,
+                  borderRadius: 6,
+                  color: c.fg,
+                  fontSize: 13,
+                  fontFamily: fonts.body,
+                  padding: '7px 10px',
+                  outline: 'none',
+                }}
+              />
+              <span style={{ color: c.fgFaint }}>&rarr;</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                style={{
+                  background: c.bgRaised,
+                  border: `1px solid ${c.border}`,
+                  borderRadius: 6,
+                  color: c.fg,
+                  fontSize: 13,
+                  fontFamily: fonts.body,
+                  padding: '7px 10px',
+                  outline: 'none',
+                }}
+              />
+              {(fromDate || toDate) && (
                 <Button
                   size="sm"
-                  kind="soft"
+                  kind="ghost"
                   onClick={() => {
-                    const d = new Date();
-                    const firstDay = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-                    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
-                    setFromDate(firstDay);
-                    setToDate(lastDay);
+                    setFromDate('');
+                    setToDate('');
                   }}
                 >
-                  Tháng Này
+                  Xóa lọc ngày
                 </Button>
-                <Button
-                  size="sm"
-                  kind="soft"
-                  onClick={() => {
-                    const d = new Date();
-                    const firstDay = new Date(d.getFullYear(), 0, 1).toISOString().split('T')[0];
-                    const lastDay = new Date(d.getFullYear(), 11, 31).toISOString().split('T')[0];
-                    setFromDate(firstDay);
-                    setToDate(lastDay);
-                  }}
-                >
-                  Năm Nay
-                </Button>
-              </div>
+              )}
             </div>
-          </Panel>
 
-          {/* 4 Thẻ KPI Mạng Lưới */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <StatCard
-              title="TỔNG LƯỢT ĐIỀU ĐỘNG"
-              value={metrics.totalDispatches}
-              subtext={`${metrics.approvedCount} đã duyệt • ${metrics.rejectedCount} từ chối`}
-              icon="pulse"
-              tone="neutral"
-            />
-            <StatCard
-              title="YÊU CẦU CHỜ DUYỆT"
-              value={metrics.pendingCount}
-              subtext="Cần các Cửa hàng trưởng xử lý"
-              icon="bell"
-              tone={metrics.pendingCount > 0 ? 'warn' : 'neutral'}
-            />
-            <StatCard
-              title="ĐANG CHI VIỆN HÔM NAY"
-              value={metrics.activeTodayCount}
-              subtext="Nhân sự đang làm việc tại cơ sở khác"
-              icon="users"
-              tone="ok"
-            />
-            <StatCard
-              title="TỔNG GIỜ CÔNG CHI VIỆN"
-              value={`${(metrics.totalDispatchedHours || 0).toLocaleString('vi-VN')}h`}
-              subtext="Tương đương quy chuẩn 8 giờ / ca"
-              icon="calendar"
-              tone="ok"
-            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button
+                size="sm"
+                kind="soft"
+                onClick={() => {
+                  const d = new Date();
+                  const firstDay = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+                  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+                  setFromDate(firstDay);
+                  setToDate(lastDay);
+                }}
+              >
+                Tháng Này
+              </Button>
+              <Button
+                size="sm"
+                kind="soft"
+                onClick={() => {
+                  const d = new Date();
+                  const firstDay = new Date(d.getFullYear(), 0, 1).toISOString().split('T')[0];
+                  const lastDay = new Date(d.getFullYear(), 11, 31).toISOString().split('T')[0];
+                  setFromDate(firstDay);
+                  setToDate(lastDay);
+                }}
+              >
+                Năm Nay
+              </Button>
+            </div>
+          </div>
+        </Panel>
+
+        {/* 4 Thẻ KPI Mạng Lưới */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+          <StatCard
+            title="TỔNG LƯỢT ĐIỀU ĐỘNG"
+            value={metrics.totalDispatches}
+            subtext={`${metrics.approvedCount} đã duyệt • ${metrics.rejectedCount} từ chối`}
+            icon="pulse"
+            tone="neutral"
+          />
+          <StatCard
+            title="YÊU CẦU CHỜ DUYỆT"
+            value={metrics.pendingCount}
+            subtext="Cần các Cửa hàng trưởng xử lý"
+            icon="bell"
+            tone={metrics.pendingCount > 0 ? 'warn' : 'neutral'}
+          />
+          <StatCard
+            title="ĐANG CHI VIỆN HÔM NAY"
+            value={metrics.activeTodayCount}
+            subtext="Nhân sự đang làm việc tại cơ sở khác"
+            icon="users"
+            tone="ok"
+          />
+          <StatCard
+            title="TỔNG GIỜ CÔNG CHI VIỆN"
+            value={`${(metrics.totalDispatchedHours || 0).toLocaleString('vi-VN')}h`}
+            subtext="Tương đương quy chuẩn 8 giờ / ca"
+            icon="calendar"
+            tone="ok"
+          />
+        </div>
+
+        {/* Phần 1: Ma trận cặp chi nhánh */}
+        <Panel style={{ padding: 20 }}>
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: c.fg, margin: 0 }}>
+                Ma Trận Dòng Điều Chuyển Giữa Các Cặp Chi Nhánh
+              </h2>
+              <p style={{ fontSize: 12.5, color: c.fgFaint, margin: '4px 0 0' }}>
+                Thống kê khối lượng mượn quân và số giờ công phát sinh giữa các cơ sở đối tác
+              </p>
+            </div>
+            <span style={{ fontSize: 12, color: c.accent, fontWeight: 600 }}>
+              {metrics.storePairMatrix?.length || 0} tuyến chi viện ghi nhận
+            </span>
           </div>
 
-          {/* Phần 1: Ma trận cặp chi nhánh */}
-          <Panel style={{ padding: 20 }}>
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: c.fg, margin: 0 }}>
-                  Ma Trận Dòng Điều Chuyển Giữa Các Cặp Chi Nhánh
-                </h2>
-                <p style={{ fontSize: 12.5, color: c.fgFaint, margin: '4px 0 0' }}>
-                  Thống kê khối lượng mượn quân và số giờ công phát sinh giữa các cơ sở đối tác
-                </p>
-              </div>
-              <span style={{ fontSize: 12, color: c.accent, fontWeight: 600 }}>
-                {metrics.storePairMatrix?.length || 0} tuyến chi viện ghi nhận
-              </span>
+          <DispatchNetworkMatrix
+            matrix={metrics.storePairMatrix}
+            loading={loading}
+            emptyText="Chưa ghi nhận tuyến điều động nào trong khoảng thời gian đã chọn."
+          />
+        </Panel>
+
+        {/* Phần 2: Toàn bộ lịch sử điều động toàn hệ thống */}
+        <Panel style={{ padding: 20 }}>
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: c.fg, margin: 0 }}>
+                Lịch Sử Điều Động Nhân Sự Toàn Chuỗi
+              </h2>
+              <p style={{ fontSize: 12.5, color: c.fgFaint, margin: '4px 0 0' }}>
+                Danh sách chi tiết tất cả các phiếu đề nghị chi viện nhân sự toàn hệ thống
+              </p>
             </div>
 
-            <DispatchNetworkMatrix
-              matrix={metrics.storePairMatrix}
-              loading={loading}
-              emptyText="Chưa ghi nhận tuyến điều động nào trong khoảng thời gian đã chọn."
-            />
-          </Panel>
+            {/* Bộ lọc bảng */}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Select
+                value={storeFilter}
+                onChange={(v) => setStoreFilter(v)}
+                options={branchOptions}
+                width={190}
+              />
 
-          {/* Phần 2: Toàn bộ lịch sử điều động toàn hệ thống */}
-          <Panel style={{ padding: 20 }}>
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
-              <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: c.fg, margin: 0 }}>
-                  Lịch Sử Điều Động Nhân Sự Toàn Chuỗi
-                </h2>
-                <p style={{ fontSize: 12.5, color: c.fgFaint, margin: '4px 0 0' }}>
-                  Danh sách chi tiết tất cả các phiếu đề nghị chi viện nhân sự toàn hệ thống
-                </p>
-              </div>
+              <Select
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(v)}
+                options={[
+                  { value: 'ALL', label: 'Tất cả trạng thái' },
+                  { value: 'PENDING', label: 'Chờ xét duyệt' },
+                  { value: 'APPROVED', label: 'Đã phê duyệt' },
+                  { value: 'PARTIAL', label: 'Duyệt một phần' },
+                  { value: 'REJECTED', label: 'Đã từ chối' },
 
-              {/* Bộ lọc bảng */}
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                <Select
-                  value={storeFilter}
-                  onChange={(v) => setStoreFilter(v)}
-                  options={branchOptions}
-                  width={190}
-                />
+                ]}
+                width={160}
+              />
 
-                <Select
-                  value={statusFilter}
-                  onChange={(v) => setStatusFilter(v)}
-                  options={[
-                    { value: 'ALL', label: 'Tất cả trạng thái' },
-                    { value: 'PENDING', label: 'Chờ xét duyệt' },
-                    { value: 'APPROVED', label: 'Đã phê duyệt' },
-                    { value: 'REJECTED', label: 'Đã từ chối' },
-                  ]}
-                  width={160}
-                />
-
-                <SearchInput
-                  value={searchTerm}
-                  onChange={(v) => setSearchTerm(v)}
-                  placeholder="Tìm nhân sự, mã, cơ sở..."
-                  width={210}
-                />
-              </div>
+              <SearchInput
+                value={searchTerm}
+                onChange={(v) => setSearchTerm(v)}
+                placeholder="Tìm nhân sự, mã, cơ sở..."
+                width={210}
+              />
             </div>
+          </div>
 
-            <DispatchListTable
-              dispatches={filteredDispatches}
-              loading={tableLoading}
-              onViewDetail={(item) => setDetailItem(item)}
-              emptyText="Không tìm thấy lệnh điều động nào phù hợp với bộ lọc."
-            />
-          </Panel>
+          <DispatchListTable
+            dispatches={filteredDispatches}
+            loading={tableLoading}
+            onViewDetail={(item) => setDetailItem(item)}
+            emptyText="Không tìm thấy lệnh điều động nào phù hợp với bộ lọc."
+          />
+        </Panel>
 
-      {/* Modal Xem Chi Tiết & Phê Duyệt / Từ Chối */}
-      <DispatchDetailModal
-        open={Boolean(detailItem)}
-        onClose={() => setDetailItem(null)}
-        dispatchItem={detailItem}
-        currentStoreId={null}
-        onSuccess={() => {
-          setDetailItem(null);
-          loadNetworkData();
-        }}
-      />
+        {/* Modal Xem Chi Tiết & Phê Duyệt / Từ Chối */}
+        <DispatchDetailModal
+          open={Boolean(detailItem)}
+          onClose={() => setDetailItem(null)}
+          dispatchItem={detailItem}
+          currentStoreId={null}
+          onSuccess={() => {
+            setDetailItem(null);
+            loadNetworkData();
+          }}
+        />
       </div>
     </DashboardShell>
   );

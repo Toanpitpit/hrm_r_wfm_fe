@@ -13,6 +13,7 @@ export default function ResetPasswordModal({
 }) {
   const { c, fonts, theme } = useAdminTheme();
   const isDark = theme === 'dark';
+  const isInactive = employee?.status === 'INACTIVE';
 
   const [useCustomPassword, setUseCustomPassword] = useState(false);
   const [customPassword, setCustomPassword] = useState('');
@@ -86,8 +87,8 @@ export default function ResetPasswordModal({
             <Button
               variant="primary"
               onClick={handleReset}
-              disabled={submitting || (useCustomPassword && !customPassword.trim())}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              disabled={submitting || isInactive || (useCustomPassword && !customPassword.trim())}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: isInactive ? 0.4 : 1 }}
             >
               <Icon name="lock" size={14} />
               <span>{submitting ? 'Đang xử lý...' : 'Xác Nhận Đặt Lại Mật Khẩu'}</span>
@@ -198,6 +199,26 @@ export default function ResetPasswordModal({
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {isInactive && (
+            <div
+              style={{
+                padding: '12px 14px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: '8px',
+                fontSize: '13px',
+                color: '#ef4444',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <Icon name="lock" size={16} color="#ef4444" />
+              <span>Tài khoản nhân sự này hiện đang bị KHÓA. Không thể đặt lại mật khẩu khi tài khoản chưa được kích hoạt lại.</span>
+            </div>
+          )}
+
           <div
             style={{
               padding: '12px 14px',

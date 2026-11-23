@@ -51,6 +51,7 @@ export default function EmployeeFormModal({
   });
 
   const [errors, setErrors] = useState({});
+  const [duplicateCodeInfo, setDuplicateCodeInfo] = useState(null);
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -133,6 +134,21 @@ export default function EmployeeFormModal({
       (e) => (e.employeeCode || '').trim().toUpperCase() === trimmed && (!isEdit || e.id !== initialData?.id)
     );
     if (localMatch) {
+      const isLocalInactive = (localMatch.status || '').toUpperCase() === 'INACTIVE';
+      if (isLocalInactive) {
+        setDuplicateCodeInfo({
+          id: localMatch.id,
+          employeeCode: trimmed,
+          fullName: localMatch.fullName || 'Nhân sự',
+          status: 'INACTIVE',
+        });
+        setErrors((prev) => ({
+          ...prev,
+          employeeCode: `Mã nhân viên "${trimmed}" đã tồn tại (${localMatch.fullName || 'Hệ thống'}) nhưng tài khoản đang bị KHÓA.`,
+        }));
+        return;
+      }
+      setDuplicateCodeInfo(null);
       setErrors((prev) => ({
         ...prev,
         employeeCode: `Mã nhân viên "${trimmed}" đã tồn tại (${localMatch.fullName || 'Đã có trên hệ thống'}). Vui lòng đổi mã khác.`,
@@ -144,11 +160,26 @@ export default function EmployeeFormModal({
     try {
       const res = await employeeService.checkDuplicate({ employeeCode: trimmed, excludeId: initialData?.id });
       if (res?.isEmployeeCodeDuplicate) {
-        setErrors((prev) => ({
-          ...prev,
-          employeeCode: `Mã nhân viên "${trimmed}" đã tồn tại (${res.existingEmployeeName || 'Đã có trong hệ thống'}). Vui lòng đổi mã khác.`,
-        }));
+        if (res.canUnlock && res.existingUserId) {
+          setDuplicateCodeInfo({
+            id: res.existingUserId,
+            employeeCode: trimmed,
+            fullName: res.existingEmployeeName || 'Nhân sự',
+            status: 'INACTIVE',
+          });
+          setErrors((prev) => ({
+            ...prev,
+            employeeCode: `Mã nhân viên "${trimmed}" đã tồn tại (${res.existingEmployeeName || 'Hệ thống'}) nhưng tài khoản đang bị KHÓA.`,
+          }));
+        } else {
+          setDuplicateCodeInfo(null);
+          setErrors((prev) => ({
+            ...prev,
+            employeeCode: `Mã nhân viên "${trimmed}" đã tồn tại (${res.existingEmployeeName || 'Đã có trong hệ thống'}). Vui lòng đổi mã khác.`,
+          }));
+        }
       } else {
+        setDuplicateCodeInfo(null);
         setErrors((prev) => {
           if (prev.employeeCode && prev.employeeCode.includes('đã tồn tại')) {
             const { employeeCode: _, ...rest } = prev;
@@ -171,6 +202,20 @@ export default function EmployeeFormModal({
       (e) => (e.email || '').trim().toLowerCase() === trimmed && (!isEdit || e.id !== initialData?.id)
     );
     if (localMatch) {
+      const isLocalInactive = (localMatch.status || '').toUpperCase() === 'INACTIVE';
+      if (isLocalInactive) {
+        setDuplicateCodeInfo({
+          id: localMatch.id,
+          employeeCode: localMatch.employeeCode || '',
+          fullName: localMatch.fullName || 'Nhân sự',
+          status: 'INACTIVE',
+        });
+        setErrors((prev) => ({
+          ...prev,
+          email: `Email "${trimmed}" thuộc về nhân sự cũ (${localMatch.fullName || 'Hệ thống'} - ${localMatch.employeeCode || ''}) đang bị KHÓA.`,
+        }));
+        return;
+      }
       setErrors((prev) => ({
         ...prev,
         email: `Email "${trimmed}" đã được sử dụng (${localMatch.fullName || 'Đã có trong hệ thống'}).`,
@@ -181,13 +226,26 @@ export default function EmployeeFormModal({
     try {
       const res = await employeeService.checkDuplicate({ email: trimmed, excludeId: initialData?.id });
       if (res?.isEmailDuplicate) {
-        setErrors((prev) => ({
-          ...prev,
-          email: `Email "${trimmed}" đã được sử dụng (${res.existingEmailOwnerName || 'Đã có trong hệ thống'}).`,
-        }));
+        if (res.canUnlock && res.existingUserId) {
+          setDuplicateCodeInfo({
+            id: res.existingUserId,
+            employeeCode: res.existingEmployeeCode || '',
+            fullName: res.existingEmailOwnerName || res.existingEmployeeName || 'Nhân sự',
+            status: 'INACTIVE',
+          });
+          setErrors((prev) => ({
+            ...prev,
+            email: `Email "${trimmed}" thuộc về nhân sự cũ (${res.existingEmailOwnerName || 'Hệ thống'}) đang bị KHÓA.`,
+          }));
+        } else {
+          setErrors((prev) => ({
+            ...prev,
+            email: `Email "${trimmed}" đã được sử dụng (${res.existingEmailOwnerName || 'Đã có trong hệ thống'}).`,
+          }));
+        }
       } else {
         setErrors((prev) => {
-          if (prev.email && (prev.email.includes('đã được sử dụng') || prev.email.includes('không đúng định dạng'))) {
+          if (prev.email && (prev.email.includes('đã được sử dụng') || prev.email.includes('không đúng định dạng') || prev.email.includes('đang bị KHÓA'))) {
             const { email: _, ...rest } = prev;
             return rest;
           }
@@ -208,6 +266,20 @@ export default function EmployeeFormModal({
       (e) => (e.phone || '').trim().replace(/\s/g, '') === clean && (!isEdit || e.id !== initialData?.id)
     );
     if (localMatch) {
+      const isLocalInactive = (localMatch.status || '').toUpperCase() === 'INACTIVE';
+      if (isLocalInactive) {
+        setDuplicateCodeInfo({
+          id: localMatch.id,
+          employeeCode: localMatch.employeeCode || '',
+          fullName: localMatch.fullName || 'Nhân sự',
+          status: 'INACTIVE',
+        });
+        setErrors((prev) => ({
+          ...prev,
+          phone: `Số điện thoại "${phone}" thuộc về nhân sự cũ (${localMatch.fullName || 'Hệ thống'} - ${localMatch.employeeCode || ''}) đang bị KHÓA.`,
+        }));
+        return;
+      }
       setErrors((prev) => ({
         ...prev,
         phone: `Số điện thoại "${phone}" đã được sử dụng (${localMatch.fullName || 'Đã có trong hệ thống'}).`,
@@ -218,13 +290,26 @@ export default function EmployeeFormModal({
     try {
       const res = await employeeService.checkDuplicate({ phone: clean, excludeId: initialData?.id });
       if (res?.isPhoneDuplicate) {
-        setErrors((prev) => ({
-          ...prev,
-          phone: `Số điện thoại "${phone}" đã được sử dụng (${res.existingPhoneOwnerName || 'Đã có trong hệ thống'}).`,
-        }));
+        if (res.canUnlock && res.existingUserId) {
+          setDuplicateCodeInfo({
+            id: res.existingUserId,
+            employeeCode: res.existingEmployeeCode || '',
+            fullName: res.existingPhoneOwnerName || res.existingEmployeeName || 'Nhân sự',
+            status: 'INACTIVE',
+          });
+          setErrors((prev) => ({
+            ...prev,
+            phone: `Số điện thoại "${phone}" thuộc về nhân sự cũ (${res.existingPhoneOwnerName || 'Hệ thống'}) đang bị KHÓA.`,
+          }));
+        } else {
+          setErrors((prev) => ({
+            ...prev,
+            phone: `Số điện thoại "${phone}" đã được sử dụng (${res.existingPhoneOwnerName || 'Đã có trong hệ thống'}).`,
+          }));
+        }
       } else {
         setErrors((prev) => {
-          if (prev.phone && (prev.phone.includes('đã được sử dụng') || prev.phone.includes('không hợp lệ'))) {
+          if (prev.phone && (prev.phone.includes('đã được sử dụng') || prev.phone.includes('không hợp lệ') || prev.phone.includes('đang bị KHÓA'))) {
             const { phone: _, ...rest } = prev;
             return rest;
           }
@@ -893,6 +978,19 @@ export default function EmployeeFormModal({
     }
   };
 
+  const handleUnlockFromImport = (errRow, fallbackEmp) => {
+    const target = fallbackEmp || {
+      id: errRow.existingUserId ?? errRow.ExistingUserId,
+      employeeCode: errRow.employeeCode ?? errRow.EmployeeCode ?? errRow.rowData?.employeeCode ?? errRow.RowData?.EmployeeCode,
+      fullName: errRow.fullName ?? errRow.FullName ?? errRow.rowData?.fullName ?? errRow.RowData?.FullName ?? '',
+      status: 'INACTIVE',
+    };
+    if (target?.id && onToggleStatus) {
+      onClose();
+      onToggleStatus(target);
+    }
+  };
+
   const getFileExtIcon = (fileName) => {
     const ext = ('.' + (fileName || '').split('.').pop()).toLowerCase();
     if (['.xlsx', '.xls'].includes(ext)) return 'file-spreadsheet';
@@ -1138,12 +1236,49 @@ export default function EmployeeFormModal({
               >
                 <TextInput
                   value={formData.employeeCode}
-                  onChange={(e) => handleChange('employeeCode', e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    if (duplicateCodeInfo) setDuplicateCodeInfo(null);
+                    handleChange('employeeCode', e.target.value.toUpperCase());
+                  }}
                   onBlur={() => handleFieldBlur('employeeCode')}
                   placeholder="VD: NV-001 hoặc SM-001"
                   disabled={isEdit}
                   error={Boolean(errors.employeeCode)}
                 />
+                {duplicateCodeInfo && errors.employeeCode && errors.employeeCode.includes('đang bị KHÓA') && (
+                  <div style={{ marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onToggleStatus) {
+                          onClose();
+                          onToggleStatus({
+                            ...duplicateCodeInfo,
+                            targetBranchId: formData.branchId || currentStoreBranchId,
+                            targetBranchName: branches.find((b) => String(b.id) === String(formData.branchId || currentStoreBranchId))?.name,
+                          });
+                        }
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        background: '#0D9488',
+                        color: '#ffffff',
+                        border: 'none',
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      }}
+                    >
+                      <Icon name="unlock" size={12} color="#ffffff" />
+                      <span>Mở khóa tài khoản [{duplicateCodeInfo.employeeCode || formData.employeeCode}] này lên</span>
+                    </button>
+                  </div>
+                )}
               </Field>
 
               {/* Họ và tên */}
@@ -1165,24 +1300,96 @@ export default function EmployeeFormModal({
                 <TextInput
                   type="email"
                   value={formData.email}
-                  onChange={(e) => handleChange('email', e.target.value)}
+                  onChange={(e) => {
+                    if (duplicateCodeInfo) setDuplicateCodeInfo(null);
+                    handleChange('email', e.target.value);
+                  }}
                   onBlur={() => handleFieldBlur('email')}
                   placeholder="VD: an.nguyen@rwfm.vn"
                   disabled={isEdit}
                   error={Boolean(errors.email)}
                 />
+                {duplicateCodeInfo && errors.email && errors.email.includes('đang bị KHÓA') && (
+                  <div style={{ marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onToggleStatus) {
+                          onClose();
+                          onToggleStatus({
+                            ...duplicateCodeInfo,
+                            targetBranchId: formData.branchId || currentStoreBranchId,
+                            targetBranchName: branches.find((b) => String(b.id) === String(formData.branchId || currentStoreBranchId))?.name,
+                          });
+                        }
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 10px',
+                        background: '#0D9488',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <Icon name="unlock" size={12} color="#ffffff" />
+                      <span>Mở khóa tài khoản [{duplicateCodeInfo.employeeCode || duplicateCodeInfo.fullName}] này lên</span>
+                    </button>
+                  </div>
+                )}
               </Field>
 
               {/* Số điện thoại */}
               <Field label="Số Điện Thoại" required error={errors.phone}>
                 <TextInput
                   value={formData.phone}
-                  onChange={(e) => handleChange('phone', e.target.value)}
+                  onChange={(e) => {
+                    if (duplicateCodeInfo) setDuplicateCodeInfo(null);
+                    handleChange('phone', e.target.value);
+                  }}
                   onBlur={() => handleFieldBlur('phone')}
                   placeholder="VD: 0912345678"
                   disabled={isEdit}
                   error={Boolean(errors.phone)}
                 />
+                {duplicateCodeInfo && errors.phone && errors.phone.includes('đang bị KHÓA') && (
+                  <div style={{ marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onToggleStatus) {
+                          onClose();
+                          onToggleStatus({
+                            ...duplicateCodeInfo,
+                            targetBranchId: formData.branchId || currentStoreBranchId,
+                            targetBranchName: branches.find((b) => String(b.id) === String(formData.branchId || currentStoreBranchId))?.name,
+                          });
+                        }
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 10px',
+                        background: '#0D9488',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <Icon name="unlock" size={12} color="#ffffff" />
+                      <span>Mở khóa tài khoản [{duplicateCodeInfo.employeeCode || duplicateCodeInfo.fullName}] này lên</span>
+                    </button>
+                  </div>
+                )}
               </Field>
             </div>
 
@@ -1481,63 +1688,10 @@ export default function EmployeeFormModal({
                   </div>
                 </div>
 
-                {/* Các nút hành động: Khóa/Mở, Reset mật khẩu, Xóa tài khoản */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    flexWrap: 'wrap',
-                    paddingTop: '6px',
-                    borderTop: `1px solid ${c.border}`,
-                  }}
-                >
-                  {/* Nút Khóa / Mở Khóa: Kích hoạt modal xác nhận có lý do & kiểm tra dịch vụ */}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      onClose();
-                      onToggleStatus?.(initialData);
-                    }}
-                    style={{
-                      fontSize: '12.5px',
-                      fontWeight: 600,
-                      border: `1px solid ${accountStatus === 'INACTIVE' ? '#22c55e' : '#f59e0b'}`,
-                      color: accountStatus === 'INACTIVE' ? '#22c55e' : '#f59e0b',
-                      background: accountStatus === 'INACTIVE' ? 'rgba(34, 197, 94, 0.05)' : 'rgba(245, 158, 11, 0.05)',
-                    }}
-                  >
-                    <span>
-                      {accountStatus === 'INACTIVE' ? 'Mở Khóa Tài Khoản' : 'Khóa Tài Khoản'}
-                    </span>
-                  </Button>
-
-                  {/* Nút Reset Mật Khẩu: Kích hoạt modal reset có lý do và gửi email */}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      onClose();
-                      onResetPassword?.(initialData);
-                    }}
-                    style={{
-                      fontSize: '12.5px',
-                      fontWeight: 600,
-                      border: '1px solid #f2ca50',
-                      color: '#f2ca50',
-                      background: 'rgba(242, 202, 80, 0.05)',
-                    }}
-                  >
-                    <span>Reset Mật Khẩu</span>
-                  </Button>
-
-                </div>
-
                 {/* Dòng ghi chú chính sách bảo toàn dữ liệu đối soát chuẩn Enterprise */}
-                <div style={{ fontSize: '11.5px', lineHeight: '1.4', color: c.fgSubtle }}>
+                <div style={{ fontSize: '11.5px', lineHeight: '1.4', color: c.fgSubtle, paddingTop: '6px', borderTop: `1px solid ${c.border}` }}>
                   <span>
-                    <strong>Chính sách lưu trữ & đối soát:</strong> Hệ thống không hỗ trợ xóa tài khoản nhằm bảo đảm tính toàn vẹn dữ liệu phân ca, chấm công, tính lương và kiểm toán. Để cho nhân sự thôi việc hoặc ngừng phân ca, vui lòng sử dụng tính năng <strong>"Khóa Tài Khoản"</strong>.
+                    <strong>Chính sách lưu trữ & đối soát:</strong> Hệ thống không hỗ trợ xóa tài khoản nhằm bảo đảm tính toàn vẹn dữ liệu phân ca, chấm công, tính lương và kiểm toán. Để cho nhân sự thôi việc hoặc ngừng phân ca, vui lòng sử dụng tính năng <strong>"Khóa / Mở Khóa Tài Khoản"</strong> trực tiếp tại bảng danh sách nhân sự.
                   </span>
                 </div>
               </div>
@@ -1865,6 +2019,25 @@ export default function EmployeeFormModal({
                             const rawMsg = errRow.errorMessage ?? errRow.ErrorMessage ?? errRow.errorMessages ?? errRow.ErrorMessages;
                             const errMsg = Array.isArray(rawMsg) ? rawMsg.join('; ') : (rawMsg || 'Dữ liệu không hợp lệ');
 
+                            const normCode = String(code || '').trim().toUpperCase();
+                            const localMatch = existingEmployees?.find(
+                              (e) => (e.employeeCode || '').trim().toUpperCase() === normCode
+                            );
+                            const isLocallyInactive = localMatch && (String(localMatch.status || '').toUpperCase() === 'INACTIVE');
+                            const canUnlock = Boolean(
+                              (errRow.canUnlock ?? errRow.CanUnlock) ||
+                              (String(errRow.existingUserStatus ?? errRow.ExistingUserStatus ?? '').toUpperCase() === 'INACTIVE') ||
+                              isLocallyInactive
+                            );
+                            const existingUserId = errRow.existingUserId ?? errRow.ExistingUserId ?? localMatch?.id;
+
+                            const unlockPayload = {
+                              id: existingUserId,
+                              employeeCode: normCode || code,
+                              fullName: name || localMatch?.fullName || 'Nhân sự',
+                              status: 'INACTIVE',
+                            };
+
                             return (
                               <tr
                                 key={idx}
@@ -1874,7 +2047,36 @@ export default function EmployeeFormModal({
                                   Dòng {rowNum}
                                 </td>
                                 <td style={{ padding: '7px 10px', color: c.fgMuted }}>
-                                  <span style={{ fontWeight: 600, color: c.fg }}>{code}</span>
+                                  {canUnlock && existingUserId ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUnlockFromImport(errRow, unlockPayload)}
+                                      title="Tài khoản này đang bị khóa. Bấm vào đây để mở khóa kích hoạt lại tài khoản!"
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        padding: '2px 8px',
+                                        borderRadius: '5px',
+                                        border: '1px solid #0D9488',
+                                        background: 'rgba(13, 148, 136, 0.1)',
+                                        color: '#0D9488',
+                                        fontWeight: 700,
+                                        fontSize: '12px',
+                                        cursor: 'pointer',
+                                        textDecoration: 'underline',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                    >
+                                     
+                                      <span>{code}</span>
+                                      <span style={{ fontSize: '10px', fontWeight: 600, color: '#0D9488', background: 'rgba(13, 148, 136, 0.18)', padding: '1px 4px', borderRadius: '3px' }}>
+                                        Mở khóa
+                                      </span>
+                                    </button>
+                                  ) : (
+                                    <span style={{ fontWeight: 600, color: c.fg }}>{code}</span>
+                                  )}
                                   {name && (
                                     <span style={{ marginLeft: '4px', color: c.fgSubtle, fontSize: '11px' }}>
                                       ({name})
@@ -1887,7 +2089,22 @@ export default function EmployeeFormModal({
                                   )}
                                 </td>
                                 <td style={{ padding: '7px 10px', color: '#DC2626' }}>
-                                  {errMsg}
+                                  <div>
+                                    {canUnlock && errMsg.includes('đã tồn tại trong hệ thống') && !errMsg.includes('KHÓA')
+                                      ? `Mã nhân viên '${code}' đã tồn tại nhưng tài khoản đang bị KHÓA (Inactive). Bạn có thể bấm nút bên dưới để mở khóa kích hoạt lại.`
+                                      : errMsg}
+                                  </div>
+                                  {canUnlock && existingUserId && (
+                                    <div style={{ marginTop: '5px' }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUnlockFromImport(errRow, unlockPayload)}
+                                      >
+                                     
+                                        <span>Mở khóa tài khoản [{code}] ngay</span>
+                                      </button>
+                                    </div>
+                                  )}
                                 </td>
                               </tr>
                             );

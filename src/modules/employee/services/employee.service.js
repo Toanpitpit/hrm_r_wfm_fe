@@ -585,13 +585,17 @@ export const employeeService = {
   /**
    * 8. Khóa / Kích hoạt lại tài khoản (PATCH /api/Users/{id}/status)
    */
-  async toggleUserStatus(id, newStatus, reason = '') {
+  async toggleUserStatus(id, newStatus, reason = '', newBranchId = null) {
     try {
-      const res = await axiosInstance.patch(`Users/${id}/status`, {
+      const payload = {
         status: newStatus,
         reason: reason,
         isActive: newStatus === 'ACTIVE',
-      });
+      };
+      if (newBranchId) {
+        payload.newBranchId = Number(newBranchId);
+      }
+      const res = await axiosInstance.patch(`Users/${id}/status`, payload);
       return {
         success: true,
         data: res.data?.data || res.data,
