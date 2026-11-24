@@ -1423,27 +1423,28 @@ export default function EmployeeFormModal({
         onClose={isImporting || savingQueueItem ? undefined : activeTab === 'queue' ? handleCancelQueue : handleSafeClose}
         title={title}
         sub={sub}
-        width={activeTab === 'bulk' || activeTab === 'queue' ? 740 : 680}
+        width={activeTab === 'queue' ? 800 : activeTab === 'bulk' ? 740 : 680}
         footer={
           activeTab === 'queue' ? (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '10px', flexWrap: 'nowrap' }}>
               <Button
                 variant="ghost"
                 onClick={handleCancelQueue}
                 disabled={savingQueueItem}
-                style={{ color: '#EF4444' }}
+                style={{ color: '#EF4444', whiteSpace: 'nowrap', flexShrink: 0, padding: '8px 12px' }}
               >
                 <Icon name="x" size={15} color="#EF4444" />
-                <span>Hủy Toàn Bộ Hàng Đợi</span>
+                <span>Hủy Hàng Đợi</span>
               </Button>
 
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
                 {queueIndex > 0 && (
                   <Button
                     variant="outline"
                     onClick={() => handleSelectQueueItem(queueIndex - 1)}
                     disabled={savingQueueItem}
                     title="Quay lại hồ sơ nhân sự trước đó"
+                    style={{ whiteSpace: 'nowrap', padding: '8px 12px' }}
                   >
                     <Icon name="arrow-left" size={15} />
                     <span>Quay Lại</span>
@@ -1456,9 +1457,10 @@ export default function EmployeeFormModal({
                     onClick={handleSkipQueueItem}
                     disabled={savingQueueItem}
                     title="Bỏ qua hồ sơ này để xử lý hồ sơ tiếp theo"
+                    style={{ whiteSpace: 'nowrap', padding: '8px 12px' }}
                   >
                     <Icon name="chevron-right" size={15} />
-                    <span>Bỏ Qua Người Này</span>
+                    <span>Bỏ Qua</span>
                   </Button>
                 )}
 
@@ -1469,23 +1471,26 @@ export default function EmployeeFormModal({
                   id="btn-save-rehire-queue-item"
                   style={{
                     background: '#0D9488',
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '8px',
+                    gap: '6px',
                     fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    padding: '8px 16px',
                   }}
                 >
                   {savingQueueItem ? (
                     <>
                       <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⟳</span>
-                      <span>Đang Kích Hoạt & Lưu...</span>
+                      <span>Đang Xử Lý...</span>
                     </>
                   ) : (
                     <>
                       <Icon name="check" size={16} color="#ffffff" />
                       <span>
                         {savedQueueEmployees.some(s => s.employeeCode === curQueueEmp?.employeeCode || String(s.id) === String(curQueueEmp?.id))
-                          ? (queueIndex + 1 === queueList.length ? 'Cập Nhật Lại & Hoàn Tất' : `Cập Nhật Lại & Tiếp Tục [${queueIndex + 2}/${queueList.length}] ➔`)
+                          ? (queueIndex + 1 === queueList.length ? 'Cập Nhật Lại & Hoàn Tất' : `Cập Nhật & Tiếp Tục [${queueIndex + 2}/${queueList.length}] ➔`)
                           : (queueIndex + 1 === queueList.length ? 'Kích Hoạt & Hoàn Tất' : `Kích Hoạt & Tiếp Tục [${queueIndex + 2}/${queueList.length}] ➔`)}
                       </span>
                     </>
