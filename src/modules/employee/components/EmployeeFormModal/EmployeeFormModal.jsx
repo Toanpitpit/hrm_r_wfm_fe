@@ -120,8 +120,6 @@ export default function EmployeeFormModal({
   );
 
   // Phân quyền chọn Vai trò:
-  // - Nếu là Cửa Hàng Trưởng (Store Manager): Không được cấp quyền tạo Cửa hàng trưởng hoặc tài khoản hệ thống
-  // - Nếu là Operations Admin / Business Owner: Được phép cấp quyền chọn Cửa hàng trưởng (STORE_MANAGER)
   const isManagerUser = Boolean(isStoreManager || (!canManageSystem && !effectiveIsBusinessOwner));
   const excludedRoles = isManagerUser
     ? ['OPERATIONS_ADMIN', 'STORE_MANAGER', 'BUSINESS_OWNER', 'ADMIN']
@@ -1049,8 +1047,8 @@ export default function EmployeeFormModal({
       if (branchIdentifier) {
         const foundB = branches.find(
           (b) => String(b.branchCode || '').toUpperCase() === String(branchIdentifier).toUpperCase() ||
-                 String(b.id) === String(branchIdentifier) ||
-                 (b.name && b.name.toLowerCase().includes(String(branchIdentifier).toLowerCase()))
+            String(b.id) === String(branchIdentifier) ||
+            (b.name && b.name.toLowerCase().includes(String(branchIdentifier).toLowerCase()))
         );
         if (foundB) matchedBranchId = foundB.id;
       }
@@ -1190,25 +1188,60 @@ export default function EmployeeFormModal({
         id: cur.id,
         employeeCode: cur.employeeCode,
       };
-      const updatedSavedList = [...savedQueueEmployees, savedItem];
-      setSavedQueueEmployees(updatedSavedList);
+
+      // Cập nhật cả queueList để khi người dùng click quay lại nhân sự này thì dữ liệu đã được cập nhật mới nhất
+      setQueueList((prev) =>
+        prev.map((item, idx) => (idx === queueIndex ? { ...item, ...savedItem, isSaved: true } : item))
+      );
+
+      let updatedSavedList = [];
+      setSavedQueueEmployees((prev) => {
+        const existingIdx = prev.findIndex(
+          (item) => String(item.id) === String(cur.id) || item.employeeCode === cur.employeeCode
+        );
+        if (existingIdx >= 0) {
+          const next = [...prev];
+          next[existingIdx] = savedItem;
+          updatedSavedList = next;
+          return next;
+        } else {
+          updatedSavedList = [...prev, savedItem];
+          return updatedSavedList;
+        }
+      });
 
       toast?.success?.(`Đã kích hoạt & cập nhật thành công [${cur.employeeCode}] ${cur.fullName}!`);
 
       if (queueIndex + 1 < queueList.length) {
         setQueueIndex(queueIndex + 1);
       } else {
-        setActiveTab('manual');
-        setQueueList([]);
-        onClose();
-        if (onRehireQueueComplete) {
-          onRehireQueueComplete({
-            successCount: updatedSavedList.length,
-            total: queueList.length,
-            savedEmployees: updatedSavedList,
-          });
-        } else if (onImportSuccess) {
-          onImportSuccess(updatedSavedList);
+        // Kiểm tra xem trong hàng đợi còn ai chưa được lưu không (phòng trường hợp người dùng nhảy qua lại)
+        const remainingUnsavedIdx = queueList.findIndex(
+          (item, idx) =>
+            idx !== queueIndex &&
+            !savedQueueEmployees.some(
+              (s) => s.employeeCode === item.employeeCode || String(s.id) === String(item.id)
+            )
+        );
+
+        if (remainingUnsavedIdx >= 0) {
+          toast?.info?.(
+            `Đã lưu [${cur.employeeCode}]. Chuyển tiếp tới hồ sơ chưa duyệt [${queueList[remainingUnsavedIdx].employeeCode}].`
+          );
+          setQueueIndex(remainingUnsavedIdx);
+        } else {
+          setActiveTab('manual');
+          setQueueList([]);
+          onClose();
+          if (onRehireQueueComplete) {
+            onRehireQueueComplete({
+              successCount: updatedSavedList.length,
+              total: queueList.length,
+              savedEmployees: updatedSavedList,
+            });
+          } else if (onImportSuccess) {
+            onImportSuccess(updatedSavedList);
+          }
         }
       }
     } catch (err) {
@@ -1217,6 +1250,34 @@ export default function EmployeeFormModal({
     } finally {
       setSavingQueueItem(false);
     }
+  };
+
+  const handleSelectQueueItem = (targetIndex) => {
+    if (savingQueueItem || targetIndex === queueIndex || targetIndex < 0 || targetIndex >= queueList.length) return;
+
+    // Lưu tạm các thay đổi đang nhập dở vào queueList[queueIndex] trước khi chuyển sang người khác
+    setQueueList((prev) =>
+      prev.map((item, idx) => {
+        if (idx === queueIndex) {
+          return {
+            ...item,
+            fullName: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            roleId: formData.roleId,
+            roleCode: formData.roleCode,
+            branchId: formData.branchId,
+            homeBranchId: formData.homeBranchId,
+            contractType: formData.contractType,
+          };
+        }
+        return item;
+      })
+    );
+
+    setQueueIndex(targetIndex);
+    setSubmitError('');
+    setErrors({});
   };
 
   const handleSkipQueueItem = () => {
@@ -1323,17 +1384,31 @@ export default function EmployeeFormModal({
                 <span>Hủy Toàn Bộ Hàng Đợi</span>
               </Button>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {queueIndex > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSelectQueueItem(queueIndex - 1)}
+                    disabled={savingQueueItem}
+                    title="Quay lại hồ sơ nhân sự trước đó"
+                  >
+                    <Icon name="chevron-left" size={15} />
+                    <span>Quay Lại</span>
+                  </Button>
+                )}
+
                 {queueList.length > 1 && (
                   <Button
                     variant="outline"
                     onClick={handleSkipQueueItem}
                     disabled={savingQueueItem}
+                    title="Bỏ qua hồ sơ này để xử lý hồ sơ tiếp theo"
                   >
                     <Icon name="chevron-right" size={15} />
                     <span>Bỏ Qua Người Này</span>
                   </Button>
                 )}
+
                 <Button
                   variant="primary"
                   onClick={handleSaveQueueItem}
@@ -1356,7 +1431,9 @@ export default function EmployeeFormModal({
                     <>
                       <Icon name="check" size={16} color="#ffffff" />
                       <span>
-                        {queueIndex + 1 === queueList.length ? 'Kích Hoạt & Hoàn Tất' : `Kích Hoạt & Tiếp Tục [${queueIndex + 2}/${queueList.length}] ➔`}
+                        {savedQueueEmployees.some(s => s.employeeCode === curQueueEmp?.employeeCode || String(s.id) === String(curQueueEmp?.id))
+                          ? (queueIndex + 1 === queueList.length ? 'Cập Nhật Lại & Hoàn Tất' : `Cập Nhật Lại & Tiếp Tục [${queueIndex + 2}/${queueList.length}] ➔`)
+                          : (queueIndex + 1 === queueList.length ? 'Kích Hoạt & Hoàn Tất' : `Kích Hoạt & Tiếp Tục [${queueIndex + 2}/${queueList.length}] ➔`)}
                       </span>
                     </>
                   )}
@@ -1521,7 +1598,7 @@ export default function EmployeeFormModal({
                   </span>
                 </div>
                 <span style={{ fontSize: '12px', color: c.fgSubtle, fontWeight: 600 }}>
-                  Tiến độ: {Math.round(((queueIndex + 1) / queueList.length) * 100)}% ({savedQueueEmployees.length} đã lưu)
+                  Tiến độ: {Math.round((savedQueueEmployees.length / queueList.length) * 100)}% ({savedQueueEmployees.length} / {queueList.length} đã lưu)
                 </span>
               </div>
 
@@ -1534,7 +1611,7 @@ export default function EmployeeFormModal({
                 overflow: 'hidden',
               }}>
                 <div style={{
-                  width: `${Math.round(((queueIndex + 1) / queueList.length) * 100)}%`,
+                  width: `${Math.max(4, Math.round((savedQueueEmployees.length / queueList.length) * 100))}%`,
                   height: '100%',
                   background: '#0D9488',
                   borderRadius: '4px',
@@ -1542,31 +1619,92 @@ export default function EmployeeFormModal({
                 }} />
               </div>
 
-              {/* Step Indicators */}
-              {queueList.length <= 8 && (
-                <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
-                  {queueList.map((emp, idx) => {
-                    const isCompleted = idx < queueIndex;
-                    const isCurrent = idx === queueIndex;
-                    return (
-                      <span
-                        key={idx}
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          background: isCurrent ? '#0D9488' : isCompleted ? 'rgba(34, 197, 94, 0.15)' : 'rgba(0,0,0,0.05)',
-                          color: isCurrent ? '#fff' : isCompleted ? '#16A34A' : c.fgSubtle,
-                          border: isCurrent ? '1px solid #0D9488' : isCompleted ? '1px solid rgba(34, 197, 94, 0.3)' : `1px solid ${c.border}`,
-                        }}
-                      >
-                        {isCompleted ? '✓ ' : ''}{emp.employeeCode}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
+              {/* Step Indicators - Cho phép nhấn vào từng mã nhân viên để quay lại chỉnh sửa */}
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                marginTop: '12px',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                padding: '8px 10px',
+                background: 'rgba(0,0,0,0.03)',
+                borderRadius: '6px',
+                border: '1px solid rgba(0,0,0,0.06)',
+              }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: c.fgSubtle, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Icon name="layers" size={13} color={c.fgSubtle} />
+                  <span>Chọn hồ sơ ({queueList.length}):</span>
+                </span>
+                {queueList.map((emp, idx) => {
+                  const isCurrent = idx === queueIndex;
+                  const isSaved = savedQueueEmployees.some(s => s.employeeCode === emp.employeeCode || String(s.id) === String(emp.id));
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSelectQueueItem(idx)}
+                      disabled={savingQueueItem}
+                      title={`Nhấn để chuyển sang xem/sửa hồ sơ [${idx + 1}/${queueList.length}]: ${emp.employeeCode} - ${emp.fullName || ''}${isSaved ? ' (Đã lưu - Nhấn để sửa lại)' : ' (Chưa lưu)'}`}
+                      style={{
+                        cursor: savingQueueItem ? 'not-allowed' : 'pointer',
+                        fontSize: '11.5px',
+                        fontWeight: isCurrent ? 700 : 600,
+                        padding: '4px 10px',
+                        borderRadius: '5px',
+                        background: isCurrent
+                          ? '#0D9488'
+                          : isSaved
+                            ? 'rgba(34, 197, 94, 0.15)'
+                            : 'rgba(255, 255, 255, 0.9)',
+                        color: isCurrent
+                          ? '#ffffff'
+                          : isSaved
+                            ? '#16A34A'
+                            : c.fg,
+                        border: isCurrent
+                          ? '1.5px solid #0D9488'
+                          : isSaved
+                            ? '1.5px solid rgba(34, 197, 94, 0.4)'
+                            : `1px solid ${c.border}`,
+                        boxShadow: isCurrent ? '0 2px 5px rgba(13, 148, 136, 0.35)' : 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isCurrent && !savingQueueItem) {
+                          e.currentTarget.style.borderColor = '#0D9488';
+                          e.currentTarget.style.color = '#0D9488';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isCurrent) {
+                          e.currentTarget.style.borderColor = isSaved ? 'rgba(34, 197, 94, 0.4)' : c.border;
+                          e.currentTarget.style.color = isSaved ? '#16A34A' : c.fg;
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }
+                      }}
+                    >
+                      {isSaved ? <Icon name="check" size={12} color={isCurrent ? '#ffffff' : '#16A34A'} /> : null}
+                      <span>{emp.employeeCode}</span>
+                      {emp.fullName ? (
+                        <span style={{
+                          opacity: isCurrent ? 0.92 : 0.75,
+                          fontSize: '10.5px',
+                          maxWidth: '85px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          ({emp.fullName})
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Banner Thông Báo Lỗi Ràng Buộc / Trùng Lặp (nếu có khi bấm lưu) */}
@@ -2801,7 +2939,7 @@ export default function EmployeeFormModal({
                                         transition: 'all 0.15s ease',
                                       }}
                                     >
-                                     
+
                                       <span>{code}</span>
                                       <span style={{ fontSize: '10px', fontWeight: 600, color: '#0D9488', background: 'rgba(13, 148, 136, 0.18)', padding: '1px 4px', borderRadius: '3px' }}>
                                         Mở khóa
@@ -2833,7 +2971,7 @@ export default function EmployeeFormModal({
                                         type="button"
                                         onClick={() => handleUnlockFromImport(errRow, unlockPayload)}
                                       >
-                                     
+
                                         <span>Mở khóa tài khoản [{code}] ngay</span>
                                       </button>
                                     </div>
