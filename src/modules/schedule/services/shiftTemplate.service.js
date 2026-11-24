@@ -22,11 +22,14 @@ import axios from 'axios';
 const apiClient = axiosInstance;
 
 // ==============================================================================
-// 1. CÁC HÀM TIỆN ÍCH TÍNH TOÁN (Live Preview)
+// 1. CÁC HÀM TIỆN ÍCH TÍNH TOÁN & CÔNG THỨC THỜI GIAN (LIVE PREVIEW & CALCULATIONS)
 // ==============================================================================
 
 /**
- * Kiểm tra ca có qua đêm không (kết thúc < bắt đầu hoặc kết thúc = bắt đầu)
+ * CÔNG THỨC: KIỂM TRA CA QUA ĐÊM (checkIsOvernight)
+ * - Nguyên tắc: Nếu giờ kết thúc nhỏ hơn hoặc bằng giờ bắt đầu (ví dụ: 22:00 -> 06:00),
+ *   ca làm việc kéo dài qua ranh giới nửa đêm (00:00).
+ * - Sử dụng: Dùng để tính toán số giờ làm chuẩn và hiển thị nhãn "Ca qua đêm" trên giao diện.
  */
 export const checkIsOvernight = (startTime, endTime) => {
   if (!startTime || !endTime) return false;
@@ -38,7 +41,10 @@ export const checkIsOvernight = (startTime, endTime) => {
 };
 
 /**
- * Tính số giờ công thực tế (paidHours = thời lượng - nghỉ)
+ * CÔNG THỨC: TÍNH SỐ GIỜ CÔNG TRẢ LƯƠNG (calculatePaidHours)
+ * - Công thức: PaidHours = (Tổng thời lượng làm việc - Thời gian nghỉ BreakDuration) / 60
+ * - Trường hợp ca qua đêm (endMin <= startMin): Cộng thêm 24 giờ (1440 phút) vào giờ kết thúc.
+ * - Ví dụ: 22:00 -> 06:00 (8 tiếng), nghỉ 30 phút -> PaidHours = (480 - 30) / 60 = 7.5 giờ.
  */
 export const calculatePaidHours = (startTime, endTime, breakDuration = 0) => {
   if (!startTime || !endTime) return 0;
@@ -58,7 +64,12 @@ export const calculatePaidHours = (startTime, endTime, breakDuration = 0) => {
 };
 
 /**
- * Tính số giờ làm đêm giao với khung 22:00 - 06:00 hôm sau
+ * CÔNG THỨC: TÍNH SỐ GIỜ LÀM BAN ĐÊM (calculateNightHours)
+ * - Khung giờ đêm theo Bộ luật Lao động Việt Nam: Từ 22:00 hôm trước đến 06:00 sáng hôm sau.
+ * - Trên trục 24 giờ (tính theo phút):
+ *     + Khoảng sáng sớm: 00:00 -> 06:00 (từ phút 0 đến phút 360)
+ *     + Khoảng đêm muộn: 22:00 -> 24:00 (từ phút 1320 đến phút 1440)
+ * - Trả về: Tổng số giờ giao nhau giữa ca làm và 2 khoảng đêm trên.
  */
 export const calculateNightHours = (startTime, endTime) => {
   if (!startTime || !endTime) return 0;
@@ -571,8 +582,26 @@ export const getShiftTemplates = async (params = {}) => {
 };
 
 /**
- * POST /api/shift-templates
- * Tạo mới khung ca (Chung hoặc Riêng chi nhánh)
+ * ==============================================================================
+ * HÀM API: TẠO KHUNG CA MẪU MỚI (createShiftTemplate)
+ * ==============================================================================
+ * 1. NƠI XUẤT PHÁT TRÊN FRONTEND:
+ *    - Giao diện người dùng submit modal: ShiftTemplateFormModal.jsx
+ *    - Chế độ đơn lẻ (handleSubmitSingle) hoặc chế độ hàng loạt (handleSubmitBatch)
+ * 2. ENDPOINT & CONTROLLER BACKEND:
+ *    - Gọi HTTP POST /api/shift-templates
+ *    - Xử lý bởi: ShiftTemplatesController.CreateShiftTemplate -> ShiftTemplateService.CreateShiftTemplateAsync
+ * 3. TÁC ĐỘNG CƠ SỞ DỮ LIỆU:
+ *    - Bảng 'shift_templates': Ghi bản ghi khung ca làm việc mới
+ *    - Bảng 'branches': Kiểm tra chi nhánh và trạng thái khóa nếu scope = 'BRANCH'
+ *    - Bảng 'system_audit_logs': Ghi nhận lịch sử người tạo và thông số ca
+ * 4. TÍNH TOÁN & VALIDATION TRÊN FRONTEND:
+ *    - checkIsOvernight: Nhận diện ca đêm nếu endTime <= startTime
+ *    - calculatePaidHours: Số giờ làm trừ thời gian nghỉ
+ *    - calculateNightHours: Số giờ giao với khung 22:00 - 06:00
+ *    - findOverlappingShift: Quét kiểm tra trùng giờ với các ca đang có trước khi gửi
+ *    - Kiểm tra trạng thái khóa chi nhánh (HTTP 423 Locked)
+ * ==============================================================================
  */
 export const createShiftTemplate = async (payload) => {
   const isOvernight = checkIsOvernight(payload.startTime, payload.endTime);

@@ -325,7 +325,27 @@ export const getBranchDetail = async (storeId) => {
 };
 
 /**
- * 3. Tạo chi nhánh mới
+ * ==============================================================================
+ * HÀM API: TẠO CHI NHÁNH MỚI (createBranch)
+ * ==============================================================================
+ * 1. NƠI XUẤT PHÁT:
+ *    - Giao diện người dùng submit modal: BranchFormModal.jsx
+ *    - Hook điều phối trạng thái: useBranch.js -> handleFormSubmit
+ * 2. ENDPOINT & CONTROLLER BACKEND:
+ *    - Gọi HTTP POST /api/branches (STORE_ENDPOINTS.CREATE)
+ *    - Xử lý bởi: BranchesController.CreateBranch -> BranchService.CreateBranchAsync
+ * 3. TÁC ĐỘNG CƠ SỞ DỮ LIỆU:
+ *    - Bảng 'branches': Tạo bản ghi chi nhánh mới kèm vị trí GIS (Point SRID 4326)
+ *    - Bảng 'branch_tiers': Liên kết với phân cấp qua TierId
+ * 4. THAM SỐ GỬI ĐI (PAYLOAD):
+ *    - code / branchCode: Mã chi nhánh viết hoa (VD: 'HN01', 'SG02')
+ *    - name: Tên chi nhánh
+ *    - address: Địa chỉ hoạt động
+ *    - tierId / branchTier: Phân cấp chi nhánh (Tier 1, Tier 2, Tier 3)
+ *    - staffCount: Chỉ tiêu định biên nhân sự của chi nhánh
+ *    - latitude, longitude: Tọa độ bản đồ WGS84 phục vụ chấm công Geofence
+ *    - geofenceRadiusMeters: Bán kính cho phép chấm công xung quanh chi nhánh
+ * ==============================================================================
  */
 export const createBranch = async (payload) => {
   const code = (payload.branchCode || payload.storeCode || payload.code || '').toUpperCase().trim();
