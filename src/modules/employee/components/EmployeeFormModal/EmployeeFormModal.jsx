@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import { useToast } from '@/shared/components/ui/ToastProvider';
 import Modal from '@/shared/components/ui/Modal';
@@ -107,21 +107,63 @@ export default function EmployeeFormModal({
   const [importMessage, setImportMessage] = useState('');
   const [importStatus, setImportStatus] = useState('idle'); // 'idle' | 'success' | 'partial' | 'error'
 
+  const normalizePhoneNumber = (phone) => {
+    if (!phone) return '';
+    let clean = String(phone).trim().replace(/[\s\.\-\(\)]/g, '');
+    if (clean.startsWith('+84')) clean = '0' + clean.slice(3);
+    else if (clean.startsWith('84') && clean.length === 11) clean = '0' + clean.slice(2);
+    return clean;
+  };
+
+  // Định nghĩa chặt chẽ thế nào là có thay đổi thông tin:
+  // So sánh toàn bộ các trường thông tin thực tế của formData với initialData gốc
+  const hasFormChanged = useMemo(() => {
+    if (!isEdit || !initialData) return false;
+
+    const initialFullName = (initialData.fullName || '').trim();
+    const currentFullName = (formData.fullName || '').trim();
+    if (initialFullName !== currentFullName) return true;
+
+    const initialEmail = (initialData.email || '').trim().toLowerCase();
+    const currentEmail = (formData.email || '').trim().toLowerCase();
+    if (initialEmail !== currentEmail) return true;
+
+    const initialPhone = normalizePhoneNumber(initialData.phone);
+    const currentPhone = normalizePhoneNumber(formData.phone);
+    if (initialPhone !== currentPhone) return true;
+
+    const initialRoleId = String(initialData.roleId || '');
+    const currentRoleId = String(formData.roleId || '');
+    if (initialRoleId !== currentRoleId) return true;
+
+    const initialBranchId = String(initialData.homeBranchId || initialData.branchId || '');
+    const currentBranchIdVal = String(formData.homeBranchId || formData.branchId || '');
+    if (initialBranchId !== currentBranchIdVal) return true;
+
+    const initialContractType = (initialData.contractType || initialData.employmentType || 'FULL_TIME').toUpperCase();
+    const currentContractType = (formData.contractType || 'FULL_TIME').toUpperCase();
+    if (initialContractType !== currentContractType) return true;
+
+    const initialStatus = (initialData.status || 'ACTIVE').toUpperCase();
+    const currentStatus = (formData.status || accountStatus || 'ACTIVE').toUpperCase();
+    if (initialStatus !== currentStatus) return true;
+
+    return false;
+  }, [isEdit, initialData, formData, accountStatus]);
+
   // Kiểm tra xem form đã được nhập thông tin dở dang chưa (Đặt sau khi selectedFile đã được khai báo)
   const isDirty = Boolean(
-    !isEdit && (
+    (!isEdit && (
       formData.fullName?.trim() ||
       formData.email?.trim() ||
       formData.phone?.trim() ||
       formData.roleId ||
       (!isStoreManager && formData.branchId) ||
       (selectedFile && importStatus === 'idle')
-    )
+    )) || (isEdit && hasFormChanged)
   );
 
   // Phân quyền chọn Vai trò:
-  // - Nếu là Cửa Hàng Trưởng (Store Manager): Không được cấp quyền tạo Cửa hàng trưởng hoặc tài khoản hệ thống
-  // - Nếu là Operations Admin / Business Owner: Được phép cấp quyền chọn Cửa hàng trưởng (STORE_MANAGER)
   const isManagerUser = Boolean(isStoreManager || (!canManageSystem && !effectiveIsBusinessOwner));
   const excludedRoles = isManagerUser
     ? ['OPERATIONS_ADMIN', 'STORE_MANAGER', 'BUSINESS_OWNER', 'ADMIN']
@@ -786,8 +828,8 @@ export default function EmployeeFormModal({
       newErrors.password = 'Mật khẩu khởi tạo cần tối thiểu 6 ký tự';
     }
 
-    // Bắt buộc nhập lý do khi Chỉnh sửa hồ sơ (Edit mode)
-    if (isEdit && (!formData.reason || formData.reason.trim().length < 5)) {
+    // Bắt buộc nhập lý do khi Chỉnh sửa hồ sơ (Edit mode) CHỈ KHI có thay đổi thông tin so với ban đầu
+    if (isEdit && hasFormChanged && (!formData.reason || formData.reason.trim().length < 5)) {
       newErrors.reason = 'Vui lòng nhập lý do điều chỉnh hồ sơ nhân sự (tối thiểu 5 ký tự) để gửi email thông báo và lưu vết kiểm toán.';
     }
 
@@ -798,6 +840,14 @@ export default function EmployeeFormModal({
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
     setSubmitError('');
+
+    // Nếu đang ở chế độ chỉnh sửa nhưng không có trường thông tin nào thay đổi so với dữ liệu gốc ban đầu
+    if (isEdit && !hasFormChanged) {
+      toast?.info?.('Hồ sơ nhân sự không có thông tin nào thay đổi.');
+      onClose();
+      return;
+    }
+
     if (!validate()) return;
 
     setSubmitting(true);
@@ -1049,8 +1099,8 @@ export default function EmployeeFormModal({
       if (branchIdentifier) {
         const foundB = branches.find(
           (b) => String(b.branchCode || '').toUpperCase() === String(branchIdentifier).toUpperCase() ||
-                 String(b.id) === String(branchIdentifier) ||
-                 (b.name && b.name.toLowerCase().includes(String(branchIdentifier).toLowerCase()))
+            String(b.id) === String(branchIdentifier) ||
+            (b.name && b.name.toLowerCase().includes(String(branchIdentifier).toLowerCase()))
         );
         if (foundB) matchedBranchId = foundB.id;
       }
@@ -1176,6 +1226,7 @@ export default function EmployeeFormModal({
         homeBranchId: Number(formData.branchId),
         contractType: formData.contractType || 'FULL_TIME',
         status: 'ACTIVE',
+        reason: 'Tái tuyển dụng và cập nhật hồ sơ từ hàng đợi duyệt file Excel',
       };
 
       const updateRes = await employeeService.updateEmployee(cur.id, updatePayload);
@@ -1190,25 +1241,60 @@ export default function EmployeeFormModal({
         id: cur.id,
         employeeCode: cur.employeeCode,
       };
-      const updatedSavedList = [...savedQueueEmployees, savedItem];
-      setSavedQueueEmployees(updatedSavedList);
+
+      // Cập nhật cả queueList để khi người dùng click quay lại nhân sự này thì dữ liệu đã được cập nhật mới nhất
+      setQueueList((prev) =>
+        prev.map((item, idx) => (idx === queueIndex ? { ...item, ...savedItem, isSaved: true } : item))
+      );
+
+      let updatedSavedList = [];
+      setSavedQueueEmployees((prev) => {
+        const existingIdx = prev.findIndex(
+          (item) => String(item.id) === String(cur.id) || item.employeeCode === cur.employeeCode
+        );
+        if (existingIdx >= 0) {
+          const next = [...prev];
+          next[existingIdx] = savedItem;
+          updatedSavedList = next;
+          return next;
+        } else {
+          updatedSavedList = [...prev, savedItem];
+          return updatedSavedList;
+        }
+      });
 
       toast?.success?.(`Đã kích hoạt & cập nhật thành công [${cur.employeeCode}] ${cur.fullName}!`);
 
       if (queueIndex + 1 < queueList.length) {
         setQueueIndex(queueIndex + 1);
       } else {
-        setActiveTab('manual');
-        setQueueList([]);
-        onClose();
-        if (onRehireQueueComplete) {
-          onRehireQueueComplete({
-            successCount: updatedSavedList.length,
-            total: queueList.length,
-            savedEmployees: updatedSavedList,
-          });
-        } else if (onImportSuccess) {
-          onImportSuccess(updatedSavedList);
+        // Kiểm tra xem trong hàng đợi còn ai chưa được lưu không (phòng trường hợp người dùng nhảy qua lại)
+        const remainingUnsavedIdx = queueList.findIndex(
+          (item, idx) =>
+            idx !== queueIndex &&
+            !savedQueueEmployees.some(
+              (s) => s.employeeCode === item.employeeCode || String(s.id) === String(item.id)
+            )
+        );
+
+        if (remainingUnsavedIdx >= 0) {
+          toast?.info?.(
+            `Đã lưu [${cur.employeeCode}]. Chuyển tiếp tới hồ sơ chưa duyệt [${queueList[remainingUnsavedIdx].employeeCode}].`
+          );
+          setQueueIndex(remainingUnsavedIdx);
+        } else {
+          setActiveTab('manual');
+          setQueueList([]);
+          onClose();
+          if (onRehireQueueComplete) {
+            onRehireQueueComplete({
+              successCount: updatedSavedList.length,
+              total: queueList.length,
+              savedEmployees: updatedSavedList,
+            });
+          } else if (onImportSuccess) {
+            onImportSuccess(updatedSavedList);
+          }
         }
       }
     } catch (err) {
@@ -1217,6 +1303,34 @@ export default function EmployeeFormModal({
     } finally {
       setSavingQueueItem(false);
     }
+  };
+
+  const handleSelectQueueItem = (targetIndex) => {
+    if (savingQueueItem || targetIndex === queueIndex || targetIndex < 0 || targetIndex >= queueList.length) return;
+
+    // Lưu tạm các thay đổi đang nhập dở vào queueList[queueIndex] trước khi chuyển sang người khác
+    setQueueList((prev) =>
+      prev.map((item, idx) => {
+        if (idx === queueIndex) {
+          return {
+            ...item,
+            fullName: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            roleId: formData.roleId,
+            roleCode: formData.roleCode,
+            branchId: formData.branchId,
+            homeBranchId: formData.homeBranchId,
+            contractType: formData.contractType,
+          };
+        }
+        return item;
+      })
+    );
+
+    setQueueIndex(targetIndex);
+    setSubmitError('');
+    setErrors({});
   };
 
   const handleSkipQueueItem = () => {
@@ -1309,31 +1423,47 @@ export default function EmployeeFormModal({
         onClose={isImporting || savingQueueItem ? undefined : activeTab === 'queue' ? handleCancelQueue : handleSafeClose}
         title={title}
         sub={sub}
-        width={activeTab === 'bulk' || activeTab === 'queue' ? 740 : 680}
+        width={activeTab === 'queue' ? 800 : activeTab === 'bulk' ? 740 : 680}
         footer={
           activeTab === 'queue' ? (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '10px', flexWrap: 'nowrap' }}>
               <Button
                 variant="ghost"
                 onClick={handleCancelQueue}
                 disabled={savingQueueItem}
-                style={{ color: '#EF4444' }}
+                style={{ color: '#EF4444', whiteSpace: 'nowrap', flexShrink: 0, padding: '8px 12px' }}
               >
                 <Icon name="x" size={15} color="#EF4444" />
-                <span>Hủy Toàn Bộ Hàng Đợi</span>
+                <span>Hủy Hàng Đợi</span>
               </Button>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+                {queueIndex > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSelectQueueItem(queueIndex - 1)}
+                    disabled={savingQueueItem}
+                    title="Quay lại hồ sơ nhân sự trước đó"
+                    style={{ whiteSpace: 'nowrap', padding: '8px 12px' }}
+                  >
+                    <Icon name="arrow-left" size={15} />
+                    <span>Quay Lại</span>
+                  </Button>
+                )}
+
                 {queueList.length > 1 && (
                   <Button
                     variant="outline"
                     onClick={handleSkipQueueItem}
                     disabled={savingQueueItem}
+                    title="Bỏ qua hồ sơ này để xử lý hồ sơ tiếp theo"
+                    style={{ whiteSpace: 'nowrap', padding: '8px 12px' }}
                   >
                     <Icon name="chevron-right" size={15} />
-                    <span>Bỏ Qua Người Này</span>
+                    <span>Bỏ Qua</span>
                   </Button>
                 )}
+
                 <Button
                   variant="primary"
                   onClick={handleSaveQueueItem}
@@ -1341,22 +1471,27 @@ export default function EmployeeFormModal({
                   id="btn-save-rehire-queue-item"
                   style={{
                     background: '#0D9488',
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '8px',
+                    gap: '6px',
                     fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    padding: '8px 16px',
                   }}
                 >
                   {savingQueueItem ? (
                     <>
                       <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⟳</span>
-                      <span>Đang Kích Hoạt & Lưu...</span>
+                      <span>Đang Xử Lý...</span>
                     </>
                   ) : (
                     <>
                       <Icon name="check" size={16} color="#ffffff" />
                       <span>
-                        {queueIndex + 1 === queueList.length ? 'Kích Hoạt & Hoàn Tất' : `Kích Hoạt & Tiếp Tục [${queueIndex + 2}/${queueList.length}] ➔`}
+                        {savedQueueEmployees.some(s => s.employeeCode === curQueueEmp?.employeeCode || String(s.id) === String(curQueueEmp?.id))
+                          ? (queueIndex + 1 === queueList.length ? 'Cập Nhật Lại & Hoàn Tất' : `Cập Nhật & Tiếp Tục [${queueIndex + 2}/${queueList.length}] ➔`)
+                          : (queueIndex + 1 === queueList.length ? 'Kích Hoạt & Hoàn Tất' : `Kích Hoạt & Tiếp Tục [${queueIndex + 2}/${queueList.length}] ➔`)}
                       </span>
                     </>
                   )}
@@ -1521,7 +1656,7 @@ export default function EmployeeFormModal({
                   </span>
                 </div>
                 <span style={{ fontSize: '12px', color: c.fgSubtle, fontWeight: 600 }}>
-                  Tiến độ: {Math.round(((queueIndex + 1) / queueList.length) * 100)}% ({savedQueueEmployees.length} đã lưu)
+                  Tiến độ: {Math.round((savedQueueEmployees.length / queueList.length) * 100)}% ({savedQueueEmployees.length} / {queueList.length} đã lưu)
                 </span>
               </div>
 
@@ -1534,7 +1669,7 @@ export default function EmployeeFormModal({
                 overflow: 'hidden',
               }}>
                 <div style={{
-                  width: `${Math.round(((queueIndex + 1) / queueList.length) * 100)}%`,
+                  width: `${Math.max(4, Math.round((savedQueueEmployees.length / queueList.length) * 100))}%`,
                   height: '100%',
                   background: '#0D9488',
                   borderRadius: '4px',
@@ -1542,31 +1677,52 @@ export default function EmployeeFormModal({
                 }} />
               </div>
 
-              {/* Step Indicators */}
-              {queueList.length <= 8 && (
-                <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
-                  {queueList.map((emp, idx) => {
-                    const isCompleted = idx < queueIndex;
-                    const isCurrent = idx === queueIndex;
-                    return (
-                      <span
-                        key={idx}
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          background: isCurrent ? '#0D9488' : isCompleted ? 'rgba(34, 197, 94, 0.15)' : 'rgba(0,0,0,0.05)',
-                          color: isCurrent ? '#fff' : isCompleted ? '#16A34A' : c.fgSubtle,
-                          border: isCurrent ? '1px solid #0D9488' : isCompleted ? '1px solid rgba(34, 197, 94, 0.3)' : `1px solid ${c.border}`,
-                        }}
-                      >
-                        {isCompleted ? '✓ ' : ''}{emp.employeeCode}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
+              {/* Step Indicators - Click vào mã nhân viên để quay lại chỉnh sửa */}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+                {queueList.map((emp, idx) => {
+                  const isCurrent = idx === queueIndex;
+                  const isSaved = savedQueueEmployees.some(
+                    (s) => s.employeeCode === emp.employeeCode || String(s.id) === String(emp.id)
+                  );
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSelectQueueItem(idx)}
+                      disabled={savingQueueItem}
+                      title={`Xem/sửa hồ sơ: ${emp.employeeCode}${isSaved ? ' (Đã lưu)' : ''}`}
+                      style={{
+                        border: 'none',
+                        cursor: savingQueueItem ? 'not-allowed' : 'pointer',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: isCurrent
+                          ? '#0D9488'
+                          : isSaved
+                            ? 'rgba(16, 185, 129, 0.18)'
+                            : 'rgba(0, 0, 0, 0.06)',
+                        color: isCurrent
+                          ? '#ffffff'
+                          : isSaved
+                            ? '#047857'
+                            : c.fgSubtle,
+                        transition: 'opacity 0.15s ease',
+                        outline: 'none',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isCurrent) e.currentTarget.style.opacity = '0.75';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isCurrent) e.currentTarget.style.opacity = '1';
+                      }}
+                    >
+                      {emp.employeeCode}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Banner Thông Báo Lỗi Ràng Buộc / Trùng Lặp (nếu có khi bấm lưu) */}
@@ -2269,30 +2425,49 @@ export default function EmployeeFormModal({
               </Field>
             </div>
 
-            {/* ─── LÝ DO ĐIỀU CHỈNH HỒ SƠ & GỬI EMAIL THÔNG BÁO (BẮT BUỘC KHI CHỈNH SỬA) ─── */}
+            {/* ─── LÝ DO ĐIỀU CHỈNH HỒ SƠ & GỬI EMAIL THÔNG BÁO (BẮT BUỘC KHI CÓ THAY ĐỔI) ─── */}
             {isEdit && (
               <div
                 style={{
                   marginTop: '8px',
                   padding: '14px 16px',
                   borderRadius: '8px',
-                  background: 'rgba(37, 99, 235, 0.05)',
-                  border: `1.5px solid ${errors.reason ? '#ef4444' : 'rgba(37, 99, 235, 0.35)'}`,
+                  background: hasFormChanged ? 'rgba(37, 99, 235, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+                  border: `1.5px solid ${errors.reason ? '#ef4444' : hasFormChanged ? 'rgba(37, 99, 235, 0.35)' : c.border}`,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '8px',
+                  transition: 'all 0.2s ease',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Icon name="mail" size={16} color="#2563eb" />
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: c.fg }}>
-                    Lý Do Điều Chỉnh Hồ Sơ & Gửi Email Thông Báo (Bắt buộc) *
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Icon name="mail" size={16} color={hasFormChanged ? '#2563eb' : c.fgSubtle} />
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: c.fg }}>
+                      Lý Do Điều Chỉnh Hồ Sơ {hasFormChanged ? '(Bắt buộc khi có thay đổi) *' : '(Chỉ yêu cầu khi có thay đổi thông tin)'}
+                    </span>
+                  </div>
+                  {hasFormChanged && (
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: '#2563eb',
+                      background: 'rgba(37, 99, 235, 0.12)',
+                      padding: '2px 8px',
+                      borderRadius: '4px'
+                    }}>
+                      Phát hiện thay đổi thông tin
+                    </span>
+                  )}
                 </div>
                 <Field
                   label=""
                   error={errors.reason}
-                  hint="Lý do này sẽ được lưu vết kiểm toán hệ thống (SystemAuditLog) và tự động gửi thông báo thay đổi chi tiết đến email nhân viên."
+                  hint={
+                    hasFormChanged
+                      ? 'Lý do này sẽ được lưu vết kiểm toán hệ thống (SystemAuditLog) và tự động gửi thông báo thay đổi chi tiết đến email nhân viên.'
+                      : 'Hồ sơ chưa có thay đổi nào so với dữ liệu gốc. Bạn chỉ cần nhập lý do khi thực hiện điều chỉnh thông tin nhân sự.'
+                  }
                 >
                   <TextInput
                     value={formData.reason || ''}
@@ -2300,7 +2475,11 @@ export default function EmployeeFormModal({
                       handleChange('reason', e.target.value);
                       if (errors.reason) setErrors((prev) => ({ ...prev, reason: '' }));
                     }}
-                    placeholder="Ví dụ: Điều chuyển cơ sở công tác theo nguyện vọng, cập nhật số điện thoại và email..."
+                    placeholder={
+                      hasFormChanged
+                        ? 'Ví dụ: Điều chuyển cơ sở công tác theo nguyện vọng, cập nhật số điện thoại và email...'
+                        : 'Không bắt buộc nếu giữ nguyên thông tin hồ sơ hiện tại...'
+                    }
                     error={Boolean(errors.reason)}
                   />
                 </Field>
@@ -2804,7 +2983,7 @@ export default function EmployeeFormModal({
                                         transition: 'all 0.15s ease',
                                       }}
                                     >
-                                     
+
                                       <span>{code}</span>
                                       <span style={{ fontSize: '10px', fontWeight: 600, color: '#0D9488', background: 'rgba(13, 148, 136, 0.18)', padding: '1px 4px', borderRadius: '3px' }}>
                                         Mở khóa
@@ -2836,7 +3015,7 @@ export default function EmployeeFormModal({
                                         type="button"
                                         onClick={() => handleUnlockFromImport(errRow, unlockPayload)}
                                       >
-                                     
+
                                         <span>Mở khóa tài khoản [{code}] ngay</span>
                                       </button>
                                     </div>
