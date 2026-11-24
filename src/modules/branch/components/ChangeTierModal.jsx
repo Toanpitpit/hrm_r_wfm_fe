@@ -23,7 +23,13 @@ export default function ChangeTierModal({
   const [note, setNote] = useState('');
   const [validationError, setValidationError] = useState('');
 
-  const currentStaffCount = Number(branch?.currentStaffCount ?? 0);
+  const currentStaffCount = Number(
+    branch?.currentStaffCount ??
+    branch?.officialHeadcount ??
+    branch?.staffCountActual ??
+    branch?.activeStaffCount ??
+    0
+  );
 
   // Lấy dữ liệu Tier trực tiếp từ database nếu chưa có từ props
   useEffect(() => {
@@ -110,6 +116,9 @@ export default function ChangeTierModal({
   if (!isModalOpen || !branch) return null;
 
   const targetTierDef = activeTiers.find((t) => t.id === selectedTier) || activeTiers[0];
+  const targetQuota = Number(targetTierDef?.standardQuota || targetTierDef?.maxStaff || 0);
+  const isOverTier = currentStaffCount > targetQuota && targetQuota > 0;
+  const overCount = currentStaffCount - targetQuota;
 
   const handleSelectTier = (tierId) => {
     setSelectedTier(tierId);
@@ -118,6 +127,17 @@ export default function ChangeTierModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isOverTier) {
+      const branchName = branch.name || branch.storeName || `Chi nhánh #${branch.storeId || branch.id}`;
+      const confirmed = window.confirm(
+        `⚠️ CẢNH BÁO QUÂN SỐ VƯỢT ĐỊNH BIÊN:\n\n` +
+        `Chi nhánh "${branchName}" hiện có ${currentStaffCount} nhân sự, ` +
+        `vượt quá định biên tối đa của ${targetTierDef.shortName} (${targetQuota} người) là ${overCount} người.\n\n` +
+        `Bạn có chắc chắn muốn xác nhận chuyển sang phân cấp ${targetTierDef.shortName} không?`
+      );
+      if (!confirmed) return;
+    }
+
     const submitHandler = onSubmit || onConfirm;
     if (typeof submitHandler === 'function') {
       try {
@@ -289,6 +309,53 @@ export default function ChangeTierModal({
               </div>
             </div>
           </div>
+
+          {/* Cảnh Báo Nếu Quân Số Hiện Tại Vượt Quá Định Biên Phân Cấp Mới */}
+          {isOverTier && (
+            <div
+              style={{
+                padding: '14px 16px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                border: '1.5px solid #ef4444',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px',
+                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.12)',
+                animation: 'fadeIn 0.2s ease',
+              }}
+            >
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  marginTop: '2px',
+                }}
+              >
+                <Icon name="alert-triangle" size={18} color="#ffffff" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#ef4444', marginBottom: '2px' }}>
+                  Cảnh Báo: Quân số hiện tại vượt quá định biên phân cấp mới!
+                </div>
+                <div style={{ fontSize: '12.5px', color: c.fg, lineHeight: '1.45' }}>
+                  Chi nhánh hiện có <strong style={{ color: '#ef4444' }}>{currentStaffCount} nhân sự</strong>, 
+                  trong khi phân cấp <strong>{targetTierDef.shortName}</strong> có định biên tối đa là <strong>{targetQuota} người</strong>. 
+                  Khi chuyển sang phân cấp này, chi nhánh sẽ bị <strong style={{ color: '#ef4444' }}>vượt quá {overCount} nhân sự</strong>.
+                </div>
+                <div style={{ fontSize: '11.5px', color: c.fgSubtle, marginTop: '4px', fontStyle: 'italic' }}>
+                  Hệ thống vẫn cho phép đổi phân cấp, nhưng chi nhánh sẽ hiển thị trạng thái cảnh báo vượt định biên để bạn sắp xếp kế hoạch điều chuyển/cắt giảm nhân sự.
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 1. Tier Selection Cards (Lấy động từ Database) */}
           <div>

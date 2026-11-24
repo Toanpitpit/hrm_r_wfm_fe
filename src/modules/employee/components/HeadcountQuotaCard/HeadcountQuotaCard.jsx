@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useAdminTheme } from '@/shared/context/ThemeContext';
 import Icon from '@/shared/components/ui/Icon';
 
@@ -10,7 +10,8 @@ export default function HeadcountQuotaCard({
   canManageSystem = false,
   onUpgradeTier,
 }) {
-  const { c } = useAdminTheme();
+  const { c, theme } = useAdminTheme();
+  const isDark = theme === 'dark';
 
   if (isStoreManager || !allBranchesQuota || allBranchesQuota.length === 0) {
     return null;
@@ -21,6 +22,23 @@ export default function HeadcountQuotaCard({
     2: '#3b82f6',
     3: '#9ca3af',
   };
+
+  const overQuotaBranches = useMemo(() => {
+    return (allBranchesQuota || []).filter((b) => {
+      const active = Number(b.officialHeadcount ?? b.currentHeadcount ?? 0);
+      const quota = Number(b.standardQuota || b.effectiveQuota || 0);
+      return active > quota && quota > 0;
+    }).map((b) => {
+      const active = Number(b.officialHeadcount ?? b.currentHeadcount ?? 0);
+      const quota = Number(b.standardQuota || b.effectiveQuota || 0);
+      return {
+        ...b,
+        active,
+        standardQuota: quota,
+        diff: active - quota,
+      };
+    });
+  }, [allBranchesQuota]);
 
   const getStatusBadge = (statusObj) => {
     const isLocked = statusObj.status === 'INACTIVE' || statusObj.status === 'LOCKED';
@@ -61,11 +79,34 @@ export default function HeadcountQuotaCard({
     const cHeadcount = Number(statusObj.officialHeadcount ?? statusObj.currentHeadcount ?? 0);
     const dispatchedIn = Number(statusObj.dispatchedInCount || 0);
     const isReached = Boolean(statusObj.isQuotaReached ?? (cHeadcount >= standardQuota));
+    const isOver = cHeadcount > standardQuota && standardQuota > 0;
     const remaining = Math.max(0, standardQuota - cHeadcount);
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
-        {!isReached ? (
+        {isOver ? (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '3px 8px',
+              borderRadius: '9999px',
+              fontSize: '11px',
+              fontWeight: 700,
+              background: isDark ? 'rgba(239, 68, 68, 0.22)' : '#fee2e2',
+              border: '1.5px solid #ef4444',
+              color: isDark ? '#fca5a5' : '#b91c1c',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              boxShadow: '0 1px 4px rgba(239, 68, 68, 0.2)',
+            }}
+            title={`Vượt định biên ${cHeadcount - standardQuota} nhân sự`}
+          >
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+            ⚠️ Vượt định biên ({cHeadcount}/{standardQuota})
+          </span>
+        ) : !isReached ? (
           <span
             style={{
               display: 'inline-flex',
@@ -95,14 +136,14 @@ export default function HeadcountQuotaCard({
               borderRadius: '9999px',
               fontSize: '11px',
               fontWeight: 700,
-              background: 'rgba(239, 68, 68, 0.16)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#ef4444',
+              background: isDark ? 'rgba(239, 68, 68, 0.16)' : '#fee2e2',
+              border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.4)' : '#fca5a5'}`,
+              color: isDark ? '#f87171' : '#b91c1c',
               whiteSpace: 'nowrap',
               flexShrink: 0,
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isDark ? '#f87171' : '#dc2626', flexShrink: 0 }} />
             Đạt trần ({cHeadcount}/{standardQuota})
           </span>
         )}
@@ -183,6 +224,52 @@ export default function HeadcountQuotaCard({
           )}
         </div>
 
+        {/* Cảnh báo nếu có chi nhánh vượt quá định biên phân cấp */}
+        {overQuotaBranches.length > 0 && (
+          <div
+            style={{
+              padding: '11px 16px',
+              borderRadius: '10px',
+              backgroundColor: isDark ? 'rgba(239, 68, 68, 0.14)' : '#fef2f2',
+              border: `1.5px solid ${isDark ? '#ef4444' : '#f87171'}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              marginBottom: '14px',
+              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.15)',
+            }}
+          >
+            <div
+              style={{
+                width: '30px',
+                height: '30px',
+                borderRadius: '8px',
+                backgroundColor: '#ef4444',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Icon name="alert-triangle" size={17} color="#ffffff" />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#ef4444' }}>
+                CẢNH BÁO: CÓ {overQuotaBranches.length} CHI NHÁNH QUÂN SỐ VƯỢT QUÁ ĐỊNH BIÊN PHÂN CẤP!
+              </div>
+              <div style={{ fontSize: '12px', color: c.fg, marginTop: '2px', lineHeight: '1.4' }}>
+                {overQuotaBranches.map((b, idx) => (
+                  <span key={b.branchId}>
+                    {idx > 0 && ' • '}
+                    <strong>{b.branchName}</strong>: <span style={{ color: '#ef4444', fontWeight: 700 }}>{b.active}/{b.standardQuota}</span> (vượt {b.diff} người)
+                  </span>
+                ))}. Vui lòng nâng phân cấp (Tier) hoặc điều chuyển nhân sự để đảm bảo đúng định biên!
+              </div>
+            </div>
+          </div>
+        )}
+
         <div
           style={{
             display: 'grid',
@@ -207,6 +294,7 @@ export default function HeadcountQuotaCard({
             const bPercent = Math.min(100, Math.round((bActive / bStandardQuota) * 100));
             const bAvailable = b.availableQuotaSlots ?? Math.max(0, bStandardQuota - bActive);
             const isCardSelected = String(selectedBranchId) === String(bId);
+            const isOverTier = bActive > bStandardQuota && bStandardQuota > 0;
             const isFull = bActive >= bStandardQuota;
             const isLocked = b.status === 'INACTIVE' || b.status === 'LOCKED';
 
@@ -218,8 +306,20 @@ export default function HeadcountQuotaCard({
                 style={{
                   padding: '14px 16px',
                   borderRadius: '10px',
-                  background: isCardSelected ? 'rgba(13, 148, 136, 0.12)' : (isLocked ? 'rgba(239, 68, 68, 0.04)' : c.bgCard),
-                  border: `2px solid ${isCardSelected ? 'var(--color-primary, #0D9488)' : (isLocked ? 'rgba(239, 68, 68, 0.35)' : c.border)}`,
+                  background: isCardSelected
+                    ? (isDark ? 'rgba(13, 148, 136, 0.16)' : 'rgba(13, 148, 136, 0.08)')
+                    : (isOverTier
+                        ? (isDark ? 'rgba(239, 68, 68, 0.10)' : '#fff5f5')
+                        : (isLocked
+                            ? (isDark ? 'rgba(239, 68, 68, 0.08)' : '#fef2f2')
+                            : (isDark ? c.bgCard : '#ffffff'))),
+                  border: `2px solid ${
+                    isCardSelected
+                      ? 'var(--color-primary, #0D9488)'
+                      : (isOverTier
+                          ? '#ef4444'
+                          : (isLocked ? 'rgba(239, 68, 68, 0.35)' : (isDark ? c.border : '#e2e8f0')))
+                  }`,
                   opacity: isLocked && !isCardSelected ? 0.85 : 1,
                   cursor: 'pointer',
                   display: 'flex',
@@ -262,10 +362,15 @@ export default function HeadcountQuotaCard({
                         style={{
                           fontSize: '11px',
                           fontWeight: 600,
-                          color: tierColors[bTier] || '#3b82f6',
+                          color: tierColors[bTier] || (isDark ? '#a855f7' : '#7c3aed'),
+                          background: isDark
+                            ? (bTier === 1 ? 'rgba(251, 191, 36, 0.14)' : bTier === 2 ? 'rgba(96, 165, 250, 0.14)' : bTier === 3 ? 'rgba(148, 163, 184, 0.14)' : 'rgba(168, 85, 247, 0.14)')
+                            : (bTier === 1 ? '#fef3c7' : bTier === 2 ? '#dbeafe' : bTier === 3 ? '#f1f5f9' : '#f3e8ff'),
+                          padding: '2px 8px',
+                          borderRadius: '4px',
                         }}
                       >
-                        Tier {bTier} · Định biên {bStandardQuota} người
+                        {b.tierName || b.branchTierName || (bTier ? `Tier ${bTier}` : 'Chưa phân cấp')} · Định biên {bStandardQuota} người
                       </span>
                     </div>
                   </div>
@@ -333,10 +438,16 @@ export default function HeadcountQuotaCard({
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                      <span style={{ color: bAvailable > 0 ? '#38bdf8' : '#ef4444', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                        {bAvailable > 0 ? `Còn ${bAvailable} slot` : 'Đủ định biên'}
-                      </span>
-                      {isFull && bTier > 1 && canManageSystem && onUpgradeTier && (
+                      {isOverTier ? (
+                        <span style={{ color: '#ef4444', fontWeight: 700, whiteSpace: 'nowrap', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          ⚠️ Vượt {bActive - bStandardQuota} người
+                        </span>
+                      ) : (
+                        <span style={{ color: bAvailable > 0 ? (isDark ? '#38bdf8' : '#0284c7') : '#dc2626', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                          {bAvailable > 0 ? `Còn ${bAvailable} slot` : 'Đủ định biên'}
+                        </span>
+                      )}
+                      {(isFull || isOverTier) && !String(b.tierName || '').toLowerCase().includes('1') && bTier !== 1 && canManageSystem && onUpgradeTier && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -344,7 +455,9 @@ export default function HeadcountQuotaCard({
                             onUpgradeTier(b.branchId);
                           }}
                           style={{
-                            background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                            background: isOverTier
+                              ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
+                              : 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
                             border: 'none',
                             color: '#ffffff',
                             borderRadius: '4px',
@@ -358,9 +471,9 @@ export default function HeadcountQuotaCard({
                             boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
                             whiteSpace: 'nowrap',
                           }}
-                          title={`Nâng lên Tier ${bTier === 3 ? 2 : 1} để mở rộng thêm định biên`}
+                          title="Nâng cấp phân cấp để mở rộng thêm định biên"
                         >
-                          Nâng Tier {bTier === 3 ? '2 (15)' : '1 (30)'}
+                          Nâng Phân Cấp
                         </button>
                       )}
                     </div>
