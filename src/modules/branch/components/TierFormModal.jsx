@@ -42,6 +42,14 @@ export default function TierFormModal({
 
   const [errors, setErrors] = useState({});
 
+  // ==========================================================================
+  // HÀM 1: useEffect - ĐỒNG BỘ TRẠNG THÁI FORM THEO DỮ LIỆU TIER ĐƯỢC CHỌN
+  // Tác dụng:
+  // - Khi người dùng bấm Sửa (truyền prop tier): Bóc tách các trường từ bản ghi tier cũ
+  //   (tierName, minStaffCount, maxStaffCount, conditions, benefits) để điền sẵn vào ô nhập.
+  // - Khi người dùng bấm Tạo mới: Reset toàn bộ form về giá trị rỗng/mặc định (minStaff = 0).
+  // - Xóa sạch danh sách lỗi errors cũ mỗi khi Modal đóng/mở.
+  // ==========================================================================
   useEffect(() => {
     if (tier) {
       setFormData({
@@ -72,13 +80,14 @@ export default function TierFormModal({
 
   if (!isOpen) return null;
 
-  // --------------------------------------------------------------------------
-  // BƯỚC 1: HÀM VALIDATE DỮ LIỆU ĐẦU VÀO (FORM VALIDATION LOGIC)
-  // Ràng buộc quy chuẩn:
-  // - Tên Tier không được để trống (bắt buộc nhập)
-  // - Định biên nhân sự tối thiểu (Min) phải >= 0
-  // - Định biên nhân sự tối đa (Max) nếu có nhập thì KHÔNG ĐƯỢC NHỎ HƠN tối thiểu
-  // --------------------------------------------------------------------------
+  // ==========================================================================
+  // HÀM 2: validate() - KIỂM SOÁT TÍNH ĐÚNG ĐẮN CỦA ĐỊNH BIÊN NHÂN SỰ
+  // Tác dụng:
+  // - Kiểm tra trường tên phân cấp bắt buộc không được rỗng.
+  // - Kiểm tra sàn nhân sự (MinStaffCount) >= 0.
+  // - Kiểm tra quy tắc định biên cốt lõi: MaxStaffCount không được nhỏ hơn MinStaffCount.
+  // - Trả về true nếu toàn bộ dữ liệu hợp lệ, hoặc false kèm cập nhật state errors để đổi viền đỏ giao diện.
+  // ==========================================================================
   const validate = () => {
     const err = {};
     if (!formData.tierName.trim()) {
@@ -98,12 +107,14 @@ export default function TierFormModal({
     return Object.keys(err).length === 0;
   };
 
-  // --------------------------------------------------------------------------
-  // BƯỚC 2: XỬ LÝ SUBMIT BIỂU MẪU (HANDLE SUBMIT & PAYLOAD NORMALIZATION)
-  // - Chuẩn hóa kiểu dữ liệu (ép kiểu Number cho Min/Max staff, trim khoảng trắng).
-  // - Tạo payload song song cả camelCase (cho .NET EF Core) và snake_case (cho DB).
-  // - Gửi payload lên hook useTier.js để gọi axiosInstance.post('tiers', payload).
-  // --------------------------------------------------------------------------
+  // ==========================================================================
+  // HÀM 3: handleSubmit(e) - CHUẨN HÓA VÀ GỬI DỮ LIỆU LÊN HỆ THỐNG
+  // Tác dụng:
+  // - Ngăn chặn hành vi reload trang mặc định của thẻ form (e.preventDefault).
+  // - Kích hoạt hàm validate(). Nếu có lỗi, lập tức dừng lại.
+  // - Chuẩn hóa kiểu dữ liệu: Ép số Number, trim chuỗi, gán null nếu không nhập trần maxStaff.
+  // - Tạo payload tương thích 2 chiều (camelCase và snake_case) rồi gọi onSubmit(payload).
+  // ==========================================================================
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
     if (!validate()) return;

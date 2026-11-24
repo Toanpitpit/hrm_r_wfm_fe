@@ -15,9 +15,14 @@ import {
   getBranchCustomShifts,
 } from '../services/shiftTemplate.service';
 
-/**
- * Tự động xác định loại ca theo giờ bắt đầu và tính chất qua đêm
- */
+// ==============================================================================
+// HÀM TRỢ GIÚP 1: getAutoShiftType(startTime, isOvernight)
+// Tác dụng:
+// - Tự động suy luận loại ca làm việc (Morning / Afternoon / Night) dựa trên giờ bắt đầu và cờ qua đêm.
+// - Nếu là ca qua đêm (isOvernight = true) hoặc bắt đầu sau 21h / trước 5h sáng -> gán 'Night'.
+// - Nếu bắt đầu từ 12h trưa trở đi -> gán 'Afternoon' (Ca Chiều).
+// - Còn lại -> gán 'Morning' (Ca Sáng).
+// ==============================================================================
 const getAutoShiftType = (startTime, isOvernight) => {
   if (isOvernight) return 'Night';
   if (!startTime) return 'Morning';
@@ -289,7 +294,13 @@ export default function ShiftTemplateFormModal({
 
   const hasAnyBatchConflict = Object.keys(batchConflicts).length > 0;
 
-  // Xử lý thay đổi giờ trong Single mode
+  // ==========================================================================
+  // HÀM 2: handleTimeChange(field, value)
+  // Tác dụng:
+  // - Cập nhật giá trị trường startTime hoặc endTime khi người dùng chỉnh sửa trên giao diện.
+  // - Tự động kiểm tra tính chất ca qua đêm (checkIsOvernight) và suy luận loại ca (Morning/Afternoon/Night).
+  // - Xóa bỏ các cảnh báo lỗi thời gian cũ trên giao diện khi người dùng vừa sửa giờ.
+  // ==========================================================================
   const handleTimeChange = (field, value) => {
     const next = { ...formData, [field]: value };
     const start = field === 'startTime' ? value : formData.startTime;
@@ -306,7 +317,14 @@ export default function ShiftTemplateFormModal({
     }
   };
 
-  // Client Validation cho Single mode
+  // ==========================================================================
+  // HÀM 3: validateSingle() - KIỂM SOÁT HỢP LỆ CHO CHẾ ĐỘ 1 CA LẺ
+  // Tác dụng:
+  // - Kiểm tra tên ca, phạm vi Scope (nếu là BRANCH thì bắt buộc chọn chi nhánh và chi nhánh không bị khóa).
+  // - Kiểm tra giờ bắt đầu không trùng giờ kết thúc.
+  // - Kích hoạt thuật toán findOverlappingShift kiểm tra xem ca mới có đè lên ca nào đã có trong DB không.
+  // - Kiểm tra thời gian nghỉ (breakDuration): Phải >= 0 và PHẢI NHỎ HƠN tổng thời lượng ca làm việc.
+  // ==========================================================================
   const validateSingle = () => {
     const errors = {};
 
@@ -370,7 +388,15 @@ export default function ShiftTemplateFormModal({
     return Object.keys(errors).length === 0;
   };
 
-  // Submit cho chế độ Single
+  // ==========================================================================
+  // HÀM 4: handleSubmitSingle(e, keepOpenAndAddNext) - XỬ LÝ LƯU 1 CA ĐƠN LẺ
+  // Tác dụng:
+  // - Gọi hàm validateSingle() kiểm tra toàn diện dữ liệu ca đơn.
+  // - Chuẩn hóa mã ca (templateCode) tự động nếu người dùng để trống (ví dụ: CR_02_0600 hoặc CA_0600).
+  // - Gửi submissionData tới callback onSubmit để gọi POST hoặc PUT /api/shift-templates.
+  // - Nếu bật cờ keepOpenAndAddNext: Tự động gán giờ ca tiếp theo (end ca trước = start ca sau)
+  //   để người dùng tiếp tục tạo ca mà không phải đóng modal.
+  // ==========================================================================
   const handleSubmitSingle = async (e, keepOpenAndAddNext = false) => {
     if (e && e.preventDefault) e.preventDefault();
     setServerError('');
@@ -425,7 +451,14 @@ export default function ShiftTemplateFormModal({
     }
   };
 
-  // Submit cho chế độ Batch (Tạo nhiều ca cùng lúc)
+  // ==========================================================================
+  // HÀM 5: handleSubmitBatch(e) - XỬ LÝ LƯU HÀNG LOẠT NHIỀU CA CÙNG LÚC
+  // Tác dụng:
+  // - Kiểm tra chi nhánh bị khóa (isSelectedBranchLocked -> HTTP 423).
+  // - Kiểm tra từng ca trong danh sách batchShifts: Không để trống tên, giờ bắt đầu != kết thúc,
+  //   thời gian nghỉ < thời lượng ca, và KHÔNG NẰM TRONG DANH SÁCH XUNG ĐỘT (batchConflicts).
+  // - Đóng gói mảng payloadList gồm tất cả các ca và gọi callback onSubmit(payloadList).
+  // ==========================================================================
   const handleSubmitBatch = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setServerError('');
@@ -524,7 +557,14 @@ export default function ShiftTemplateFormModal({
     }
   };
 
-  // Thêm 1 ca mới vào danh sách Batch
+  // ==========================================================================
+  // HÀM 6: handleAddBatchShift() - THÊM 1 CA MỚI VÀO DANH SÁCH BATCH
+  // Tác dụng:
+  // - Khống chế số lượng tối đa 10 ca trong 1 đợt tạo để đảm bảo hiệu năng và tính ổn định.
+  // - Tự động tính toán giờ bắt đầu của ca mới bằng đúng giờ kết thúc của ca liền trước (tiếp nối liên tục).
+  // - Tự động suy luận tên gợi ý (Ca Sáng, Ca Chiều hoặc Ca Đêm) dựa vào khung giờ mới tính được.
+  // - Sinh ID tạm thời duy nhất (batch_timestamp_random) cho ca mới và thêm vào state batchShifts.
+  // ==========================================================================
   const handleAddBatchShift = () => {
     if (batchShifts.length >= 10) {
       setServerError('Mỗi đợt tạo hàng loạt chỉ hỗ trợ tối đa 10 khung ca.');
@@ -560,13 +600,23 @@ export default function ShiftTemplateFormModal({
     ]);
   };
 
-  // Xóa 1 ca khỏi danh sách Batch
+  // ==========================================================================
+  // HÀM 7: handleRemoveBatchShift(id) - XÓA 1 CA KHỎI DANH SÁCH BATCH
+  // Tác dụng:
+  // - Giữ lại tối thiểu 1 ca (nếu chỉ còn 1 ca thì không cho xóa).
+  // - Lọc bỏ ca có id tương ứng ra khỏi state batchShifts: prev.filter(s => s.id !== id).
+  // ==========================================================================
   const handleRemoveBatchShift = (id) => {
     if (batchShifts.length <= 1) return;
     setBatchShifts((prev) => prev.filter((s) => s.id !== id));
   };
 
-  // Chỉnh sửa thuộc tính của 1 ca trong Batch
+  // ==========================================================================
+  // HÀM 8: handleBatchShiftChange(id, field, value) - CẬP NHẬT THUỘC TÍNH 1 CA
+  // Tác dụng:
+  // - Cập nhật giá trị trường dữ liệu (name, startTime, endTime, breakDuration) của ca có id chỉ định trong batchShifts.
+  // - Kích hoạt re-render để useMemo tính toán lại batchConflicts ngay lập tức.
+  // ==========================================================================
   const handleBatchShiftChange = (id, field, value) => {
     setBatchShifts((prev) =>
       prev.map((s) => (s.id === id ? { ...s, [field]: value } : s))
@@ -1091,7 +1141,7 @@ export default function ShiftTemplateFormModal({
                 label="Tên Khung Ca"
                 required
                 error={clientErrors.name}
-                
+
               >
                 <input
                   type="text"
@@ -1247,7 +1297,7 @@ export default function ShiftTemplateFormModal({
               {/* 6. Mã khung ca (Tùy chọn) */}
               <FormField
                 label="Mã Khung Ca (Tùy chọn)"
-                
+
               >
                 <input
                   type="text"
@@ -1271,7 +1321,7 @@ export default function ShiftTemplateFormModal({
               {/* 7. Mô tả */}
               <FormField
                 label="Ghi Chú / Mô Tả"
-                
+
               >
                 <textarea
                   rows={2}

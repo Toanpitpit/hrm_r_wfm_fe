@@ -52,6 +52,13 @@ export default function BranchFormModal({
   const [serverError, setServerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // ==========================================================================
+  // HÀM 1: useEffect - TẢI DANH MỤC PHÂN CẤP TIER TỪ DATABASE
+  // Tác dụng:
+  // - Gọi API tierService.getAllTiers() để lấy toàn bộ danh sách Tier thực tế trong DB.
+  // - Nạp vào state dbTiers phục vụ hiển thị Dropdown chọn cấp cho chi nhánh.
+  // - Tránh hardcode dữ liệu phân cấp, đảm bảo khi Admin đổi Tier thì Dropdown tự động cập nhật.
+  // ==========================================================================
   useEffect(() => {
     if (!open) return;
     if (Array.isArray(propTiers) && propTiers.length > 0) {
@@ -69,6 +76,14 @@ export default function BranchFormModal({
     return () => { isMounted = false; };
   }, [open, propTiers]);
 
+  // ==========================================================================
+  // HÀM 2: useEffect - KHỞI TẠO HOẶC RESET DỮ LIỆU FORM (INITIALIZE STATE)
+  // Tác dụng:
+  // - Nếu là CHỈNH SỬA (initialData có giá trị): Điền toàn bộ thông tin cũ của chi nhánh
+  //   (mã, tên, địa chỉ, tierId, staffCount, tọa độ GPS, bán kính Geofence) vào form.
+  // - Nếu là TẠO MỚI: Reset form về rỗng, gán tọa độ mặc định và chọn Tier đầu tiên.
+  // - Xóa các thông báo lỗi cũ khi modal được mở lại.
+  // ==========================================================================
   useEffect(() => {
     if (!open) return;
     if (initialData) {
@@ -105,6 +120,12 @@ export default function BranchFormModal({
     setServerError('');
   }, [initialData, open]);
 
+  // ==========================================================================
+  // HÀM 3: useEffect - TỰ ĐỘNG GÁN TIERID MẶC ĐỊNH
+  // Tác dụng:
+  // - Khi danh sách dbTiers vừa tải xong mà form đang ở chế độ tạo mới (chưa có tierId),
+  //   tự động lấy ID của phân cấp đầu tiên gán vào formData.tierId để người dùng không phải chọn thủ công.
+  // ==========================================================================
   useEffect(() => {
     if (!initialData && dbTiers.length > 0 && !formData.tierId) {
       setFormData((prev) => ({
