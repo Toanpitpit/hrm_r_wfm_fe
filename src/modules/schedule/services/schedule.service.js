@@ -58,6 +58,22 @@ export const deleteSchedule = async (scheduleId) => {
 };
 
 /**
+ * Xóa toàn bộ định mức và thời khóa biểu của tuần (DRAFT).
+ */
+export const deleteWeeklySchedule = async (branchId, weekStartDate) => {
+  const response = await axiosInstance.delete(API_ENDPOINTS.SHIFTS.DELETE_WEEKLY_SCHEDULE(branchId, weekStartDate));
+  return response.data;
+};
+
+/**
+ * Xóa toàn bộ phân công ca làm việc của tuần (DRAFT), giữ nguyên khung ca & định mức.
+ */
+export const deleteWeeklyAssignments = async (branchId, weekStartDate) => {
+  const response = await axiosInstance.delete(API_ENDPOINTS.SHIFTS.DELETE_WEEKLY_ASSIGNMENTS(branchId, weekStartDate));
+  return response.data;
+};
+
+/**
  * Phân bổ nhanh danh sách nhân sự Full-time vào ca trực trong tuần (UC 2.1).
  */
 export const assignFullTimeBatch = async (payload) => {
@@ -199,6 +215,9 @@ export default {
 
   generateWeeklySchedule,
   updateScheduleRequirement,
+  deleteSchedule,
+  deleteWeeklySchedule,
+  deleteWeeklyAssignments,
   assignFullTimeBatch,
   assignSingleShift,
   deleteShiftAssignment,
