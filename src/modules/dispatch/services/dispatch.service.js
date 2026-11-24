@@ -138,10 +138,13 @@ const dispatchService = {
 
   /**
    * Lấy danh sách nhân viên đang hoạt động của một chi nhánh cụ thể (hỗ trợ liên chi nhánh)
+   * Có hỗ trợ kiểm tra lịch làm việc (ca trực) nếu truyền startDate và endDate
    * @param {number|string} branchId
+   * @param {string} [startDate]
+   * @param {string} [endDate]
    * @returns {Promise<Array>} Danh sách nhân viên
    */
-  getEmployeesByBranch: async (branchId) => {
+  getEmployeesByBranch: async (branchId, startDate, endDate) => {
     if (!branchId) return [];
 
     const isStoreManager = (emp) => {
@@ -157,7 +160,10 @@ const dispatchService = {
     };
 
     try {
-      const response = await axiosInstance.get(API_ENDPOINTS.DISPATCH.BRANCH_EMPLOYEES(branchId));
+      const params = {};
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+      const response = await axiosInstance.get(API_ENDPOINTS.DISPATCH.BRANCH_EMPLOYEES(branchId), { params });
       const data = response.data?.data || response.data;
       if (Array.isArray(data)) {
         return data.filter((emp) => !isStoreManager(emp));

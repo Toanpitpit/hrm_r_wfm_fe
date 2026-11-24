@@ -108,7 +108,7 @@ export default function CreateDispatchRequestModal({
     const loadEmployees = async () => {
       setLoadingEmployees(true);
       try {
-        const list = await dispatchService.getEmployeesByBranch(partnerStoreId);
+        const list = await dispatchService.getEmployeesByBranch(partnerStoreId, startDate, endDate);
         setEmployees(list);
       } catch (err) {
         console.error('Lỗi khi tải danh sách nhân sự:', err);
@@ -117,7 +117,7 @@ export default function CreateDispatchRequestModal({
       }
     };
     loadEmployees();
-  }, [partnerStoreId]);
+  }, [partnerStoreId, startDate, endDate]);
 
   // Tải thông tin định biên an toàn của chi nhánh đối tác (40% tổng quân số)
   useEffect(() => {
@@ -156,6 +156,14 @@ export default function CreateDispatchRequestModal({
     : (employees.length > 0 ? Math.floor(employees.length * 0.4) : null);
 
   const toggleEmployee = (empIdStr) => {
+    const targetEmp = employees.find((e) => String(e.id || e.userId) === empIdStr);
+    if (targetEmp?.hasScheduleConflict && !selectedEmployeeIds.includes(empIdStr)) {
+      setErrorMessage(
+        `Nhân sự "${targetEmp.fullName || targetEmp.name}" đã có lịch làm việc (${targetEmp.conflictShiftDetail || 'trong thời gian này'}). Không thể chọn nhân sự đã có lịch trực.`
+      );
+      return;
+    }
+
     setSelectedEmployeeIds((prev) => {
       if (prev.includes(empIdStr)) {
         setErrorMessage('');
@@ -175,7 +183,8 @@ export default function CreateDispatchRequestModal({
   };
 
   const handleSelectAll = () => {
-    const allFilteredIds = filteredEmployees.map((e) => String(e.id || e.userId));
+    const availableEmployees = filteredEmployees.filter((e) => !e.hasScheduleConflict);
+    const allFilteredIds = availableEmployees.map((e) => String(e.id || e.userId));
     const limit = effectiveMaxQuota !== null ? effectiveMaxQuota : allFilteredIds.length;
     if (effectiveMaxQuota !== null && allFilteredIds.length > limit) {
       const partnerName = selectedPartnerBranch?.name || selectedPartnerBranch?.branchName || 'hỗ trợ';
@@ -231,6 +240,17 @@ export default function CreateDispatchRequestModal({
     }
     if (!reason || !reason.trim()) {
       setErrorMessage('Vui lòng nhập lý do / công việc cần tăng cường điều động nhân sự.');
+      return;
+    }
+
+    // Kiểm tra nhân sự đã có lịch trực
+    const conflictingSelected = employees.filter(
+      (e) => selectedEmployeeIds.includes(String(e.id || e.userId)) && e.hasScheduleConflict
+    );
+    if (conflictingSelected.length > 0) {
+      setErrorMessage(
+        `Nhân sự "${conflictingSelected[0].fullName}" đã có lịch làm việc (${conflictingSelected[0].conflictShiftDetail}). Không thể tạo đơn xin mượn nhân sự đã có lịch trực.`
+      );
       return;
     }
 
@@ -610,6 +630,7 @@ export default function CreateDispatchRequestModal({
                 {filteredEmployees.map((emp) => {
                   const empIdStr = String(emp.id || emp.userId);
                   const isChecked = selectedEmployeeIds.includes(empIdStr);
+                  const hasConflict = Boolean(emp.hasScheduleConflict);
                   const avatar = (emp.fullName || 'N').trim().charAt(0).toUpperCase();
 
                   return (
@@ -622,32 +643,42 @@ export default function CreateDispatchRequestModal({
                         justifyContent: 'space-between',
                         padding: '8px 12px',
                         borderRadius: 6,
-                        cursor: 'pointer',
-                        background: isChecked ? 'rgba(212, 175, 55, 0.12)' : 'transparent',
-                        border: isChecked ? `1px solid ${c.accent}` : `1px solid transparent`,
+                        cursor: hasConflict ? 'not-allowed' : 'pointer',
+                        opacity: hasConflict ? 0.7 : 1,
+                        background: hasConflict
+                          ? 'rgba(239, 68, 68, 0.05)'
+                          : isChecked
+                          ? 'rgba(212, 175, 55, 0.12)'
+                          : 'transparent',
+                        border: hasConflict
+                          ? '1px dashed rgba(239, 68, 68, 0.4)'
+                          : isChecked
+                          ? `1px solid ${c.accent}`
+                          : `1px solid transparent`,
                         transition: 'all 0.15s ease',
                       }}
                       onMouseEnter={(e) => {
-                        if (!isChecked) e.currentTarget.style.background = c.bgElev;
+                        if (!isChecked && !hasConflict) e.currentTarget.style.background = c.bgElev;
                       }}
                       onMouseLeave={(e) => {
-                        if (!isChecked) e.currentTarget.style.background = 'transparent';
+                        if (!isChecked && !hasConflict) e.currentTarget.style.background = 'transparent';
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <input
                           type="checkbox"
                           checked={isChecked}
+                          disabled={hasConflict}
                           onChange={() => { }} // Đã xử lý ở thẻ cha onClick
-                          style={{ cursor: 'pointer', accentColor: c.accent }}
+                          style={{ cursor: hasConflict ? 'not-allowed' : 'pointer', accentColor: c.accent }}
                         />
                         <div
                           style={{
                             width: 28,
                             height: 28,
                             borderRadius: '50%',
-                            background: isChecked ? c.accent : c.bgCard,
-                            color: isChecked ? '#000' : c.fg,
+                            background: hasConflict ? '#ef4444' : isChecked ? c.accent : c.bgCard,
+                            color: hasConflict || isChecked ? '#fff' : c.fg,
                             fontWeight: 700,
                             fontSize: 12,
                             display: 'flex',
@@ -658,7 +689,7 @@ export default function CreateDispatchRequestModal({
                           {avatar}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: 13, color: c.fg }}>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: hasConflict ? c.fgMuted : c.fg }}>
                             {emp.fullName}
                           </div>
                           <div style={{ fontSize: 11, color: c.fgFaint }}>
@@ -667,7 +698,24 @@ export default function CreateDispatchRequestModal({
                         </div>
                       </div>
 
-                      {isChecked && (
+                      {hasConflict ? (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            padding: '3px 8px',
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            color: '#ef4444',
+                            borderRadius: 4,
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                          title={`Nhân sự đã có lịch trực: ${emp.conflictShiftDetail}`}
+                        >
+                          <span>⚠️ Có ca: {emp.conflictShiftDetail}</span>
+                        </span>
+                      ) : isChecked ? (
                         <span
                           style={{
                             fontSize: 11,
@@ -680,7 +728,7 @@ export default function CreateDispatchRequestModal({
                         >
                           Đã chọn
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })}
