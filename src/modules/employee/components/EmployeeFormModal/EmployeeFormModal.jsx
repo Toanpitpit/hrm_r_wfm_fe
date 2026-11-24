@@ -107,16 +107,60 @@ export default function EmployeeFormModal({
   const [importMessage, setImportMessage] = useState('');
   const [importStatus, setImportStatus] = useState('idle'); // 'idle' | 'success' | 'partial' | 'error'
 
+  const normalizePhoneNumber = (phone) => {
+    if (!phone) return '';
+    let clean = String(phone).trim().replace(/[\s\.\-\(\)]/g, '');
+    if (clean.startsWith('+84')) clean = '0' + clean.slice(3);
+    else if (clean.startsWith('84') && clean.length === 11) clean = '0' + clean.slice(2);
+    return clean;
+  };
+
+  // Định nghĩa chặt chẽ thế nào là có thay đổi thông tin:
+  // So sánh toàn bộ các trường thông tin thực tế của formData với initialData gốc
+  const hasFormChanged = useMemo(() => {
+    if (!isEdit || !initialData) return false;
+
+    const initialFullName = (initialData.fullName || '').trim();
+    const currentFullName = (formData.fullName || '').trim();
+    if (initialFullName !== currentFullName) return true;
+
+    const initialEmail = (initialData.email || '').trim().toLowerCase();
+    const currentEmail = (formData.email || '').trim().toLowerCase();
+    if (initialEmail !== currentEmail) return true;
+
+    const initialPhone = normalizePhoneNumber(initialData.phone);
+    const currentPhone = normalizePhoneNumber(formData.phone);
+    if (initialPhone !== currentPhone) return true;
+
+    const initialRoleId = String(initialData.roleId || '');
+    const currentRoleId = String(formData.roleId || '');
+    if (initialRoleId !== currentRoleId) return true;
+
+    const initialBranchId = String(initialData.homeBranchId || initialData.branchId || '');
+    const currentBranchIdVal = String(formData.homeBranchId || formData.branchId || '');
+    if (initialBranchId !== currentBranchIdVal) return true;
+
+    const initialContractType = (initialData.contractType || initialData.employmentType || 'FULL_TIME').toUpperCase();
+    const currentContractType = (formData.contractType || 'FULL_TIME').toUpperCase();
+    if (initialContractType !== currentContractType) return true;
+
+    const initialStatus = (initialData.status || 'ACTIVE').toUpperCase();
+    const currentStatus = (formData.status || accountStatus || 'ACTIVE').toUpperCase();
+    if (initialStatus !== currentStatus) return true;
+
+    return false;
+  }, [isEdit, initialData, formData, accountStatus]);
+
   // Kiểm tra xem form đã được nhập thông tin dở dang chưa (Đặt sau khi selectedFile đã được khai báo)
   const isDirty = Boolean(
-    !isEdit && (
+    (!isEdit && (
       formData.fullName?.trim() ||
       formData.email?.trim() ||
       formData.phone?.trim() ||
       formData.roleId ||
       (!isStoreManager && formData.branchId) ||
       (selectedFile && importStatus === 'idle')
-    )
+    )) || (isEdit && hasFormChanged)
   );
 
   // Phân quyền chọn Vai trò:
@@ -784,8 +828,8 @@ export default function EmployeeFormModal({
       newErrors.password = 'Mật khẩu khởi tạo cần tối thiểu 6 ký tự';
     }
 
-    // Bắt buộc nhập lý do khi Chỉnh sửa hồ sơ (Edit mode)
-    if (isEdit && (!formData.reason || formData.reason.trim().length < 5)) {
+    // Bắt buộc nhập lý do khi Chỉnh sửa hồ sơ (Edit mode) CHỈ KHI có thay đổi thông tin so với ban đầu
+    if (isEdit && hasFormChanged && (!formData.reason || formData.reason.trim().length < 5)) {
       newErrors.reason = 'Vui lòng nhập lý do điều chỉnh hồ sơ nhân sự (tối thiểu 5 ký tự) để gửi email thông báo và lưu vết kiểm toán.';
     }
 
@@ -796,6 +840,14 @@ export default function EmployeeFormModal({
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
     setSubmitError('');
+
+    // Nếu đang ở chế độ chỉnh sửa nhưng không có trường thông tin nào thay đổi so với dữ liệu gốc ban đầu
+    if (isEdit && !hasFormChanged) {
+      toast?.info?.('Hồ sơ nhân sự không có thông tin nào thay đổi.');
+      onClose();
+      return;
+    }
+
     if (!validate()) return;
 
     setSubmitting(true);
@@ -1174,6 +1226,7 @@ export default function EmployeeFormModal({
         homeBranchId: Number(formData.branchId),
         contractType: formData.contractType || 'FULL_TIME',
         status: 'ACTIVE',
+        reason: 'Tái tuyển dụng và cập nhật hồ sơ từ hàng đợi duyệt file Excel',
       };
 
       const updateRes = await employeeService.updateEmployee(cur.id, updatePayload);
@@ -1392,7 +1445,7 @@ export default function EmployeeFormModal({
                     disabled={savingQueueItem}
                     title="Quay lại hồ sơ nhân sự trước đó"
                   >
-                    <Icon name="chevron-left" size={15} />
+                    <Icon name="arrow-left" size={15} />
                     <span>Quay Lại</span>
                   </Button>
                 )}
@@ -1619,88 +1672,48 @@ export default function EmployeeFormModal({
                 }} />
               </div>
 
-              {/* Step Indicators - Cho phép nhấn vào từng mã nhân viên để quay lại chỉnh sửa */}
-              <div style={{
-                display: 'flex',
-                gap: '8px',
-                marginTop: '12px',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                padding: '8px 10px',
-                background: 'rgba(0,0,0,0.03)',
-                borderRadius: '6px',
-                border: '1px solid rgba(0,0,0,0.06)',
-              }}>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: c.fgSubtle, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Icon name="layers" size={13} color={c.fgSubtle} />
-                  <span>Chọn hồ sơ ({queueList.length}):</span>
-                </span>
+              {/* Step Indicators - Click vào mã nhân viên để quay lại chỉnh sửa */}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
                 {queueList.map((emp, idx) => {
                   const isCurrent = idx === queueIndex;
-                  const isSaved = savedQueueEmployees.some(s => s.employeeCode === emp.employeeCode || String(s.id) === String(emp.id));
+                  const isSaved = savedQueueEmployees.some(
+                    (s) => s.employeeCode === emp.employeeCode || String(s.id) === String(emp.id)
+                  );
                   return (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => handleSelectQueueItem(idx)}
                       disabled={savingQueueItem}
-                      title={`Nhấn để chuyển sang xem/sửa hồ sơ [${idx + 1}/${queueList.length}]: ${emp.employeeCode} - ${emp.fullName || ''}${isSaved ? ' (Đã lưu - Nhấn để sửa lại)' : ' (Chưa lưu)'}`}
+                      title={`Xem/sửa hồ sơ: ${emp.employeeCode}${isSaved ? ' (Đã lưu)' : ''}`}
                       style={{
+                        border: 'none',
                         cursor: savingQueueItem ? 'not-allowed' : 'pointer',
-                        fontSize: '11.5px',
-                        fontWeight: isCurrent ? 700 : 600,
-                        padding: '4px 10px',
-                        borderRadius: '5px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
                         background: isCurrent
                           ? '#0D9488'
                           : isSaved
-                            ? 'rgba(34, 197, 94, 0.15)'
-                            : 'rgba(255, 255, 255, 0.9)',
+                            ? 'rgba(16, 185, 129, 0.18)'
+                            : 'rgba(0, 0, 0, 0.06)',
                         color: isCurrent
                           ? '#ffffff'
                           : isSaved
-                            ? '#16A34A'
-                            : c.fg,
-                        border: isCurrent
-                          ? '1.5px solid #0D9488'
-                          : isSaved
-                            ? '1.5px solid rgba(34, 197, 94, 0.4)'
-                            : `1px solid ${c.border}`,
-                        boxShadow: isCurrent ? '0 2px 5px rgba(13, 148, 136, 0.35)' : 'none',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        transition: 'all 0.15s ease',
+                            ? '#047857'
+                            : c.fgSubtle,
+                        transition: 'opacity 0.15s ease',
+                        outline: 'none',
                       }}
                       onMouseEnter={(e) => {
-                        if (!isCurrent && !savingQueueItem) {
-                          e.currentTarget.style.borderColor = '#0D9488';
-                          e.currentTarget.style.color = '#0D9488';
-                          e.currentTarget.style.transform = 'translateY(-1px)';
-                        }
+                        if (!isCurrent) e.currentTarget.style.opacity = '0.75';
                       }}
                       onMouseLeave={(e) => {
-                        if (!isCurrent) {
-                          e.currentTarget.style.borderColor = isSaved ? 'rgba(34, 197, 94, 0.4)' : c.border;
-                          e.currentTarget.style.color = isSaved ? '#16A34A' : c.fg;
-                          e.currentTarget.style.transform = 'translateY(0)';
-                        }
+                        if (!isCurrent) e.currentTarget.style.opacity = '1';
                       }}
                     >
-                      {isSaved ? <Icon name="check" size={12} color={isCurrent ? '#ffffff' : '#16A34A'} /> : null}
-                      <span>{emp.employeeCode}</span>
-                      {emp.fullName ? (
-                        <span style={{
-                          opacity: isCurrent ? 0.92 : 0.75,
-                          fontSize: '10.5px',
-                          maxWidth: '85px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}>
-                          ({emp.fullName})
-                        </span>
-                      ) : null}
+                      {emp.employeeCode}
                     </button>
                   );
                 })}
@@ -2404,30 +2417,49 @@ export default function EmployeeFormModal({
               </Field>
             </div>
 
-            {/* ─── LÝ DO ĐIỀU CHỈNH HỒ SƠ & GỬI EMAIL THÔNG BÁO (BẮT BUỘC KHI CHỈNH SỬA) ─── */}
+            {/* ─── LÝ DO ĐIỀU CHỈNH HỒ SƠ & GỬI EMAIL THÔNG BÁO (BẮT BUỘC KHI CÓ THAY ĐỔI) ─── */}
             {isEdit && (
               <div
                 style={{
                   marginTop: '8px',
                   padding: '14px 16px',
                   borderRadius: '8px',
-                  background: 'rgba(37, 99, 235, 0.05)',
-                  border: `1.5px solid ${errors.reason ? '#ef4444' : 'rgba(37, 99, 235, 0.35)'}`,
+                  background: hasFormChanged ? 'rgba(37, 99, 235, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+                  border: `1.5px solid ${errors.reason ? '#ef4444' : hasFormChanged ? 'rgba(37, 99, 235, 0.35)' : c.border}`,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '8px',
+                  transition: 'all 0.2s ease',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Icon name="mail" size={16} color="#2563eb" />
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: c.fg }}>
-                    Lý Do Điều Chỉnh Hồ Sơ & Gửi Email Thông Báo (Bắt buộc) *
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Icon name="mail" size={16} color={hasFormChanged ? '#2563eb' : c.fgSubtle} />
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: c.fg }}>
+                      Lý Do Điều Chỉnh Hồ Sơ {hasFormChanged ? '(Bắt buộc khi có thay đổi) *' : '(Chỉ yêu cầu khi có thay đổi thông tin)'}
+                    </span>
+                  </div>
+                  {hasFormChanged && (
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: '#2563eb',
+                      background: 'rgba(37, 99, 235, 0.12)',
+                      padding: '2px 8px',
+                      borderRadius: '4px'
+                    }}>
+                      Phát hiện thay đổi thông tin
+                    </span>
+                  )}
                 </div>
                 <Field
                   label=""
                   error={errors.reason}
-                  hint="Lý do này sẽ được lưu vết kiểm toán hệ thống (SystemAuditLog) và tự động gửi thông báo thay đổi chi tiết đến email nhân viên."
+                  hint={
+                    hasFormChanged
+                      ? 'Lý do này sẽ được lưu vết kiểm toán hệ thống (SystemAuditLog) và tự động gửi thông báo thay đổi chi tiết đến email nhân viên.'
+                      : 'Hồ sơ chưa có thay đổi nào so với dữ liệu gốc. Bạn chỉ cần nhập lý do khi thực hiện điều chỉnh thông tin nhân sự.'
+                  }
                 >
                   <TextInput
                     value={formData.reason || ''}
@@ -2435,7 +2467,11 @@ export default function EmployeeFormModal({
                       handleChange('reason', e.target.value);
                       if (errors.reason) setErrors((prev) => ({ ...prev, reason: '' }));
                     }}
-                    placeholder="Ví dụ: Điều chuyển cơ sở công tác theo nguyện vọng, cập nhật số điện thoại và email..."
+                    placeholder={
+                      hasFormChanged
+                        ? 'Ví dụ: Điều chuyển cơ sở công tác theo nguyện vọng, cập nhật số điện thoại và email...'
+                        : 'Không bắt buộc nếu giữ nguyên thông tin hồ sơ hiện tại...'
+                    }
                     error={Boolean(errors.reason)}
                   />
                 </Field>
