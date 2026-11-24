@@ -7,7 +7,19 @@ import Button from '@/shared/components/ui/Button';
 /**
  * ==============================================================================
  * COMPONENT: TierFormModal.jsx
- * Modal Thêm mới / Cập nhật Tier Phân cấp Chi nhánh
+ * PHÂN HỆ: TẠO PHÂN CẤP CHI NHÁNH (BRANCH TIER CONFIGURATION)
+ * ==============================================================================
+ * MỤC ĐÍCH NGHIỆP VỤ:
+ * - Cung cấp giao diện biểu mẫu tạo mới và cập nhật tiêu chuẩn phân cấp chi nhánh (Tier).
+ * - Kiểm soát chặt chẽ quy chuẩn định biên quân số (MinStaffCount <= MaxStaffCount).
+ * - Chuẩn hóa trường dữ liệu trước khi gửi sang Backend API (POST /api/tiers).
+ * 
+ * ĐƯỜNG ĐI TRÊN FRONTEND (5 TRẠM DỪNG):
+ * - Trạm 1: Khởi tạo State formData (tierName, minStaffCount, maxStaffCount, conditions, benefits).
+ * - Trạm 2: Kiểm tra dữ liệu đầu vào (validate function: chặn để trống tên, chặn Max < Min).
+ * - Trạm 3: Chuẩn hóa Payload hỗ trợ cả camelCase và snake_case tương thích hệ thống.
+ * - Trạm 4: Kích hoạt callback onSubmit(payload) chuyển dữ liệu cho hook useTier.
+ * - Trạm 5: Đóng Modal và kích hoạt làm mới bảng phân cấp TierTable.
  * ==============================================================================
  */
 export default function TierFormModal({
@@ -60,6 +72,13 @@ export default function TierFormModal({
 
   if (!isOpen) return null;
 
+  // --------------------------------------------------------------------------
+  // BƯỚC 1: HÀM VALIDATE DỮ LIỆU ĐẦU VÀO (FORM VALIDATION LOGIC)
+  // Ràng buộc quy chuẩn:
+  // - Tên Tier không được để trống (bắt buộc nhập)
+  // - Định biên nhân sự tối thiểu (Min) phải >= 0
+  // - Định biên nhân sự tối đa (Max) nếu có nhập thì KHÔNG ĐƯỢC NHỎ HƠN tối thiểu
+  // --------------------------------------------------------------------------
   const validate = () => {
     const err = {};
     if (!formData.tierName.trim()) {
@@ -79,6 +98,12 @@ export default function TierFormModal({
     return Object.keys(err).length === 0;
   };
 
+  // --------------------------------------------------------------------------
+  // BƯỚC 2: XỬ LÝ SUBMIT BIỂU MẪU (HANDLE SUBMIT & PAYLOAD NORMALIZATION)
+  // - Chuẩn hóa kiểu dữ liệu (ép kiểu Number cho Min/Max staff, trim khoảng trắng).
+  // - Tạo payload song song cả camelCase (cho .NET EF Core) và snake_case (cho DB).
+  // - Gửi payload lên hook useTier.js để gọi axiosInstance.post('tiers', payload).
+  // --------------------------------------------------------------------------
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
     if (!validate()) return;

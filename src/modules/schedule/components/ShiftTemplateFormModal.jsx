@@ -30,8 +30,17 @@ const getAutoShiftType = (startTime, isOvernight) => {
 /**
  * ==============================================================================
  * COMPONENT: ShiftTemplateFormModal.jsx
- * Modal Thêm / Chỉnh sửa Khung ca mẫu (Chung toàn chuỗi hoặc Riêng chi nhánh)
- * Hỗ trợ tạo đơn lẻ và tạo hàng loạt nhiều ca cùng một lúc.
+ * PHÂN HỆ: QUẢN TRỊ KHUNG CA MẪU CHUỖI & CA RIÊNG (SHIFT MASTER & BATCH ENGINE)
+ * ==============================================================================
+ * MỤC ĐÍCH NGHIỆP VỤ:
+ * - Cung cấp biểu mẫu cấu hình khung ca làm việc theo mô hình Hybrid (Ca Chung GLOBAL & Ca Riêng CUSTOM).
+ * - Hỗ trợ 2 chế độ tạo ca:
+ *     1. SINGLE MODE: Tạo hoặc cập nhật 1 khung ca đơn lẻ.
+ *     2. BATCH MODE: Tạo hàng loạt từ 2 đến 10 ca cùng một lúc (Modal mở rộng 860px).
+ * - Tích hợp giải thuật thời gian thực (Real-time):
+ *     + Nhận diện ca qua đêm (Overnight Detection: startTime > endTime -> cộng 1440 phút).
+ *     + Quét xung đột thời gian chéo O(N^2) giữa các ca trong mảng Batch và với ca đã có trong DB.
+ *     + Kiểm tra trạng thái khóa chi nhánh (Branch Lock Guard - ngăn chặn tạo ca khi chi nhánh bị khóa).
  * ==============================================================================
  */
 export default function ShiftTemplateFormModal({
@@ -241,13 +250,19 @@ export default function ShiftTemplateFormModal({
     )
   );
 
-  // Xung đột trong chế độ BATCH (Tạo nhiều ca)
+  // --------------------------------------------------------------------------
+  // BƯỚC 1: THUẬT TOÁN QUÉT XUNG ĐỘT TRÙNG GIỜ TRONG BATCH MODE (OVERLAP DETECTION ENGINE)
+  // Quét 2 tầng thời gian thực:
+  //   - Tầng 1: So sánh cặp chéo O(N^2) giữa các ca đang nhập trong mảng batchShifts.
+  //   - Tầng 2: So sánh từng ca batch với danh sách các ca đã có sẵn trong Database (targetShifts).
+  // Công thức giao khoảng: max(StartA, StartB) < min(EndA, EndB) (sau khi chuẩn hóa ca qua đêm).
+  // --------------------------------------------------------------------------
   const batchConflicts = React.useMemo(() => {
     if (creationMode !== 'BATCH') return {};
     const conflicts = {};
 
     batchShifts.forEach((shift, idx) => {
-      // 1. Kiểm tra với các ca khác trong danh sách batch
+      // 1. Kiểm tra với các ca khác trong danh sách batch đang nhập
       for (let j = 0; j < batchShifts.length; j++) {
         if (idx !== j) {
           const other = batchShifts[j];

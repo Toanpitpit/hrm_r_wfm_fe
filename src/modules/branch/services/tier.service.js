@@ -156,16 +156,34 @@ export const getAllTiers = async () => {
   }));
 };
 
+// ==============================================================================
+// CÁC HÀM GỌI API MASTER DATA TIER VỚI BACKEND (.NET EF CORE)
+// ==============================================================================
+
+/**
+ * 1. Tạo mới phân cấp chi nhánh (Tier)
+ * Endpoint: POST /api/tiers (hoặc /api/v1/tiers)
+ * Body: CreateTierDto (tierName, minStaffCount, maxStaffCount, description, conditions, benefits)
+ */
 export const createTier = async (dto) => {
   const res = await apiClient.post('/tiers', dto);
   return res.data?.data || res.data;
 };
 
+/**
+ * 2. Cập nhật phân cấp chi nhánh theo ID
+ * Endpoint: PUT /api/tiers/{id}
+ */
 export const updateTier = async (id, dto) => {
   const res = await apiClient.put(`/tiers/${id}`, dto);
   return res.data?.data || res.data;
 };
 
+/**
+ * 3. Xóa phân cấp chi nhánh theo ID (Có kiểm soát ràng buộc toàn vẹn)
+ * Endpoint: DELETE /api/tiers/{id}
+ * Lưu ý: Backend sẽ chặn xóa (HTTP 400) nếu đang có chi nhánh liên kết.
+ */
 export const deleteTier = async (id) => {
   const res = await apiClient.delete(`/tiers/${id}`);
   return res.data?.data || res.data;

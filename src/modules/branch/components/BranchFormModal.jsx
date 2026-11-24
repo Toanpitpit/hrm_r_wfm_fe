@@ -10,14 +10,21 @@ import tierService from '../services/tier.service';
 /**
  * ==============================================================================
  * COMPONENT: BranchFormModal.jsx
- * UC 1.2: Modal Thêm / Chỉnh sửa Chi nhánh
+ * PHÂN HỆ: TẠO MỚI & CẬP NHẬT CHI NHÁNH (BRANCH MANAGEMENT & GIS GEOFENCE)
  * ==============================================================================
- * Form validate đầy đủ:
- * - Code (Mã chi nhánh: CH01, CH02...)
- * - Name (Tên chi nhánh)
- * - Address (Địa chỉ chi nhánh)
- * - Tọa độ Point [Latitude, Longitude] & Bán kính Geofence Radius
- * - Mini Leaflet Map Picker chọn vị trí trực quan
+ * MỤC ĐÍCH NGHIỆP VỤ:
+ * - Khởi tạo và chỉnh sửa thông tin chi nhánh cửa hàng thực tế trong chuỗi bán lẻ.
+ * - Tự động liên kết phân cấp (TierId) tương thích với quy chuẩn định biên.
+ * - Tích hợp bộ chọn bản đồ GIS (BranchMapPicker) để xác định tọa độ WGS84 (Lat, Lng).
+ * - Cấu hình bán kính chấm công hợp lệ (Geofence Radius tính bằng mét thực địa).
+ * 
+ * ĐƯỜNG ĐI TRÊN FRONTEND (5 TRẠM DỪNG):
+ * - Trạm 1: Khởi tạo State formData (branchCode, name, address, tierId, latitude, longitude, radiusMeters).
+ * - Trạm 2: Kiểm tra tính hợp lệ (validate function: mã chi nhánh, tên, địa chỉ, dải tọa độ WGS84).
+ * - Trạm 3: Chuẩn hóa bán kính Geofence an toàn [20m - 1000m], bóc tách Tier số từ tierName.
+ * - Trạm 4: Kích hoạt callback onSubmit(submitPayload) gọi Axios Service qua hook useBranch.
+ * - Trạm 5: Đóng Modal, nạp chi nhánh mới vào danh sách và ghim Marker lên bản đồ BranchMapView.
+ * ==============================================================================
  */
 export default function BranchFormModal({
   open = false,
@@ -107,6 +114,15 @@ export default function BranchFormModal({
     }
   }, [dbTiers, initialData, formData.tierId]);
 
+  // --------------------------------------------------------------------------
+  // BƯỚC 1: HÀM VALIDATE DỮ LIỆU ĐẦU VÀO (INPUT VALIDATION)
+  // - Mã chi nhánh: Bắt buộc, tối thiểu 2 ký tự (Ví dụ: SG01, HN02)
+  // - Tên chi nhánh: Bắt buộc, tối thiểu 3 ký tự (Ví dụ: Chi Nhánh Nguyễn Huệ)
+  // - Địa chỉ: Bắt buộc để làm căn cứ pháp lý và hiển thị
+  // - Tọa độ địa lý GPS WGS84:
+  //     + Vĩ độ (Latitude): Nằm trong khoảng hợp lệ [-90, 90]
+  //     + Kinh độ (Longitude): Nằm trong khoảng hợp lệ [-180, 180]
+  // --------------------------------------------------------------------------
   const validate = () => {
     const errs = {};
     const code = (formData.branchCode || '').trim();
@@ -143,6 +159,12 @@ export default function BranchFormModal({
     return Object.keys(errs).length === 0;
   };
 
+  // --------------------------------------------------------------------------
+  // BƯỚC 2: XỬ LÝ SUBMIT BIỂU MẪU & CHUẨN HÓA GIS (HANDLE SUBMIT)
+  // - Giới hạn bán kính Geofence an toàn: Tối thiểu 20 mét, tối đa 1000 mét (mặc định 100m).
+  // - Tìm đối tượng Tier tương ứng trong dbTiers để đồng bộ số phân cấp branchTier (1, 2, 3...).
+  // - Đóng gói payload gửi sang Backend API (POST /api/branches).
+  // --------------------------------------------------------------------------
   const handleSubmit = async (e) => {
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
@@ -152,8 +174,11 @@ export default function BranchFormModal({
 
     try {
       setSubmitting(true);
+      // Giới hạn bán kính Geofence chống nhập sai lệch mét thực địa
       const rawRadius = parseInt(formData.radiusMeters, 10);
       const validRadius = isNaN(rawRadius) || rawRadius < 20 ? 100 : Math.min(rawRadius, 1000);
+
+      // Đồng bộ TierId và Tier số tương thích ngược
       const selectedTier = dbTiers.find((t) => Number(t.id || t.tier_id) === Number(formData.tierId));
       const tierVal = selectedTier?.tierName && selectedTier.tierName.match(/\d+/)
         ? Number(selectedTier.tierName.match(/\d+/)[0])
@@ -167,6 +192,7 @@ export default function BranchFormModal({
         radiusMeters: validRadius,
         geofenceRadiusMeters: validRadius,
       };
+
       const res = await onSubmit(submitPayload);
       if (res?.success === false) {
         setServerError(res.error || 'Có lỗi xảy ra khi lưu chi nhánh.');
