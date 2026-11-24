@@ -6,7 +6,8 @@ import Button from '@/shared/components/ui/Button';
 import FormField from '@/shared/components/ui/FormField';
 import Icon from '@/shared/components/ui/Icon';
 import { formatShiftTemplateName } from '../hooks/useWeeklySchedule';
-import { getColleaguesForSwap, getColleagueShifts, createSwapRequest } from '../services/schedule.service';
+import useColleagueSwapShifts from '../hooks/useColleagueSwapShifts';
+import { getColleaguesForSwap, createSwapRequest } from '../services/schedule.service';
 
 export default function ShiftSwapModal({
   isOpen,
@@ -20,21 +21,16 @@ export default function ShiftSwapModal({
   const [requestType, setRequestType] = useState('LEAVE'); // 'LEAVE' or 'SWAP'
   const [colleagues, setColleagues] = useState([]);
   const [selectedColleagueId, setSelectedColleagueId] = useState('');
-  const [colleagueShifts, setColleagueShifts] = useState([]);
-  const [selectedTargetAssignmentId, setSelectedTargetAssignmentId] = useState('');
   const [reason, setReason] = useState('');
 
   const [loadingColleagues, setLoadingColleagues] = useState(false);
-  const [loadingShifts, setLoadingShifts] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Load colleagues when modal opens
   useEffect(() => {
     if (isOpen && shift) {
       setSelectedColleagueId('');
-      setSelectedTargetAssignmentId('');
       setReason('');
-      setColleagueShifts([]);
 
       const branchId = shift.branchId || 1;
       setLoadingColleagues(true);
@@ -58,29 +54,16 @@ export default function ShiftSwapModal({
   const shiftDate = shift?.date || shift?.workDate;
   const isAdvanceNoticeValid = Boolean(shiftDate && shiftDate > todayStr);
 
-  // Load shifts of selected colleague when in SWAP mode
-  useEffect(() => {
-    if (requestType === 'SWAP' && selectedColleagueId) {
-      setLoadingShifts(true);
-      setSelectedTargetAssignmentId('');
-      getColleagueShifts(selectedColleagueId, shift?.assignmentId)
-        .then((res) => {
-          if (res?.success && res.data) {
-            setColleagueShifts(res.data);
-          } else {
-            setColleagueShifts([]);
-          }
-        })
-        .catch((err) => {
-          console.error('Error fetching colleague shifts:', err);
-          setColleagueShifts([]);
-        })
-        .finally(() => setLoadingShifts(false));
-    } else {
-      setColleagueShifts([]);
-      setSelectedTargetAssignmentId('');
-    }
-  }, [requestType, selectedColleagueId, shift?.assignmentId]);
+  const {
+    colleagueShifts,
+    loadingColleagueShifts,
+    colleagueShiftsError,
+    selectedTargetAssignmentId,
+    setSelectedTargetAssignmentId,
+  } = useColleagueSwapShifts(
+    isOpen && isAdvanceNoticeValid && requestType === 'SWAP' ? selectedColleagueId : '',
+    shift?.assignmentId,
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -148,7 +131,7 @@ export default function ShiftSwapModal({
           <Button variant="ghost" kind="ghost" onClick={onClose} disabled={submitting}>
             Hủy Bỏ
           </Button>
-          <Button variant="primary" kind="primary" onClick={handleSubmit} disabled={submitting || !isAdvanceNoticeValid}>
+          <Button variant="primary" kind="primary" onClick={handleSubmit} disabled={submitting || !isAdvanceNoticeValid || (requestType === 'SWAP' && !selectedTargetAssignmentId)}>
             {submitting ? 'Đang Gửi...' : 'Gửi Đơn Cho Quản Lý'}
           </Button>
         </div>
@@ -311,8 +294,8 @@ export default function ShiftSwapModal({
 
             {/* Chọn ca của đồng nghiệp muốn đổi */}
             <FormField label="Chọn Ca Làm Việc Của Đồng Nghiệp Bạn Nhận Làm Bù" required>
-              {loadingShifts ? (
-                <div style={{ fontSize: 12, color: c.fgSubtle, padding: '8px 0' }}>Đang tải lịch của đồng nghiệp...</div>
+              {loadingColleagueShifts ? (
+                <div style={{ fontSize: 12, color: c.fgSubtle, padding: '8px 0' }}>Đang kiểm tra ca có thể đổi...</div>
               ) : (
                 <select
                   value={selectedTargetAssignmentId}
@@ -332,8 +315,10 @@ export default function ShiftSwapModal({
                   <option value="">
                     {!selectedColleagueId
                       ? '-- Vui lòng chọn đồng nghiệp trước --'
+                      : colleagueShiftsError
+                      ? 'Không tải được danh sách ca có thể đổi'
                       : colleagueShifts.length === 0
-                      ? '-- Đồng nghiệp không có ca trực nào sắp tới để đổi --'
+                      ? '-- Đồng nghiệp không có ca trực phù hợp để đổi --'
                       : '-- Chọn ca của đồng nghiệp --'}
                   </option>
                   {colleagueShifts.map((cs) => {

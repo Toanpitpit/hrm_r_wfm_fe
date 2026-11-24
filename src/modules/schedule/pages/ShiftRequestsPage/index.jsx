@@ -14,6 +14,7 @@ import Badge from '@/shared/components/ui/Badge';
 import FormField from '@/shared/components/ui/FormField';
 import SearchInput from '@/shared/components/ui/SearchInput';
 import Pagination from '@/shared/components/ui/Pagination';
+import useColleagueSwapShifts from '../../hooks/useColleagueSwapShifts';
 import {
   getMySwapRequests,
   getStoreSwapRequests,
@@ -22,7 +23,6 @@ import {
   respondToSwapRequest,
   cancelSwapRequest,
   getColleaguesForSwap,
-  getColleagueShifts,
   getEmployeeShifts
 } from '../../services/schedule.service';
 
@@ -92,9 +92,17 @@ export default function ShiftRequestsPage() {
   const [selectedMyAssignmentId, setSelectedMyAssignmentId] = useState('');
   const [colleagues, setColleagues] = useState([]);
   const [selectedColleagueId, setSelectedColleagueId] = useState('');
-  const [colleagueShifts, setColleagueShifts] = useState([]);
-  const [selectedTargetAssignmentId, setSelectedTargetAssignmentId] = useState('');
   const [reason, setReason] = useState('');
+  const {
+    colleagueShifts,
+    loadingColleagueShifts,
+    colleagueShiftsError,
+    selectedTargetAssignmentId,
+    setSelectedTargetAssignmentId,
+  } = useColleagueSwapShifts(
+    requestType === 'SWAP' ? selectedColleagueId : '',
+    selectedMyAssignmentId,
+  );
 
   // UI & Loading states
   const [loadingShifts, setLoadingShifts] = useState(false);
@@ -162,30 +170,12 @@ export default function ShiftRequestsPage() {
         if (res?.success && Array.isArray(res.data)) {
           setColleagues(res.data);
         } else {
-          setColleagueShifts([]);
+          setColleagues([]);
         }
       })
       .catch(() => setColleagues([]))
       .finally(() => setLoadingColleagues(false));
   };
-
-  // 3. Fetch colleague shifts when colleague changes (SWAP mode)
-  useEffect(() => {
-    if (requestType === 'SWAP' && selectedColleagueId) {
-      getColleagueShifts(selectedColleagueId, selectedMyAssignmentId)
-        .then((res) => {
-          if (res?.success && Array.isArray(res.data)) {
-            setColleagueShifts(res.data);
-          } else {
-            setColleagueShifts([]);
-          }
-        })
-        .catch(() => setColleagueShifts([]));
-    } else {
-      setColleagueShifts([]);
-      setSelectedTargetAssignmentId('');
-    }
-  }, [requestType, selectedColleagueId, selectedMyAssignmentId]);
 
   // Initial loads
   useEffect(() => {
@@ -307,7 +297,6 @@ export default function ShiftRequestsPage() {
         setReason('');
         setSelectedMyAssignmentId('');
         setSelectedColleagueId('');
-        setSelectedTargetAssignmentId('');
         fetchMyRequestsList();
         fetchMyUpcomingShifts();
       } else {
@@ -701,7 +690,7 @@ export default function ShiftRequestsPage() {
                     <select
                       value={selectedTargetAssignmentId}
                       onChange={(e) => setSelectedTargetAssignmentId(e.target.value)}
-                      disabled={!selectedColleagueId || colleagueShifts.length === 0}
+                      disabled={colleagueShifts.length === 0}
                       style={{
                         width: '100%',
                         backgroundColor: !selectedColleagueId ? c.bgCard : c.bgRaised,
@@ -716,8 +705,14 @@ export default function ShiftRequestsPage() {
                       }}
                     >
                       <option value="" style={{ backgroundColor: c.bgElev, color: c.fgMuted }}>
-                        {!selectedColleagueId
+                        {!selectedMyAssignmentId
+                          ? '-- Vui lòng chọn ca trực của bạn trước --'
+                          : !selectedColleagueId
                           ? '-- Vui lòng chọn đồng nghiệp trước --'
+                          : loadingColleagueShifts
+                          ? 'Đang kiểm tra ca có thể đổi...'
+                          : colleagueShiftsError
+                          ? 'Không tải được danh sách ca có thể đổi'
                           : colleagueShifts.length === 0
                           ? 'Đồng nghiệp không có ca trực khả dụng'
                           : '-- Chọn ca trực của đồng nghiệp --'}
@@ -759,7 +754,7 @@ export default function ShiftRequestsPage() {
               </FormField>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 8 }}>
-                <Button type="submit" variant="primary" loading={submitting}>
+                <Button type="submit" variant="primary" loading={submitting} disabled={requestType === 'SWAP' && !selectedTargetAssignmentId}>
                   Gửi Đơn Yêu Cầu
                 </Button>
               </div>
