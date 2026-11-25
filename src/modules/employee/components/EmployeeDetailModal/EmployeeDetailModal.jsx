@@ -280,7 +280,7 @@ export default function EmployeeDetailModal({
               Cơ Chế Bảo Mật & Xác Thực
             </div>
             <div style={{ fontSize: '13px', color: '#22c55e', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Icon name="check" size={13} />
+              
               <span>Băm BCrypt & Welcome Email</span>
             </div>
           </div>

@@ -326,6 +326,58 @@ export function useWeeklySchedule(initialBranchId = null) {
   };
 
   /**
+   * Xóa toàn bộ định mức và thời khóa biểu của tuần hiện tại (chỉ khi DRAFT)
+   * để đưa bảng về trạng thái chưa tạo ca ban đầu.
+   */
+  const handleDeleteWeeklySchedule = async () => {
+    if (!branchId || !weekStartDate) return { success: false, message: 'Thiếu thông tin cơ sở hoặc ngày bắt đầu tuần.' };
+    setActionLoading(true);
+    try {
+      const res = await scheduleService.deleteWeeklySchedule(branchId, weekStartDate);
+      if (res.success) {
+        toast.success(res.message || 'Đã xóa toàn bộ định mức và thời khóa biểu của tuần!');
+        await fetchWeeklyMatrix();
+        return res;
+      } else {
+        toast.error(res.message || 'Xóa lịch tuần thất bại.');
+        return res;
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Có lỗi xảy ra khi xóa lịch tuần.';
+      toast.error(msg);
+      return { success: false, message: msg };
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  /**
+   * Xóa toàn bộ các phân công ca làm việc của tuần hiện tại (chỉ khi DRAFT)
+   * nhưng giữ nguyên các khung ca và định mức nhân sự (ShiftQuota).
+   */
+  const handleDeleteWeeklyAssignments = async () => {
+    if (!branchId || !weekStartDate) return { success: false, message: 'Thiếu thông tin cơ sở hoặc ngày bắt đầu tuần.' };
+    setActionLoading(true);
+    try {
+      const res = await scheduleService.deleteWeeklyAssignments(branchId, weekStartDate);
+      if (res?.success) {
+        toast.success(res.message || 'Đã xóa toàn bộ phân công ca của tuần thành công!');
+        await fetchWeeklyMatrix();
+        return res;
+      } else {
+        toast.error(res?.message || 'Xóa phân công ca thất bại.');
+        return res;
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Có lỗi xảy ra khi xóa phân công ca.';
+      toast.error(msg);
+      return { success: false, message: msg };
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  /**
    * UC 2.1: Phân bổ nhanh nhân sự Full-time vào ca trực tuần.
    */
   const handleAssignFullTimeBatch = async ({ userIds, shiftTemplateId, daysOfWeek }) => {
@@ -574,6 +626,8 @@ export function useWeeklySchedule(initialBranchId = null) {
     handleGenerateWeekly,
     handleUpdateRequirement,
     handleDeleteSchedule,
+    handleDeleteWeeklySchedule,
+    handleDeleteWeeklyAssignments,
     handleAssignFullTimeBatch,
     handleAssignSingle,
     handleDeleteAssignment,

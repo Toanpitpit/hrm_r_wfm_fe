@@ -7,6 +7,8 @@ import { formatVNDate, addWeeks } from '../hooks/useWeeklySchedule';
 export default function WeekNavigator({
   weekStartDate,
   weekStatus = 'DRAFT',
+  hasSchedules = false,
+  hasAssignments = false,
   onPrevWeek,
   onNextWeek,
   onCurrentWeek,
@@ -14,7 +16,11 @@ export default function WeekNavigator({
   onOpenFullTimeModal,
   onOpenAutoScheduleModal,
   onOpenPublishModal,
+  onOpenDeleteWeeklyModal,
+  onOpenDeleteAssignmentsModal,
   actionLoading = false,
+  activeTab = 'roster',
+  onSwitchTab,
 }) {
   const { c, fonts } = useAdminTheme();
   const safeStartDate = weekStartDate || '2026-01-01';
@@ -117,49 +123,129 @@ export default function WeekNavigator({
         </div>
       </div>
 
-      {/* Nút hành động */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        {/* Thiết lập định mức */}
-        <Button
-          variant="secondary"
-          onClick={onOpenQuotaModal}
-          disabled={actionLoading}
-        >
-          <Icon name="sliders" size={15} style={{ marginRight: 6 }} />
-          Định Mức Tuần
-        </Button>
+      {/* Nút hành động theo Tab */}
+      {activeTab === 'quota' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <Button
+            variant="primary"
+            onClick={onOpenQuotaModal}
+            disabled={actionLoading}
+          >
+            <Icon name="sliders" size={15} style={{ marginRight: 6 }} />
+            Thiết Lập Định Mức Tuần
+          </Button>
 
-        {/* Tự động xếp ca */}
-        <Button
-          variant="secondary"
-          onClick={onOpenAutoScheduleModal}
-          disabled={actionLoading}
-          style={{ borderColor: c.accent, color: c.accent }}
-        >
-          <Icon name="zap" size={15} style={{ marginRight: 6 }} />
-          Tự Động Xếp Ca
-        </Button>
+          {/* Nút Xóa Định Mức (Xóa toàn bộ khung ca & định mức của tuần để trả về trạng thái Chưa sinh ca) */}
+          {hasSchedules && (
+            <Button
+              variant="danger"
+              onClick={onOpenDeleteWeeklyModal}
+              disabled={actionLoading}
+              style={{
+                backgroundColor: '#dc2626',
+                borderColor: '#b91c1c',
+                color: '#ffffff',
+              }}
+              title="Xóa toàn bộ định mức và khung ca của tuần này để đặt lại về trạng thái chưa tạo ca ban đầu"
+            >
+              <Icon name="trash" size={15} style={{ marginRight: 6 }} />
+              Xóa Định Mức
+            </Button>
+          )}
 
-        {/* Nút UC 2.1: Gán nhanh Full-time */}
-        <Button
-          variant="secondary"
-          onClick={onOpenFullTimeModal}
-          disabled={actionLoading}
-        >
-          <Icon name="users" size={15} style={{ marginRight: 6 }} />
-          Gán Full-Time
-        </Button>
+          {onSwitchTab && (
+            <Button
+              variant="secondary"
+              onClick={() => onSwitchTab('roster')}
+              disabled={actionLoading}
+              style={{ borderColor: c.accent, color: c.accent }}
+            >
+              <Icon name="calendar" size={15} style={{ marginRight: 6 }} />
+              Sang Bảng Xếp Ca ➔
+            </Button>
+          )}
+        </div>
+      )}
 
-        {/* Nút UC 2.3: Kiểm tra & Công bố lịch */}
-        <Button
-          variant={isPublished ? 'secondary' : 'primary'}
-          onClick={onOpenPublishModal}
-          disabled={actionLoading}
-        >
-          <Icon name="send" size={15} style={{ marginRight: 6 }} />
-          {isPublished ? 'Rà Soát & Công Bố Lại' : 'Công Bố Lịch Tuần'}
-        </Button>
-      </div>
+      {activeTab === 'roster' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* Chuyển nhanh sang xem định mức */}
+          {onSwitchTab && (
+            <Button
+              variant="secondary"
+              onClick={() => onSwitchTab('quota')}
+              disabled={actionLoading}
+            >
+              <Icon name="sliders" size={15} style={{ marginRight: 6 }} />
+              Định Mức Ca
+            </Button>
+          )}
+
+          {/* Tự động xếp ca */}
+          <Button
+            variant="secondary"
+            onClick={onOpenAutoScheduleModal}
+            disabled={actionLoading}
+            style={{ borderColor: c.accent, color: c.accent }}
+          >
+            <Icon name="zap" size={15} style={{ marginRight: 6 }} />
+            Tự Động Xếp Ca
+          </Button>
+
+          {/* Gán nhanh Full-time */}
+          <Button
+            variant="secondary"
+            onClick={onOpenFullTimeModal}
+            disabled={actionLoading}
+          >
+            <Icon name="users" size={15} style={{ marginRight: 6 }} />
+            Gán Full-Time
+          </Button>
+
+          {/* Nút Xóa Lịch (Xóa toàn bộ phân công ca đã gán cho nhân viên trong tuần, giữ nguyên định mức ca) */}
+          {hasAssignments && (
+            <Button
+              variant="danger"
+              onClick={onOpenDeleteAssignmentsModal}
+              disabled={actionLoading}
+              style={{
+                backgroundColor: '#ef4444',
+                borderColor: '#dc2626',
+                color: '#ffffff',
+              }}
+              title="Xóa toàn bộ các ca làm việc đã gán cho nhân viên trong tuần này (giữ nguyên định mức ca để xếp lại)"
+            >
+              <Icon name="trash" size={15} style={{ marginRight: 6 }} />
+              Xóa Lịch
+            </Button>
+          )}
+
+          {/* Nút UC 2.3: Kiểm tra & Công bố lịch */}
+          <Button
+            variant={isPublished ? 'secondary' : 'primary'}
+            onClick={onOpenPublishModal}
+            disabled={actionLoading}
+          >
+            <Icon name="send" size={15} style={{ marginRight: 6 }} />
+            {isPublished ? 'Rà Soát & Công Bố Lại' : 'Công Bố Lịch Tuần'}
+          </Button>
+        </div>
+      )}
+
+      {activeTab === 'swaps' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {onSwitchTab && (
+            <Button
+              variant="secondary"
+              onClick={() => onSwitchTab('roster')}
+              disabled={actionLoading}
+            >
+              <Icon name="calendar" size={15} style={{ marginRight: 6 }} />
+              Về Bảng Xếp Ca
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

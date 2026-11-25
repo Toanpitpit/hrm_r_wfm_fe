@@ -93,7 +93,7 @@ export default function EmployeeManagementPage() {
   const abortControllerRef = useRef(null);
   const isFirstMountRef = useRef(true);
 
-  // Dữ liệu thống kê nhân sự độc lập (không bị nhảy về 0 khi tìm kiếm nhân viên)
+  // Dữ liệu thống kê nhân sự độc lập 
   const [statsData, setStatsData] = useState({
     totalEmployees: 0,
     activeCount: 0,
