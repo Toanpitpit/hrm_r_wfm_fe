@@ -24,8 +24,6 @@ import AssignFullTimeModal from '../../components/AssignFullTimeModal';
 import AssignShiftCellModal from '../../components/AssignShiftCellModal';
 import PublishScheduleModal from '../../components/PublishScheduleModal';
 import AutoScheduleModal from '../../components/AutoScheduleModal';
-import ShiftSwapReviewModal from '../../components/ShiftSwapReviewModal';
-import ShiftSwapReviewList from '../../components/ShiftSwapReviewList';
 
 import { useToast } from '@/shared/components/ui/ToastProvider';
 
@@ -97,11 +95,9 @@ export default function WeeklySchedulePage() {
     setIsAutoScheduleModalOpen,
   } = useWeeklySchedule();
 
-  const [isSwapReviewModalOpen, setIsSwapReviewModalOpen] = useState(false);
   const [isDeleteWeeklyModalOpen, setIsDeleteWeeklyModalOpen] = useState(false);
   const [isDeleteAssignmentsModalOpen, setIsDeleteAssignmentsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('roster'); // 'roster' | 'quota' | 'swaps'
-  const [pendingSwapsCount, setPendingSwapsCount] = useState(0);
+  const [activeTab, setActiveTab] = useState('roster'); // 'roster' | 'quota'
 
   const safeStartDate = weekStartDate || '2026-01-01';
   const parts = safeStartDate.split('-').map(Number);
@@ -159,22 +155,16 @@ export default function WeeklySchedulePage() {
           index={
             activeTab === 'quota'
               ? 'Store Manager · Định Mức Nhu Cầu Ca'
-              : activeTab === 'swaps'
-              ? 'Store Manager · Xét Duyệt Đổi Ca'
               : 'Store Manager · Phân Bổ Ca Tuần'
           }
           title={
             activeTab === 'quota'
               ? 'Thiết Lập Định Mức Nhu Cầu Nhân Sự'
-              : activeTab === 'swaps'
-              ? 'Quản Lý & Phê Duyệt Đơn Đổi Ca'
               : 'Bảng Phân Bổ & Lập Lịch Làm Việc Tuần'
           }
           subtitle={
             activeTab === 'quota'
               ? 'Xác định chỉ tiêu số lượng nhân sự tối thiểu cho từng vị trí và từng ca làm việc trong 7 ngày'
-              : activeTab === 'swaps'
-              ? 'Duyệt các yêu cầu xin đổi ca, nhường ca hoặc xin nghỉ từ nhân viên chi nhánh'
               : 'Gán ca nhân viên, tự động xếp ca bằng Google OR-Tools, rà soát xung đột và công bố lịch'
           }
           badge={
@@ -450,75 +440,6 @@ export default function WeeklySchedulePage() {
             ) : null}
           </button>
 
-          {/* Tab 3: Xét duyệt đổi ca (Shift Swaps) */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('swaps')}
-            style={{
-              flex: 1,
-              minWidth: 220,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              padding: '12px 18px',
-              borderRadius: 10,
-              border: 'none',
-              background: activeTab === 'swaps' ? (c.accent || '#10b981') : 'transparent',
-              color: activeTab === 'swaps' ? (c.ink || '#ffffff') : c.textSecondary,
-              cursor: 'pointer',
-              fontWeight: 700,
-              fontSize: 14,
-              transition: 'all 0.2s ease',
-              boxShadow: activeTab === 'swaps' ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
-            }}
-          >
-            <Icon
-              name="swap"
-              size={18}
-              color={activeTab === 'swaps' ? (c.ink || '#ffffff') : c.textSecondary}
-            />
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ lineHeight: 1.2 }}>3. Xét Duyệt Đổi Ca</div>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  opacity: 0.85,
-                  marginTop: 2,
-                }}
-              >
-                Đơn đổi ca & xin nghỉ của NV
-              </div>
-            </div>
-            {pendingSwapsCount > 0 ? (
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: '2px 8px',
-                  borderRadius: 12,
-                  fontWeight: 800,
-                  background: activeTab === 'swaps' ? '#ef4444' : '#fee2e2',
-                  color: activeTab === 'swaps' ? '#ffffff' : '#b91c1c',
-                }}
-              >
-                {pendingSwapsCount} chờ duyệt
-              </span>
-            ) : (
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: '2px 8px',
-                  borderRadius: 12,
-                  fontWeight: 800,
-                  background: activeTab === 'swaps' ? 'rgba(0,0,0,0.2)' : `${c.bgElev}`,
-                  color: activeTab === 'swaps' ? (c.ink || '#ffffff') : c.fgFaint,
-                }}
-              >
-                Yêu cầu
-              </span>
-            )}
-          </button>
         </div>
 
         {/* ═══════════════ TAB 1: PHÂN BỔ CA TUẦN (ROSTER MATRIX) ═══════════════ */}
@@ -782,39 +703,6 @@ export default function WeeklySchedulePage() {
           </>
         )}
 
-        {/* ═══════════════ TAB 3: XÉT DUYỆT ĐỔI CA (SHIFT SWAPS) ═══════════════ */}
-        {activeTab === 'swaps' && (
-          <>
-            {/* Banner hướng dẫn duyệt đổi ca */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '14px 20px',
-                borderRadius: 10,
-                background: `${c.accent}12`,
-                border: `1px solid ${c.accent}30`,
-                marginBottom: 18,
-                fontSize: 13.5,
-                color: c.textPrimary,
-              }}
-            >
-              <Icon name="swap" size={20} color={c.accent} />
-              <div style={{ flex: 1, lineHeight: 1.5 }}>
-                <strong>Quản Lý Đơn Đổi / Chuyển Ca Trực:</strong> Danh sách các yêu cầu xin đổi ca cho nhau hoặc xin nghỉ ca từ nhân sự chi nhánh. Khi Cửa hàng trưởng bấm <strong>&quot;Phê Duyệt Ngay&quot;</strong>, hệ thống sẽ tự động cập nhật ngay nhân sự mới vào bảng lịch phân công tuần.
-              </div>
-            </div>
-
-            {/* Danh sách xét duyệt đổi ca trực tiếp */}
-            <ShiftSwapReviewList
-              storeId={branchId}
-              onReviewed={fetchWeeklyMatrix}
-              onPendingCountChange={setPendingSwapsCount}
-            />
-          </>
-        )}
-
         {/* Modals */}
         {/* Modal điều chỉnh / sinh định mức ca */}
         <SetQuotaModal
@@ -871,16 +759,6 @@ export default function WeeklySchedulePage() {
           conflictReport={conflictReport}
           onConfirmPublish={handleConfirmPublish}
           actionLoading={actionLoading}
-        />
-
-        {/* Modal phê duyệt đơn đổi / chuyển ca */}
-        <ShiftSwapReviewModal
-          isOpen={isSwapReviewModalOpen}
-          onClose={() => setIsSwapReviewModalOpen(false)}
-          storeId={branchId || storedUser?.storeId || storedUser?.homeBranchId || 1}
-          onReviewed={() => {
-            fetchWeeklyMatrix();
-          }}
         />
 
         {/* Modal xác nhận XÓA LỊCH (xóa toàn bộ phân công ca của nhân viên, GIỮ NGUYÊN định mức ca) */}

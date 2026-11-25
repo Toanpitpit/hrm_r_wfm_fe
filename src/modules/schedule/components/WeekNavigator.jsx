@@ -232,20 +232,6 @@ export default function WeekNavigator({
         </div>
       )}
 
-      {activeTab === 'swaps' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {onSwitchTab && (
-            <Button
-              variant="secondary"
-              onClick={() => onSwitchTab('roster')}
-              disabled={actionLoading}
-            >
-              <Icon name="calendar" size={15} style={{ marginRight: 6 }} />
-              Về Bảng Xếp Ca
-            </Button>
-          )}
-        </div>
-      )}
     </div>
   );
 }
