@@ -67,10 +67,19 @@ Backend vẫn quyết định trạng thái đơn, kiểm tra nghiệp vụ và 
 bổ sung chức năng tạo TRANSFER trong đợt refactor này; đơn TRANSFER cũ vẫn hiển thị.
 
 Mỗi hàm fetch và thao tác có tên cụ thể, gọi trực tiếp service tương ứng; không có
-lớp thực thi request tổng quát. Filter, tìm kiếm, thống kê, reset trang và `slice`
-dữ liệu trang được tính trong `useShiftRequests`, không đặt trong component hoặc service.
-Các component danh sách chỉ nhận `requests` của trang, `totalItems`, thông tin trang
-và callback. `reviewTabs` và `reviewStats` cũng được tính trong hook.
+lớp thực thi request tổng quát. Với màn duyệt đơn chi nhánh, backend xử lý filter,
+tìm kiếm, thống kê và phân trang trong truy vấn database. Hook chỉ giữ tham số
+`status`, `search`, `page`, `pageSize`, gọi lại API khi chúng đổi và cung cấp response
+cho component. Service chỉ chuyển tham số sang Axios, không xử lý dữ liệu bảng.
+Lịch sử đơn cá nhân vẫn lọc và phân trang trong hook; thay đổi này chỉ áp dụng màn duyệt.
+
+`GET /api/shifts/swap-requests/{branchId}?status=PENDING&search=...&page=2&pageSize=10`
+trả `data: { items, totalItems, page, pageSize, statistics }`. `totalItems` tính theo
+bộ lọc/từ khóa; `statistics` gồm `totalCount`, `pendingCount`, `approvedCount`,
+`rejectedCount`, `expiredCount` của toàn chi nhánh. Hook không đếm lại từ `items`.
+Backend tự điều chỉnh trang vượt giới hạn (ví dụ sau khi duyệt đơn cuối trang),
+xếp đơn theo `createdAt` rồi mã đơn giảm dần. `page >= 1`, `pageSize` từ 1 đến 100,
+từ khóa tối đa 200 ký tự. Frontend/backend cần cập nhật cùng phiên bản response này.
 
 Sau thao tác thành công, hook tải lại đúng nhóm dữ liệu liên quan. Modal tạo đơn gọi
 `onSuccess` để lịch cá nhân tải lại; modal phê duyệt gọi `onReviewed` để lịch tuần
@@ -84,7 +93,8 @@ thành lỗi gửi đơn khiến người dùng gửi trùng.
 Bộ kiểm tra chạy Chromium với Vite và mock toàn bộ API, không ghi dữ liệu backend.
 Ngoài hook và modal, test chạy cả route ứng dụng `/employee/shift-requests` qua
 `AuthProvider`, router, sidebar và giao diện thật. CDP kiểm tra request initiator
-có tên hàm hook; đổi filter hoặc trang không phát sinh thêm request nghiệp vụ.
+có tên hàm hook; đổi filter, từ khóa, trang hoặc cỡ trang của màn duyệt phát sinh GET
+với query tương ứng. Test cũng kiểm tra thống kê từ server, lỗi/retry và response cũ.
 Cần Playwright và Chromium có sẵn. Nếu dùng bản cài ngoài dự án, đặt
 `PLAYWRIGHT_MODULE` tới `playwright/index.mjs`; có thể đặt
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` tới executable Chromium hiện có.
@@ -97,7 +107,7 @@ kiểm tra, không được import vào ứng dụng production.
 | --- | --- | --- | --- |
 | Tải ca của mình | `fetchMyShifts` | `getMyShifts` | `GET /shifts/my-shifts` |
 | Tải đơn cá nhân | `fetchMyRequests` | `getMySwapRequests` | `GET /shifts/my-swap-requests` |
-| Tải đơn chi nhánh | `fetchStoreRequests` | `getStoreSwapRequests` | `GET /shifts/swap-requests/{branchId}` |
+| Tải/lọc/phân trang đơn chi nhánh | `fetchStoreRequests` | `getStoreSwapRequests` | `GET /shifts/swap-requests/{branchId}?status=...&search=...&page=...&pageSize=...` |
 | Tải đồng nghiệp | `fetchColleagues` | `getColleaguesForSwap` | `GET /shifts/colleagues/{branchId}?workDate=...` |
 | Tải ca đổi | `fetchColleagueShifts` | `getColleagueShifts` | `GET /shifts/colleague-shifts/{employeeId}?requestingAssignmentId=...` |
 | Gửi đơn | `submitRequest` | `createSwapRequest` | `POST /shifts/swap-request` |
@@ -108,19 +118,20 @@ kiểm tra, không được import vào ứng dụng production.
 Backend nhận các route trên tại `ShiftSwapsController`; ca của mình nằm trong
 `ShiftsController`. Các route đổi ca có alias `/shift-swaps` hiện có.
 
-Để trỏ logic filter/phân trang trong Sources: tìm `filteredStoreRequests`,
-`filteredMyRequests`, `pagedStoreRequests`, `pagedMyRequests` và các setter
-`setReviewFilter`, `setSearchTerm`, `setReviewPage`, `setReviewPageSize`,
-`setMyTab`, `setMyPage`, `setMyPageSize`. Chúng không gọi HTTP.
+Để lần luồng duyệt trong Sources: tìm `setReviewFilter`, `setSearchTerm`,
+`setReviewPage`, `setReviewPageSize` → effect → `fetchStoreRequests` →
+`getStoreSwapRequests`. Backend: `ShiftSwapsController.GetSwapRequests` →
+`ShiftSwapService.GetSwapRequestsByStoreAsync` (`Where`, `CountAsync`, `Skip`, `Take`).
+`pagedStoreRequests` là dữ liệu trang backend trả về, không phải kết quả `slice` frontend.
 
 Network Initiator vẫn có dòng Axios/service vì service gửi HTTP. Mở stack và
 Sources để lần tới hàm hook có tên ở bảng trên; không kỳ vọng hook là một URL API.
 
 ## Tích hợp lịch tuần sau merge
 
-Lịch tuần giữ ba tab phân bổ, định mức và xét duyệt. `ShiftSwapReviewList` dùng
-`useShiftRequests` để tải, lọc, đếm và duyệt đơn; modal dùng cùng component này.
-Sau khi duyệt thành công, callback cập nhật ma trận tuần và số đơn chờ duyệt.
+Lịch tuần chỉ giữ hai tab phân bổ và định mức; duyệt đơn có mục riêng ở sidebar.
+Component dùng chung `ShiftSwapReviewList`/modal dùng `useShiftRequests` và cùng API
+phân trang backend, có điều khiển phân trang để truy cập đủ các đơn.
 Hai nút xóa gọi riêng `DELETE /shifts/assignments/weekly` (giữ định mức) và
 `DELETE /shifts/schedules/weekly` (xóa khung ca/định mức); backend cần có các API
 đã được bổ sung từ nhánh `origin/main`.

@@ -159,8 +159,8 @@ export const cancelSwapRequest = async (swapRequestId) => {
 /**
  * Lấy danh sách các đơn đổi/chuyển ca của cửa hàng cho Quản lý duyệt.
  */
-export const getStoreSwapRequests = async (storeId, signal) => {
-  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_STORE_SWAPS(storeId), { signal });
+export const getStoreSwapRequests = async (storeId, params, signal) => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_STORE_SWAPS(storeId), { params, signal });
   return response.data;
 };
 

@@ -102,6 +102,10 @@ async function fixture({
     failCreate: false,
     failHistory: false,
     failReview: false,
+    failStore: false,
+    delayStore: 0,
+    delayReview: 0,
+    statisticsOverride: null,
     delayColleague: 0,
     delayCreate: 0,
     myRequests: myRequests || [
@@ -221,9 +225,59 @@ async function fixture({
           timeRange: "13:00 - 17:00",
         },
       ];
-    } else if (/\/swap-requests\/\d+$/.test(url.pathname))
-      data = state.storeRequests;
-    else if (url.pathname.endsWith("/swap-request") && method === "POST") {
+    } else if (/\/swap-requests\/\d+$/.test(url.pathname)) {
+      const statistics = state.statisticsOverride || {
+        totalCount: state.storeRequests.length,
+        pendingCount: state.storeRequests.filter(
+          (item) => item.status === "PENDING",
+        ).length,
+        approvedCount: state.storeRequests.filter(
+          (item) => item.status === "APPROVED",
+        ).length,
+        rejectedCount: state.storeRequests.filter(
+          (item) => item.status === "REJECTED",
+        ).length,
+        expiredCount: state.storeRequests.filter(
+          (item) => item.status === "EXPIRED",
+        ).length,
+      };
+      const statusFilter = url.searchParams.get("status");
+      const search = (url.searchParams.get("search") || "")
+        .trim()
+        .toLowerCase();
+      const items = state.storeRequests.filter(
+        (item) =>
+          (!statusFilter ||
+            statusFilter === "ALL" ||
+            item.status === statusFilter) &&
+          (!search ||
+            [
+              item.requesterName,
+              item.requesterRoleName,
+              item.requesterShiftName,
+              item.targetName,
+              item.reason,
+            ].some((value) => value?.toLowerCase().includes(search))),
+      );
+      const pageSize = Number(url.searchParams.get("pageSize") || 10);
+      const pageNumber = Math.min(
+        Number(url.searchParams.get("page") || 1),
+        Math.max(1, Math.ceil(items.length / pageSize)),
+      );
+      data = {
+        items: items.slice((pageNumber - 1) * pageSize, pageNumber * pageSize),
+        totalItems: items.length,
+        page: pageNumber,
+        pageSize,
+        statistics,
+      };
+      const delay = state.delayStore;
+      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+      if (state.failStore) {
+        status = 500;
+        message = "Không tải được đơn chi nhánh thử nghiệm";
+      }
+    } else if (url.pathname.endsWith("/swap-request") && method === "POST") {
       state.created.push(body);
       if (state.delayCreate)
         await new Promise((resolve) => setTimeout(resolve, state.delayCreate));
@@ -247,6 +301,8 @@ async function fixture({
       ).status = "CANCELLED";
       data = true;
     } else if (url.pathname.endsWith("/swap-review")) {
+      if (state.delayReview)
+        await new Promise((resolve) => setTimeout(resolve, state.delayReview));
       if (state.failReview) {
         status = 400;
         message = "Lịch đã thay đổi, không thể duyệt.";
@@ -326,7 +382,7 @@ test("request views do not import services or perform filtering and pagination",
   }
 });
 
-test("real page restores authentication and filters/paginates locally through hook handlers", async () => {
+test("real page sends filters, search and pagination to the API through hook handlers", async () => {
   const entries = Array.from({ length: 12 }, (_, i) =>
     request(i + 1, {
       requesterName: i === 0 ? "Nhân viên cần tìm" : `Nhân viên ${i + 1}`,
@@ -356,9 +412,28 @@ test("real page restores authentication and filters/paginates locally through ho
     .fill("Nhân viên cần tìm");
   await f.page.getByText("#SR-0001", { exact: true }).waitFor();
   assert.equal(await f.page.getByRole("row").count(), 2);
-  assert.equal(
-    f.state.calls.filter((entry) => entry.path.includes("/shifts/")).length,
-    count,
+  const queries = f.state.calls.filter((entry) =>
+    /\/swap-requests\//.test(entry.path),
+  );
+  assert.ok(
+    f.state.calls.filter((entry) => entry.path.includes("/shifts/")).length >
+      count,
+  );
+  assert.ok(
+    queries.some(
+      (entry) => entry.query.page === "2" && entry.query.pageSize === "10",
+    ),
+  );
+  assert.ok(
+    queries.some(
+      (entry) => entry.query.status === "APPROVED" && entry.query.page === "1",
+    ),
+  );
+  assert.ok(
+    queries.some(
+      (entry) =>
+        entry.query.search === "Nhân viên cần tìm" && entry.query.page === "1",
+    ),
   );
   const initiator = f.state.initiators.find((entry) =>
     entry.url.includes("/swap-requests/"),
@@ -638,7 +713,13 @@ test("manager filters, reviews, totals and last-page clamping update together", 
     () => window.requestModel.reviewStats.pendingCount === 11,
   );
   await f.page.evaluate(() => window.requestModel.setReviewPage(2));
-  await waitModel(f.page, () => window.requestModel.reviewPage === 2);
+  await waitModel(
+    f.page,
+    () =>
+      window.requestModel.reviewPage === 2 &&
+      !window.requestModel.loadingStoreRequests &&
+      window.requestModel.pagedStoreRequests[0]?.swapRequestId === 11,
+  );
   f.state.failReview = true;
   assert.equal(
     (await f.page.evaluate(() => window.requestModel.reviewRequest(11, true)))
@@ -675,6 +756,139 @@ test("manager filters, reviews, totals and last-page clamping update together", 
     f.state.calls.every(
       (entry) => !/my-shifts|my-swap-requests|colleagues/.test(entry.path),
     ),
+  );
+  await f.close();
+});
+
+test("review displays server statistics and fetches page-size changes without recounting page rows", async () => {
+  const f = await fixture({ user: manager, options: { mode: "review" } });
+  await waitModel(
+    f.page,
+    () =>
+      !window.requestModel.loadingStoreRequests &&
+      window.requestModel.pagedStoreRequests.length === 1,
+  );
+  f.state.statisticsOverride = {
+    totalCount: 900,
+    pendingCount: 700,
+    approvedCount: 100,
+    rejectedCount: 80,
+    expiredCount: 20,
+  };
+  await f.page.evaluate(() => window.requestModel.setReviewPageSize(5));
+  await waitModel(
+    f.page,
+    () =>
+      !window.requestModel.loadingStoreRequests &&
+      window.requestModel.reviewStats.totalCount === 900,
+  );
+  assert.equal(
+    await f.page.evaluate(() => window.requestModel.pagedStoreRequests.length),
+    1,
+  );
+  assert.equal(
+    await f.page.evaluate(() => window.requestModel.reviewStats.pendingCount),
+    700,
+  );
+  assert.equal(
+    await f.page.evaluate(() => window.requestModel.reviewTotalItems),
+    1,
+  );
+  assert.ok(
+    f.state.calls.some(
+      (entry) => entry.query.pageSize === "5" && entry.query.page === "1",
+    ),
+  );
+  await f.close();
+});
+
+test("review search ignores obsolete responses and a failed query can be retried", async () => {
+  const f = await fixture({ user: manager, options: { mode: "review" } });
+  await waitModel(
+    f.page,
+    () =>
+      !window.requestModel.loadingStoreRequests &&
+      window.requestModel.pagedStoreRequests.length === 1,
+  );
+  f.state.delayStore = 300;
+  const searched = f.page.waitForRequest(
+    (request) =>
+      new URL(request.url()).searchParams.get("search") === "Người gửi",
+  );
+  await f.page.evaluate(() => window.requestModel.setSearchTerm("Người gửi"));
+  await searched;
+  f.state.delayStore = 0;
+  await f.page.evaluate(() =>
+    window.requestModel.setSearchTerm("không tồn tại"),
+  );
+  await waitModel(
+    f.page,
+    () =>
+      !window.requestModel.loadingStoreRequests &&
+      window.requestModel.reviewTotalItems === 0,
+  );
+  await f.page.waitForTimeout(400);
+  assert.equal(
+    await f.page.evaluate(() => window.requestModel.pagedStoreRequests.length),
+    0,
+  );
+  f.state.failStore = true;
+  await f.page.evaluate(() => window.requestModel.fetchStoreRequests());
+  await waitModel(
+    f.page,
+    () =>
+      !window.requestModel.loadingStoreRequests &&
+      !!window.requestModel.storeRequestsError,
+  );
+  f.state.failStore = false;
+  await f.page.evaluate(() => window.requestModel.fetchStoreRequests());
+  await waitModel(
+    f.page,
+    () =>
+      !window.requestModel.loadingStoreRequests &&
+      !window.requestModel.storeRequestsError,
+  );
+  await f.close();
+});
+
+test("review refresh uses the latest filter when it changes during an approval", async () => {
+  const f = await fixture({
+    user: manager,
+    options: { mode: "review", initialReviewFilter: "PENDING" },
+  });
+  await waitModel(
+    f.page,
+    () =>
+      !window.requestModel.loadingStoreRequests &&
+      window.requestModel.pagedStoreRequests.length === 1,
+  );
+  f.state.delayReview = 250;
+  const posted = f.page.waitForRequest((request) =>
+    request.url().endsWith("/swap-review"),
+  );
+  await f.page.evaluate(() => {
+    window.reviewResult = window.requestModel.reviewRequest(1, true);
+  });
+  await posted;
+  await f.page.evaluate(() => window.requestModel.setReviewFilter("APPROVED"));
+  assert.equal(
+    (await f.page.evaluate(() => window.reviewResult)).success,
+    true,
+  );
+  await waitModel(
+    f.page,
+    () =>
+      !window.requestModel.loadingStoreRequests &&
+      window.requestModel.pagedStoreRequests[0]?.status === "APPROVED",
+  );
+  assert.equal(
+    await f.page.evaluate(() => window.requestModel.reviewFilter),
+    "APPROVED",
+  );
+  assert.equal(
+    f.state.calls.filter((entry) => /\/swap-requests\//.test(entry.path)).at(-1)
+      .query.status,
+    "APPROVED",
   );
   await f.close();
 });
@@ -860,11 +1074,22 @@ test("weekly schedule keeps two tabs and review remains available from the sideb
   });
   await f.page.getByRole("button", { name: /1\. Phân Bổ Ca Tuần/ }).waitFor();
   await f.page.getByRole("button", { name: /2\. Định Mức Nhu Cầu Ca/ }).click();
-  await f.page.getByText("Thiết Lập Định Mức Nhu Cầu Nhân Sự", { exact: true }).waitFor();
-  assert.equal(await f.page.getByRole("button", { name: /3\. Xét Duyệt Đổi Ca/ }).count(), 0);
+  await f.page
+    .getByText("Thiết Lập Định Mức Nhu Cầu Nhân Sự", { exact: true })
+    .waitFor();
+  assert.equal(
+    await f.page.getByRole("button", { name: /3\. Xét Duyệt Đổi Ca/ }).count(),
+    0,
+  );
   await f.page.getByRole("button", { name: /1\. Phân Bổ Ca Tuần/ }).click();
-  await f.page.getByText("Bảng Phân Bổ & Lập Lịch Làm Việc Tuần", { exact: true }).waitFor();
-  assert.equal(f.state.calls.filter((entry) => /\/swap-requests\//.test(entry.path)).length, 0);
+  await f.page
+    .getByText("Bảng Phân Bổ & Lập Lịch Làm Việc Tuần", { exact: true })
+    .waitFor();
+  assert.equal(
+    f.state.calls.filter((entry) => /\/swap-requests\//.test(entry.path))
+      .length,
+    0,
+  );
   await f.page.getByText("Duyệt Đơn Đổi Ca", { exact: true }).click();
   await f.page.waitForURL("**/employee/shift-requests");
   await f.page.getByText("Người gửi", { exact: true }).waitFor();

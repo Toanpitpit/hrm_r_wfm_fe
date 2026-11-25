@@ -7,6 +7,7 @@ import Icon from "@/shared/components/ui/Icon";
 import { formatShiftTemplateName } from "../hooks/useWeeklySchedule";
 import useShiftRequests from "../hooks/useShiftRequests";
 import ShiftRequestFeedback from "./ShiftRequestFeedback";
+import Pagination from "@/shared/components/ui/Pagination";
 
 export default function ShiftSwapReviewList({
   storeId = null,
@@ -18,7 +19,7 @@ export default function ShiftSwapReviewList({
   const { c } = useAdminTheme();
   const toast = useToast();
   const {
-    filteredStoreRequests: filteredRequests,
+    pagedStoreRequests: filteredRequests,
     loadingStoreRequests: loading,
     actionLoadingId,
     reviewFilter: filterTab,
@@ -28,6 +29,11 @@ export default function ShiftSwapReviewList({
     reviewRequest,
     permissionError,
     storeRequestsError,
+    reviewPage,
+    reviewPageSize,
+    reviewTotalItems,
+    setReviewPage,
+    setReviewPageSize,
   } = useShiftRequests({
     mode: "review",
     enabled,
@@ -527,6 +533,16 @@ export default function ShiftSwapReviewList({
           })
         )}
       </div>
+      {!loading && reviewTotalItems > 0 && (
+        <Pagination
+          page={reviewPage}
+          pageSize={reviewPageSize}
+          totalItems={reviewTotalItems}
+          onPageChange={setReviewPage}
+          onPageSizeChange={setReviewPageSize}
+          pageSizeOptions={[5, 10, 20]}
+        />
+      )}
     </div>
   );
 }
