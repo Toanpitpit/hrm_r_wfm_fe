@@ -96,3 +96,30 @@ export function requestList(response) {
   if (!Array.isArray(items)) throw new Error("Dữ liệu trả về không hợp lệ.");
   return items;
 }
+
+export function requestPage(response) {
+  if (response?.success === false)
+    throw new Error(response.message || "Không thể tải dữ liệu.");
+  const data = response?.data;
+  if (
+    !Array.isArray(data?.items) ||
+    !Number.isInteger(data.totalItems) ||
+    data.totalItems < 0 ||
+    !Number.isInteger(data.page) ||
+    data.page < 1 ||
+    !Number.isInteger(data.pageSize) ||
+    data.pageSize < 1 ||
+    ![
+      "totalCount",
+      "pendingCount",
+      "approvedCount",
+      "rejectedCount",
+      "expiredCount",
+    ].every(
+      (key) =>
+        Number.isInteger(data.statistics?.[key]) && data.statistics[key] >= 0,
+    )
+  )
+    throw new Error("Dữ liệu phân trang trả về không hợp lệ.");
+  return data;
+}

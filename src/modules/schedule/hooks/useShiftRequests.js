@@ -17,11 +17,23 @@ import {
   normalizeRequest,
   requestError,
   requestList,
+  requestPage,
   validateRequest,
   requestPayload,
 } from "../utils/shiftRequest.utils";
 
 const EMPTY_QUERY = { items: [], loading: false, error: null };
+const EMPTY_REVIEW_QUERY = {
+  ...EMPTY_QUERY,
+  totalItems: 0,
+  statistics: {
+    totalCount: 0,
+    pendingCount: 0,
+    approvedCount: 0,
+    rejectedCount: 0,
+    expiredCount: 0,
+  },
+};
 const EMPTY_FORM = {
   requestType: "LEAVE",
   assignmentId: "",
@@ -38,7 +50,8 @@ const STALE_RESULT = { success: false, stale: true };
 
 /**
  * Single business hook for SWAP/LEAVE. Each named fetch/action calls its service directly.
- * Filtering, counts, permissions and pagination live here; components only render props.
+ * Review filters/paging are API parameters; the backend returns rows, totals and statistics.
+ * The hook owns query state and handlers; components only render props.
  * @param {{mode?: 'workspace'|'create'|'history'|'review', enabled?: boolean,
  * user?: object, branchId?: number, shift?: object, initialReviewFilter?: string}} options
  * @returns {object} State, display data, event handlers and actions returning {success, message, data}.
@@ -80,7 +93,7 @@ export default function useShiftRequests({
   const [validationErrors, setValidationErrors] = useState({});
   const [shiftsQuery, setShiftsQuery] = useState(EMPTY_QUERY);
   const [historyQuery, setHistoryQuery] = useState(EMPTY_QUERY);
-  const [reviewQuery, setReviewQuery] = useState(EMPTY_QUERY);
+  const [reviewQuery, setReviewQuery] = useState(EMPTY_REVIEW_QUERY);
   const [colleaguesQuery, setColleaguesQuery] = useState(EMPTY_QUERY);
   const [colleagueShiftsQuery, setColleagueShiftsQuery] = useState(EMPTY_QUERY);
   const [myTab, updateMyTab] = useState("SENT");
@@ -94,6 +107,7 @@ export default function useShiftRequests({
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [actionError, setActionError] = useState(null);
   const readRequests = useRef({});
+  const reviewParameters = useRef({});
   const mounted = useRef(false);
   const busy = useRef(false);
   const session = useRef(0);
@@ -130,7 +144,7 @@ export default function useShiftRequests({
     setActionError(null);
     setShiftsQuery(EMPTY_QUERY);
     setHistoryQuery(EMPTY_QUERY);
-    setReviewQuery(EMPTY_QUERY);
+    setReviewQuery(EMPTY_REVIEW_QUERY);
     setColleaguesQuery(EMPTY_QUERY);
     setColleagueShiftsQuery(EMPTY_QUERY);
     updateMyPage(1);
@@ -244,7 +258,7 @@ export default function useShiftRequests({
     async function fetchStoreRequests() {
       readRequests.current.review?.abort();
       if (!reviewEnabled || !employeeId) {
-        setReviewQuery(EMPTY_QUERY);
+        setReviewQuery(EMPTY_REVIEW_QUERY);
         return;
       }
       const request = new AbortController();
@@ -255,10 +269,16 @@ export default function useShiftRequests({
         error: null,
       }));
       try {
-        const response = await getStoreSwapRequests(branchId, request.signal);
-        const items = requestList(response);
-        if (mounted.current && !request.signal.aborted)
-          setReviewQuery({ items, loading: false, error: null });
+        const response = await getStoreSwapRequests(
+          branchId,
+          reviewParameters.current,
+          request.signal,
+        );
+        const data = requestPage(response);
+        if (mounted.current && !request.signal.aborted) {
+          setReviewQuery({ ...data, loading: false, error: null });
+          updateReviewPage(data.page);
+        }
       } catch (error) {
         if (mounted.current && !request.signal.aborted) {
           setReviewQuery((previous) => ({
@@ -370,11 +390,23 @@ export default function useShiftRequests({
   }, [fetchMyRequests]);
 
   useEffect(() => {
+    reviewParameters.current = {
+      status: reviewFilter,
+      search: searchTerm.trim(),
+      page: reviewPage,
+      pageSize: reviewPageSize,
+    };
     // eslint-disable-next-line react/set-state-in-effect -- Synchronize HTTP data and its loading state.
     fetchStoreRequests();
     const requests = readRequests.current;
     return () => requests.review?.abort();
-  }, [fetchStoreRequests]);
+  }, [
+    fetchStoreRequests,
+    reviewFilter,
+    searchTerm,
+    reviewPage,
+    reviewPageSize,
+  ]);
 
   useEffect(() => {
     // eslint-disable-next-line react/set-state-in-effect -- Synchronize HTTP data and its loading state.
@@ -497,34 +529,14 @@ export default function useShiftRequests({
     [myRequests, employeeId],
   );
   const filteredMyRequests = myTab === "SENT" ? sentRequests : receivedRequests;
-  const filteredStoreRequests = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    return storeRequests.filter(
-      (item) =>
-        (reviewFilter === "ALL" || item.status === reviewFilter) &&
-        (!query ||
-          [
-            item.requesterName,
-            item.requesterRoleName,
-            item.requesterShiftName,
-            item.targetName,
-            item.reason,
-          ].some((value) => value?.toLowerCase().includes(query))),
-    );
-  }, [storeRequests, reviewFilter, searchTerm]);
-  // Both client-side pagination calculations are kept here, never in the view or service.
+  // Personal history remains local; branch review data is already filtered/paged by the API.
   const myTotalItems = filteredMyRequests.length;
-  const reviewTotalItems = filteredStoreRequests.length;
+  const reviewTotalItems = reviewQuery.totalItems;
   const currentMyPage = Math.min(
     myPage,
     Math.max(1, Math.ceil(myTotalItems / myPageSize)),
   );
-  const currentReviewPage = Math.min(
-    reviewPage,
-    Math.max(1, Math.ceil(reviewTotalItems / reviewPageSize)),
-  );
   if (myPage !== currentMyPage) updateMyPage(currentMyPage);
-  if (reviewPage !== currentReviewPage) updateReviewPage(currentReviewPage);
   const pagedMyRequests = useMemo(
     () =>
       filteredMyRequests.slice(
@@ -533,28 +545,8 @@ export default function useShiftRequests({
       ),
     [filteredMyRequests, currentMyPage, myPageSize],
   );
-  const pagedStoreRequests = useMemo(
-    () =>
-      filteredStoreRequests.slice(
-        (currentReviewPage - 1) * reviewPageSize,
-        currentReviewPage * reviewPageSize,
-      ),
-    [filteredStoreRequests, currentReviewPage, reviewPageSize],
-  );
-  const reviewStats = useMemo(
-    () => ({
-      totalCount: storeRequests.length,
-      pendingCount: storeRequests.filter((item) => item.status === "PENDING")
-        .length,
-      approvedCount: storeRequests.filter((item) => item.status === "APPROVED")
-        .length,
-      rejectedCount: storeRequests.filter((item) => item.status === "REJECTED")
-        .length,
-      expiredCount: storeRequests.filter((item) => item.status === "EXPIRED")
-        .length,
-    }),
-    [storeRequests],
-  );
+  const pagedStoreRequests = storeRequests;
+  const reviewStats = reviewQuery.statistics;
   const reviewTabs = useMemo(
     () => [
       { key: "ALL", label: "Tất Cả", count: reviewStats.totalCount },
@@ -894,7 +886,6 @@ export default function useShiftRequests({
     loadingMyRequests: historyQuery.loading,
     myRequestsError: historyQuery.error,
     storeRequests,
-    filteredStoreRequests,
     pagedStoreRequests,
     reviewStats,
     reviewTabs,
@@ -903,7 +894,7 @@ export default function useShiftRequests({
     setReviewFilter,
     searchTerm,
     setSearchTerm,
-    reviewPage: currentReviewPage,
+    reviewPage,
     setReviewPage,
     reviewPageSize,
     setReviewPageSize,
