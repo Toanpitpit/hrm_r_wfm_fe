@@ -20,6 +20,7 @@ schedule/
 │   ├── ShiftRequestStats/
 │   ├── ShiftRequestStatusBadge/
 │   ├── ShiftRequestFeedback/
+│   ├── ShiftSwapReviewList.jsx    # Danh sách duyệt nhúng trong tab lịch tuần
 │   ├── ShiftSwapModal.jsx
 │   ├── MySwapRequestsModal.jsx
 │   └── ShiftSwapReviewModal.jsx
@@ -114,3 +115,12 @@ Backend nhận các route trên tại `ShiftSwapsController`; ca của mình n�
 
 Network Initiator vẫn có dòng Axios/service vì service gửi HTTP. Mở stack và
 Sources để lần tới hàm hook có tên ở bảng trên; không kỳ vọng hook là một URL API.
+
+## Tích hợp lịch tuần sau merge
+
+Lịch tuần giữ ba tab phân bổ, định mức và xét duyệt. `ShiftSwapReviewList` dùng
+`useShiftRequests` để tải, lọc, đếm và duyệt đơn; modal dùng cùng component này.
+Sau khi duyệt thành công, callback cập nhật ma trận tuần và số đơn chờ duyệt.
+Hai nút xóa gọi riêng `DELETE /shifts/assignments/weekly` (giữ định mức) và
+`DELETE /shifts/schedules/weekly` (xóa khung ca/định mức); backend cần có các API
+đã được bổ sung từ nhánh `origin/main`.

@@ -85,6 +85,8 @@ async function fixture({
   user = staff,
   options = {},
   scenario = "",
+  appPath = "/employee/shift-requests",
+  weeklyMatrix,
   myRequests,
   storeRequests,
 } = {}) {
@@ -111,6 +113,14 @@ async function fixture({
       }),
     ],
     storeRequests: storeRequests || [request(1)],
+    weeklyMatrix: weeklyMatrix || {
+      days: [],
+      schedules: [],
+      employeeRosters: [],
+      activeTemplates: [],
+      weekStatus: "DRAFT",
+      branchName: "Chi nhánh test",
+    },
   };
   const devtools = await context.newCDPSession(page);
   await devtools.send("Debugger.enable");
@@ -152,7 +162,35 @@ async function fixture({
     let status = 200;
     let message;
     if (url.pathname.endsWith("/Auth/me")) data = user;
-    else if (url.pathname.endsWith("/my-shifts"))
+    else if (url.pathname.endsWith("/accessible-branches"))
+      data = {
+        isGlobalManager: false,
+        assignedBranchId: 3,
+        assignedBranchName: "Chi nhánh test",
+        branches: [{ id: 3, name: "Chi nhánh test" }],
+      };
+    else if (url.pathname.endsWith("/weekly-matrix")) data = state.weeklyMatrix;
+    else if (
+      method === "DELETE" &&
+      url.pathname.endsWith("/assignments/weekly")
+    ) {
+      state.weeklyMatrix.schedules = state.weeklyMatrix.schedules.map(
+        (item) => ({
+          ...item,
+          assignedLeaderCount: 0,
+          assignedCashierCount: 0,
+          assignedSalesCount: 0,
+          assignedSecurityCount: 0,
+        }),
+      );
+      data = true;
+    } else if (
+      method === "DELETE" &&
+      url.pathname.endsWith("/schedules/weekly")
+    ) {
+      state.weeklyMatrix.schedules = [];
+      data = true;
+    } else if (url.pathname.endsWith("/my-shifts"))
       data = [
         shift,
         { ...shift, assignmentId: 12, storeId: 7, workDate: day(2) },
@@ -231,7 +269,7 @@ async function fixture({
   });
   await page.goto(
     scenario === "app"
-      ? `${origin}/employee/shift-requests`
+      ? `${origin}${appPath}`
       : `${origin}/tests/shift-requests.html?scenario=${scenario}`,
   );
   if (!scenario)
@@ -263,6 +301,7 @@ test("request views do not import services or perform filtering and pagination",
     "src/modules/schedule/components/ShiftSwapModal.jsx",
     "src/modules/schedule/components/MySwapRequestsModal.jsx",
     "src/modules/schedule/components/ShiftSwapReviewModal.jsx",
+    "src/modules/schedule/components/ShiftSwapReviewList.jsx",
   ];
   for (const file of views) {
     const source = await readFile(
@@ -800,8 +839,112 @@ test("past or current shift cannot be submitted from calendar modal", async () =
 
 test("review modal calls parent only after a successful backend review", async () => {
   const f = await fixture({ user: manager, scenario: "review-modal" });
-  await f.page.getByRole("button", { name: "Duyệt", exact: true }).click();
+  f.state.failReview = true;
+  await f.page.getByRole("button", { name: /Phê Duyệt Ngay/ }).click();
+  await f.page
+    .getByText("Lịch đã thay đổi, không thể duyệt.", { exact: true })
+    .waitFor();
+  assert.equal(await f.page.evaluate(() => window.changeCount || 0), 0);
+  f.state.failReview = false;
+  await f.page.getByRole("button", { name: /Phê Duyệt Ngay/ }).click();
   await f.page.waitForFunction(() => window.changeCount === 1);
   assert.equal(f.state.storeRequests[0].status, "APPROVED");
+  await f.close();
+});
+
+test("merged weekly schedule keeps three tabs and refreshes the matrix after review", async () => {
+  const f = await fixture({
+    user: manager,
+    scenario: "app",
+    appPath: "/store-manager/schedules",
+  });
+  await f.page.getByRole("button", { name: /1\. Phân Bổ Ca Tuần/ }).waitFor();
+  await f.page.getByRole("button", { name: /2\. Định Mức Nhu Cầu Ca/ }).click();
+  await f.page.getByRole("button", { name: /3\. Xét Duyệt Đổi Ca/ }).click();
+  await f.page.getByRole("button", { name: /Phê Duyệt Ngay/ }).waitFor();
+  const before = f.state.calls.filter((entry) =>
+    entry.path.endsWith("/weekly-matrix"),
+  ).length;
+  const refreshed = f.page.waitForResponse((response) =>
+    response.url().includes("/weekly-matrix"),
+  );
+  await f.page.getByRole("button", { name: /Phê Duyệt Ngay/ }).click();
+  await refreshed;
+  await f.page
+    .getByText("Không có đơn nào trong mục này", { exact: true })
+    .waitFor();
+  assert.equal(f.state.storeRequests[0].status, "APPROVED");
+  assert.ok(
+    f.state.calls.filter((entry) => entry.path.endsWith("/weekly-matrix"))
+      .length > before,
+  );
+  await f.page
+    .getByRole("button", { name: "Đã Phê Duyệt", exact: true })
+    .click();
+  await f.page.getByText("Đã Phê Duyệt", { exact: true }).last().waitFor();
+  await f.close();
+});
+
+test("merged delete buttons use distinct weekly APIs and refresh the schedule", async () => {
+  const f = await fixture({
+    user: manager,
+    scenario: "app",
+    appPath: "/store-manager/schedules",
+    weeklyMatrix: {
+      days: [],
+      employeeRosters: [],
+      activeTemplates: [],
+      weekStatus: "DRAFT",
+      branchName: "Chi nhánh test",
+      schedules: [
+        {
+          scheduleId: 501,
+          shiftTemplateId: 1,
+          workDate: day(1),
+          requiredLeader: 0,
+          requiredCashier: 1,
+          requiredSales: 0,
+          requiredSecurity: 0,
+          assignedLeaderCount: 0,
+          assignedCashierCount: 1,
+          assignedSalesCount: 0,
+          assignedSecurityCount: 0,
+        },
+      ],
+    },
+  });
+  await f.page.getByRole("button", { name: "Xóa Lịch", exact: true }).click();
+  assert.equal(
+    f.state.calls.filter((entry) => entry.method === "DELETE").length,
+    0,
+  );
+  await f.page
+    .getByRole("button", { name: "Xác Nhận Xóa Lịch", exact: true })
+    .click();
+  await f.page
+    .getByRole("button", { name: "Xác Nhận Xóa Lịch", exact: true })
+    .waitFor({ state: "hidden" });
+  const assignmentCall = f.state.calls.find(
+    (entry) =>
+      entry.method === "DELETE" && entry.path.endsWith("/assignments/weekly"),
+  );
+  assert.equal(assignmentCall?.query.branchId, "3");
+  assert.match(assignmentCall.query.weekStartDate, /^\d{4}-\d{2}-\d{2}$/);
+  await f.page.getByRole("button", { name: /2\. Định Mức Nhu Cầu Ca/ }).click();
+  await f.page
+    .getByRole("button", { name: "Xóa Định Mức", exact: true })
+    .click();
+  await f.page
+    .getByRole("button", { name: "Xác Nhận Xóa Định Mức", exact: true })
+    .click();
+  await f.page
+    .getByRole("button", { name: "Xác Nhận Xóa Định Mức", exact: true })
+    .waitFor({ state: "hidden" });
+  assert.ok(
+    f.state.calls.some(
+      (entry) =>
+        entry.method === "DELETE" && entry.path.endsWith("/schedules/weekly"),
+    ),
+  );
   await f.close();
 });
