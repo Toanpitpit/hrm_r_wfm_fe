@@ -13,10 +13,6 @@ export default function HeadcountQuotaCard({
   const { c, theme } = useAdminTheme();
   const isDark = theme === 'dark';
 
-  if (isStoreManager || !allBranchesQuota || allBranchesQuota.length === 0) {
-    return null;
-  }
-
   const tierColors = {
     1: '#eab308',
     2: '#3b82f6',
@@ -39,6 +35,10 @@ export default function HeadcountQuotaCard({
       };
     });
   }, [allBranchesQuota]);
+
+  if (isStoreManager || !allBranchesQuota || allBranchesQuota.length === 0) {
+    return null;
+  }
 
   const getStatusBadge = (statusObj) => {
     const isLocked = statusObj.status === 'INACTIVE' || statusObj.status === 'LOCKED';

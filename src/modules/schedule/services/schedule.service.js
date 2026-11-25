@@ -159,44 +159,47 @@ export const cancelSwapRequest = async (swapRequestId) => {
 /**
  * Lấy danh sách các đơn đổi/chuyển ca của cửa hàng cho Quản lý duyệt.
  */
-export const getStoreSwapRequests = async (storeId) => {
-  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_STORE_SWAPS(storeId));
+export const getStoreSwapRequests = async (storeId, signal) => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_STORE_SWAPS(storeId), { signal });
   return response.data;
 };
 
 /**
  * Nhân viên lấy danh sách các đơn đổi/chuyển ca của chính mình.
  */
-export const getMySwapRequests = async () => {
-  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_MY_SWAPS);
+export const getMySwapRequests = async (signal) => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_MY_SWAPS, { signal });
   return response.data;
 };
 
 /**
  * Lấy danh sách đồng nghiệp cùng chi nhánh để chọn đổi/chuyển ca.
  */
-export const getColleaguesForSwap = async (branchId) => {
-  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_COLLEAGUES(branchId));
+export const getColleaguesForSwap = async (branchId, workDate, signal) => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_COLLEAGUES(branchId), {
+    params: workDate ? { workDate } : undefined,
+    signal,
+  });
   return response.data;
 };
 
 /**
  * Lấy danh sách các ca làm việc tương lai của đồng nghiệp để chọn đổi.
  */
-export const getColleagueShifts = async (colleagueEmployeeId, requestingAssignmentId = null) => {
+export const getColleagueShifts = async (colleagueEmployeeId, requestingAssignmentId = null, signal) => {
   const params = {};
   if (requestingAssignmentId) {
     params.requestingAssignmentId = requestingAssignmentId;
   }
-  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_COLLEAGUE_SHIFTS(colleagueEmployeeId), { params });
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_COLLEAGUE_SHIFTS(colleagueEmployeeId), { params, signal });
   return response.data;
 };
 
 /**
  * Lấy danh sách ca làm việc của nhân viên đang đăng nhập.
  */
-export const getMyShifts = async (startDate, endDate) => {
-  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_MY_SHIFTS(startDate, endDate));
+export const getMyShifts = async (startDate, endDate, signal) => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SHIFTS.GET_MY_SHIFTS(startDate, endDate), { signal });
   return response.data;
 };
 

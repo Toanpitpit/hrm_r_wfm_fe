@@ -142,8 +142,8 @@ export default function WeekNavigator({
               onClick={onOpenDeleteWeeklyModal}
               disabled={actionLoading}
               style={{
-                backgroundColor: '#dc2626',
-                borderColor: '#b91c1c',
+                background: '#dc2626',
+                border: '1px solid #b91c1c',
                 color: '#ffffff',
               }}
               title="Xóa toàn bộ định mức và khung ca của tuần này để đặt lại về trạng thái chưa tạo ca ban đầu"
@@ -209,8 +209,8 @@ export default function WeekNavigator({
               onClick={onOpenDeleteAssignmentsModal}
               disabled={actionLoading}
               style={{
-                backgroundColor: '#ef4444',
-                borderColor: '#dc2626',
+                background: '#ef4444',
+                border: '1px solid #dc2626',
                 color: '#ffffff',
               }}
               title="Xóa toàn bộ các ca làm việc đã gán cho nhân viên trong tuần này (giữ nguyên định mức ca để xếp lại)"

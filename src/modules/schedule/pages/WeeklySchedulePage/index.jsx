@@ -939,8 +939,8 @@ export default function WeeklySchedulePage() {
                 }}
                 disabled={actionLoading}
                 style={{
-                  backgroundColor: '#dc2626',
-                  borderColor: '#dc2626',
+                  background: '#dc2626',
+                  border: '1px solid #dc2626',
                   color: '#ffffff',
                 }}
               >
@@ -1002,8 +1002,8 @@ export default function WeeklySchedulePage() {
                 }}
                 disabled={actionLoading}
                 style={{
-                  backgroundColor: '#dc2626',
-                  borderColor: '#dc2626',
+                  background: '#dc2626',
+                  border: '1px solid #dc2626',
                   color: '#ffffff',
                 }}
               >

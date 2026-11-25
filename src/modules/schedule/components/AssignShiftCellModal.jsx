@@ -47,13 +47,9 @@ export default function AssignShiftCellModal({
       setSelectedUserId('');
       setRoleSearchTerm('');
     } else {
-      if (currentAssignment) {
-        setSelectedShiftId(currentAssignment.shiftTemplateId || '');
-      } else if (activeTemplates.length > 0) {
-        setSelectedShiftId(activeTemplates[0].shiftId || activeTemplates[0].id);
-      }
+      setSelectedShiftId('');
     }
-  }, [isRoleMode, cellData, currentAssignment, activeTemplates]);
+  }, [isRoleMode, cellData]);
 
   // Lọc danh sách nhân sự phù hợp cho Mode 1: Chỉ cho phép nhân sự có đúng vai trò tương ứng
   const eligibleEmployees = useMemo(() => {
@@ -107,14 +103,14 @@ export default function AssignShiftCellModal({
       return (h || 0) * 60 + (m || 0);
     };
 
-    const targetDate = new Date(targetDateStr);
+    const targetDate = new Date(`${targetDateStr}T00:00:00Z`);
     const prevDateObj = new Date(targetDate);
-    prevDateObj.setDate(prevDateObj.getDate() - 1);
-    const prevDateStr = `${prevDateObj.getFullYear()}-${pad(prevDateObj.getMonth() + 1)}-${pad(prevDateObj.getDate())}`;
+    prevDateObj.setUTCDate(prevDateObj.getUTCDate() - 1);
+    const prevDateStr = prevDateObj.toISOString().slice(0, 10);
 
     const nextDateObj = new Date(targetDate);
-    nextDateObj.setDate(nextDateObj.getDate() + 1);
-    const nextDateStr = `${nextDateObj.getFullYear()}-${pad(nextDateObj.getMonth() + 1)}-${pad(nextDateObj.getDate())}`;
+    nextDateObj.setUTCDate(nextDateObj.getUTCDate() + 1);
+    const nextDateStr = nextDateObj.toISOString().slice(0, 10);
 
     const newStartMin = parseMinutes(targetShift.startTime);
     let newEndMin = parseMinutes(targetShift.endTime);
@@ -191,13 +187,28 @@ export default function AssignShiftCellModal({
 
   const isMode2Blocked = isPastOrToday || isUserNotYetDispatched || isUserDispatchExpired || isUserDispatchedAway || isUserManager;
 
+  const assignedShifts = (user?.assignedShifts || []).filter(
+    (s) => s.status !== 'CANCELLED' && s.assignmentId !== currentAssignment?.assignmentId,
+  );
+  const availableTemplates = isRoleMode ? [] : activeTemplates.filter(
+    (template) => !checkRest12hViolation(workDate, template, assignedShifts).violated,
+  );
+  const firstTemplate = availableTemplates[0];
+  const requestedShiftId = selectedShiftId || (currentAssignment
+    ? currentAssignment.shiftTemplateId
+    : firstTemplate?.shiftId || firstTemplate?.id);
+  const canSubmitEmployeeShift = Boolean(
+    !isMode2Blocked && user && workDate && availableTemplates.some(
+      (template) => String(template.shiftId || template.id) === String(requestedShiftId),
+    ),
+  );
+
   // Submit cho Mode 2 (Gán ca cho nhân viên cụ thể)
   const handleEmployeeSubmit = (e) => {
     e.preventDefault();
-    if (isMode2Blocked) return;
-    if (!selectedShiftId || !user || !workDate) return;
+    if (!canSubmitEmployeeShift) return;
 
-    onAssignSingle(user.userId, selectedShiftId, workDate);
+    onAssignSingle(user.userId, requestedShiftId, workDate);
   };
 
   const handleDelete = () => {
@@ -693,17 +704,12 @@ export default function AssignShiftCellModal({
         <div style={{ marginBottom: 20 }}>
           <FormField label="Chọn Ca Làm Việc Mới:">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {activeTemplates.map((t) => {
+              {availableTemplates.length === 0 && (
+                <div style={{ fontSize: 12, color: c.fgSubtle }}>Không có ca làm việc phù hợp.</div>
+              )}
+              {availableTemplates.map((t) => {
                 const tId = t.shiftId || t.id;
-                const isSelected = String(selectedShiftId) === String(tId);
-
-                // Kiểm tra nghỉ 12h với các ca khác của nhân viên này
-                const otherShifts = (user?.assignedShifts || []).filter(
-                  (s) => s.date !== workDate || (currentAssignment && s.assignmentId !== currentAssignment.assignmentId)
-                );
-                const restViolation = checkRest12hViolation(workDate, t, otherShifts);
-
-                const isShiftDisabled = isMode2Blocked || restViolation.violated;
+                const isSelected = String(requestedShiftId) === String(tId);
 
                 return (
                   <label
@@ -714,13 +720,12 @@ export default function AssignShiftCellModal({
                       justifyContent: 'space-between',
                       padding: '10px 14px',
                       borderRadius: 8,
-                      background: isSelected ? `${c.accentDim}30` : isShiftDisabled ? `${c.bgElev}40` : c.bgElev,
-                      border: `1px solid ${isSelected ? c.accent : isShiftDisabled ? c.borderSub : c.border}`,
-                      cursor: isShiftDisabled ? 'not-allowed' : 'pointer',
-                      opacity: isShiftDisabled ? 0.65 : 1,
+                      background: isSelected ? `${c.accentDim}30` : isMode2Blocked ? `${c.bgElev}40` : c.bgElev,
+                      border: `1px solid ${isSelected ? c.accent : isMode2Blocked ? c.borderSub : c.border}`,
+                      cursor: isMode2Blocked ? 'not-allowed' : 'pointer',
+                      opacity: isMode2Blocked ? 0.65 : 1,
                       transition: 'all 0.15s ease',
                     }}
-                    title={restViolation.violated ? restViolation.message : undefined}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <input
@@ -728,7 +733,7 @@ export default function AssignShiftCellModal({
                         name="shiftSelect"
                         value={tId}
                         checked={isSelected}
-                        disabled={isShiftDisabled}
+                        disabled={isMode2Blocked}
                         onChange={() => setSelectedShiftId(tId)}
                       />
                       <span style={{ fontWeight: 750, color: isSelected ? c.accent : c.fg, fontSize: 13 }}>
@@ -736,20 +741,6 @@ export default function AssignShiftCellModal({
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {restViolation.violated && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            padding: '2px 6px',
-                            borderRadius: 4,
-                            background: `${c.tones.bad}20`,
-                            color: c.tones.bad,
-                            fontWeight: 700,
-                          }}
-                        >
-                          Nghỉ &lt; 12h
-                        </span>
-                      )}
                       <span style={{ fontSize: 12, color: c.fgFaint }}>
                         {t.startTime?.substring(0, 5)} - {t.endTime?.substring(0, 5)}
                       </span>
@@ -765,7 +756,7 @@ export default function AssignShiftCellModal({
           <Button variant="ghost" onClick={onClose} type="button" disabled={actionLoading}>
             Đóng
           </Button>
-          <Button variant="primary" type="submit" disabled={actionLoading || isMode2Blocked || !selectedShiftId}>
+          <Button variant="primary" type="submit" disabled={actionLoading || !canSubmitEmployeeShift}>
             {actionLoading ? 'Đang lưu...' : currentAssignment ? 'Cập Nhật Ca' : 'Xác Nhận Gán Ca'}
           </Button>
         </div>
