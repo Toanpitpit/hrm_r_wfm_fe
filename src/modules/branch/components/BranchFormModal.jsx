@@ -87,8 +87,20 @@ export default function BranchFormModal({
   useEffect(() => {
     if (!open) return;
     if (initialData) {
-      const tierVal = Number(initialData.branchTier ?? initialData.tier ?? 2);
-      const tierIdVal = Number(initialData.tierId || initialData.tier?.id || initialData.tierObj?.id || 0) || null;
+      let tierVal = Number(initialData.branchTier ?? initialData.tier ?? 2);
+      let tierIdVal = Number(initialData.tierId || initialData.tier?.id || initialData.tierObj?.id || 0) || null;
+      if (!tierIdVal && dbTiers.length > 0) {
+        const rawName = (initialData.branchTierName || initialData.tierName || initialData.tier?.tierName || '').toLowerCase();
+        const numMatch = rawName.match(/\d+/);
+        const searchNum = numMatch ? Number(numMatch[0]) : tierVal;
+        const matched = dbTiers.find((t) => {
+          const tNum = (t.tierName || t.tier_name || '').match(/\d+/);
+          return tNum && Number(tNum[0]) === searchNum;
+        }) || dbTiers.find((t) => Number(t.id || t.tier_id) === searchNum);
+        if (matched) {
+          tierIdVal = matched.id || matched.tier_id;
+        }
+      }
       setFormData({
         branchCode: initialData.branchCode || initialData.code || '',
         name: initialData.name || initialData.storeName || '',
@@ -200,14 +212,18 @@ export default function BranchFormModal({
       const validRadius = isNaN(rawRadius) || rawRadius < 20 ? 100 : Math.min(rawRadius, 1000);
 
       // Đồng bộ TierId và Tier số tương thích ngược
-      const selectedTier = dbTiers.find((t) => Number(t.id || t.tier_id) === Number(formData.tierId));
+      let effectiveTierId = formData.tierId;
+      if (!effectiveTierId && dbTiers.length > 0) {
+        effectiveTierId = dbTiers[0].id || dbTiers[0].tier_id;
+      }
+      const selectedTier = dbTiers.find((t) => Number(t.id || t.tier_id) === Number(effectiveTierId));
       const tierVal = selectedTier?.tierName && selectedTier.tierName.match(/\d+/)
         ? Number(selectedTier.tierName.match(/\d+/)[0])
         : (Number(formData.branchTier || selectedTier?.id) || 2);
 
       const submitPayload = {
         ...formData,
-        tierId: formData.tierId ? Number(formData.tierId) : undefined,
+        tierId: effectiveTierId ? Number(effectiveTierId) : undefined,
         branchTier: tierVal,
         tier: tierVal,
         radiusMeters: validRadius,

@@ -263,6 +263,7 @@ export default function BranchManagementPage() {
       {viewMode === 'map' ? (
         <BranchMapView
           branches={branches}
+          tiers={tiers}
           onEdit={(branch) => {
             setEditingBranch(branch);
             setFormModalOpen(true);

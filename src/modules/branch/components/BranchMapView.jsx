@@ -45,6 +45,7 @@ const TILE_LAYERS = {
 
 export default function BranchMapView({
   branches = [],
+  tiers = [],
   onEdit,
   onToggleLock,
 }) {
@@ -63,9 +64,108 @@ export default function BranchMapView({
   const [showGeofence, setShowGeofence] = useState(true);
   const [selectedBranchId, setSelectedBranchId] = useState(null);
   const [mapSearch, setMapSearch] = useState('');
-  const [tierFilter, setTierFilter] = useState('ALL'); // 'ALL' | 1 | 2 | 3
+  const [tierFilter, setTierFilter] = useState('ALL'); // 'ALL' | 1 | 2 | 3 | 4 | 5...
   const [userLocation, setUserLocation] = useState(null);
   const [locatingUser, setLocatingUser] = useState(false);
+
+  // Chuẩn hóa & bóc tách thông tin Tier cho chi nhánh linh hoạt theo Database Tiers & Fallback
+  const resolveBranchTierInfo = (b) => {
+    const matchedTier =
+      (tiers || []).find((t) => Number(t.id || t.tier_id) === Number(b.tierId || b.tier?.id)) ||
+      b.tierObj ||
+      (typeof b.tier === 'object' ? b.tier : null);
+
+    const rawTierName =
+      matchedTier?.tierName ||
+      matchedTier?.tier_name ||
+      b.tierObj?.tierName ||
+      (typeof b.tier === 'object' && b.tier?.tierName) ||
+      b.branchTierName ||
+      '';
+
+    const tMatch = rawTierName.match(/\d+/);
+    const tierNum = tMatch ? Number(tMatch[0]) : Number(b.branchTier ?? b.tier ?? 2);
+    const tierId = Number(b.tierId || b.tier?.id || (matchedTier ? (matchedTier.id || matchedTier.tier_id) : 0));
+
+    let tierColor = '#3b82f6';
+    let tierBg = 'rgba(59, 130, 246, 0.15)';
+    let tierBorder = 'rgba(59, 130, 246, 0.35)';
+    let tierText = `Cấp ${tierNum}`;
+
+    if (tierNum === 1) {
+      tierColor = '#f59e0b';
+      tierBg = 'rgba(245, 158, 11, 0.15)';
+      tierBorder = 'rgba(245, 158, 11, 0.4)';
+      tierText = 'Cấp 1';
+    } else if (tierNum === 2) {
+      tierColor = '#3b82f6';
+      tierBg = 'rgba(59, 130, 246, 0.15)';
+      tierBorder = 'rgba(59, 130, 246, 0.35)';
+      tierText = 'Cấp 2';
+    } else if (tierNum === 3) {
+      tierColor = '#10b981';
+      tierBg = 'rgba(16, 185, 129, 0.15)';
+      tierBorder = 'rgba(16, 185, 129, 0.35)';
+      tierText = 'Cấp 3';
+    } else if (tierNum === 4) {
+      tierColor = '#a855f7';
+      tierBg = 'rgba(168, 85, 247, 0.15)';
+      tierBorder = 'rgba(168, 85, 247, 0.35)';
+      tierText = 'Cấp 4';
+    } else if (tierNum === 5) {
+      tierColor = '#ec4899';
+      tierBg = 'rgba(236, 72, 153, 0.15)';
+      tierBorder = 'rgba(236, 72, 153, 0.35)';
+      tierText = 'Cấp 5';
+    } else {
+      tierColor = '#06b6d4';
+      tierBg = 'rgba(6, 182, 212, 0.15)';
+      tierBorder = 'rgba(6, 182, 212, 0.35)';
+      tierText = rawTierName.length <= 10 && rawTierName.length > 0 ? rawTierName : `Cấp ${tierNum}`;
+    }
+
+    return {
+      tierNum,
+      tierId,
+      tierColor,
+      tierBg,
+      tierBorder,
+      tierText,
+      rawTierName,
+    };
+  };
+
+  // Danh sách các Tier khả dụng để render nút lọc linh hoạt
+  const availableTiers = useMemo(() => {
+    const tierOptions = new Map();
+    [
+      { num: 1, label: 'Cấp 1', color: '#f59e0b' },
+      { num: 2, label: 'Cấp 2', color: '#3b82f6' },
+      { num: 3, label: 'Cấp 3', color: '#10b981' },
+    ].forEach((opt) => tierOptions.set(opt.num, opt));
+
+    (tiers || []).forEach((t) => {
+      const name = t.tierName || t.name || '';
+      const match = name.match(/\d+/);
+      const num = match ? Number(match[0]) : Number(t.id);
+      if (num && !tierOptions.has(num)) {
+        let color = '#a855f7';
+        if (num === 4) color = '#a855f7';
+        else if (num === 5) color = '#ec4899';
+        else color = '#06b6d4';
+        tierOptions.set(num, { num, label: `Cấp ${num}`, color });
+      }
+    });
+
+    branches.forEach((b) => {
+      const { tierNum, tierColor } = resolveBranchTierInfo(b);
+      if (tierNum && !tierOptions.has(tierNum)) {
+        tierOptions.set(tierNum, { num: tierNum, label: `Cấp ${tierNum}`, color: tierColor });
+      }
+    });
+
+    return Array.from(tierOptions.values()).sort((a, b) => a.num - b.num);
+  }, [tiers, branches]);
 
   // Lọc chi nhánh cho danh sách bên cạnh
   const filteredBranches = useMemo(() => {
@@ -76,40 +176,24 @@ export default function BranchMapView({
         (b.branchCode || b.code || '').toLowerCase().includes(mapSearch.toLowerCase()) ||
         (b.address || '').toLowerCase().includes(mapSearch.toLowerCase());
 
-      const tier = Number(b.branchTier ?? b.tier ?? 2);
-      const matchTier = tierFilter === 'ALL' || tier === Number(tierFilter);
+      if (!matchSearch) return false;
+      if (tierFilter === 'ALL') return true;
 
-      return matchSearch && matchTier;
+      const { tierNum, tierId } = resolveBranchTierInfo(b);
+      return (
+        String(tierNum) === String(tierFilter) ||
+        String(tierId) === String(tierFilter) ||
+        String(b.branchTier) === String(tierFilter)
+      );
     });
-  }, [branches, mapSearch, tierFilter]);
+  }, [branches, mapSearch, tierFilter, tiers]);
 
   // Tạo Custom Marker Pin theo cấp chi nhánh (Tier 1/2/3/4/5...)
   const createMarkerIcon = (branch, isSelected = false) => {
     const isActive = (branch.status || '').toUpperCase() === 'ACTIVE';
-    const tier = Number(branch.branchTier ?? branch.tier ?? 2);
-    const tName = (branch.tierObj?.tierName || branch.tier?.tierName || branch.branchTierName || branch.tierName || '').toLowerCase();
-    const tMatch = tName.match(/\d+/);
-    const tierNum = tMatch ? Number(tMatch[0]) : (tier || 2);
-
-    let pinColor = '#3b82f6'; // Tier 2 default (Blue)
-    let tierLabel = `C${tierNum}`;
-    if (tierNum === 1) {
-      pinColor = '#f59e0b'; // Tier 1 Gold
-    } else if (tierNum === 2) {
-      pinColor = '#3b82f6'; // Tier 2 Blue
-    } else if (tierNum === 3) {
-      pinColor = '#10b981'; // Tier 3 Emerald
-    } else if (tierNum === 4) {
-      pinColor = '#a855f7'; // Tier 4 Purple
-    } else if (tierNum === 5) {
-      pinColor = '#ec4899'; // Tier 5 Pink
-    } else {
-      pinColor = '#06b6d4';
-    }
-
-    if (!isActive) {
-      pinColor = '#ef4444';
-    }
+    const { tierNum, tierColor } = resolveBranchTierInfo(branch);
+    const pinColor = isActive ? tierColor : '#ef4444';
+    const tierLabel = `C${tierNum}`;
 
     const scale = isSelected ? 'transform: scale(1.18); z-index: 999;' : '';
     const glow = isSelected
@@ -288,34 +372,24 @@ export default function BranchMapView({
       const lng = Number(b.longitude) || 105.854167;
       const radius = Number(b.geofenceRadiusMeters ?? b.radiusMeters) || 100;
       const isActive = (b.status || '').toUpperCase() === 'ACTIVE';
-      const tier = Number(b.branchTier ?? b.tier ?? 2);
       const isSelected = selectedBranchId === b.storeId;
 
       bounds.push([lat, lng]);
 
-      const tName = (b.tierObj?.tierName || b.tier?.tierName || b.branchTierName || b.tierName || '').toLowerCase();
-      const tMatch = tName.match(/\d+/);
-      const tierNum = tMatch ? Number(tMatch[0]) : (tier || 2);
+      const { tierNum, tierColor, tierText } = resolveBranchTierInfo(b);
 
-      let tierColor = '#3b82f6';
       let tierName = `Cấp ${tierNum} - Tiêu Chuẩn`;
       if (tierNum === 1) {
-        tierColor = '#f59e0b';
         tierName = 'Cấp 1 - Flagship';
       } else if (tierNum === 2) {
-        tierColor = '#3b82f6';
         tierName = 'Cấp 2 - Tiêu Chuẩn';
       } else if (tierNum === 3) {
-        tierColor = '#10b981';
         tierName = 'Cấp 3 - Mini';
       } else if (tierNum === 4) {
-        tierColor = '#a855f7';
         tierName = 'Cấp 4 - Mở Rộng';
       } else if (tierNum === 5) {
-        tierColor = '#ec4899';
         tierName = 'Cấp 5 - Đặc Biệt';
       } else {
-        tierColor = '#06b6d4';
         tierName = `Cấp ${tierNum}`;
       }
 
@@ -814,15 +888,19 @@ export default function BranchMapView({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-            <span>Cấp 1 (Flagship)</span>
+            <span>Cấp 1</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3b82f6' }} />
-            <span>Cấp 2 (Tiêu chuẩn)</span>
+            <span>Cấp 2</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-            <span>Cấp 3 (Mini)</span>
+            <span>Cấp 3</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#a855f7' }} />
+            <span>Cấp 4+</span>
           </div>
         </div>
       </div>
@@ -864,13 +942,14 @@ export default function BranchMapView({
             placeholder="Tìm theo tên, mã CN, địa chỉ..."
           />
 
-          {/* Quick Tier Filters */}
-          <div style={{ display: 'flex', gap: '4px' }}>
+          {/* Quick Tier Filters - Render linh hoạt theo toàn bộ phân cấp trong hệ thống */}
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => setTierFilter('ALL')}
               style={{
-                flex: 1,
+                flex: '1 0 auto',
+                minWidth: '45px',
                 padding: '4px 6px',
                 borderRadius: '6px',
                 fontSize: '11px',
@@ -883,57 +962,30 @@ export default function BranchMapView({
             >
               Tất cả
             </button>
-            <button
-              type="button"
-              onClick={() => setTierFilter(1)}
-              style={{
-                flex: 1,
-                padding: '4px 6px',
-                borderRadius: '6px',
-                fontSize: '11px',
-                fontWeight: 700,
-                border: `1px solid ${tierFilter === 1 ? '#f59e0b' : c.border}`,
-                backgroundColor: tierFilter === 1 ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
-                color: tierFilter === 1 ? '#f59e0b' : c.fgSubtle,
-                cursor: 'pointer',
-              }}
-            >
-              Cấp 1
-            </button>
-            <button
-              type="button"
-              onClick={() => setTierFilter(2)}
-              style={{
-                flex: 1,
-                padding: '4px 6px',
-                borderRadius: '6px',
-                fontSize: '11px',
-                fontWeight: 700,
-                border: `1px solid ${tierFilter === 2 ? '#3b82f6' : c.border}`,
-                backgroundColor: tierFilter === 2 ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
-                color: tierFilter === 2 ? '#3b82f6' : c.fgSubtle,
-                cursor: 'pointer',
-              }}
-            >
-              Cấp 2
-            </button>
-            <button
-              type="button"
-              onClick={() => setTierFilter(3)}
-              style={{
-                flex: 1,
-                padding: '4px 6px',
-                borderRadius: '6px',
-                fontSize: '11px',
-                fontWeight: 700,
-                border: `1px solid ${tierFilter === 3 ? '#10b981' : c.border}`,
-                backgroundColor: tierFilter === 3 ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-                color: tierFilter === 3 ? '#10b981' : c.fgSubtle,
-                cursor: 'pointer',
-              }}
-            >
-              Cấp 3
-            </button>
+            {availableTiers.map((tOpt) => {
+              const isSelected = String(tierFilter) === String(tOpt.num);
+              return (
+                <button
+                  key={tOpt.num}
+                  type="button"
+                  onClick={() => setTierFilter(tOpt.num)}
+                  style={{
+                    flex: '1 0 auto',
+                    minWidth: '45px',
+                    padding: '4px 6px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    border: `1px solid ${isSelected ? tOpt.color : c.border}`,
+                    backgroundColor: isSelected ? `${tOpt.color}25` : 'transparent',
+                    color: isSelected ? tOpt.color : c.fgSubtle,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {tOpt.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -947,26 +999,10 @@ export default function BranchMapView({
             filteredBranches.map((b) => {
               const isSelected = selectedBranchId === b.storeId;
               const isActive = (b.status || '').toUpperCase() === 'ACTIVE';
-              const tier = Number(b.branchTier ?? b.tier ?? 2);
+              const { tierColor, tierBg, tierBorder, tierText } = resolveBranchTierInfo(b);
               const totalKiosks = b.kioskCount ?? b.totalKiosks ?? (b.kiosks?.length || 0);
               const activeKiosks = b.activeKiosks ?? 0;
               const radius = Number(b.geofenceRadiusMeters ?? b.radiusMeters) || 100;
-
-              let tierColor = '#3b82f6';
-              let tierBg = 'rgba(59, 130, 246, 0.15)';
-              let tierBorder = 'rgba(59, 130, 246, 0.35)';
-              let tierText = 'Cấp 2';
-              if (tier === 1) {
-                tierColor = '#f59e0b';
-                tierBg = 'rgba(234, 179, 8, 0.15)';
-                tierBorder = 'rgba(234, 179, 8, 0.4)';
-                tierText = 'Cấp 1';
-              } else if (tier === 3) {
-                tierColor = '#10b981';
-                tierBg = 'rgba(16, 185, 129, 0.15)';
-                tierBorder = 'rgba(16, 185, 129, 0.35)';
-                tierText = 'Cấp 3';
-              }
 
               return (
                 <div
