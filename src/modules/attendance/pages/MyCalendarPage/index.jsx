@@ -8,13 +8,12 @@ import PageHeader from '@/shared/components/ui/PageHeader';
 import Panel from '@/shared/components/ui/Panel';
 import Button from '@/shared/components/ui/Button';
 import Icon from '@/shared/components/ui/Icon';
-import { getNavItemsForRole } from '@/shared/constants/navigation.config';
 import { useMyCalendar } from '../../hooks/useMyCalendar';
 import WeekCalendar from '../../components/WeekCalendar';
 import ShiftSwapModal from '@/modules/schedule/components/ShiftSwapModal';
 
 export default function MyCalendarPage() {
-  const { c, fonts } = useAdminTheme();
+  const { c } = useAdminTheme();
   const navigate = useNavigate();
 
   const storedUser = (() => {
@@ -51,7 +50,6 @@ export default function MyCalendarPage() {
     if (!storedUser?.roleName) roleSubtitle = 'Bảo Vệ Chi nhánh';
   }
 
-  const navItems = getNavItemsForRole(userRole);
 
   const handleSidebarNavigate = (id) => {
     if (id === 'my-calendar') {
@@ -76,13 +74,6 @@ export default function MyCalendarPage() {
   } = useMyCalendar();
 
   const [selectedShiftForSwap, setSelectedShiftForSwap] = useState(null);
-  const [toastMsg, setToastMsg] = useState(null);
-
-  const showToast = (msg) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 5000);
-  };
-
   const formatWeekRange = () => {
     if (!scheduleData?.weekStart || !scheduleData?.weekEnd) return '';
     const [y1, m1, d1] = scheduleData.weekStart.split('-');
@@ -164,25 +155,6 @@ export default function MyCalendarPage() {
           </div>
         </div>
 
-        {toastMsg && (
-          <div
-            style={{
-              padding: '12px 18px',
-              borderRadius: 6,
-              background: 'rgba(34, 197, 94, 0.15)',
-              border: '1px solid rgba(34, 197, 94, 0.4)',
-              color: '#86efac',
-              fontSize: 13,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span>✅ {toastMsg}</span>
-            <span style={{ cursor: 'pointer', fontWeight: 800 }} onClick={() => setToastMsg(null)}>✕</span>
-          </div>
-        )}
-
         {error && (
           <div
             style={{
@@ -220,8 +192,7 @@ export default function MyCalendarPage() {
           isOpen={Boolean(selectedShiftForSwap)}
           onClose={() => setSelectedShiftForSwap(null)}
           shift={selectedShiftForSwap}
-          onSuccess={(msg) => {
-            showToast(msg);
+          onSuccess={() => {
             refetch();
           }}
         />
