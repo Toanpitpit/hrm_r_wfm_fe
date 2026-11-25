@@ -852,7 +852,7 @@ test("review modal calls parent only after a successful backend review", async (
   await f.close();
 });
 
-test("merged weekly schedule keeps three tabs and refreshes the matrix after review", async () => {
+test("weekly schedule keeps two tabs and review remains available from the sidebar", async () => {
   const f = await fixture({
     user: manager,
     scenario: "app",
@@ -860,28 +860,14 @@ test("merged weekly schedule keeps three tabs and refreshes the matrix after rev
   });
   await f.page.getByRole("button", { name: /1\. Phân Bổ Ca Tuần/ }).waitFor();
   await f.page.getByRole("button", { name: /2\. Định Mức Nhu Cầu Ca/ }).click();
-  await f.page.getByRole("button", { name: /3\. Xét Duyệt Đổi Ca/ }).click();
-  await f.page.getByRole("button", { name: /Phê Duyệt Ngay/ }).waitFor();
-  const before = f.state.calls.filter((entry) =>
-    entry.path.endsWith("/weekly-matrix"),
-  ).length;
-  const refreshed = f.page.waitForResponse((response) =>
-    response.url().includes("/weekly-matrix"),
-  );
-  await f.page.getByRole("button", { name: /Phê Duyệt Ngay/ }).click();
-  await refreshed;
-  await f.page
-    .getByText("Không có đơn nào trong mục này", { exact: true })
-    .waitFor();
-  assert.equal(f.state.storeRequests[0].status, "APPROVED");
-  assert.ok(
-    f.state.calls.filter((entry) => entry.path.endsWith("/weekly-matrix"))
-      .length > before,
-  );
-  await f.page
-    .getByRole("button", { name: "Đã Phê Duyệt", exact: true })
-    .click();
-  await f.page.getByText("Đã Phê Duyệt", { exact: true }).last().waitFor();
+  await f.page.getByText("Thiết Lập Định Mức Nhu Cầu Nhân Sự", { exact: true }).waitFor();
+  assert.equal(await f.page.getByRole("button", { name: /3\. Xét Duyệt Đổi Ca/ }).count(), 0);
+  await f.page.getByRole("button", { name: /1\. Phân Bổ Ca Tuần/ }).click();
+  await f.page.getByText("Bảng Phân Bổ & Lập Lịch Làm Việc Tuần", { exact: true }).waitFor();
+  assert.equal(f.state.calls.filter((entry) => /\/swap-requests\//.test(entry.path)).length, 0);
+  await f.page.getByText("Duyệt Đơn Đổi Ca", { exact: true }).click();
+  await f.page.waitForURL("**/employee/shift-requests");
+  await f.page.getByText("Người gửi", { exact: true }).waitFor();
   await f.close();
 });
 
